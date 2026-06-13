@@ -1,0 +1,64 @@
+schemaVersion: 1
+id: mrtk3.pressable-button
+kind: component
+name: PressableButton
+namespace: MixedReality.Toolkit.UX
+package: org.mixedrealitytoolkit.uxcore
+extends: StatefulInteractable
+sourceFile: Button/PressableButton.cs
+purpose: Push-button with press-plane physics, front-push enforcement, and proximity detection.
+useWhen:
+  - Discrete activation gesture (tap, press, click) is the primary input.
+  - Author wants the visual press displacement that ships with MRTK button visuals.
+  - Far-ray, near-poke, gaze, and voice input must all dispatch the same click event.
+dontUseWhen:
+  - The control models a continuous value (use Slider).
+  - The control toggles between two states and you need group-coordinated behaviour (use ToggleCollection).
+  - You need only a tap target without push-plane affordance (a bare StatefulInteractable on a collider is lighter).
+alternatives:
+  - id: mrtk3.stateful-interactable
+    when: A non-press-plane interaction surface is enough — bare interactable plus collider.
+  - id: mrtk3.toggle-collection
+    when: Mutually exclusive options where exactly one is selected at a time.
+  - id: mrtk3.slider
+    when: The value space is continuous, not binary.
+canvasVariants:
+  canvas:
+    package: org.mixedrealitytoolkit.uxcomponents
+    path: Button/Prefabs/Empty Button.prefab
+  nonCanvas:
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Button/32x32/PressableButton_32x32mm_IconAndText.prefab
+requiredCompanions:
+  - BoxCollider
+  - AudioSource
+events:
+  - name: OnClicked
+    definedOn: StatefulInteractable
+  - name: OnEnabled
+    definedOn: StatefulInteractable
+  - name: OnDisabled
+    definedOn: StatefulInteractable
+authoringPattern: |
+  1. Instantiate one of the prefab variants (Empty Button for Canvas, a size-variant
+     PressableButton_*x*mm_* for Non-Canvas) — do not author from raw GameObject + components.
+  2. Wire callbacks against StatefulInteractable.OnClicked, never PressableButton.OnClicked
+     (the field lives on the base type and that's where the listener attaches).
+  3. Edit StartPushPlane / EndPushPlane in local-space units — defaults assume Local DistanceSpaceMode.
+  4. For voice activation, leave AllowSelectByVoice = true and provide SpeechRecognitionKeyword on
+     the base StatefulInteractable.
+  5. Listener attach must happen at runtime via OnEnable (UnityEvent fields don't serialize through MCP).
+referenceUsage:
+  - "MRTK's authors expose buttons in CanvasUITearsheet and NonCanvasUITearSheet on a flat layout grid; each tile is a single prefab variant chosen for size and label combo."
+  - "Click handlers in the dev template are wired against StatefulInteractable's OnClicked from inspector — PressableButton itself surfaces no extra events."
+  - "InteractableButtonExamples uses the 32x32 IconAndText variant as the canonical single-button demo, with the front-push flag left at its default."
+  - "HandInteractionExamples nests buttons under a HandMenuBase to demonstrate a full hand-attached tile menu."
+knownPitfalls:
+  - OnClicked lives on StatefulInteractable, not PressableButton — wiring against PressableButton finds no event.
+  - World-space Canvas buttons need RectTransform scale 0.001 to read at hand-scale; agents frequently forget.
+  - EnforceFrontPush rejects taps from behind/sides — disabling it is sometimes needed for floating panels.
+relatedRules:
+  - mrtk3.stateful-interactable
+  - mrtk3.canvas-vs-noncanvas-decision
+  - mrtk3.theming-pattern
+  - mrtk3.audio-feedback-pattern

@@ -1,0 +1,50 @@
+schemaVersion: 1
+id: mrtk3.toggle-collection
+kind: component
+name: ToggleCollection
+namespace: MixedReality.Toolkit.UX
+package: org.mixedrealitytoolkit.uxcore
+extends: MonoBehaviour
+sourceFile: Toggle/ToggleCollection.cs
+purpose: Coordinates a list of StatefulInteractable toggles so exactly one (or one-of-many with switch-off) is selected at a time.
+useWhen:
+  - You need radio-button semantics — exactly one option selected.
+  - You need a multi-toggle group where any can be on/off but selection events bubble up centrally.
+  - You want to drive the selection state programmatically by index (CurrentIndex / SetSelection).
+dontUseWhen:
+  - You need a single binary toggle (use a StatefulInteractable with ToggleMode = Toggle).
+  - You need a continuous selection (use Slider).
+alternatives:
+  - id: mrtk3.stateful-interactable
+    when: Single toggle, no group coordination.
+  - id: mrtk3.pressable-button
+    when: Discrete activation without a latching state.
+canvasVariants:
+  nonCanvas:
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Toggles/ToggleCollection.prefab
+requiredCompanions: []
+events:
+  - name: OnToggleSelected
+    definedOn: ToggleCollection
+authoringPattern: |
+  1. Drop the ToggleCollection prefab (Non-Canvas) or author a parent GameObject with the
+     ToggleCollection component plus N child StatefulInteractables.
+  2. Assign Toggles list explicitly OR leave empty and let the collection auto-pick direct
+     StatefulInteractable children.
+  3. AllowSwitchOff = false produces radio-button behaviour (OneWayToggle); true allows un-selection
+     (Toggle).
+  4. Wire OnToggleSelected(int index) for the central selection event; per-toggle OnClicked still
+     fires on individual children.
+  5. Drive selection programmatically via SetSelection(index) or CurrentIndex setter.
+referenceUsage:
+  - "ToggleCollectionExample wires a row of TogglePressableButton variants under a ToggleCollection and pipes OnToggleSelected to a status label."
+  - "AllowSwitchOff toggles the underlying ToggleMode on every member — flipping it at runtime reconfigures all children."
+  - "Authors rely on the auto-find of direct StatefulInteractable children when keeping the inspector list empty."
+knownPitfalls:
+  - Members with ToggleMode = Button are silently ignored — the loop in OnSelectionChanged filters them out.
+  - Adding/removing toggles at runtime requires reassigning the Toggles list to refresh the listener wiring.
+  - CurrentIndex out of range clamps silently inside the setter chain — don't rely on bounds errors.
+relatedRules:
+  - mrtk3.stateful-interactable
+  - mrtk3.pressable-button

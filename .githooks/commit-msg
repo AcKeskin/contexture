@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Rejects AI co-authorship / generated-by attribution in commit messages.
+# Enforces the standing rule: no machine co-author trailers, generated-with
+# promo lines, or robot-emoji attribution in commits, ever. Repo-scoped via
+# core.hooksPath=.githooks so it propagates by clone (alongside the bootstrap
+# drift hooks already in this dir).
+#
+# Bypass (discouraged): git commit --no-verify
+
+set -euo pipefail
+
+msg_file="$1"
+
+patterns=(
+	'co-authored-by:.*(claude|anthropic|noreply@anthropic\.com)'
+	'generated with \[?claude'
+	'🤖'
+)
+
+violation=""
+for p in "${patterns[@]}"; do
+	if grep -qiE "$p" "$msg_file"; then
+		violation="$p"
+		break
+	fi
+done
+
+if [ -n "$violation" ]; then
+	echo "commit-msg hook: AI attribution detected in commit message." >&2
+	echo "" >&2
+	echo "Matched pattern: $violation" >&2
+	echo "Offending line(s):" >&2
+	grep -inE 'co-authored-by:.*(claude|anthropic|noreply@anthropic\.com)|generated with \[?claude|🤖' "$msg_file" >&2 || true
+	echo "" >&2
+	echo "Remove the attribution line(s) and commit again." >&2
+	echo "(Bypass with --no-verify only if you are certain this is a false positive.)" >&2
+	exit 1
+fi
+
+exit 0

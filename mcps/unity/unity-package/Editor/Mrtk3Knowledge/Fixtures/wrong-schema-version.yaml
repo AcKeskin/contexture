@@ -1,0 +1,9 @@
+schemaVersion: 999
+id: mrtk3.fixture-wrong-schema
+kind: component
+name: WrongSchemaFixture
+namespace: MixedReality.Toolkit.UX
+package: org.mixedrealitytoolkit.uxcore
+sourceFile: Button/PressableButton.cs
+purpose: Fixture with bogus schemaVersion — validator should flag it.
+relatedRules: []

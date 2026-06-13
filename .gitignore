@@ -1,0 +1,44 @@
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary
+*.tmp
+*.bak
+*~
+
+# Git worktrees (isolated workspaces; never tracked)
+.worktrees/
+
+# Node
+node_modules/
+
+# MCP server build artifacts
+mcps/*/build/
+mcps/*/build-test/
+mcps/*/.venv/
+mcps/*/__pycache__/
+
+# Unity MCP smoke tmp
+mcps/unity/.smoke-tmp/
+mcps/unity/server/.smoke-out/
+
+# Implementation scratch (one-pagers per implementation-plan.md)
+docs/_implementing/
+
+# Per-machine settings override (template lives at settings/settings.template.json)
+settings/settings.local.json
+
+# Per-machine .claude/ working tree — codemap, specs, plans, reviews, and the
+# bootstrap-generated skills mirror. All regenerated locally; never shipped.
+# Self-contained here (do not rely on a global gitignore) so a peer's fresh
+# clone stays clean after running bootstrap. The committed skills source is
+# repo-root skills/; .claude/skills/ is its generated cross-tool discovery copy.
+.claude/

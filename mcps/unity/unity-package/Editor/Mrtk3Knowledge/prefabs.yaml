@@ -1,0 +1,279 @@
+schemaVersion: 1
+kind: prefab-catalog
+prefabs:
+  # ---- Non-Canvas buttons (size variants) -------------------------------------
+  - name: PressableButton_32x32mm_IconAndText
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Button/32x32/PressableButton_32x32mm_IconAndText.prefab
+    category: button
+    canvas: noncanvas
+    sizeMm: [32, 32]
+  - name: PressableButton_32x32mm_IconAndTextUnder
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Button/32x32/PressableButton_32x32mm_IconAndTextUnder.prefab
+    category: button
+    canvas: noncanvas
+    sizeMm: [32, 32]
+  - name: PressableButton_32x32mm_IconOnly
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Button/32x32/PressableButton_32x32mm_IconOnly.prefab
+    category: button
+    canvas: noncanvas
+    sizeMm: [32, 32]
+  - name: PressableButton_32x32mm_Circular_IconOnly
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Button/32x32/PressableButton_32x32mm_Circular_IconOnly.prefab
+    category: button
+    canvas: noncanvas
+    sizeMm: [32, 32]
+  - name: PressableButton_80x32mm_IconAndText
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Button/80x32/PressableButton_80x32mm_IconAndText.prefab
+    category: button
+    canvas: noncanvas
+    sizeMm: [80, 32]
+  - name: PressableButton_80x32mm_IconOnly
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Button/80x32/PressableButton_80x32mm_IconOnly.prefab
+    category: button
+    canvas: noncanvas
+    sizeMm: [80, 32]
+  - name: PressableButton_80x32mm_SingleLineText
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Button/80x32/PressableButton_80x32mm_SingleLineText.prefab
+    category: button
+    canvas: noncanvas
+    sizeMm: [80, 32]
+  - name: PressableButton_128x32mm_IconAndText_L
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Button/128x32/PressableButton_128x32mm_IconAndText_L.prefab
+    category: button
+    canvas: noncanvas
+    sizeMm: [128, 32]
+  - name: PressableButton_128x32mm_IconAndText_R
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Button/128x32/PressableButton_128x32mm_IconAndText_R.prefab
+    category: button
+    canvas: noncanvas
+    sizeMm: [128, 32]
+  - name: PressableButton_128x32mm_TextOnly
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Button/128x32/PressableButton_128x32mm_TextOnly.prefab
+    category: button
+    canvas: noncanvas
+    sizeMm: [128, 32]
+  - name: PressableButton_160x32mm_IconAndText_L
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Button/160x32/PressableButton_160x32mm_IconAndText_L.prefab
+    category: button
+    canvas: noncanvas
+    sizeMm: [160, 32]
+  - name: PressableButton_160x32mm_SingleLineText
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Button/160x32/PressableButton_160x32mm_SingleLineText.prefab
+    category: button
+    canvas: noncanvas
+    sizeMm: [160, 32]
+
+  # ---- Canvas buttons --------------------------------------------------------
+  - name: Empty Button
+    package: org.mixedrealitytoolkit.uxcomponents
+    path: Button/Prefabs/Empty Button.prefab
+    category: button
+    canvas: canvas
+  - name: Action Button
+    package: org.mixedrealitytoolkit.uxcomponents
+    path: Button/Prefabs/Action Button.prefab
+    category: button
+    canvas: canvas
+  - name: Action Button Checkbox
+    package: org.mixedrealitytoolkit.uxcomponents
+    path: Button/Prefabs/Action Button Checkbox.prefab
+    category: button
+    canvas: canvas
+  - name: CanvasButtonToggleSwitch
+    package: org.mixedrealitytoolkit.uxcomponents
+    path: Button/Prefabs/CanvasButtonToggleSwitch.prefab
+    category: button
+    canvas: canvas
+
+  # ---- Sliders ---------------------------------------------------------------
+  - name: CanvasSlider
+    package: org.mixedrealitytoolkit.uxcomponents
+    path: Slider/CanvasSlider.prefab
+    category: slider
+    canvas: canvas
+  - name: NonCanvasSliderBase
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Slider/NonCanvasSliderBase.prefab
+    category: slider
+    canvas: noncanvas
+  - name: Slider_168x40mm_Base
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Slider/Slider_168x40mm_Base.prefab
+    category: slider
+    canvas: noncanvas
+    sizeMm: [168, 40]
+    variantOf: NonCanvasSliderBase
+  - name: Slider_168x40mm_IconAndValue
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Slider/Slider_168x40mm_IconAndValue.prefab
+    category: slider
+    canvas: noncanvas
+    sizeMm: [168, 40]
+    variantOf: Slider_168x40mm_Base
+
+  # ---- Dialogs ---------------------------------------------------------------
+  - name: CanvasDialog
+    package: org.mixedrealitytoolkit.uxcomponents
+    path: Dialog/CanvasDialog.prefab
+    category: dialog
+    canvas: canvas
+  - name: Dialog_168x88mm
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Dialog/Dialog_168x88mm.prefab
+    category: dialog
+    canvas: noncanvas
+    sizeMm: [168, 88]
+  - name: Dialog_168x108mm
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Dialog/Dialog_168x108mm.prefab
+    category: dialog
+    canvas: noncanvas
+    sizeMm: [168, 108]
+  - name: Dialog_168x140mm
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Dialog/Dialog_168x140mm.prefab
+    category: dialog
+    canvas: noncanvas
+    sizeMm: [168, 140]
+
+  # ---- Hand menus ------------------------------------------------------------
+  - name: HandMenuBase
+    package: org.mixedrealitytoolkit.uxcomponents
+    path: HandMenu/HandMenuBase.prefab
+    category: handmenu
+    canvas: canvas
+  - name: HandMenu
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: HandMenu/HandMenu.prefab
+    category: handmenu
+    canvas: noncanvas
+
+  # ---- Near menu / button bar (Canvas) ---------------------------------------
+  - name: NearMenuBase
+    package: org.mixedrealitytoolkit.uxcomponents
+    path: NearMenu/NearMenuBase.prefab
+    category: panel
+    canvas: canvas
+  - name: CanvasButtonBar
+    package: org.mixedrealitytoolkit.uxcomponents
+    path: ButtonBar/CanvasButtonBar.prefab
+    category: panel
+    canvas: canvas
+  - name: CanvasButtonBar_SharedBackplate
+    package: org.mixedrealitytoolkit.uxcomponents
+    path: ButtonBar/CanvasButtonBar_SharedBackplate.prefab
+    category: panel
+    canvas: canvas
+  - name: CanvasButtonBar_Toggles
+    package: org.mixedrealitytoolkit.uxcomponents
+    path: ButtonBar/CanvasButtonBar_Toggles.prefab
+    category: panel
+    canvas: canvas
+
+  # ---- Toggles ---------------------------------------------------------------
+  - name: ToggleCollection
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Toggles/ToggleCollection.prefab
+    category: toggle
+    canvas: noncanvas
+  - name: ToggleableSwitch
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Toggles/ToggleableSwitch.prefab
+    category: toggle
+    canvas: noncanvas
+  - name: ToggleableSquareIcon
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Toggles/ToggleableSquareIcon.prefab
+    category: toggle
+    canvas: noncanvas
+  - name: ToggleableRadioIcon
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Toggles/ToggleableRadioIcon.prefab
+    category: toggle
+    canvas: noncanvas
+  - name: TogglePressableButton_32x32mm_Switch
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Toggles/32x32/TogglePressableButton_32x32mm_Switch.prefab
+    category: toggle
+    canvas: noncanvas
+    sizeMm: [32, 32]
+  - name: TogglePressableButton_32x32mm_Radio
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Toggles/32x32/TogglePressableButton_32x32mm_Radio.prefab
+    category: toggle
+    canvas: noncanvas
+    sizeMm: [32, 32]
+  - name: TogglePressableButton_128x32mm_Switch_L
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Toggles/128x32/TogglePressableButton_128x32mm_Switch_L.prefab
+    category: toggle
+    canvas: noncanvas
+    sizeMm: [128, 32]
+  - name: Checkbox
+    package: org.mixedrealitytoolkit.uxcomponents
+    path: ToggleIndicators/Checkbox.prefab
+    category: toggle
+    canvas: canvas
+  - name: ToggleSwitch
+    package: org.mixedrealitytoolkit.uxcomponents
+    path: ToggleIndicators/ToggleSwitch.prefab
+    category: toggle
+    canvas: canvas
+
+  # ---- Panels / slates / object bars (Non-Canvas) ----------------------------
+  - name: Slate
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Slates/Slate.prefab
+    category: panel
+    canvas: noncanvas
+  - name: TitleBar
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Slates/TitleBar.prefab
+    category: panel
+    canvas: noncanvas
+  - name: UIBackplate
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Slates/UIBackplate.prefab
+    category: panel
+    canvas: noncanvas
+  - name: HorizontalAppBar
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: ObjectBar/HorizontalAppBar.prefab
+    category: panel
+    canvas: noncanvas
+  - name: VerticalAppBar
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: ObjectBar/VerticalAppBar.prefab
+    category: panel
+    canvas: noncanvas
+  - name: ListMenuBase_168x168mm
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: ListMenu/ListMenuBase_168x168mm.prefab
+    category: panel
+    canvas: noncanvas
+    sizeMm: [168, 168]
+  - name: ListMenu_168x168mm_IconAndText
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: ListMenu/ListMenu_168x168mm_IconAndText.prefab
+    category: panel
+    canvas: noncanvas
+    sizeMm: [168, 168]
+    variantOf: ListMenuBase_168x168mm
+  - name: ButtonGroup_32x32mm_H3
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: ButtonGroup/ButtonGroup_32x32mm_H3.prefab
+    category: panel
+    canvas: noncanvas
+    sizeMm: [32, 32]

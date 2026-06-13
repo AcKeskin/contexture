@@ -1,0 +1,52 @@
+schemaVersion: 1
+id: mrtk3.hand-menu
+kind: component
+name: HandConstraintPalmUp
+namespace: MixedReality.Toolkit.SpatialManipulation
+package: org.mixedrealitytoolkit.spatialmanipulation
+extends: HandConstraint
+sourceFile: Solvers/HandConstraintPalmUp.cs
+purpose: Solver that pins a UI panel above an articulated palm and only activates it when the palm faces the user's gaze.
+useWhen:
+  - You want a hand-attached menu that appears when the user inspects their palm.
+  - The menu should follow hand pose but optionally settle facing the camera once aligned (FollowHandUntilFacingCamera).
+  - Only articulated hands need to drive activation — controllers fall back to the base HandConstraint behaviour.
+dontUseWhen:
+  - The menu must appear regardless of palm orientation (use a plain HandConstraint or a Follow solver instead).
+  - The UI follows the user's gaze rather than a hand (use Follow + a head-tracked target).
+alternatives:
+  - id: mrtk3.follow-solver
+    when: A persistent panel that follows head/gaze without hand-pinning.
+  - id: mrtk3.solver-handler
+    when: You need to swap in a different solver behind the same handler infrastructure.
+canvasVariants:
+  canvas:
+    package: org.mixedrealitytoolkit.uxcomponents
+    path: HandMenu/HandMenuBase.prefab
+  nonCanvas:
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: HandMenu/HandMenu.prefab
+requiredCompanions:
+  - SolverHandler
+events: []
+authoringPattern: |
+  1. Drop the HandMenuBase (Canvas) or HandMenu (Non-Canvas) prefab — both come pre-wired
+     with SolverHandler + HandConstraintPalmUp.
+  2. On SolverHandler, set TrackedTargetType = HandJoint and pick TrackedHandedness (typically Both).
+  3. Adjust FacingCameraTrackingThreshold (default 80°) to widen / narrow the activation cone.
+  4. RequireFlatHand + FlatHandThreshold gate activation on a straightened hand pose — disable for
+     curl-tolerant menus.
+  5. FollowHandUntilFacingCamera pins the menu to the hand until alignment, then locks to camera-facing
+     for readability.
+referenceUsage:
+  - "HandMenuExamples demonstrates the canonical configuration: HandConstraintPalmUp + SolverHandler with TrackedTargetType=HandJoint, parenting a small button grid as the menu body."
+  - "MRTK's authors stack one or two PressableButtons and a backplate inside the prefab — the menu IS the prefab content, not a separate spawn."
+  - "Both Canvas and Non-Canvas variants ship; the dev template uses the Canvas one when world-space UI is preferred for layout, the Non-Canvas one for primitive geometry."
+knownPitfalls:
+  - SolverHandler.TrackedTargetType left at Head (the default) silently disables hand-based activation.
+  - Articulated-hand activation only fires when MRTK_INPUT_PRESENT is defined; controller-only setups fall back to base HandConstraint.
+  - FollowHandUntilFacingCamera with too-tight followHandCameraFacingThresholdAngle never settles and the menu drifts with hand jitter.
+relatedRules:
+  - mrtk3.solver-handler
+  - mrtk3.follow-solver
+  - mrtk3.canvas-vs-noncanvas-decision

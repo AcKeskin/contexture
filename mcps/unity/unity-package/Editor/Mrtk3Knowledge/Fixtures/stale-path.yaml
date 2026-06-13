@@ -1,0 +1,9 @@
+schemaVersion: 1
+id: mrtk3.fixture-stale-path
+kind: component
+name: StalePathFixture
+namespace: MixedReality.Toolkit.UX
+package: org.mixedrealitytoolkit.uxcore
+sourceFile: Runtime/Bogus/DoesNotExist.cs
+purpose: Fixture whose sourceFile points at a path that does not exist inside the installed uxcore package. Expect 1 PathMissing error in any profile that has uxcore installed (which is all 3 profiles).
+relatedRules: []

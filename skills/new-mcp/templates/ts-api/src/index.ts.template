@@ -1,0 +1,30 @@
+#!/usr/bin/env node
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { z } from "zod";
+import { createApiFetcher } from "../../lib/src/fetch.js";
+import { formatMcpError } from "../../lib/src/errors.js";
+
+const api = createApiFetcher({
+  baseUrl: "__BASE_URL__",
+  auth: { type: "__AUTH_TYPE__", envVar: "__AUTH_ENV_VAR__" },
+  rateLimit: __RATE_LIMIT__,
+});
+
+const server = new McpServer({
+  name: "__NAME__",
+  version: "0.1.0",
+});
+
+__TOOL_REGISTRATIONS__
+
+async function main() {
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  console.error("__NAME__ MCP server running on stdio");
+}
+
+main().catch((err) => {
+  console.error("Fatal:", err);
+  process.exit(1);
+});

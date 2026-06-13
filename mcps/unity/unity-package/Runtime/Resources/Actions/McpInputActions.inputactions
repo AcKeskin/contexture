@@ -1,0 +1,186 @@
+{
+    "name": "McpInputActions",
+    "maps": [
+        {
+            "name": "Default",
+            "id": "6c5e3d11-7a2b-4f9e-9c84-c41a1e6d8a31",
+            "actions": [
+                {
+                    "name": "LeftTrigger",
+                    "type": "Button",
+                    "id": "a1f1b001-0001-4001-9001-000000000001",
+                    "expectedControlType": "Axis",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "LeftGrip",
+                    "type": "Button",
+                    "id": "a1f1b002-0002-4002-9002-000000000002",
+                    "expectedControlType": "Axis",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "LeftTrack",
+                    "type": "Button",
+                    "id": "a1f1b003-0003-4003-9003-000000000003",
+                    "expectedControlType": "Axis",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "LeftToggle",
+                    "type": "Button",
+                    "id": "a1f1b004-0004-4004-9004-000000000004",
+                    "expectedControlType": "Axis",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "RightTrigger",
+                    "type": "Button",
+                    "id": "a1f1b005-0005-4005-9005-000000000005",
+                    "expectedControlType": "Axis",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "RightGrip",
+                    "type": "Button",
+                    "id": "a1f1b006-0006-4006-9006-000000000006",
+                    "expectedControlType": "Axis",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "RightTrack",
+                    "type": "Button",
+                    "id": "a1f1b007-0007-4007-9007-000000000007",
+                    "expectedControlType": "Axis",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "RightToggle",
+                    "type": "Button",
+                    "id": "a1f1b008-0008-4008-9008-000000000008",
+                    "expectedControlType": "Axis",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "b2c1d001-0001-4001-9001-000000000001",
+                    "path": "<McpVirtualButtons>/leftTrigger",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "McpVirtual",
+                    "action": "LeftTrigger",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "b2c1d002-0002-4002-9002-000000000002",
+                    "path": "<McpVirtualButtons>/leftGrip",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "McpVirtual",
+                    "action": "LeftGrip",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "b2c1d003-0003-4003-9003-000000000003",
+                    "path": "<McpVirtualButtons>/leftTrigger",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "McpVirtual",
+                    "action": "LeftTrack",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "b2c1d004-0004-4004-9004-000000000004",
+                    "path": "<McpVirtualButtons>/leftGrip",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "McpVirtual",
+                    "action": "LeftToggle",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "b2c1d005-0005-4005-9005-000000000005",
+                    "path": "<McpVirtualButtons>/rightTrigger",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "McpVirtual",
+                    "action": "RightTrigger",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "b2c1d006-0006-4006-9006-000000000006",
+                    "path": "<McpVirtualButtons>/rightGrip",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "McpVirtual",
+                    "action": "RightGrip",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "b2c1d007-0007-4007-9007-000000000007",
+                    "path": "<McpVirtualButtons>/rightTrigger",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "McpVirtual",
+                    "action": "RightTrack",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "b2c1d008-0008-4008-9008-000000000008",
+                    "path": "<McpVirtualButtons>/rightGrip",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "McpVirtual",
+                    "action": "RightToggle",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
+        }
+    ],
+    "controlSchemes": [
+        {
+            "name": "McpVirtual",
+            "bindingGroup": "McpVirtual",
+            "devices": [
+                {
+                    "devicePath": "<McpVirtualButtons>",
+                    "isOptional": false,
+                    "isOR": false
+                }
+            ]
+        }
+    ]
+}

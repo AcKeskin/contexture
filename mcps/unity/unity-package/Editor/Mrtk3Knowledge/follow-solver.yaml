@@ -1,0 +1,42 @@
+schemaVersion: 1
+id: mrtk3.follow-solver
+kind: component
+name: Follow
+namespace: MixedReality.Toolkit.SpatialManipulation
+package: org.mixedrealitytoolkit.spatialmanipulation
+extends: Solver
+sourceFile: Solvers/Follow.cs
+purpose: Positions an element in front of a tracked target with optional loose (tag-along) constraints in distance and direction.
+useWhen:
+  - You need a panel that follows the head / hand without rigidly locking — moves only when the user looks far enough away.
+  - You want orientation control (FaceTrackedObject vs face-a-custom-transform vs world-locked) with axis filters.
+  - You need a tag-along menu that respects deadzones in distance and angle.
+dontUseWhen:
+  - The element should be hand-pinned with palm-up gating (use HandConstraintPalmUp).
+  - The element is direct-manipulation grabbable (use ObjectManipulator).
+alternatives:
+  - id: mrtk3.hand-menu
+    when: Hand-attached menu with palm-up activation.
+  - id: mrtk3.solver-handler
+    when: You need a different Solver subclass behind the same handler infrastructure.
+requiredCompanions:
+  - SolverHandler
+events: []
+authoringPattern: |
+  1. Add SolverHandler with TrackedTargetType = Head (or whatever target the panel follows).
+  2. Add Follow (Solver subclass) — the SolverHandler reads tracking, Follow consumes its target.
+  3. Set OrientationType (FaceTrackedObject is the most common for readable panels).
+  4. Configure distance / angle deadzones (MinDistance, MaxDistance, MaxViewHorizontalDegrees,
+     MaxViewVerticalDegrees) to define the tag-along envelope.
+  5. PivotAxis flags (X/Y/Z) restrict rotation axes — typical menus lock pitch/roll and let yaw track.
+referenceUsage:
+  - "SolverExamples ships a Follow-equipped panel that demonstrates the deadzone behaviour — moving the head a small amount keeps the panel still."
+  - "DirectionalIndicatorExample uses Follow with tight thresholds to keep an arrow continually facing the user."
+  - "Authors typically combine FaceTrackedObject orientation with PivotAxis = YAxis only, so the panel yaws but stays upright."
+knownPitfalls:
+  - Tight MaxViewHorizontalDegrees with a wide MinDistance produces visible jitter as the panel constantly snaps back.
+  - faceUserDefinedTargetTransform without TargetToFace assigned silently falls back to OrientationType.
+  - Follow ignores roll on PivotAxis even when ZAxis is enabled if FaceTrackedObjectWhileClamped resets it; check both flags.
+relatedRules:
+  - mrtk3.solver-handler
+  - mrtk3.hand-menu

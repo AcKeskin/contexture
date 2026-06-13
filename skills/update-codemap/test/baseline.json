@@ -1,0 +1,65 @@
+{
+  "typescript": {
+    "class": true,
+    "relation": true,
+    "field": true,
+    "edge": true,
+    "mermaid": true
+  },
+  "csharp": {
+    "class": true,
+    "relation": true,
+    "field": true,
+    "edge": true,
+    "mermaid": true
+  },
+  "cpp": {
+    "class": true,
+    "relation": true,
+    "field": true,
+    "edge": true,
+    "mermaid": true
+  },
+  "python": {
+    "class": true,
+    "relation": true,
+    "field": true,
+    "edge": true,
+    "mermaid": true
+  },
+  "java": {
+    "class": true,
+    "relation": true,
+    "field": true,
+    "edge": true,
+    "mermaid": true
+  },
+  "kotlin": {
+    "class": true,
+    "relation": true,
+    "field": true,
+    "edge": true,
+    "mermaid": true
+  },
+  "swift": {
+    "class": true,
+    "relation": true,
+    "field": true,
+    "edge": "na",
+    "mermaid": true
+  },
+  "rust": {
+    "class": true,
+    "relation": true,
+    "field": true,
+    "edge": true,
+    "mermaid": true
+  },
+  "go": {
+    "class": true,
+    "relation": true,
+    "field": true,
+    "edge": true,
+    "mermaid": true
+  }
+}

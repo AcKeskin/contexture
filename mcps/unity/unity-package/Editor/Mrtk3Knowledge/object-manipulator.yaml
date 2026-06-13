@@ -1,0 +1,47 @@
+schemaVersion: 1
+id: mrtk3.object-manipulator
+kind: component
+name: ObjectManipulator
+namespace: MixedReality.Toolkit.SpatialManipulation
+package: org.mixedrealitytoolkit.spatialmanipulation
+extends: StatefulInteractable
+sourceFile: ObjectManipulator/ObjectManipulator.cs
+purpose: Drop-in XR grab/move/rotate/scale that supports multi-handed interaction and rigidbody throwing/catching.
+useWhen:
+  - The object should be grabbable with one or two hands (near-grab or far-ray).
+  - You need flexible release behaviour (KeepVelocity, KeepAngularVelocity flags).
+  - You want a replacement for XRGrabInteractable that integrates with MRTK's interactor stack.
+dontUseWhen:
+  - You need handle-based bounded resize/rotate (use BoundsControl, optionally on top of ObjectManipulator).
+  - You need precise high-velocity throwing with controller velocity tracking — XRGrabInteractable still wins there.
+alternatives:
+  - id: mrtk3.bounds-control
+    when: Resize / rotate via discrete handles around an enclosing bounds box.
+  - id: mrtk3.constraint-manager
+    when: You need to shape the manipulation with movement / scale / rotation constraints.
+requiredCompanions:
+  - Collider
+  - ConstraintManager
+events:
+  - name: firstSelectEntered
+    definedOn: XRBaseInteractable
+  - name: lastSelectExited
+    definedOn: XRBaseInteractable
+authoringPattern: |
+  1. Add a Collider sized to the grabbable region (BoxCollider for boxy props).
+  2. Add ObjectManipulator — Unity auto-attaches the [RequireComponent] ConstraintManager.
+  3. Optionally add Rigidbody for physics-based throwing; set ReleaseBehavior flags on the manipulator.
+  4. Add MoveAxisConstraint / RotationAxisConstraint / etc. as siblings of ConstraintManager to lock axes.
+  5. To layer handle-based resize, add a BoundsControl on the same GameObject — it composes, doesn't replace.
+referenceUsage:
+  - "BoundsControlExamples wires ObjectManipulator and BoundsControl on the same prop; the manipulator handles body-grab, BoundsControl handles handle drags."
+  - "HandInteractionExamples uses ObjectManipulator alone on the small cubes/spheres for free-form grab without handles."
+  - "Rigidbody-enabled props in the same scene set KeepVelocity to demonstrate the throw-and-catch behaviour."
+knownPitfalls:
+  - Removing the auto-added ConstraintManager breaks all axis-locked constraints silently.
+  - Two ObjectManipulators on nested colliders fight for the grab — keep one per grabbable hierarchy.
+  - Rigidbody objects without KeepVelocity stop dead on release; this often surprises authors expecting throwing.
+relatedRules:
+  - mrtk3.bounds-control
+  - mrtk3.constraint-manager
+  - mrtk3.stateful-interactable

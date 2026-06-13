@@ -1,0 +1,44 @@
+schemaVersion: 1
+id: mrtk3.constraint-manager
+kind: component
+name: ConstraintManager
+namespace: MixedReality.Toolkit.SpatialManipulation
+package: org.mixedrealitytoolkit.spatialmanipulation
+extends: MonoBehaviour
+sourceFile: Constraints/ConstraintManager.cs
+purpose: Aggregates TransformConstraint components on a GameObject and applies them in order during ObjectManipulator / BoundsControl manipulations.
+useWhen:
+  - You need axis-locked movement (MoveAxisConstraint), fixed rotation axes (RotationAxisConstraint), or clamped scale (MinMaxScaleConstraint).
+  - You're authoring a manipulator and want the constraint stack applied automatically.
+  - You want to swap between auto-discovery and explicit selection of which constraints fire.
+dontUseWhen:
+  - You don't use ObjectManipulator or BoundsControl — constraints are read by those components, not by raw transforms.
+alternatives:
+  - id: mrtk3.solver-handler
+    when: You want the object to follow a tracked target rather than be constrained during direct manipulation.
+requiredCompanions:
+  - ObjectManipulator OR BoundsControl
+  - One or more TransformConstraint subclasses
+events: []
+authoringPattern: |
+  1. ObjectManipulator and BoundsControl auto-attach ConstraintManager via [RequireComponent] —
+     don't add it manually unless authoring a custom manipulator.
+  2. Add TransformConstraint subclasses (MoveAxisConstraint, RotationAxisConstraint,
+     MinMaxScaleConstraint, FixedDistanceConstraint, etc.) as siblings.
+  3. Leave AutoConstraintSelection = true to pick up every TransformConstraint on the object;
+     toggle off and populate SelectedConstraints to limit the set.
+  4. Use AddConstraintToManualSelection / RemoveConstraintFromManualSelection at runtime to mutate
+     the manual list — direct list edits won't dedupe.
+  5. Constraint execution order is determined by ConstraintExecOrderComparer; override on the
+     constraint subclass if you need a specific priority.
+referenceUsage:
+  - "BoundsControlExamples adds MinMaxScaleConstraint alongside BoundsControl to clamp resize handles to a sane range."
+  - "ObjectManipulator demos use MoveAxisConstraint to lock movement to a single axis (table-bound props)."
+  - "Authors leave AutoConstraintSelection on as the default — manual selection is rare and only needed when one constraint must be temporarily ignored."
+knownPitfalls:
+  - Removing the auto-attached ConstraintManager from an ObjectManipulator-equipped object silently disables every constraint.
+  - Constraints attached to children of the manipulator are not picked up — they must be siblings of the ConstraintManager.
+  - The source comment notes the constraint system may be reworked; keep custom constraint subclasses minimal.
+relatedRules:
+  - mrtk3.object-manipulator
+  - mrtk3.bounds-control

@@ -1,0 +1,36 @@
+schemaVersion: 1
+id: mrtk3.fixture-pressable-button
+kind: component
+name: PressableButton
+namespace: MixedReality.Toolkit.UX
+package: org.mixedrealitytoolkit.uxcore
+extends: StatefulInteractable
+sourceFile: Button/PressableButton.cs
+purpose: Push-button with press-plane physics and proximity detection.
+useWhen:
+  - Discrete activation gesture is the primary input.
+  - User benefits from haptic-style press feedback.
+dontUseWhen:
+  - The control models a continuous value (use Slider instead).
+canvasVariants:
+  canvas:
+    package: org.mixedrealitytoolkit.uxcomponents
+    path: Button/Prefabs/Empty Button.prefab
+  nonCanvas:
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Button/32x32/PressableButton_32x32mm_IconAndText.prefab
+requiredCompanions:
+  - BoxCollider
+  - AudioSource
+events:
+  - name: OnClicked
+    definedOn: StatefulInteractable
+authoringPattern: |
+  Drop a PressableButton prefab and wire OnClicked from the StatefulInteractable
+  component (not from PressableButton itself).
+referenceUsage:
+  - "MRTK's authors wired OnClicked from the StatefulInteractable component, not from PressableButton itself."
+  - "Default test rigs leave Selectedness > 0 to indicate the button is pressed in the inspector preview."
+knownPitfalls:
+  - OnClicked lives on StatefulInteractable, not PressableButton.
+relatedRules: []

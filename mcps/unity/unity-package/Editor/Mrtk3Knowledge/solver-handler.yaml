@@ -1,0 +1,39 @@
+schemaVersion: 1
+id: mrtk3.solver-handler
+kind: component
+name: SolverHandler
+namespace: MixedReality.Toolkit.SpatialManipulation
+package: org.mixedrealitytoolkit.spatialmanipulation
+extends: MonoBehaviour
+sourceFile: Solvers/SolverHandler.cs
+purpose: Owns the tracked target reference (head, hand joint, custom transform, interactor) that every Solver on the same GameObject reads from.
+useWhen:
+  - You're attaching any Solver subclass (Follow, HandConstraintPalmUp, RadialView, etc.) — every solver requires a SolverHandler sibling.
+  - You need to swap tracked targets at runtime (e.g. switch from Head to HandJoint when the user raises their hand).
+  - You want to share a single tracked target across multiple solvers on the same object.
+dontUseWhen:
+  - You don't have any Solver-derived components — SolverHandler does nothing on its own.
+alternatives:
+  - id: mrtk3.constraint-manager
+    when: You need axis / scale / rotation locking rather than tracked-target follow behaviour.
+requiredCompanions:
+  - At least one Solver subclass on the same GameObject
+events: []
+authoringPattern: |
+  1. Add SolverHandler before adding any Solver-derived component (most prefabs have it pre-wired).
+  2. Set TrackedTargetType — Head / HandJoint / ControllerRay / CustomOverride / MotionController.
+  3. For HandJoint targets, set TrackedHandedness (Both is typical) and TrackedHandJoint (Palm for
+     hand menus, IndexTip for finger-pointing solvers).
+  4. For CustomOverride, assign TransformOverride to your scene transform.
+  5. Assign LeftInteractor / RightInteractor when targeting interactor-based solvers.
+referenceUsage:
+  - "HandMenuExamples uses HandJoint + Both to drive the HandConstraintPalmUp solver above."
+  - "SolverExamples cycles TrackedTargetType at runtime to demonstrate switching head-tracked Follow into hand-tracked Follow without re-parenting."
+  - "Authors keep TrackedHandedness = Both as the default and let the runtime pick whichever hand is currently raised."
+knownPitfalls:
+  - Forgetting SolverHandler entirely produces no warning — solvers silently never update.
+  - TrackedHandedness = None is a valid enum value but disables hand tracking entirely; agents sometimes pick None expecting "either hand."
+  - Changing TrackedTargetType at runtime invokes RefreshTrackedObject only if the new value differs and IsValidTrackedObjectType returns true.
+relatedRules:
+  - mrtk3.follow-solver
+  - mrtk3.hand-menu

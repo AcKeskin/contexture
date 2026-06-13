@@ -1,0 +1,34 @@
+schemaVersion: 1
+id: mrtk3.theming-pattern
+kind: decision-rule
+name: Theming pattern (material swap, no Theme ScriptableObject)
+question: How do you re-skin MRTK 3 UI to match a custom visual theme?
+decisionTree: |
+  Base MRTK 3 ships NO Theme ScriptableObject. Theming is material-swap-driven.
+
+  Step 1 — locate the materials shipped under
+    org.mixedrealitytoolkit.standardassets/Materials/ (e.g. MRTK_Backplate_*mm_Gradient.mat,
+    button face / icon materials).
+
+  Step 2 — duplicate the relevant materials into your project's Assets/ tree and edit colours,
+    gradients, or shader parameters there.
+
+  Step 3 — on each prefab variant (Canvas or Non-Canvas), swap the MeshRenderer / Image material
+    references to your duplicates.
+
+  Step 4 — for state-driven visual changes (hover tint, selected glow), add or configure a
+    StateVisualizer on the interactable; effects under
+    org.mixedrealitytoolkit.uxcore/StateVisualizer/Effects (GraphicTintEffect, GraphicFadeEffect,
+    AnimationEffect) drive per-state appearance.
+
+  Step 5 — preserve _PROXIMITY_LIGHT keyword when duplicating GraphicsTools-shaded materials,
+    otherwise fingertip lighting silently drops out.
+examples:
+  - "Re-coloring all backplates: duplicate MRTK_Backplate_02mm_Gradient.mat in standardassets/Materials/CompressedButtonMaterial/, change the gradient stops, swap on every PressableButton prefab variant."
+  - "Per-state tint via StateVisualizer effects (GraphicTintEffect) instead of editing materials per-state."
+  - "ProximityLight glow lives in the shader keyword, not the light component; theming materials must keep _PROXIMITY_LIGHT enabled."
+relatedRules:
+  - mrtk3.pressable-button
+  - mrtk3.dialog
+  - mrtk3.slider
+  - mrtk3.proximity-light

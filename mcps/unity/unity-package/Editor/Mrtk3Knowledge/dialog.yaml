@@ -1,0 +1,51 @@
+schemaVersion: 1
+id: mrtk3.dialog
+kind: component
+name: Dialog
+namespace: MixedReality.Toolkit.UX
+package: org.mixedrealitytoolkit.uxcore
+extends: MonoBehaviour
+sourceFile: Dialog/Dialog.cs
+purpose: View component that hydrates a dialog prefab with header / body / button text and dispatches button events. Spawned and pooled by DialogPool, not instantiated directly.
+useWhen:
+  - You need a modal confirmation / alert / choice surface.
+  - The dialog content is data-driven and you want the fluent builder API on IDialog.
+  - One dialog visible at a time globally (DialogPool enforces this).
+dontUseWhen:
+  - You need a persistent panel rather than a transient prompt (use a plain Canvas / panel prefab).
+  - You need multiple dialogs visible simultaneously (the pool tears down the previous instance).
+alternatives:
+  - id: mrtk3.hand-menu
+    when: Hand-attached transient menu rather than a centred dialog.
+canvasVariants:
+  canvas:
+    package: org.mixedrealitytoolkit.uxcomponents
+    path: Dialog/CanvasDialog.prefab
+  nonCanvas:
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Dialog/Dialog_168x108mm.prefab
+requiredCompanions:
+  - DialogPool (separate GameObject, owns the prefab reference and lifecycle)
+events:
+  - name: OnDismissed
+    definedOn: Dialog
+authoringPattern: |
+  1. Place a DialogPool component on a singleton coordinator GameObject; assign DialogPrefab
+     (Canvas: CanvasDialog.prefab; Non-Canvas: one of Dialog_168x*.prefab).
+  2. Call DialogPool.Get(Policy.DismissExisting) to retrieve an IDialog instance — never new up Dialog.
+  3. Use the fluent builder on the returned IDialog (SetHeader / SetBody / SetPositive / SetNegative
+     / SetNeutral / OnDismissed) then call Show().
+  4. Button actions fire DialogButtonEventArgs; OnDismissed fires regardless of which button (or
+     external Dismiss) closed the dialog.
+  5. Pool reuses dismissed instances by Type, so derived Dialog classes pool independently.
+referenceUsage:
+  - "DialogExample wires a DialogPool with the CanvasDialog prefab and triggers Get() from button OnClicked handlers."
+  - "NonCanvasDialogExample uses Dialog_168x108mm.prefab as the default — same pattern, different visual style."
+  - "OnValidate in DialogPool auto-fills the prefab with CanvasDialog.prefab via a hard-coded GUID, so the field rarely needs manual assignment in Canvas projects."
+knownPitfalls:
+  - Calling Dialog directly via AddComponent / Instantiate breaks the pool's lifecycle accounting and dialogs leak.
+  - Two simultaneous Get() calls with Policy.DismissExisting tear each other down silently — coordinate at the call site.
+  - The pool keeps dialog instances alive across scene loads; deactivated dialog GameObjects leak unless the pool is rebuilt.
+relatedRules:
+  - mrtk3.canvas-vs-noncanvas-decision
+  - mrtk3.theming-pattern

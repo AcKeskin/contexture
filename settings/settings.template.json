@@ -1,0 +1,78 @@
+{
+  "statusLine": {
+    "type": "command",
+    "command": "__CCLINE_PATH__",
+    "padding": 0
+  },
+  "hookBundles": {
+    "security": {
+      "PreToolUse": [
+        {
+          "matcher": "Bash",
+          "hooks": [
+            { "type": "command", "command": "node __HOME__/.claude/hooks/rm-rf-blocker.js", "timeout": 5 }
+          ]
+        },
+        {
+          "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+          "hooks": [
+            { "type": "command", "command": "node __HOME__/.claude/hooks/env-file-write-blocker.js", "timeout": 5 },
+            { "type": "command", "command": "node __HOME__/.claude/hooks/outside-project-write-blocker.js", "timeout": 5 }
+          ]
+        }
+      ]
+    },
+    "gitDiscipline": {
+      "PreToolUse": [
+        {
+          "matcher": "Bash",
+          "hooks": [
+            { "type": "command", "command": "node __HOME__/.claude/hooks/force-push-main-blocker.js", "timeout": 5 },
+            { "type": "command", "command": "node __HOME__/.claude/hooks/git-config-write-blocker.js", "timeout": 5 },
+            { "type": "command", "command": "node __HOME__/.claude/hooks/hook-skip-blocker.js", "timeout": 5 }
+          ]
+        }
+      ]
+    },
+    "bootstrapDrift": {
+      "SessionStart": [
+        {
+          "matcher": "startup",
+          "hooks": [
+            { "type": "command", "command": "node __HOME__/.claude/hooks/bootstrap-drift-injector.js", "timeout": 10 }
+          ]
+        }
+      ]
+    },
+    "sessionGuard": {
+      "SessionStart": [
+        {
+          "matcher": "clear|compact",
+          "hooks": [
+            { "type": "command", "command": "node __HOME__/.claude/hooks/clear-context-decision-guard.js", "timeout": 10 }
+          ]
+        }
+      ]
+    },
+    "agentOutputContracts": {
+      "PostToolUse": [
+        {
+          "matcher": "Agent",
+          "hooks": [
+            { "type": "command", "command": "node __HOME__/.claude/hooks/agent-output-contract-validator.js", "timeout": 5 }
+          ]
+        }
+      ]
+    },
+    "codemapDirty": {
+      "PostToolUse": [
+        {
+          "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+          "hooks": [
+            { "type": "command", "command": "node __HOME__/.claude/hooks/codemap-dirty-marker.js", "timeout": 5 }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,46 @@
+schemaVersion: 1
+id: mrtk3.bounds-control
+kind: component
+name: BoundsControl
+namespace: MixedReality.Toolkit.SpatialManipulation
+package: org.mixedrealitytoolkit.spatialmanipulation
+extends: MonoBehaviour
+sourceFile: BoundsControl/BoundsControl.cs
+purpose: Spawns a bounds-visual prefab around a target and forwards handle drags to scale / rotate the target via composed BoundsHandleInteractables.
+useWhen:
+  - You need scale / rotate handles drawn around an object's bounds.
+  - You want bounds visuals tied to renderer or collider bounds, recomputed when the object changes shape.
+  - You're composing on top of ObjectManipulator and need the handle layer in addition to body-grab.
+dontUseWhen:
+  - You only need free-form grab without handles (use ObjectManipulator alone).
+  - You need a collision-snapped tag-along (use Follow / SolverHandler).
+alternatives:
+  - id: mrtk3.object-manipulator
+    when: Free-form grab without handle-based bounds visuals.
+  - id: mrtk3.constraint-manager
+    when: Constraints on the manipulation rather than handle-based affordances.
+requiredCompanions:
+  - ConstraintManager
+  - ObjectManipulator
+events:
+  - name: ManipulationStarted
+    definedOn: BoundsControl
+  - name: ManipulationEnded
+    definedOn: BoundsControl
+authoringPattern: |
+  1. Add ObjectManipulator first (BoundsControl complements it, doesn't replace it).
+  2. Add BoundsControl — Unity auto-attaches the [RequireComponent] ConstraintManager.
+  3. Assign BoundsVisualsPrefab — typically a wireframe cube prefab from spatialmanipulation/Visuals.
+  4. Pick BoundsCalculationMethod (RendererOverCollider is the default and usually correct).
+  5. Toggle IncludeInactiveObjects only when the target hierarchy contains hidden bounds-defining children.
+referenceUsage:
+  - "BoundsControlExamples shows the canonical layout: ObjectManipulator + BoundsControl + Rigidbody on a prop, with the wireframe bounds prefab assigned in the inspector."
+  - "BoundsControlRuntimeExample demonstrates programmatic enable/disable and recomputation triggered by SetActive transitions."
+  - "Authors rely on the auto-recompute on enable; manually changing renderer bounds at runtime requires forcing a CreateBoundsVisuals call."
+knownPitfalls:
+  - BoundsVisualsPrefab being null produces no warnings — handles silently never appear.
+  - BoundsCalculationMethod set to ColliderOver-style picks zero-sized triggers as the bounds source if a stray trigger exists.
+  - BoundsControl alone (no ObjectManipulator) leaves the body of the object un-grabbable; only the handles drag.
+relatedRules:
+  - mrtk3.object-manipulator
+  - mrtk3.constraint-manager

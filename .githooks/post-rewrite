@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Auto-rebootstrap after rebase / amend / filter-branch.
+exec node "$(git rev-parse --show-toplevel)/bootstrap/bootstrap.js"

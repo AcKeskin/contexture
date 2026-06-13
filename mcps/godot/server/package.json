@@ -1,0 +1,29 @@
+{
+  "name": "@ackeskin/godot-mcp-server",
+  "version": "0.1.0",
+  "description": "TypeScript MCP server for the custom Godot MCP — bridges MCP clients to the Godot editor (GDScript plugin) over local WebSocket, plus a headless-CLI surface",
+  "author": "AcKeskin (https://github.com/AcKeskin)",
+  "license": "MIT",
+  "type": "module",
+  "main": "build/index.js",
+  "bin": {
+    "godot-mcp-server": "build/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node build/index.js",
+    "smoke": "node scripts/registry-smoke.mjs",
+    "clean": "rimraf build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "ws": "^8.18.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.12",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.7.0"
+  }
+}

@@ -1,0 +1,52 @@
+schemaVersion: 1
+id: mrtk3.stateful-interactable
+kind: component
+name: StatefulInteractable
+namespace: MixedReality.Toolkit
+package: org.mixedrealitytoolkit.core
+extends: MRTKBaseInteractable
+sourceFile: Interactables/StatefulInteractable.cs
+purpose: Base interactable that adds toggle, click, gaze-dwell, far-dwell, and voice-select on top of XRI's interactable surface.
+useWhen:
+  - You need a tap-target that supports near-poke, far-ray, gaze, and voice without writing per-modality glue.
+  - You need toggle semantics (Toggle / OneWayToggle) without a press-plane affordance.
+  - You're building a custom interactable visual layer and want the MRTK selection / hover / toggle state machine underneath.
+dontUseWhen:
+  - You need press-plane displacement physics (use PressableButton).
+  - You need slider-style continuous selectionProgress with snap behaviour (use Slider).
+alternatives:
+  - id: mrtk3.pressable-button
+    when: You want the press-plane visual and front-push enforcement.
+  - id: mrtk3.slider
+    when: Continuous value control rather than binary select / toggle.
+requiredCompanions:
+  - Collider (any subtype)
+events:
+  - name: OnClicked
+    definedOn: StatefulInteractable
+  - name: OnEnabled
+    definedOn: StatefulInteractable
+  - name: OnDisabled
+    definedOn: StatefulInteractable
+authoringPattern: |
+  1. Add a Collider (BoxCollider for Canvas RectTransform, otherwise pick the matching shape).
+  2. Add StatefulInteractable. ToggleMode defaults to Button — set Toggle for two-state controls,
+     OneWayToggle for radio members.
+  3. SelectThreshold (default 0.9) and DeselectThreshold (default 0.1) gate when GetSelectionProgress
+     fires the click — reduce SelectThreshold for hair-trigger interactions.
+  4. AllowSelectByVoice + SpeechRecognitionKeyword wire voice activation; the keyword string is the
+     exact phrase the speech interactor matches.
+  5. UseGazeDwell + GazeDwellTime add eye-only activation; UseFarDwell + FarDwellTime do the same for
+     hover-with-far-ray.
+referenceUsage:
+  - "MRTK's authors use bare StatefulInteractable on prop objects in HandInteractionExamples (the touchable cubes / spheres) — collider plus interactable, no press-plane visuals."
+  - "ToggleCollection.cs assumes its members are StatefulInteractables and sets ToggleMode dynamically based on AllowSwitchOff."
+  - "Speech demos in SpeechInputExamples leave AllowSelectByVoice on and rely on the keyword field to drive activation."
+knownPitfalls:
+  - ToggleMode = Button keeps the interactable from latching even when AllowSwitchOff is true on a parent ToggleCollection.
+  - Voice activation requires the speech interactor to be present in the rig — absent in minimal templates.
+  - ForceSetToggled bypasses click events; OnClicked does not fire when the state flips programmatically.
+relatedRules:
+  - mrtk3.pressable-button
+  - mrtk3.toggle-collection
+  - mrtk3.audio-feedback-pattern

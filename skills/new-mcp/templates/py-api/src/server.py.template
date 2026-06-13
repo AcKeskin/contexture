@@ -1,0 +1,27 @@
+#!/usr/bin/env python3
+"""__DESCRIPTION__"""
+
+import os
+import asyncio
+from mcp.server.fastmcp import FastMCP
+import httpx
+
+# Shared lib imports (relative to mcps/ root)
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "lib-py"))
+from mcp_lib.fetch import create_api_fetcher
+from mcp_lib.errors import format_mcp_error
+
+mcp = FastMCP("__NAME__")
+
+api = create_api_fetcher(
+    base_url="__BASE_URL__",
+    auth_type="__AUTH_TYPE__",
+    auth_env_var="__AUTH_ENV_VAR__",
+    rate_limit=__RATE_LIMIT__,
+)
+
+__TOOL_REGISTRATIONS__
+
+if __name__ == "__main__":
+    mcp.run()

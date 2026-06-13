@@ -1,0 +1,40 @@
+# Architectural-rule overlay manifest — EXAMPLE
+# Copy to ~/.claude/architectural-rules.config.yaml (user tier)
+# or <project>/.claude/rules.config.yaml (project tier).
+# See docs/architectural-rules-overlay.md for the full contract.
+#
+# Everything here is optional. With no manifest at all, only the shipped tier
+# loads — the overlay is inert until you point it at something.
+
+version: 1
+
+# --- Company tier -----------------------------------------------------------
+# A git repo shaped like architectural-rules/ (same <scope>/<name>.md layout).
+# Cloned to ~/.claude/architectural-rules-company/ by bootstrap or `/rules sync`.
+# Omit this block entirely if you have no company tier.
+company:
+  repo: git@github.com:acme/claude-rules.git
+  ref: main          # branch / tag / sha — PIN to a tag for reproducibility
+
+# --- Disabled rules ---------------------------------------------------------
+# Turn a shipped/company rule OFF with no replacement.
+# Key = <scope>/<name> (the path within any tier, no .md extension).
+disabled:
+  - cpp/templates    # e.g. team does no template metaprogramming
+  # - sql/schema
+
+# --- Tier toggles -----------------------------------------------------------
+# Precedence is fixed (shipped < company < user < project); tiers can be off.
+tiers:
+  company: true
+  user: true
+
+# --- Divergences (project manifest only; auto-managed) ----------------------
+# When you override/disable a company rule marked `locked: true`, `/rules`
+# appends an audit entry here so the team can see the divergence in review.
+# Do not hand-edit; `/rules` maintains it.
+# divergences:
+#   - key: csharp/license-header
+#     action: override
+#     tier: user
+#     note: "local experiment, will revert"

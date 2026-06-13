@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Auto-rebootstrap after pull/merge so ~/.claude/ catches up with the repo.
+# Idempotent — safe to fire on every merge. Bootstrap is itself idempotent.
+exec node "$(git rev-parse --show-toplevel)/bootstrap/bootstrap.js"

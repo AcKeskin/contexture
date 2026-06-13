@@ -1,0 +1,28 @@
+schemaVersion: 1
+id: mrtk3.canvas-vs-noncanvas-decision
+kind: decision-rule
+name: Canvas vs Non-Canvas variant
+question: Should this UI element use the Canvas variant (uxcomponents) or the Non-Canvas variant (uxcomponents.noncanvas)?
+decisionTree: |
+  Is the UI nested inside a UnityEngine.Canvas (RectTransform) hierarchy?
+    YES → use the Canvas variant (CanvasSlider, CanvasDialog, HandMenuBase, Empty Button + Action Button).
+          → Set RectTransform world-space scale to 0.001 (MRTK convention; CanvasUITearsheet ships with x=y=z=0.001).
+          → Layout, anchoring, and TMP text inherit from the Canvas RectTransform.
+    NO  → use the Non-Canvas variant (NonCanvasSliderBase, Dialog_168x*mm, HandMenu, PressableButton_*x*mm_*).
+          → Geometry is primitive (quads / cubes), positioning uses Transform directly.
+          → Pick the size variant that matches your physical layout target (32x32 / 80x32 / 128x32 / 160x32 mm).
+
+  Tie-breakers when both work:
+    - Mixing with existing UGUI workflows (TMP, Layout Groups) → Canvas.
+    - Standalone tile-based hand menus and floating panels in world space → Non-Canvas (lighter, no Canvas overhead).
+    - Need precise mm-accurate physical sizing → Non-Canvas (sizes are baked into the prefab name).
+examples:
+  - "PressableButton: Canvas → Empty Button.prefab inside a world-space Canvas with scale 0.001. Non-Canvas → PressableButton_32x32mm_IconAndText for a tile menu."
+  - "Slider: Canvas → CanvasSlider.prefab when the slider sits in a UGUI form. Non-Canvas → Slider_168x40mm_IconAndValue for standalone HUDs."
+  - "Dialog: Canvas → CanvasDialog.prefab (DialogPool's default via OnValidate auto-fill). Non-Canvas → Dialog_168x108mm.prefab when the rest of the scene avoids Canvas."
+  - "Hand menu: Canvas → HandMenuBase.prefab when the menu content is TMP-driven UGUI. Non-Canvas → HandMenu.prefab for primitive-geometry tile menus."
+relatedRules:
+  - mrtk3.pressable-button
+  - mrtk3.slider
+  - mrtk3.dialog
+  - mrtk3.hand-menu

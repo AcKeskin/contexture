@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Auto-rebootstrap on branch checkout. Skipped on file-checkout (the third
+# argument from git is 0 for file-checkout, 1 for branch-checkout) to avoid
+# noise from `git checkout -- <file>`.
+if [ "$3" = "1" ]; then
+  exec node "$(git rev-parse --show-toplevel)/bootstrap/bootstrap.js"
+fi

@@ -1,0 +1,4 @@
+{
+  "matcher": "startup",
+  "transcript_path": "__TRANSCRIPT_FIXTURE_WITH_SIGNAL__"
+}

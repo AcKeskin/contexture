@@ -1,0 +1,40 @@
+schemaVersion: 1
+id: mrtk3.proximity-light
+kind: component
+name: ProximityLight
+namespace: Microsoft.MixedReality.GraphicsTools
+package: com.microsoft.mrtk.graphicstools.unity
+extends: BaseLight
+sourceFile: Runtime/Lighting/ProximityLight.cs
+purpose: Per-fingertip light source consumed by GraphicsTools Standard / Standard Canvas shaders to light up the surface of a UI element under the user's hand.
+useWhen:
+  - You want the canonical MRTK fingertip glow on UI surfaces.
+  - The materials on the affected surface use the GraphicsTools/Standard or Standard Canvas shader with _PROXIMITY_LIGHT keyword enabled.
+  - You're attaching the light to the index fingertip of a tracked hand (typical case).
+dontUseWhen:
+  - Materials don't use GraphicsTools shaders (lighting won't render).
+  - You need scene-wide lighting (use Unity's standard light components).
+alternatives: []
+requiredCompanions:
+  - GraphicsTools/Standard or Standard Canvas material with _PROXIMITY_LIGHT enabled
+events: []
+authoringPattern: |
+  1. Attach ProximityLight to a child of the index fingertip transform on each tracked hand
+     (left + right need their own).
+  2. Set HandednessType on the LightSettings to Left or Right — this populates
+     Global_Left/Right_Index_Tip_Position shader uniforms.
+  3. Configure NearRadius (default 0.05m) and FarRadius for the falloff distance.
+  4. The light registers itself via OnEnable into a static list capped at 2 active lights —
+     extras silently no-op until one disables.
+  5. Materials must enable _PROXIMITY_LIGHT in their shader keyword set; the GraphicsTools
+     Standard inspector exposes this as a checkbox.
+referenceUsage:
+  - "MRTK's hand visualizer prefab attaches ProximityLight to each index finger so any GraphicsTools-shaded UI receives the glow."
+  - "Buttons in the dev template's tearsheets use GraphicsTools Standard with _PROXIMITY_LIGHT on, so finger hover lights them automatically."
+  - "Authors place exactly two ProximityLights (one per hand) — the cap is hard-coded to 2 in the static list."
+knownPitfalls:
+  - More than two ProximityLights silently ignore extras — order of OnEnable wins.
+  - Materials with _PROXIMITY_LIGHT keyword off receive no lighting from this component, with no warning.
+  - HandednessType = None still registers the light but won't drive the per-hand shader uniforms.
+relatedRules:
+  - mrtk3.theming-pattern

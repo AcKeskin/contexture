@@ -1,0 +1,23 @@
+{
+  "name": "@ackeskin/project-memory-mcp",
+  "version": "0.1.0",
+  "description": "Retrieval-only MCP over per-project memory tree + session rollups. First-party memory retrieval that backs /discover.",
+  "author": "AcKeskin (https://github.com/AcKeskin)",
+  "license": "MIT",
+  "type": "module",
+  "main": "build/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node build/index.js",
+    "test": "tsc -p tsconfig.test.json && node --test \"build-test/test/*.test.js\""
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "gray-matter": "^4.0.3",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  }
+}

@@ -1,0 +1,4 @@
+- [Auth rule](architectural-rules/auth.md) — verify session refresh on every touch
+- [Billing decision](decisions/billing-provider.md) — picked Stripe over Adyen
+- [Old approach](lessons/old-approach.md) — superseded
+- ⚠️ [Auth landmine](warnings/auth-landmine.md) — token race condition

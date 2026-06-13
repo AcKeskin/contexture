@@ -1,0 +1,45 @@
+{
+    "name": "UnityMcp.Editor",
+    "rootNamespace": "UnityMcp.Editor",
+    "references": [
+        "Unity.Newtonsoft.Json",
+        "Unity.XR.Interaction.Toolkit",
+        "Unity.XR.CoreUtils",
+        "Unity.InputSystem",
+        "Unity.XR.Management",
+        "UnityEditor.TestRunner",
+        "UnityMcp.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.xr.interaction.toolkit",
+            "expression": "2.0.0",
+            "define": "UNITY_MCP_HAS_XRI"
+        },
+        {
+            "name": "com.unity.inputsystem",
+            "expression": "1.0.0",
+            "define": "UNITY_MCP_HAS_INPUT_SYSTEM"
+        },
+        {
+            "name": "com.unity.test-framework",
+            "expression": "1.0.0",
+            "define": "UNITY_MCP_HAS_TEST_FRAMEWORK"
+        },
+        {
+            "name": "com.unity.xr.management",
+            "expression": "4.0.0",
+            "define": "UNITY_MCP_HAS_XR_MGMT"
+        }
+    ],
+    "noEngineReferences": false
+}

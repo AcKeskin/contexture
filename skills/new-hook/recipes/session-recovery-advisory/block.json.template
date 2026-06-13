@@ -1,0 +1,4 @@
+{
+  "matcher": "__MATCHER_TRIGGER__",
+  "transcript_path": "__TRANSCRIPT_FIXTURE_WITH_SIGNAL__"
+}

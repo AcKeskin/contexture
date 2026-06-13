@@ -1,0 +1,11 @@
+{
+  "name": "codemap-update",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "update-codemap skill engine. Optional tree-sitter deps enable AST-based multi-language extraction; without them the engine falls back to regex extractors (TS/C#/C++ only).",
+  "dependencies": {
+    "tree-sitter-wasms": "^0.1.13",
+    "web-tree-sitter": "~0.25.10"
+  }
+}

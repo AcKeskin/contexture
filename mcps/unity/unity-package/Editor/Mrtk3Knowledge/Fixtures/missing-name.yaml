@@ -1,0 +1,8 @@
+schemaVersion: 1
+id: mrtk3.fixture-missing-name
+kind: component
+namespace: MixedReality.Toolkit.UX
+package: org.mixedrealitytoolkit.uxcore
+sourceFile: Button/PressableButton.cs
+purpose: Fixture with no name field — validator should flag it.
+relatedRules: []

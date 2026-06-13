@@ -1,0 +1,11 @@
+// Example Copilot agent-mode MCP configuration for the Unity MCP server in this repo.
+// Copy to .vscode/mcp.json (not committed) and adjust paths if needed.
+// Build the Unity MCP first: cd mcps/unity/server && npm install && npm run build.
+{
+  "servers": {
+    "unity": {
+      "command": "node",
+      "args": ["${workspaceFolder}/mcps/unity/server/build/index.js"]
+    }
+  }
+}

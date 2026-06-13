@@ -1,0 +1,11 @@
+#!/usr/bin/env python3
+"""__DESCRIPTION__"""
+
+from mcp.server.fastmcp import FastMCP
+
+mcp = FastMCP("__NAME__")
+
+__TOOL_REGISTRATIONS__
+
+if __name__ == "__main__":
+    mcp.run()

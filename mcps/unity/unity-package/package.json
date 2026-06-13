@@ -1,0 +1,17 @@
+{
+  "name": "com.ackeskin.unity-mcp",
+  "version": "0.1.0",
+  "displayName": "Unity MCP",
+  "description": "Custom Unity Editor extension that exposes the Editor to MCP clients (Claude Code, Cursor, VSCode) over a local HTTP bridge. ~70 typed tools across scenes, GameObjects, components, assets, prefabs, materials, UI, scripts, tests, packages, vision (2D + 6DoF scene capture), and XR/MRTK3 introspection. Tools are advertised dynamically from a capability descriptor, so the MCP server stays a thin protocol shim. See README.md for the tool surface and install steps.",
+  "unity": "2021.3",
+  "dependencies": {
+    "com.unity.nuget.newtonsoft-json": "3.2.1"
+  },
+  "author": {
+    "name": "AcKeskin",
+    "url": "https://github.com/AcKeskin"
+  },
+  "unityMcp": {
+    "customToolsEnabled": false
+  }
+}

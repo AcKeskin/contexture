@@ -1,0 +1,28 @@
+{
+    "name": "UnityMcp.Runtime",
+    "rootNamespace": "UnityMcp.Runtime",
+    "references": [
+        "Unity.XR.Interaction.Toolkit",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.xr.interaction.toolkit",
+            "expression": "2.0.0",
+            "define": "UNITY_MCP_HAS_XRI"
+        },
+        {
+            "name": "com.unity.inputsystem",
+            "expression": "1.0.0",
+            "define": "UNITY_MCP_HAS_INPUT_SYSTEM"
+        }
+    ],
+    "noEngineReferences": false
+}

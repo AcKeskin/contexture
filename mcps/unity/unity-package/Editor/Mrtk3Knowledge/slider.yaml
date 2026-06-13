@@ -1,0 +1,55 @@
+schemaVersion: 1
+id: mrtk3.slider
+kind: component
+name: Slider
+namespace: MixedReality.Toolkit.UX
+package: org.mixedrealitytoolkit.uxcore
+extends: StatefulInteractable
+sourceFile: Slider/Slider.cs
+purpose: Continuous-value control with optional snap-to-position, near-poke and far-grab manipulation, and a SliderEventData payload on every change.
+useWhen:
+  - The control models a continuous value (volume, brightness, scrubbing).
+  - You need both poke-touch and grab-pinch manipulation modes through a single component.
+  - You want snap behaviour driven by track collider clicks (SnapToPosition).
+dontUseWhen:
+  - The value is discrete or binary (use PressableButton or ToggleCollection).
+  - You need a stepped value with a fixed set of positions only — Slider is continuous; round on consume.
+alternatives:
+  - id: mrtk3.pressable-button
+    when: Discrete activation rather than a continuous range.
+  - id: mrtk3.toggle-collection
+    when: A small fixed set of mutually-exclusive options.
+canvasVariants:
+  canvas:
+    package: org.mixedrealitytoolkit.uxcomponents
+    path: Slider/CanvasSlider.prefab
+  nonCanvas:
+    package: org.mixedrealitytoolkit.uxcomponents.noncanvas
+    path: Slider/NonCanvasSliderBase.prefab
+requiredCompanions:
+  - Collider (handle / track)
+  - AudioSource
+events:
+  - name: OnValueUpdated
+    definedOn: Slider
+authoringPattern: |
+  1. Instantiate CanvasSlider (Canvas) or one of the NonCanvasSlider prefabs (Non-Canvas, e.g.
+     Slider_168x40mm_IconAndValue) — handle, track collider, and visuals come pre-wired.
+  2. Wire OnValueUpdated to receive SliderEventData {oldValue, newValue}; cast the float into your
+     consumer.
+  3. SnapToPosition needs the track collider assigned — without it the runtime logs once and continues
+     in non-snap mode.
+  4. IsTouchable controls poke vs grab semantics; toggle off to reserve the slider for grab-only flows.
+  5. Set HandleTransform if authoring a custom slider — ISnapInteractable depends on it for snap math.
+referenceUsage:
+  - "CanvasUITearsheet and NonCanvasUITearSheet both ship a CanvasSlider / NonCanvasSlider as the canonical example, with OnValueUpdated piped to a TMP value label."
+  - "Authors set SnapToPosition in slider exemplars to demonstrate click-to-jump behaviour distinct from drag."
+  - "The OnValueUpdated SliderEventData carries oldValue, letting consumers throttle / debounce by delta rather than by absolute value."
+knownPitfalls:
+  - SnapToPosition without a track collider logs once and stays disabled; no exception is thrown.
+  - OnValueUpdated fires on programmatic Value sets too — guard against feedback loops when echoing the value back.
+  - IsTouchable is being deprecated in favour of DisabledInteractorTypes (see source comment); future-proof by configuring through the latter.
+relatedRules:
+  - mrtk3.stateful-interactable
+  - mrtk3.canvas-vs-noncanvas-decision
+  - mrtk3.theming-pattern

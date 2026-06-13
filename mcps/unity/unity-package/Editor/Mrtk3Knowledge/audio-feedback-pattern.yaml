@@ -1,0 +1,29 @@
+schemaVersion: 1
+id: mrtk3.audio-feedback-pattern
+kind: decision-rule
+name: Audio feedback pattern (per-interactable AudioSource)
+question: How do you wire press / select / manipulation audio for MRTK 3 interactables?
+decisionTree: |
+  MRTK 3 has NO global audio service. Each interactable wires its own audio.
+
+  Pattern:
+    1. Add an AudioSource to the interactable GameObject (PressableButton, Slider, ObjectManipulator, etc.).
+    2. Wire AudioSource.PlayOneShot calls from the interactable's UnityEvents:
+       - PressableButton: StatefulInteractable.OnClicked → PlayOneShot(MRTK_ButtonPress.wav)
+       - ObjectManipulator: firstSelectEntered → PlayOneShot(MRTK_Manipulation_Start.wav)
+                            lastSelectExited  → PlayOneShot(MRTK_Manipulation_End.wav)
+       - Slider: OnValueUpdated debounced or on snap-tick.
+    3. Source the SFX from org.mixedrealitytoolkit.standardassets/Audio/HoloLens2/ — MRTK_ButtonPress.wav,
+       MRTK_ButtonUnpress.wav, MRTK_Manipulation_Start.wav, MRTK_Manipulation_End.wav, etc.
+    4. Configure spatial blend on the AudioSource (3D for world-space objects, 2D for HUD overlays).
+    5. Listener attach must happen in OnEnable when authoring through MCP — UnityEvent fields don't
+       serialize through component_set_property.
+examples:
+  - "PressableButton: AudioSource sibling, OnClicked listener calls PlayOneShot(MRTK_ButtonPress.wav from standardassets/Audio/HoloLens2)."
+  - "ObjectManipulator press / release: pair MRTK_Manipulation_Start.wav with firstSelectEntered and MRTK_Manipulation_End.wav with lastSelectExited."
+  - "Slider tick on snap: filter OnValueUpdated by delta to avoid replaying every frame, then PlayOneShot(MRTK_Gem.wav)."
+relatedRules:
+  - mrtk3.pressable-button
+  - mrtk3.object-manipulator
+  - mrtk3.slider
+  - mrtk3.stateful-interactable

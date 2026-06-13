@@ -1,0 +1,5 @@
+node_modules/
+build/
+.smoke-out/
+*.log
+.DS_Store
