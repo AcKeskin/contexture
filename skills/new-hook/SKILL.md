@@ -33,6 +33,7 @@ Which recipe?
  3. mcp-tool-blocker (PreToolUse, matcher: mcp__*) — block a specific MCP tool by exact name
  4. context-injector (SessionStart, matcher: startup|compact) — inject context at session start
  5. session-recovery-advisory (SessionStart, matcher: clear|compact) — scan the prior transcript and nudge to recover something lost across a clear/compact
+ 6. rule-prime (SessionStart[startup|clear|compact] + UserPromptSubmit) — mechanically prime resolved architectural rules into context; floor at session start, incremental tiers per prompt
 ```
 
 Wait for the user's choice (number or name). Reject anything outside the list with the same prompt.
@@ -193,9 +194,11 @@ The runner generator at [`lib/runner-template.js`](lib/runner-template.js) reads
 - **Does not auto-fire.** Mode A only — every run is user-initiated.
 - **Does not auto-revert on verification failure.** Fail-noisy. The user decides whether to delete the generated files and undo the settings.json change.
 
-## v1 exclusion list — events not yet supported
+## Exclusion list — events not yet supported
 
-PostToolUse, Stop, SubagentStop, Notification, PreCompact, UserPromptSubmit. No current use case. Add reactively when one surfaces — each new recipe is a small additive change (template + fixtures + README under `recipes/<name>/`); the skill's procedure does not change.
+PostToolUse, Stop, SubagentStop, Notification, PreCompact. No current use case. Add reactively when one surfaces — each new recipe is a small additive change (template + fixtures + README under `recipes/<name>/`); the skill's procedure does not change.
+
+**`UserPromptSubmit` is now supported** (via the `rule-prime` recipe). It was excluded in v1 for want of a use case; 077 supplies one — its `additionalContext` is a model-visible non-blocking channel, exactly the property a per-prompt rule injector needs. The recipe registers it paired with SessionStart through the `rulePrime` settings bundle.
 
 **PreCompact / SessionEnd stay excluded by design, not by neglect.** They were investigated for a "warn before context is discarded" recipe and found unsuitable for a *non-blocking advisory*: per `code.claude.com/docs/en/hooks`, their stdout on exit 0 goes to the debug log (the model never sees it), and exit 2 — the only model-visible channel — blocks the action (and SessionEnd cannot block at all). `additionalContext` is documented for PreToolUse / PostToolUse / PostToolBatch only. The recovery use case is served instead by the `session-recovery-advisory` recipe on `SessionStart[clear|compact]`, whose `{ context }` output *is* model-visible. Add a PreCompact/SessionEnd recipe only when a genuinely *blocking* or cleanup-only use case appears.
 

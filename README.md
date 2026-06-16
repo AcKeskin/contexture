@@ -23,7 +23,7 @@ My motivation to start this was simple: *I kept catching myself correcting Claud
 ```mermaid
 flowchart LR
   A[Catch yourself<br/>correcting Claude] --> B["/capture<br/>write the rule"]
-  B --> C["/prep<br/>loads rules<br/>before coding"]
+  B --> C["rule-prime hook<br/>+ /prep<br/>load rules<br/>before coding"]
   D0["/discover topic<br/>(picking up<br/>where you left off)"] -.-> C
   C --> D[Write code<br/>with rules active]
   D --> E["/review<br/>audits after"]
@@ -34,9 +34,9 @@ flowchart LR
 On Claude Code this runs as the commands below; on other tools you get the same rule corpus but drive it yourself (see [Other agents](#other-agents-cross-tool)).
 
 1. **You write a rule** — deliberately (`/capture`), or by correcting it mid-session and saying "remember that". Rules are markdown files with a little frontmatter (scope, when-it-applies), stored in `architectural-rules/` or per-project memory.
-2. **`/prep` loads relevant rules before you start coding.** Auto-fires on the first real task of a session. The agent works with your rules in context, not just its general training.
+2. **Relevant rules load before you start coding — mechanically.** A `rule-prime` hook primes the always+project rule floor (plus the one language tier in a single-language repo) into context at session start, and pulls incremental language/domain tiers per prompt by deterministic match. No reliance on the agent remembering to prime. `/prep` still runs on demand for a deeper pass (higher top-N, task-specific domain rules) on top of that floor.
 3. **If the work drifts, it asks.** Moving from auth code to billing code mid-task? It surfaces that instead of silently applying the wrong rules.
-4. **`/review` audits after the fact** — dead code, monolithic files, separation-of-concerns violations, missing patterns, principle violations, comment drift. Findings are proposed one at a time: Apply, Skip, Edit, or Won't-fix.
+4. **`/review` audits after the fact** — dead code, monolithic files, separation-of-concerns violations, missing patterns, principle violations, comment drift, and naming/comment quality (machine-flavored names, comments that restate rather than explain). Findings are proposed one at a time: Apply, Skip, Edit, or Won't-fix.
 5. **When review misses something, the corpus learns.** You say so, and `/capture` routes the correction back: sharpen a rule, add one, retag, or adjust a threshold.
 6. **`/recap` closes the session.** What happened, what was learned, what's next. Learned items can graduate into rule-tier memories.
 
@@ -106,7 +106,7 @@ The pieces group into five harness subsystems — *how the agent is governed* �
 flowchart TB
     subgraph SL["🔄 Session lifecycle"]
       direction LR
-      prep["/prep"] --> review["/review"] --> capture["/capture"] --> recap["/recap"]
+      primehook["rule-prime hook"] --> prep["/prep"] --> review["/review"] --> capture["/capture"] --> recap["/recap"]
       discover["/discover"]
     end
     subgraph SC["📐 Scope (heavyweight track)"]
@@ -137,7 +137,9 @@ flowchart TB
 
 | Capability | What it is |
 | --- | --- |
-| **The discipline loop** | `/prep` before, `/review` after, `/capture` to grow the rule corpus. The thing this repo is really about. |
+| **The discipline loop** | Rules primed before (mechanically, by the `rule-prime` hook + `/prep`), `/review` after, `/capture` to grow the rule corpus. The thing this repo is really about. |
+| **Mechanical rule priming** | A `rule-prime` hook puts the relevant rules in context at session start and per prompt — no reliance on the agent remembering to `/prep`. Budget-guarded, deterministic, never blocks a turn. |
+| **Convention & test organs** | `/extract-conventions` observes a scope's house style and writes it as a project-tier rule the priming + review then enforce; `/write-tests` authors a quality suite for existing code to a standard, with a confirmable plan and a characterization-with-flags stance. |
 | **Rule overlay** | A four-tier rule corpus — shipped / company / user / project — that composes update-safely. `/rules` to override (whole-file or field-patch), disable, or resolve. Your edits survive `git pull`. |
 | **Stored context** | A codemap (architecture snapshot) + memory store (rules, decisions, lessons) that `/discover` retrieves on demand. |
 | **Safety hooks** | Default-on guardrails — block `rm -rf` on top-level paths, writes to `.env`, force-push to main, global git-config edits, `--no-verify` bypass. |

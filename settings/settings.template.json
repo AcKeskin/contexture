@@ -73,6 +73,23 @@
           ]
         }
       ]
+    },
+    "rulePrime": {
+      "SessionStart": [
+        {
+          "matcher": "startup|clear|compact",
+          "hooks": [
+            { "type": "command", "command": "node __HOME__/.claude/hooks/rule-prime.js", "timeout": 10 }
+          ]
+        }
+      ],
+      "UserPromptSubmit": [
+        {
+          "hooks": [
+            { "type": "command", "command": "node __HOME__/.claude/hooks/rule-prime.js", "timeout": 5 }
+          ]
+        }
+      ]
     }
   }
 }

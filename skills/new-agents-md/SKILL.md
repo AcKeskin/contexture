@@ -216,9 +216,31 @@ Assemble each `AGENTS.md` in this order (lead-with-prohibitions):
 ## Conventions
 <flattened always-tier + detected-language (+ confirmed-domain) rules, as imperative prose>
 
+## Working discipline
+<fixed cross-tool behavioral patterns — see below. Project verbatim; these are vendor-neutral
+and apply to any agent reading this file. Not interviewed, not corpus-derived.>
+
 ## Infrastructure
 <non-code infra hints, if any>
 ```
+
+The **Working discipline** section is a fixed block — it projects the durable, vendor-neutral
+prompting patterns (`architectural-rules/universal/agent-instruction-authoring.md`) into a form a
+generic agent can act on. Insert verbatim:
+
+```markdown
+- Run one tool/command at a time and read its actual result before the next. Do not chain
+ actions on an assumed outcome — a wrong assumption compounds across chained steps faster
+ than it surfaces.
+- Attempt-vs-ask by ambiguity depth: if the request has one dominant reading, make a good-faith
+ attempt and state the assumption you made; if there are two or more reasonable readings, or
+ you'd be inventing requirements, ask before acting.
+- Separate gathering information from changing things. For non-trivial work, plan first and get
+ the plan confirmed before mutating files.
+```
+
+This is the only fixed-content section. Everything else in the file is corpus-projected or
+interviewed; this block is constant because the patterns are tool-agnostic by construction.
 
 **Output contract — verifiable, this is the DC1 gate:**
 - **No `@`-imports** anywhere (import targets are inlined).
@@ -227,6 +249,8 @@ Assemble each `AGENTS.md` in this order (lead-with-prohibitions):
  encodes.
 - Everything is **flat imperative prose** a stateless agent can act on in one read.
 - The **"Never do this" block is first**.
+- The **"Working discipline" block** is present and verbatim (the fixed cross-tool patterns) — it
+ is the one section that does not vary by repo.
 
 ### Preview & write
 
@@ -318,6 +342,8 @@ Stop. Do not commit. Do not invoke `/review`. The files go into the next user-co
  repo's. Documented seam; not built here.
 - **architectural-rules tree (006)** — `universal/skill-auto-fire.md` (trigger in description) and
  `universal/no-hardcoded-machine-paths.md` (global path from config) both apply directly.
+ `universal/agent-instruction-authoring.md` is the source of the fixed **Working discipline**
+ block — re-projected into the emitted AGENTS.md so non-Claude agents inherit the same patterns.
 
 ## Anchors — house style
 

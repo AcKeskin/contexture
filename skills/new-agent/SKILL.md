@@ -169,6 +169,21 @@ Now yours (one per line, blank line to finish):
 
 Reject if fewer than 3 steps or any step is "check the logs" / "read the docs" without a specific signal to look for.
 
+### 7b. Tool discipline (only when the agent has action tools)
+
+Skip this step entirely when the chosen allowlist (step 4) is read-only (e.g. `Read, Grep` with no `Bash`/`Write`/`Edit`) — a non-mutating agent has nothing to gate. When the allowlist includes any of `Bash`, `Write`, `Edit`, `NotebookEdit`, the generated agent must carry one rule: gate each action on the *verified* result of the prior one. No prompt needed — this is a fixed discipline, not a user-supplied answer. It populates the **Tool discipline** template section below verbatim:
+
+```
+## Tool discipline
+
+Run one action at a time and read its actual result before the next — do not chain
+edits or commands on an *assumed* outcome. When a step's result contradicts what you
+expected, stop and re-diagnose rather than pressing on; a wrong assumption compounds
+across chained actions faster than it surfaces.
+```
+
+The "why" clause (a wrong assumption compounds across chained actions) is load-bearing — it tells the agent *when* the rule bites, so it generalizes past the literal case.
+
 ### 8. Output contract
 
 Prompt:
@@ -250,6 +265,11 @@ user reviews in the preview step.>
 ## Debugging workflow
 
 <Numbered list from step 7.>
+
+## Tool discipline
+
+<Only when the allowlist includes Bash/Write/Edit/NotebookEdit (step 7b). Insert the fixed
+block verbatim. Omit this entire section for read-only agents.>
 
 ## Output
 

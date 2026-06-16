@@ -1,0 +1,5 @@
+{
+  "hook_event_name": "SessionStart",
+  "matcher": "startup",
+  "cwd": "__REPO_ROOT__"
+}

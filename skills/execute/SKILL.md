@@ -51,6 +51,8 @@ Parse steps by scanning for `## Step N: <goal>` headings. For each step, capture
 - Outcome (from `- Outcome:` line).
 - Verification (from `- Verification:` line).
 - Tags (from `- Tags:` line, if present).
+- Current state (from `- Current state:` line, if present — `[delegate]` steps carry it).
+- Exemplar (from `- Exemplar:` line, if present — `[delegate]` steps carry it).
 
 If parsing produces zero steps, stop:
 
@@ -107,7 +109,12 @@ If any of the following is true:
 
 On `y`: invoke the `Task` tool (if available) with:
 - Subagent type: default `general-purpose` (or `Explore` if step is clearly research-only).
-- Prompt: the step goal + files + outcome + verification + the loaded architectural-rule names.
+- Prompt: the step goal + files + outcome + verification + the loaded architectural-rule names + the step's **Current state** excerpt and **Exemplar** path when the plan supplied them. These make the delegated step self-contained — the subagent has no access to this conversation's context, so the *before* excerpt and the convention anchor are what let it produce on-idiom work instead of re-deriving (or inventing) the surrounding state.
+- **Self-containment gate.** If the step is `[delegate]`-tagged but carries no Current-state excerpt and no Exemplar, the plan under-specified it for delegation (draft-plan §8). Surface this and ask the user:
+
+ > Step N is tagged `[delegate]` but the plan gives the subagent no Current-state excerpt or Exemplar to work from. Delegating blind risks off-idiom work. Options: (1) run it in-context here instead, (2) re-run `/draft-plan <slug>` to fill in self-containment, (3) delegate anyway.
+
+ Default to running in-context (option 1) unless the user picks otherwise — a blind delegation is the failure mode this gate exists to catch.
 - Expect a summary back.
 - Integrate the summary; do not accept the subagent's claim that work is done until verification (3d) passes.
 

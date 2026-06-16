@@ -16,10 +16,14 @@ Resolve the script **relative to this SKILL.md's real location**, never relative
 ```sh
 # device-agnostic: resolve the skill's real dir (collapses the ~/.claude symlink), run the co-located script
 SKILL_DIR="$(dirname "$(realpath "$0")")"   # $0 = this SKILL.md's path as invoked
-node "$SKILL_DIR/codemap.mjs"               # writes .claude/codemap.md
-node "$SKILL_DIR/codemap.mjs" --dry-run     # preview to stdout, no write
-node "$SKILL_DIR/codemap.mjs" --root <dir>  # explicit project root
+node "$SKILL_DIR/codemap.mjs"                 # writes .claude/codemap.md
+node "$SKILL_DIR/codemap.mjs" --dry-run       # preview to stdout, no write
+node "$SKILL_DIR/codemap.mjs" --root <dir>    # explicit project root
+node "$SKILL_DIR/codemap.mjs" --map-tokens N  # cap doc size ~N tokens (trims index sections only)
+node "$SKILL_DIR/codemap.mjs" --no-cache      # ignore the per-file cache, full re-parse
 ```
+
+Regeneration is **incremental**: a per-file extraction cache at `.claude/codemap.cache.json` (gitignored, beside `codemap.md`) is validated by each file's size + mtime, so an unchanged file skips its read + parse (the tree-sitter pass is the expensive part). A changed/added/removed file re-extracts. `--no-cache` forces a cold rebuild; a bumped cache version or a corrupt cache file degrades safely to cold. The cache can only make a run slower on a miss, never produce a wrong map.
 
 If `realpath` is unavailable (rare on Windows shells), the script also lives at the canonical `contexture/skills/update-codemap/codemap.mjs`; run it with an explicit `--root .` against the target project.
 
@@ -75,6 +79,8 @@ Glob `**/*` from project root. Apply skip rules to produce the **included** set.
 - `__pycache__/`, `.pytest_cache/`, `.mypy_cache/`
 - `coverage/`, `.nyc_output/`
 - `.next/`, `.nuxt/`, `.svelte-kit/`
+- `.worktrees/`, `worktrees/` — git worktree copies; indexing them duplicates the whole repo.
+- `.claude/` — the codemap's own output dir (`codemap.md`, `codemap.cache.json`, specs/plans/recaps); never index harness state as source.
 
 **Skip files:**
 - `*.lock`, `*.log`, `*.min.*`, `*.map`
@@ -130,7 +136,7 @@ For each included file:
 
 - **Read cap**: read the first 80 lines. If exports clearly extend past line 80 (rare), bump to 200 lines for that file. If still clipped, include the file in the codemap with purpose line and add `exports: <partial — extend read cap>` — do not silently truncate.
 - **Purpose line**: derive from
-  1. First top-of-file docblock / comment block, single-lined and trimmed to ≤ 100 chars.
+  1. First top-of-file docblock / comment block, single-lined and trimmed to ≤ 100 chars. **Skip license/copyright boilerplate and banner-rule lines** (`Copyright`, `SPDX-License-Identifier`, `Licensed under`, `All rights reserved`, GNU/Apache/MIT/BSD notices, and decoration rules like `*****` / `----`) — these are not the file's purpose. Keep scanning past the banner for the first real description comment.
   2. Else inferred from filename + top declarations. Active voice. No trailing punctuation.
 - **Exports**: extract per language rules (§5).
 
@@ -171,7 +177,7 @@ For each included file:
 
 ### 6. Assemble the output
 
-The output is structured for LLM consumption: prose-heavy header first (Overview, Modules, Conventions detected, Hubs), then the structured sections (Entry points, Layers, Dependencies, File deps, Class graph), then per-module file groups. The visualize tool keys on the structured sections by name and on `## <name>/` group headings; everything else is benign noise.
+The output is structured for LLM consumption: a ranked **Map** entry table first (the "start here" hub list), then the prose header (Overview, Modules, Conventions detected, Hubs, **Symbol index**), then the structured sections (Entry points, Layers, Dependencies, File deps, Class graph), then per-module file groups. The visualize tool keys on the structured sections by name and on `## <name>/` group headings; the Map and Symbol index sections are additive agent aids it ignores; everything else is benign noise.
 
 Template (exact, sections present only when they have content):
 
@@ -182,12 +188,19 @@ Last updated: <YYYY-MM-DD in UTC>
 ## Overview
 <prose paragraph: README h1 first-para or package.json description, plus entry hint and dominant language>
 
+## Map
+Start here — the most-depended-on files, ranked by importers:
+
+| File | Importers | Role |
+|---|---|---|
+| `<file>` | <N> | <purpose> |
+
 ## Modules
 ### <module>/
 **Role:** <hardcoded role for well-known module names, else top-file purpose or humanized folder name>
 **Purpose:** <2-3 most-imported files' purposes, concatenated>
 **Entry:** `<entry-point file in this module, when detected>`
-**Public surface:** `<name>`, `<name>`, … (up to 10, ranked by inbound file edges)
+**Public surface:** `<name — sig>`, `<name>`, … (up to 10, ranked by inbound file edges; callable signatures kept)
 **Depends on:** <module>, <module>
 **Imported by:** <module>, <module>
 **Internals:**
@@ -198,6 +211,9 @@ Last updated: <YYYY-MM-DD in UTC>
 
 ## Hubs
 - `<file>` — <N> importers, role: <purpose>
+
+## Symbol index
+- `<SymbolName>` → `<defining-file>`
 
 ## Entry points
 - `<path>` — <one-line role>
@@ -231,11 +247,13 @@ Last updated: <YYYY-MM-DD in UTC>
 - Append `Dominant language: <lang>` based on the most common LANG_BY_EXT classification across all included files.
 - Always emit the section. Never omit it.
 
-**Modules section** — one `### <module>/` block per top-level directory, in alphabetical order. Each block populates the fields it can detect; missing fields are simply omitted:
+**Map section** — a ranked table of the most-depended-on files (top 12 by inbound file-edge count, importers > 0), each with its purpose. The agent's entry point: read these first instead of scanning the tree. Distinct from `## Hubs` (which lists every file with ≥3 importers); Map is the top slice as a table. Omitted when no file has inbound edges.
+
+**Modules section** — one `### <module>/` block per top-level directory, **ordered by importance** (sum of the module's files' inbound edges, descending; ties broken alphabetically) so the most-depended-on modules lead. Each block populates the fields it can detect; missing fields are simply omitted:
 - **Role** — hardcoded mapping for well-known module names (`server/`, `unity-package/`, `src/`, `lib/`, `app/`, `apps/`, `packages/`, `scripts/`, `tools/`, `tests/`, `test/`, `docs/`, `skills/`, `agents/`, `hooks/`, `mcps/`, `.github/`). Falls back to the highest-inbound-edge file's purpose, then to a humanized folder name. Always present.
 - **Purpose** — the 2-3 most-imported files' purpose lines, concatenated, deduplicated.
 - **Entry** — module's own entry point (matching by top-level dir against the detected entry list), else `index.ts` / `index.js` / `index.mjs` / `Boot.cs` / `Main.cs` / `Program.cs` at module root.
-- **Public surface** — up to 10 export names from the top-ranked files (by inbound edges), 3 names per file max. Signatures stripped; `default: foo` becomes `foo`.
+- **Public surface** — up to 10 exports from the top-ranked files (by inbound edges), 3 per file max. **Callable signatures are kept** (`go — (x: string): void`) — the highest-signal element, so the model can call the API without reading the implementation. Only the `default: ` prefix is stripped. Deduped on the bare name.
 - **Depends on** — alphabetical list of other modules this module imports from (from `## Dependencies`).
 - **Imported by** — alphabetical inverse of `Depends on`.
 - **Internals** — bullets per sub-folder with ≥2 files inside this module, labeled with the top inbound file's purpose (or `N files` when no purpose is available).
@@ -247,6 +265,8 @@ Last updated: <YYYY-MM-DD in UTC>
 - Detection runs over `## Class graph` data. No heuristic / fuzzy inference — if there are fewer than 3 explicit hits, no convention is reported. Sorted by instance count descending, then name ascending. Omit the section entirely if no convention reaches the threshold.
 
 **Hubs section** — files with ≥3 inbound file-level edges, sorted by importer count descending then file path ascending. Format: `` `<file>` — <N> importers, role: <purpose> ``. Omit when no file crosses the threshold.
+
+**Symbol index section** — the "where is X" lookup: each exported/public symbol → its defining file, one bullet per symbol (`` `<SymbolName>` → `<file>` ``). Ranked by the defining file's inbound count so the most-used symbols lead and survive `--map-tokens` truncation. Bare names only (signatures live in the module surface). Deduped; first definer wins on a name collision. Capped at 200 entries (then further trimmed by `--map-tokens`). The agent greps this section instead of the repo. Omit when nothing is exported.
 
 **Entry points section** — detect from:
 - Root `package.json` `main` / `bin` / `module` fields.
@@ -292,8 +312,8 @@ Last updated: <YYYY-MM-DD in UTC>
 - Drives both `## Conventions detected` (same run) and `codemap-visualize`'s UML output (downstream).
 
 **Ordering rules (mandatory):**
-- Section order in the file: `# Architecture` header, then `## Overview`, `## Modules`, `## Conventions detected`, `## Hubs`, `## Entry points`, `## Layers`, `## Dependencies`, `## File deps`, `## Class graph`, then the per-module `## <top-level-dir>/` groups. Sections with no content are omitted (except Overview and Modules, which are always emitted when any file exists).
-- `### <module>/` blocks inside `## Modules` in alphabetical order by directory name.
+- Section order in the file: `# Architecture` header, then `## Overview`, `## Map`, `## Modules`, `## Conventions detected`, `## Hubs`, `## Symbol index`, `## Entry points`, `## Layers`, `## Dependencies`, `## File deps`, `## Class graph`, then the per-module `## <top-level-dir>/` groups. Sections with no content are omitted (except Overview and Modules, which are always emitted when any file exists).
+- `### <module>/` blocks inside `## Modules` ordered by module importance (sum of inbound edges) descending, ties alphabetical.
 - Top-level file groups in alphabetical order by directory name.
 - Files within a group in alphabetical order by relative path.
 - A group per top-level directory. Root-level files (e.g. `README.md`, `package.json`) go in a leading group named `./` (root).

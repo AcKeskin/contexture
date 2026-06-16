@@ -16,6 +16,8 @@ const SKIP_DIRS = new Set([
   'coverage', '.nyc_output',
   '.next', '.nuxt', '.svelte-kit',
   '.smoke-tmp', '.smoke-out',
+  '.worktrees', 'worktrees', // git worktree copies — indexing them duplicates the whole repo
+  '.claude', // the codemap's own output dir (codemap.md / .cache.json / specs / plans) — never index it
 ]);
 
 const SKIP_FILE_PATTERNS = [
@@ -64,14 +66,19 @@ const TREE_SITTER_TAG = {
 };
 
 function parseArgs(argv) {
-  const args = { root: null, dryRun: false, quiet: false };
+  // mapTokens null = no budget (emit everything). A positive value caps the document
+  // size, truncating lowest-ranked detail first (proposal 081 gap 3). noCache disables
+  // the per-file extraction cache (proposal 081 gap 5) for a guaranteed full rebuild.
+  const args = { root: null, dryRun: false, quiet: false, mapTokens: null, noCache: false };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--dry-run') args.dryRun = true;
     else if (a === '--quiet') args.quiet = true;
     else if (a === '--root') args.root = argv[++i];
+    else if (a === '--map-tokens') args.mapTokens = Math.max(0, parseInt(argv[++i], 10) || 0) || null;
+    else if (a === '--no-cache') args.noCache = true;
     else if (a === '--help' || a === '-h') {
-      console.log('usage: node skills/update-codemap/codemap.mjs [--root <dir>] [--dry-run] [--quiet]');
+      console.log('usage: node skills/update-codemap/codemap.mjs [--root <dir>] [--dry-run] [--quiet] [--map-tokens <N>] [--no-cache]');
       process.exit(0);
     } else if (!args.root) args.root = a;
   }
@@ -201,18 +208,37 @@ function isGenerated(headLines) {
   return GENERATED_MARKERS.some((m) => probe.includes(m));
 }
 
+// License / copyright boilerplate that leads a file is NOT its purpose. Detect it so the
+// purpose derivation skips past the banner to the first real description comment (or the
+// filename fallback) instead of surfacing "Copyright (c) ..." as every file's role.
+const BOILERPLATE_RE = /\b(copyright|all rights reserved|licen[sc]ed?\b|SPDX-License-Identifier|this (program|file|software) is (free|provided)|redistribut|warranty|GNU (General|Lesser)|Apache License|MIT License|BSD License|Mozilla Public|permission is hereby granted)\b/i;
+
+// A comment line carrying no letters/digits — `*****`, `----`, `====`, `////` rules used
+// to frame a banner. Decoration, never a purpose.
+const COMMENT_RULE_RE = /^[*#/=_\-~.\s]*$/;
+
+function isBoilerplateComment(text) {
+  return BOILERPLATE_RE.test(text) || COMMENT_RULE_RE.test(text);
+}
+
 function derivePurpose(headLines, filename) {
   for (let i = 0; i < Math.min(headLines.length, 20); i++) {
     const l = headLines[i].trim();
     if (!l) continue;
-    let m;
-    if ((m = l.match(/^\/\/\s*(.+)$/))) return clip(m[1].trim());
-    if ((m = l.match(/^#\s+(.+)$/))) return clip(m[1].trim());
-    if ((m = l.match(/^\/\*\s*(.+?)\s*\*\/?$/))) return clip(m[1].trim());
-    if ((m = l.match(/^\*\s*(.+)$/))) return clip(m[1].trim());
-    if ((m = l.match(/^"""\s*(.+?)(?:"""|$)/))) return clip(m[1].trim());
-    if ((m = l.match(/^---\s*$/))) break;
-    if (!l.startsWith('//') && !l.startsWith('#') && !l.startsWith('/*') && !l.startsWith('*')) break;
+    let m, body = null;
+    if ((m = l.match(/^\/\/\s*(.+)$/))) body = m[1].trim();
+    else if ((m = l.match(/^#\s+(.+)$/))) body = m[1].trim();
+    else if ((m = l.match(/^\/\*\s*(.+?)\s*\*\/?$/))) body = m[1].trim();
+    else if ((m = l.match(/^\*\s*(.+)$/))) body = m[1].trim();
+    else if ((m = l.match(/^"""\s*(.+?)(?:"""|$)/))) body = m[1].trim();
+    else if ((m = l.match(/^---\s*$/))) break;
+    else if (!l.startsWith('//') && !l.startsWith('#') && !l.startsWith('/*') && !l.startsWith('*')) break;
+
+    if (body !== null) {
+      // Skip license/copyright/banner-rule lines; keep scanning for a real description.
+      if (isBoilerplateComment(body)) continue;
+      return clip(body);
+    }
   }
   return clip(path.parse(filename).name.replace(/[-_]+/g, ' '));
 }
@@ -733,6 +759,41 @@ function loadPreviousCodemap(codemapPath) {
   return fs.readFileSync(codemapPath, 'utf8');
 }
 
+// ----- Per-file extraction cache (proposal 081 gap 5) -----
+// Stores the parse result for each file keyed by rel path, validated by mtimeMs+size,
+// so a regen re-parses only the files that actually changed (the tree-sitter pass is
+// the expensive part). Cache lives at .claude/codemap.cache.json (gitignored alongside
+// codemap.md). A bumped CACHE_VERSION or a missing/corrupt file → cold rebuild, never a
+// stale read. The cache is advisory: a miss just means "re-extract", so it can never
+// produce a wrong map, only a slower one.
+const CACHE_VERSION = 1;
+
+function loadExtractCache(cachePath) {
+  try {
+    const j = JSON.parse(fs.readFileSync(cachePath, 'utf8'));
+    if (j && j.version === CACHE_VERSION && j.files && typeof j.files === 'object') return j.files;
+  } catch {}
+  return {};
+}
+
+function saveExtractCache(cachePath, files) {
+  try {
+    fs.mkdirSync(path.dirname(cachePath), { recursive: true });
+    fs.writeFileSync(cachePath, JSON.stringify({ version: CACHE_VERSION, files }, null, 0));
+  } catch {}
+}
+
+// Validator for a cache entry — file unchanged iff size and mtime match. mtimeMs is
+// float; round to ms to avoid FS-precision drift across platforms.
+function fileStamp(abs) {
+  try {
+    const st = fs.statSync(abs);
+    return { size: st.size, mtime: Math.floor(st.mtimeMs) };
+  } catch {
+    return null;
+  }
+}
+
 function diffSummary(prev, current) {
   if (!prev) return { initial: true };
   const prevFiles = new Set([...prev.matchAll(/^-\s+`([^`]+)`/gm)].map((m) => m[1]));
@@ -896,18 +957,23 @@ function publicSurfaceForModule(items, inboundCounts) {
     ? (b._in - a._in) || a.rel.localeCompare(b.rel)
     : a.rel.localeCompare(b.rel));
   const surface = [];
+  const seenName = new Set(); // dedupe on the bare name, keep the signature-bearing form
   for (const it of ranked) {
     for (const e of it.exports.slice(0, 3)) {
-      // Trim signature tail (` — sig`) to keep public surface readable.
-      const name = e.name.replace(/\s+—\s+.*$/, '').replace(/^default:\s+/, '');
-      surface.push(name);
+      // Keep the callable SIGNATURE (the ` — sig` tail) — it's the single
+      // highest-signal element of a public surface: the model learns the API
+      // well enough to call it without reading the implementation (proposal 081).
+      // Only strip the `default: ` prefix, which is rendering noise.
+      const display = e.name.replace(/^default:\s+/, '');
+      const bareName = display.replace(/\s+—\s+.*$/, '');
+      if (seenName.has(bareName)) continue;
+      seenName.add(bareName);
+      surface.push(display);
       if (surface.length >= 10) break;
     }
     if (surface.length >= 10) break;
   }
-  // Dedupe while preserving order.
-  const seen = new Set();
-  return surface.filter((s) => { if (seen.has(s)) return false; seen.add(s); return true; });
+  return surface;
 }
 
 function computeInternals(modName, items, inboundCounts) {
@@ -934,6 +1000,99 @@ function computeInternals(modName, items, inboundCounts) {
     lines.push(`${modName}${sub}/ — ${purpose}`);
   }
   return lines;
+}
+
+// ----- Retrieval-efficiency helpers (proposal 081) -----
+// Cheap token estimate: ~4 chars/token is the standard rough heuristic. Used only
+// to drive --map-tokens truncation, never for anything that must be exact.
+function estimateTokens(text) {
+  return Math.ceil(text.length / 4);
+}
+
+// Module-level importance = sum of inbound file-edges over the module's files.
+// Degree-centrality proxy for PageRank (proposal 081 OQ1: inbound-degree first,
+// full PageRank deferred). Drives both module ordering and the ranked Map table.
+function computeModuleImportance(groups, inboundCounts) {
+  const score = new Map();
+  for (const [modName, items] of groups.entries()) {
+    let s = 0;
+    for (const it of items) s += inboundCounts.get(it.rel) || 0;
+    score.set(modName, s);
+  }
+  return score;
+}
+
+// Order module names by importance desc, then alphabetically. Used for the prose
+// `## Modules` section so the most-depended-on modules lead (proposal 081 gap 2).
+function modulesByImportance(groups, moduleImportance) {
+  return [...groups.keys()].sort(
+    (a, b) => (moduleImportance.get(b) || 0) - (moduleImportance.get(a) || 0) || a.localeCompare(b));
+}
+
+// Build the symbol→file index: exported/public symbol name → defining file (proposal
+// 081 gap 4). The literal "where is X" lookup. Ranked by the defining file's inbound
+// count so the most-used symbols survive truncation. Bare names only (signatures live
+// in the module surface + File deps); deduped, first definer wins on collision.
+function buildSymbolIndex(groups, inboundCounts) {
+  const seen = new Set();
+  const entries = [];
+  for (const items of groups.values()) {
+    for (const it of items) {
+      if (it.vendored || !it.exports || !it.exports.length) continue;
+      const fileRank = inboundCounts.get(it.rel) || 0;
+      for (const e of it.exports) {
+        const bare = e.name.replace(/^default:\s+/, '').replace(/\s+—\s+.*$/, '').trim();
+        // Skip non-symbol pseudo-exports (re-export markers carry spaces / 'from').
+        if (!bare || /\s/.test(bare) || bare.startsWith('<')) continue;
+        if (seen.has(bare)) continue;
+        seen.add(bare);
+        entries.push({ name: bare, file: it.rel, rank: fileRank });
+      }
+    }
+  }
+  entries.sort((a, b) => b.rank - a.rank || a.name.localeCompare(b.name));
+  return entries;
+}
+
+// Trim the rendered document to ~mapTokens by dropping tail bullet rows from the
+// agent-facing index sections only, in priority order (least-valuable first):
+//   1. ## Symbol index   (longest, most expendable — it's a lookup convenience)
+//   2. ## Map            (top hub table — keep at least a few rows)
+// Structured sections the visualizer parses are never touched. Returns the trimmed
+// text; logs a one-line summary of what was dropped. Best-effort: if still over
+// budget after trimming both, leaves the rest intact (correctness over a hard cap).
+function truncateToBudget(out, mapTokens, args, log) {
+  const dropped = {};
+  // Section priority: drop from index first, then map. Each entry keeps a floor of rows.
+  const sections = [
+    { heading: '## Symbol index', floor: 0 },
+    { heading: '## Map', floor: 4 }, // 4 = header line + table header (2) + ≥1 data row
+  ];
+  for (const { heading, floor } of sections) {
+    while (estimateTokens(out) > mapTokens) {
+      const start = out.indexOf(heading + '\n');
+      if (start < 0) break;
+      // Section body runs until the next `\n## ` (or end of doc).
+      const bodyStart = start + heading.length + 1;
+      const next = out.indexOf('\n## ', bodyStart);
+      const end = next < 0 ? out.length : next + 1;
+      const body = out.slice(bodyStart, end);
+      const lines = body.split('\n');
+      // Find trailing non-empty bullet rows; drop the last one.
+      let lastRow = -1;
+      for (let i = lines.length - 1; i >= 0; i--) {
+        if (lines[i].trim()) { lastRow = i; break; }
+      }
+      if (lastRow < 0 || lastRow < floor) break; // hit the section floor
+      lines.splice(lastRow, 1);
+      dropped[heading] = (dropped[heading] || 0) + 1;
+      out = out.slice(0, bodyStart) + lines.join('\n') + out.slice(end);
+    }
+  }
+  const summary = Object.entries(dropped).map(([h, n]) => `${n} from ${h.replace('## ', '')}`).join(', ');
+  if (summary) log(args, `--map-tokens ${mapTokens}: trimmed ${summary} to fit budget (~${estimateTokens(out)} tokens)`);
+  else if (estimateTokens(out) > mapTokens) log(args, `--map-tokens ${mapTokens}: over budget (~${estimateTokens(out)} tokens) but only structural sections remain — kept intact`);
+  return out;
 }
 
 function detectConventions(groups) {
@@ -1040,11 +1199,41 @@ async function main() {
   // consults for `using` directives. Built after the loop so heads are read once.
   const namespaceByRel = new Map();
 
+  // Per-file extraction cache (proposal 081 gap 5). Load the prior cache, validate each
+  // file by stamp, reuse the cached parse on a hit. `nextCache` accumulates this run's
+  // entries (hits carried forward, misses re-extracted) and is written at the end.
+  const cachePath = path.join(root, '.claude', 'codemap.cache.json');
+  const prevCache = args.noCache ? {} : loadExtractCache(cachePath);
+  const nextCache = {};
+  let cacheHits = 0, cacheMisses = 0;
+
   for (const f of allFiles) {
     const ext = path.extname(f.rel).toLowerCase();
     const lang = LANG_BY_EXT[ext] || 'other';
+    const stamp = fileStamp(f.abs);
+
+    // Cache hit: file unchanged since last run → reuse the stored extraction, skip the
+    // read + (expensive) tree-sitter/regex parse entirely. A `generated` file is cached
+    // as a skip sentinel so we don't re-read it either.
+    const cached = !args.noCache && stamp ? prevCache[f.rel] : null;
+    if (cached && cached.size === stamp.size && cached.mtime === stamp.mtime) {
+      cacheHits++;
+      nextCache[f.rel] = cached;
+      if (cached.generated) continue;
+      const top = topLevelDirOf(f.rel);
+      if (!groups.has(top)) groups.set(top, []);
+      groups.get(top).push({ rel: f.rel, purpose: cached.purpose, exports: cached.exports, classes: cached.classes, vendored: cached.vendored });
+      if (cached.imports && cached.imports.length) moduleImports.set(f.rel, cached.imports);
+      if (cached.namespace) namespaceByRel.set(f.rel, cached.namespace);
+      continue;
+    }
+    cacheMisses++;
+
     const head = readHead(f.abs, READ_CAP_LINES);
-    if (isGenerated(head.lines)) continue;
+    if (isGenerated(head.lines)) {
+      if (stamp) nextCache[f.rel] = { ...stamp, generated: true };
+      continue;
+    }
 
     const vendored = isVendored(f.rel);
 
@@ -1084,21 +1273,27 @@ async function main() {
     if (!groups.has(top)) groups.set(top, []);
     groups.get(top).push({ rel: f.rel, purpose, exports, classes, vendored });
 
+    let imports = [];
     if (!vendored) {
       // Prefer AST-extracted imports; else regex. (cpp-impl has no AST classes but its
       // includes still come through the engine when ready.)
-      const targets = astImports !== null ? astImports : extractImports(text, lang);
-      if (targets.length) moduleImports.set(f.rel, targets);
+      imports = astImports !== null ? astImports : extractImports(text, lang);
+      if (imports.length) moduleImports.set(f.rel, imports);
     }
 
     // C# namespace declaration → index entry, so `using` directives in other files
     // resolve to this file's module. Non-vendored .cs only; a file may declare a
     // namespace without exporting a class, so this is independent of `classes`.
+    let namespace = '';
     if (!vendored && lang === 'csharp') {
       const nsMatch = text.match(/^\s*namespace\s+([A-Za-z_][\w.]*)\s*[;{]/m);
-      if (nsMatch) namespaceByRel.set(f.rel, nsMatch[1]);
+      if (nsMatch) { namespace = nsMatch[1]; namespaceByRel.set(f.rel, namespace); }
     }
+
+    // Store this run's extraction so the next regen can skip it if unchanged.
+    if (stamp) nextCache[f.rel] = { ...stamp, purpose, exports, classes, vendored, imports, namespace };
   }
+  if (!args.noCache) log(args, `cache: ${cacheHits} hits, ${cacheMisses} misses`);
 
   const fileIndex = buildFileIndex(allFiles, namespaceByRel);
   const topLevelDirs = new Set(groups.keys());
@@ -1137,6 +1332,7 @@ async function main() {
   // Dependencies, File deps, Class graph) — anything else is benign noise.
   const inboundCounts = computeInboundCounts(fileEdges);
   const importedBy = computeModuleImportedBy(moduleEdges);
+  const moduleImportance = computeModuleImportance(groups, inboundCounts);
   const readmeH1 = readReadmeH1(root);
   const pkgDesc = readPackageDescription(root);
   const domLang = dominantLanguage(groups);
@@ -1155,8 +1351,33 @@ async function main() {
   if (domLang) overviewParts.push(`Dominant language: ${domLang}.`);
   out += `## Overview\n${overviewParts.join(' ')}\n\n`;
 
-  // ## Modules
-  const sortedModuleNames = [...groups.keys()].sort();
+  // ## Map — the agent's entry point: the most-depended-on hub files, ranked, so the
+  // agent reads these FIRST instead of scanning the tree (proposal 081 gap 2). Distinct
+  // from `## Hubs` below (≥3 inbound, full list) — this is the top slice with purposes.
+  const mapEntries = [];
+  for (const [file, count] of inboundCounts.entries()) {
+    let purpose = '';
+    for (const items of groups.values()) {
+      const hit = items.find((it) => it.rel === file);
+      if (hit) { purpose = hit.purpose; break; }
+    }
+    mapEntries.push({ file, count, purpose });
+  }
+  mapEntries.sort((a, b) => b.count - a.count || a.file.localeCompare(b.file));
+  const topMap = mapEntries.filter((e) => e.count > 0).slice(0, 12);
+  if (topMap.length) {
+    out += `## Map\nStart here — the most-depended-on files, ranked by importers:\n\n`;
+    out += `| File | Importers | Role |\n|---|---|---|\n`;
+    for (const e of topMap) {
+      const role = (e.purpose && e.purpose !== '<vendored>') ? e.purpose.replace(/\|/g, '\\|') : '';
+      out += `| \`${e.file}\` | ${e.count} | ${role} |\n`;
+    }
+    out += `\n`;
+  }
+
+  // ## Modules — ordered by importance (sum of inbound edges), most-depended-on first,
+  // so the agent meets the load-bearing modules before the leaves (proposal 081 gap 2).
+  const sortedModuleNames = modulesByImportance(groups, moduleImportance);
   if (sortedModuleNames.length) {
     out += `## Modules\n`;
     for (const modName of sortedModuleNames) {
@@ -1216,6 +1437,19 @@ async function main() {
     for (const h of hubEntries) {
       const tail = h.purpose ? `, role: ${h.purpose}` : '';
       out += `- \`${h.file}\` — ${h.count} importers${tail}\n`;
+    }
+    out += `\n`;
+  }
+
+  // ## Symbol index — "where is X" lookup: exported/public symbol → defining file
+  // (proposal 081 gap 4). Ranked by the file's inbound count so the most-used symbols
+  // lead and survive --map-tokens truncation. The agent greps this section instead of
+  // the repo. Capped at 200 here; --map-tokens may trim further.
+  const symbolIndex = buildSymbolIndex(groups, inboundCounts);
+  if (symbolIndex.length) {
+    out += `## Symbol index\n`;
+    for (const s of symbolIndex.slice(0, 200)) {
+      out += `- \`${s.name}\` → \`${s.file}\`\n`;
     }
     out += `\n`;
   }
@@ -1296,6 +1530,15 @@ async function main() {
     out += `\n`;
   }
 
+  // --map-tokens budget (proposal 081 gap 3). Truncate ONLY the agent-facing index
+  // sections (Symbol index, then Map) — never the structured sections codemap-visualize
+  // parses (Class graph / File deps / Dependencies / per-module listings). Drop the
+  // lowest-ranked tail rows first (both sections are pre-sorted by importance) and log
+  // what was dropped — no silent caps (lessons/looks-bad-but-fine + no-silent-caps).
+  if (args.mapTokens && estimateTokens(out) > args.mapTokens) {
+    out = truncateToBudget(out, args.mapTokens, args, log);
+  }
+
   const codemapPath = path.join(root, '.claude', 'codemap.md');
   const dirtyPath = path.join(root, '.claude', 'codemap.dirty');
   let dirtyClearedFrom = null;
@@ -1313,6 +1556,9 @@ async function main() {
   fs.mkdirSync(path.dirname(codemapPath), { recursive: true });
   const prev = loadPreviousCodemap(codemapPath);
   fs.writeFileSync(codemapPath, out);
+  // Persist the extraction cache (proposal 081 gap 5) only on a real write — dry-run
+  // returns above, so its cache never diverges from the on-disk map. --no-cache skips.
+  if (!args.noCache) saveExtractCache(cachePath, nextCache);
   if (dirtyClearedFrom !== null) {
     try { fs.unlinkSync(dirtyPath); } catch {}
   }

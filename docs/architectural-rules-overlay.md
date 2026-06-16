@@ -87,6 +87,20 @@ Runs *before* discover's existing frontmatter scan:
 
 Everything downstream is unchanged — discover scoring, prep capping, deliver rendering, review drift matching. The overlay is a pre-filter.
 
+### Callable subroutine
+
+The algorithm above is implemented as a hook-callable Node module at [`hooks/lib/resolve-rules.js`](../hooks/lib/resolve-rules.js) — the single entry point that turns the tier tree into resolved, patched, anchor-stripped rule bodies without a model turn. The discover skill describes the same algorithm as prose for the model-driven `/prep` and `/review` paths; the module is the executable form the **rule-prime hook** (077) calls on the critical path.
+
+```js
+const { resolveRules } = require('./lib/resolve-rules');
+const { rules, warnings } = resolveRules({ cwd, scopes, relevancePhases });
+// rules[]: { key, name, scope, relevance, kind, body, tier, nonDefault, annotation, orphans }
+// body is anchor-stripped + patched; annotation is '' for plain shipped rules
+// (exception-only), set only for overridden / patched / orphaned entries.
+```
+
+Contract: **fail-open** like every hook lib — any I/O or parse error degrades to fewer rules (or shipped-only / empty), never throws to the caller. A crashing resolver must never break a turn. `scopes` / `relevancePhases` are optional hard filters; omit them to resolve the whole enabled corpus. This is a *trigger over the existing path*, not a second resolver — the same precedence, patch, disable, and anchor-strip semantics specified above, in code.
+
 ## Locked rules (company) — soft lock with audit
 
 A company file may carry `locked: true`. The user **can still** override/disable it (their machine, their final say) — but doing so:

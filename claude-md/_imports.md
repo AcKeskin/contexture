@@ -4,7 +4,11 @@ Fragments in this folder are designed to be pulled into `~/.claude/CLAUDE.md` vi
 
 ## Active fragments
 
-| Fragment | Purpose | Import line to add to `~/.claude/CLAUDE.md` | | --- | --- | --- | | `memory-capture.md` | Frontmatter template, folder layout, and capture rules for memory files. Implements. | `@claude-md/memory-capture.md` | ## How to add an import
+*(none currently imported always-on)*
+
+## On-demand fragments (linked, NOT imported)
+
+| Fragment | Purpose | Consumer | | --- | --- | --- | | `memory-capture.md` | Frontmatter template, folder layout, and capture rules for memory files. Implements. | `capture` skill `Read`s it on demand. **Deliberately removed from always-on** (saved ~2.3K tokens/session) — it is capture-time guidance, needed only when writing a memory. Do not re-add `@claude-md/memory-capture.md` to `~/.claude/CLAUDE.md` without revisiting that token trade-off. | ## How to add an import
 
 1. Open `~/.claude/CLAUDE.md`.
 2. Paste the import line under a heading like `## Imports` (create it if absent).

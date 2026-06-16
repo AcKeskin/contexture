@@ -137,6 +137,24 @@ A comment must answer "what non-obvious thing does this do?" or "why isn't the o
 
 **Why:** layering is what keeps core logic portable and testable. Inversion of control at the boundary is what makes swap-out cheap later.
 
+## Naming & comment quality (universal)
+
+The positive standard for how identifiers and comments should *read* — the quality axis review's `naming-quality` drift class audits against. This is distinct from `universal/naming.md` (file/type structure) and from review's *stale*-comment-drift class (comments out of sync with code): this rule governs names and comments that are technically correct but read **badly**.
+
+Names read in the **domain's vocabulary**, not the machine's. A reader fluent in the problem domain should recognize the term. Prefer `retryBudget` over `intValueForCount2`, `pendingInvoices` over `tmpList`, `settled` over `flagTrue`.
+Comments explain **why / intent / non-obvious constraint**, not *what the code already says*. A comment that restates the next line is noise; a comment that captures the reason, the edge case, or the thing-you-can't-see-from-here earns its place.
+No **machine- or AI-flavored phrasing** in names or comments: numbered suffixes that carry no meaning (`processData2`, `handlerHandler`), `tmp`/`temp`/`data`/`obj`/`val` as the whole name, stilted comment prose ("This function is responsible for facilitating the processing of..."). Terse, direct, human.
+Abbreviate **only where idiomatic** to the surrounding code and domain (`ctx`, `req`, `i`, `db` where the codebase already uses them). Inventing a novel abbreviation is worse than spelling it out.
+**Consistency with the surrounding code beats any abstract ideal.** Precedence, highest first: a **079 project-tier convention** (`.claude/rules/<lang>/conventions.md`) for the scope > the **file's own established style** > this universal default. Match what's there before reaching for what's "right" — a lone correct-but-different name is itself a drift.
+
+**When NOT to flag** (the false-positive guard — load-bearing; an over-eager naming reviewer is worse than none):
+- **Domain vocabulary** — a term that looks odd but is the field's real word (`luma`, `eigenvector`, `mipmap`, `koan`). Not a finding.
+- **Math / protocol field names** — single letters and spec-mandated names (`x`/`y`/`z`, `m11`, `SYN`, `ACK`, `iat`/`exp` in a JWT). The spec *is* the vocabulary.
+- **Idiomatic abbreviations** — established in the language/codebase (`fmt`, `len`, `ptr`, `async`/`Async` suffix). Not machine-flavor; convention.
+- **Deliberate legacy-convention consistency** — matching an existing house style (even a dated one) on purpose, so the file stays uniform. Conformance wins; flag the *convention* via `/capture` if it should change, not each instance.
+
+**Why:** weird names and stilted comments are technically correct, so no compiler or linter catches them — they accumulate unwatched and tax every future reader. But the failure mode of *auditing* them is false positives: flagging a domain term as "weird" trains the user to ignore the class. The when-not-to-flag clause is what keeps the class trustworthy; conformance-over-ideal is what keeps it from fighting a codebase's own consistent style. Surface the confident cases, hold the borderline ones at low severity, and route the correct-but-unusual to "looks bad but fine" — never nag.
+
 ## Naming (universal)
 
 - One type per file. Filename matches type name exactly.
@@ -215,3 +233,23 @@ Commit messages are out of scope — they have their own hygiene rule.
 - Clear layering. Dependencies point inward (domain ← services ← transport / UI). Never the reverse.
 
 **Why:** the cost of these rules is paid once at design time; the cost of ignoring them compounds forever.
+
+## Test quality (universal)
+
+The standard a test suite is authored and audited against. The *test* side of test quality; the *code* side (designing code to be testable — seams, injected dependencies, pure cores) is the testability rule. `/write-tests` writes to this standard; `/review` audits against it.
+
+Tests assert **observable behavior**, not implementation. Assert what the unit *does* (return value, emitted event, state transition a caller can see), never how it does it (private fields, call order of internals). A test coupled to implementation breaks on every refactor and protects nothing.
+Test names **reveal intention** — what behavior, under what condition, expecting what. `Withdraw_InsufficientFunds_Throws` over `Test3`. The name is the spec a reader scans first.
+Coverage is **systematic**, not happy-path-only: the nominal case, **boundaries** (empty, one, max, off-by-one edges), and **error paths** (invalid input, failure modes, exceptions). Branch and edge coverage is the point; line coverage is a byproduct.
+Mock at **seams, not internals** — substitute true external dependencies (network, clock, filesystem, DB), not the collaborators inside the unit under test. Minimal, honest doubles; a test that mocks the thing it's testing asserts nothing.
+**Arrange–Act–Assert** structure, one logical behavior per test. The three phases are visually distinct; a reader sees setup, the single action, and the assertions at a glance.
+**No test interdependence** — each test sets up its own state and passes in isolation and in any order. Tests that depend on execution order or shared mutable state fail mysteriously and can't be run in parallel.
+
+**Anti-patterns** (the negative list — a test exhibiting these is a finding):
+- **Brittle assertions** — asserting on exact whitespace, full object dumps, or internal structure that changes for reasons unrelated to the behavior.
+- **Over-mocking** — mocking so much that the test exercises mocks talking to mocks, not real code.
+- **Testing privates** — reaching into private members / internal helpers instead of the public surface.
+- **Test interdependence** — order-dependent or shared-state-dependent tests.
+- **One giant test** — a single test asserting a dozen unrelated behaviors; a failure tells you nothing about which broke.
+
+**Why:** tests exist to let you change code with confidence. A test coupled to implementation, dependent on order, or mocking its own subject inverts that — it breaks on safe refactors and stays green on real regressions, training the team to ignore or delete it. The standard above is what keeps a suite a safety net rather than a maintenance tax. Pairs with the testability design rule: when authoring to this standard hits friction (can't test without reaching into internals), that's a *testability* signal in the code, surfaced — not a reason to lower the test standard.

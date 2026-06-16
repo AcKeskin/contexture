@@ -113,7 +113,7 @@ These hold across vendors and both families:
 1. **Be specific and concrete.** Replace abstractions with the exact thing. "Summarize in 3 bullets for a non-technical exec" beats "summarize nicely."
 2. **State the output contract.** Format, length, structure, and what *not* to include. For LLMs, ask for the exact schema. For media, state aspect ratio / duration / resolution.
 3. **Show, don't just tell.** One or two examples (few-shot) anchor the model far more reliably than adjectives. For media, reference styles/artists/film stocks concretely.
-4. **Give the model room to reason** (text). For anything analytical, allow step-by-step or a scratchpad before the final answer; ask for the answer *last*.
+4. **Give the model room to reason** (text). For anything analytical, allow step-by-step or a scratchpad before the final answer; ask for the answer *last* — a model forced to commit to an answer before reasoning tends to defend the first thing it said rather than work the problem.
 5. **Set boundaries.** Explicit must-include / must-avoid lists prevent drift more reliably than hoping.
 6. **Provide context the model can't infer.** Paste the data, the prior decision, the audience — don't make it guess.
 7. **One prompt, one job.** Split multi-goal prompts; chained simple prompts beat one tangled mega-prompt.

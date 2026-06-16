@@ -12,7 +12,7 @@ Unlike `claude-md/`, no `@import` line is needed in `~/.claude/CLAUDE.md` — th
 
 ```
 architectural-rules/
-├── universal/ scope: [universal], relevance: always
+├── universal/ scope: [universal], relevance: always (most) — a few are phase-gated (naming-and-comments.md: during-review; test-quality.md: during-review + when-writing-tests)
 ├── config-authoring/ scope: [config-authoring], relevance: when-touching-{skills,agents,rules,hooks}
 │ # language scopes — gate on the language of the file in scope
 ├── bash/ scope: [bash], relevance: when-language-bash

@@ -80,9 +80,11 @@ Directories are created lazily as proposals require them — no speculative scaf
 | `agent-output-contract-validator` | PostToolUse / Agent | Advisory — validates subagent output against the contract declared by the agent file. Posts a `hookSpecificOutput.additionalContext` advisory; never blocks |
 | `codemap-dirty-marker` | PostToolUse / Write* | Opt-in per project via `.claude/codemap.config.md` `## Auto-update` `enabled: true`. Touches `.claude/codemap.dirty` so the next `/update-codemap` knows the codemap is stale |
 | `clear-context-decision-guard` | SessionStart [clear/compact] | Advisory — scans the prior transcript for unrecapped decision signals after a clear/compact and surfaces a recap nudge via `{ context }` at the next session start; never blocks |
+| `rule-prime` | SessionStart [startup/clear/compact] + UserPromptSubmit | Advisory — mechanically primes resolved architectural rules into context: the always+project floor (plus the one language tier for single-language repos) at session start via `{ context }`, and incremental language/domain tiers per prompt via `additionalContext` (deterministic match, no model call). Budget-guarded, idempotent against a per-session watermark; never blocks. The mechanical half of `/prep` |
 | `lib/hook-io.js` | — | *Shared utility — payload reading, fail-open exit codes, `advise()` helper for PostToolUse advisories* |
+| `lib/resolve-rules.js` | — | *Shared utility — the 047 tier-overlay resolver as callable code (precedence, whole-file override, patch-by-anchor, anchor-strip); the engine `rule-prime` calls* |
 
-Hooks ship in three default-on bundles (`security`, `gitDiscipline`, `bootstrapDrift`) plus `agentOutputContracts` and `codemapDirty`. Bundles can be excluded per machine in `~/.claude/hook-config.json` under `enabled.hookBundles`. All hooks fail-open (exit 0 = allow, exit 2 = block, JSON stdout = advise). See [security-hooks](security-hooks.md).
+Hooks ship in default-on bundles — `security`, `gitDiscipline`, `bootstrapDrift`, `agentOutputContracts`, `codemapDirty`, `sessionGuard`, and `rulePrime`. Bundles can be excluded per machine in `~/.claude/hook-config.json` under `enabled.hookBundles`. All hooks fail-open (exit 0 = allow, exit 2 = block, JSON stdout = advise). See [security-hooks](security-hooks.md).
 
 ### skills/ — Autonomous behavioural organs
 
@@ -91,7 +93,9 @@ Each skill has a `SKILL.md` that defines when it fires, what it does, and how it
 | Skill | Purpose |
 |-------|---------|
 | `prep` | Primes session with architectural rules before coding; auto-fires on first substantive task |
-| `review` | Audits code against loaded rules for 6 drift categories (dead code, monoliths, SoC, patterns, principles, comments). Supports `--vault` to persist to Obsidian |
+| `review` | Audits code against loaded rules for 7 drift categories (dead code, monoliths, SoC, patterns, principles, comment-drift, naming-quality). Supports `--vault` to persist to Obsidian |
+| `extract-conventions` | Observes a scope's dominant code conventions and writes a 047 project-tier `conventions.md` that overrides universal defaults for that scope. Hybrid detection — mechanical conventions deterministically (`detect.mjs`), semantic conventions model-judged + confidence-flagged. Per-category propose-confirm gate; language-pro-delegated authoring; conflicts with shipped rules surfaced at confirm. The first organ to auto-populate the project tier |
+| `write-tests` | Authors a quality test suite for existing code to the `test-quality` standard — detects framework + conventions (reusing `extract-conventions` output where present), proposes a confirmable test plan, delegates idiomatic authoring to the language-pro agent. Characterization-with-flags stance (pins current behavior but flags suspicious-as-bug); on a run failure surfaces the test-vs-code discrepancy rather than auto-adjusting |
 | `pr-review` | Reviews a GitHub PR via `gh` CLI across correctness/design/hygiene/security. Writes a canonical artefact to the Obsidian vault with iteration tracking (flat → folder on iteration 2) and stub redirects so wikilinks never break |
 | `capture` | Stores memories via propose-confirm-commit with relation tracking and secret redaction |
 | `recap` | Writes episodic session records; promotes learned items to rule-tier via capture |
@@ -133,6 +137,8 @@ Each file is a thin entrypoint that delegates to the corresponding skill. One fi
 |---------|---------|
 | `/prep` | `skills/prep` |
 | `/review` | `skills/review` |
+| `/extract-conventions` | `skills/extract-conventions` |
+| `/write-tests` | `skills/write-tests` |
 | `/pr-review` | `skills/pr-review` |
 | `/pr-author` | `skills/pr-author` |
 | `/pr-respond` | `skills/pr-respond` |
@@ -254,7 +260,7 @@ Queryable rules consumed by prep (before coding) and review (after coding). Each
 
 | Scope | Rules |
 |-------|-------|
-| `universal/` (13) | change-discipline, code-standards, config-is-truth, deep-modules, docs-and-comments, git, layering, naming, no-hardcoded-machine-paths, persist-before-discard, planning-depth, skill-auto-fire, solid-and-responsibilities |
+| `universal/` (15) | change-discipline, code-standards, config-is-truth, deep-modules, docs-and-comments, git, layering, naming, naming-and-comments, no-hardcoded-machine-paths, persist-before-discard, planning-depth, skill-auto-fire, solid-and-responsibilities, test-quality. Most are `relevance: always`; `naming-and-comments` (during-review) and `test-quality` (during-review + when-writing-tests) are phase-gated — zero always-on cost |
 | `config-authoring/` (2) | cross-tool-core, share-readiness — rules about *authoring this harness* (not user code): keep it shareable / leak-free, project cleanly cross-tool |
 | `bash/` (3) | quoting, safety, structure |
 | `cpp/` (7) | concurrency, const-correctness, error-paths, headers, modern-cpp-raii, ownership, templates |

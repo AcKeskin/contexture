@@ -7,6 +7,10 @@ description: Capture a memory (lesson / decision / rule / preference / feedback 
 
 The capture organ. Implements. Writes stored memory for future discovery; inherits format from and kind taxonomy from.
 
+## Prerequisite — load the format spec
+
+Before classifying or writing anything, **Read `~/.claude/claude-md/memory-capture.md`** (the frontmatter template, kind table, folder layout, and capture rules). It is no longer always-on context — it loads here, on demand, only when capture actually runs. Every reference to `claude-md/memory-capture.md` below assumes you have read it this turn.
+
 ## When to run
 
 - User types `/capture [content]` (explicit trigger).

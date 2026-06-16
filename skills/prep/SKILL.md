@@ -1,6 +1,6 @@
 ---
 name: prep
-description: Prime the session with architectural rules relevant to the current task — universal + language + domain + project rules — before writing code. Auto-fire on first substantive task of a session, first task after /clear, and when the user signals a topic shift ("now let's work on X"). Manual trigger via /prep. During subsequent work, observe drift (current request mentions a different module / domain / language, or about to touch files outside the primed scope) and ask the user before proceeding. Do not auto-fire on trivial questions or information requests.
+description: Prime the session with architectural rules relevant to the current task — universal + language + domain + project rules — before writing code. The rule-prime hook (077) owns the floor (always + project + single-language tier) mechanically at session start; prep runs the deep pass on top of it (higher top-N, task-specific domain tier) and does not re-prime the floor when the hook's watermark is present. Auto-fire on first substantive task of a session, first task after /clear, and when the user signals a topic shift ("now let's work on X"). Manual trigger via /prep. During subsequent work, observe drift (current request mentions a different module / domain / language, or about to touch files outside the primed scope) and ask the user before proceeding. Do not auto-fire on trivial questions or information requests.
 ---
 
 # prep
@@ -35,6 +35,17 @@ Prep **prevents** drift by priming Claude with the rules *before* code is writte
 - **Recent session state.** Earlier turns in the same session (for topic-shift detection).
 
 ## Procedure
+
+### 0. Read the floor watermark (rule-prime hook handoff)
+
+The **rule-prime hook** primes the *floor* — always-tier + project-tier rules, plus the one language tier in a single-language repo — mechanically at `SessionStart`, and incremental tiers per prompt at `UserPromptSubmit`. It records what it primed in a per-session watermark (`~/.claude/session-state.json`, key `rulePrime`, keyed by session id): `{ scopes: [...], floorPrimed: true, language, polyglot }`.
+
+Before priming, read that watermark:
+
+- **Watermark present + `floorPrimed: true`** → the floor is already in context. Prep runs the **deep pass**, not a re-prime: announce *"floor primed by the hook (scopes: …) — running deep pass"*, then proceed to step 1 with the floor's scopes treated as already-loaded. In step 4, **do not re-emit** rules whose scope is entirely within the watermark's `scopes` (they are already in context); surface only what the deep pass *adds* — higher top-N, the task-specific domain tier, `.claude/architecture.md`, and any language tier the polyglot floor deferred.
+- **No watermark (hook disabled, or non-hook environment)** → prep owns the floor as before. Run the full procedure from step 1 with nothing pre-primed. This is the unchanged legacy path — prep degrades gracefully when the hook is off.
+
+The watermark is advisory and read-only here. Prep never writes it; it is the hook's artefact. If the watermark is malformed or unreadable, treat it as absent (full prime) — fail toward priming, never toward a silent gap.
 
 ### 1. Identify task scope
 
@@ -196,6 +207,7 @@ When the user corrects Claude with reference to a rule ("you violated SoC", "thi
 - **project-architecture.md (006)** — the project's canonical architectural file. Prep reads it directly (step 3), not via discover.
 - **review (005)** — review consumes the same primed scope signal. For now, prep's primed-scope note is session-internal only.
 - **recap (013)** — prep does not load recaps into the priming block. Recaps belong in `/discover`-style recall, not rule priming.
+- **rule-prime hook (077)** — the mechanical half of priming. The hook owns the *floor* (always + project + single-language tier at SessionStart; incremental tiers at UserPromptSubmit) and records it in the `rulePrime` session watermark. Prep reads that watermark (step 0) and runs the *deep* pass — higher top-N, task-specific domain tier, architecture file — instead of re-priming the floor. When the hook is off, prep owns the floor as before (the legacy path). Prep + hook are the same belt-and-suspenders shape as the 049 rule+hook pair: prep is the discretionary deep prime, the hook is the mechanical floor backstop. Drift between the floor the hook primes and the deep set prep adds is a flag.
 - **persist-before-discard rule + clear-context-decision-guard hook (049)** — prep surfaces `universal/persist-before-discard.md` like any other rule when the scope matches session-close. That rule is the intent-shaping half (don't *suggest* clearing with decisions pending); the `clear-context-decision-guard` SessionStart hook is the mechanical backstop (recover at next session start). Rule and hook must stay aligned — drift between them is a flag.
 
 See [`docs/prep-organ.md`](../../docs/prep-organ.md) for the scope map and the rationale behind each rule.

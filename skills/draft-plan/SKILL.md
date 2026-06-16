@@ -89,6 +89,13 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
 
  **Skip the "Serves criteria" field in legacy mode** (spec had no `done_criteria`) — there's nothing to map to.
 
+ **Self-containment for delegated steps.** When a step is tagged `[delegate]` (or otherwise destined for a fresh subagent — see execute §3b), the executing agent does **not** share this conversation's context and cannot re-derive it. Such a step needs two extra fields so it stands alone:
+
+ - **Current state:** the relevant *before* excerpt of what the step modifies — the actual code/config lines being changed (a few lines, cited `file:line`), not a paraphrase. For a new-file step, state "new file" and the directory it lands in.
+ - **Exemplar:** a concrete path in the repo to follow as the convention anchor (e.g. *"mirror the structure of `src/services/auth-service.ts`"*). The subagent reads it to match local idiom instead of inventing one.
+
+ Populate both only for `[delegate]`-tagged steps — they are noise on a step that runs in this context, where the conversation already carries that state. If a step is `[delegate]` but you cannot supply a concrete Current-state excerpt or an Exemplar path, that is a signal the step is under-specified for delegation: either Read the repo to fill them in, or drop the `[delegate]` tag and run it in-context. Do not delegate a step the plan can't make self-contained.
+
  The closing done-criteria assessment is **not** a plan step — it's post-loop infrastructure inside `/execute`, run after the last real step's verification passes. The plan declares what done means; execute checks it.
 
  The drafted plan is held **in-conversation** at this point — nothing is written to disk yet. The review gate (step 9) decides whether it lands.
@@ -145,6 +152,8 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
  - Verification: <command or specific check>
  - Serves criteria: [<list of criterion indices, e.g. 1, 3>] ← skipped in legacy mode
  - Tags: [research] [delegate] ← optional
+ - Current state: <before-excerpt, file:line> ← [delegate] steps only; "new file" for new-file steps
+ - Exemplar: <path to follow as convention anchor> ← [delegate] steps only
 
  ## Step 2: <goal>
 ...

@@ -97,7 +97,7 @@ Keep entries with `keywords_hit ≥ 1` as **primary candidates**.
 
 When the candidate set includes `kind: architectural-rule` files — or the caller passed `kind: "architectural-rule"` (the prep / review path) — resolve them through the **tier-aware overlay** before scoring. This step is a no-op for memory / recap / codemap candidates; it only touches rule files.
 
-Full algorithm in [`docs/architectural-rules-overlay.md`](../../docs/architectural-rules-overlay.md) § Resolution. Summary:
+Full algorithm in [`docs/architectural-rules-overlay.md`](../../docs/architectural-rules-overlay.md) § Resolution (also implemented as the hook-callable `hooks/lib/resolve-rules.js` subroutine the rule-prime hook calls — same semantics, no model turn). Summary:
 
 1. Read manifests: `~/.claude/architectural-rules.config.yaml` (user), then `<project-root>/.claude/rules.config.yaml` (project), then any in-context session disables. Most-local wins.
 2. Enumerate rule files across enabled tiers, in precedence order (low → high): `~/.claude/architectural-rules/` (shipped) → `~/.claude/architectural-rules-company/` → `~/.claude/architectural-rules-local/` → `<project-root>/.claude/rules/`.

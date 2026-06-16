@@ -7,7 +7,7 @@ Prep (004) prevents drift; review detects it. Different jobs, complementary. Tog
 ## What review owns
 
 - **Post-hoc architectural audit.** Scan files in scope against loaded rules; identify drift; propose concrete fixes.
-- **Six drift-check categories.** Dead code, monolithic files, SoC violations, missing pattern usage, principle violations, comment drift.
+- **Seven drift-check categories.** Dead code, monolithic files, SoC violations, missing pattern usage, principle violations, comment drift, and naming/comment quality (machine/AI-flavored identifiers and low-value comments — balanced calibration, cites `universal/naming-and-comments.md`, consumes any project-tier conventions from `/extract-conventions`).
 - **Per-finding propose-confirm-commit.** Apply / skip / edit / view-detail. No silent fixes.
 - **User-correction feedback loop.** Turn a missed finding into a system improvement (sharpen / add / retag a rule, or adjust a threshold) routed through capture.
 

@@ -7,7 +7,9 @@
 //   enabled.skills   = { exclude: [<entry-name>...] }    (per-subtree)
 //   enabled.agents   = { exclude: [...] }
 //   enabled.commands = { exclude: [...] }
-//   enabled.hookBundles = { security: bool, gitDiscipline: bool, bootstrapDrift: bool }
+//   enabled.hookBundles = { security, gitDiscipline, bootstrapDrift,
+//                           agentOutputContracts, codemapDirty, sessionGuard,
+//                           rulePrime : bool }  (each independently toggleable)
 //
 // First-run discipline: if hook-config.json has no `enabled` block, write
 // the solo defaults (everything on, nothing excluded) and continue. The
@@ -34,6 +36,7 @@ const DEFAULT_ENABLED = {
     agentOutputContracts: true,
     codemapDirty: true,
     sessionGuard: true,
+    rulePrime: true,
   },
 };
 

@@ -1,6 +1,6 @@
 ---
 name: review
-description: Audit code in scope against your architectural rules; report drift (dead code, SoC, monolith, missing-pattern, principle, comment-drift) with propose-confirm-commit per fix, then route misses to /capture. User-invoked, never auto-fires. Triggers on /review [path | --since <ref> | --vault], or "review this" / "audit the architecture" / "check for drift". Not a linter, not a security audit (use security-reviewer), not a PR review (use pr-review).
+description: Audit code in scope against your architectural rules; report drift (dead code, SoC, monolith, missing-pattern, principle, comment-drift, naming-quality) with propose-confirm-commit per fix, then route misses to /capture. User-invoked, never auto-fires. Triggers on /review [path | --since <ref> | --vault], or "review this" / "audit the architecture" / "check for drift". Not a linter, not a security audit (use security-reviewer), not a PR review (use pr-review).
 ---
 
 # review
@@ -118,7 +118,7 @@ Cap at top 5 findings per file in the per-file detail section (the run-wide find
 +3 more findings in this file — drill in with /review <path/to/file> for detail
 ```
 
-A roll-up "Severity × Category" matrix (Critical/High/Medium/Low × Dead code/Monolith/SoC/Pattern/Principle/Comment drift) is rendered once before the per-file sections so the category-level signal is not lost.
+A roll-up "Severity × Category" matrix (Critical/High/Medium/Low × Dead code/Monolith/SoC/Pattern/Principle/Comment drift/Naming quality) is rendered once before the per-file sections so the category-level signal is not lost.
 
 ### 4b. Repeat-run reconciliation
 
@@ -172,7 +172,7 @@ Mental model: <1–2 paragraph synthesis>
 Findings: T total (C critical, H high, M medium, L low)
 
 ## Severity × Category
-| | Critical | High | Medium | Low | |--------------------|----------|------|--------|-----| | Dead code | 0 | 0 | 1 | 2 | | Monolithic files | 0 | 1 | 0 | 0 | | SoC violations | 0 | 0 | 2 | 0 | | Missing patterns | 0 | 0 | 1 | 1 | | Principle viol. | 1 | 0 | 0 | 0 | | Comment drift | 0 | 0 | 0 | 3 | ## Diagram # see §5b — mandatory section
+| | Critical | High | Medium | Low | |--------------------|----------|------|--------|-----| | Dead code | 0 | 0 | 1 | 2 | | Monolithic files | 0 | 1 | 0 | 0 | | SoC violations | 0 | 0 | 2 | 0 | | Missing patterns | 0 | 0 | 1 | 1 | | Principle viol. | 1 | 0 | 0 | 0 | | Comment drift | 0 | 0 | 0 | 3 | | Naming quality | 0 | 0 | 1 | 2 | ## Diagram # see §5b — mandatory section
 <mermaid block, ASCII box-diagram, or one-line N/A justification>
 
 ## Per-file findings
@@ -393,6 +393,31 @@ All require rule citation (the universal SOLID rule, typically).
 - TODO comments older than 20 commits. Requires git repo. Skip silently otherwise.
 
 Comment-drift findings are self-evident for the first signal; the second needs the docs rule cited.
+
+### 7. Naming & comment quality
+
+Catches identifiers and comments that are **technically correct but read badly** — distinct from check 6 (which catches *stale* comments, out of sync with code). This class audits *quality of expression*, not staleness. Cite [`universal/naming-and-comments.md`](../../architectural-rules/universal/naming-and-comments.md) on every finding (loaded via discover under `relevance: during-review`).
+
+**Boundary vs check 6 (comment-drift).** A *stale* comment (mentions a removed symbol) is check 6. An *awkward / low-value* comment (restates the code, stilted AI-flavored prose) is check 7. A single comment generates **at most one** finding — if it is both stale and awkward, report it under check 6 (staleness is the more actionable defect) and do not double-count.
+
+**What this class flags** (confident cases → findings):
+- **Machine/AI-flavored names** — meaningless numbered suffixes (`processData2`, `handlerHandler`), placeholder-as-name (`tmp`/`data`/`obj`/`val` standing alone), names that read like generated code.
+- **Restatement comments** — a comment that says what the next line already says (`// increment i` above `i++`). Pure noise.
+- **Stilted / AI-flavored comment prose** — "This function is responsible for facilitating…". Terse, direct is the standard.
+- **Names contradicting the file's OWN established style** — a lone `snake_case` local in a file of `camelCase` ones. A self-inconsistency, the most confident signal (conformance-over-ideal).
+
+**Calibration — BALANCED.** Severity is **low by default** for this whole class; it earns trust by not nagging.
+- **Confident** (the four signals above) → findings, low/medium severity.
+- **Borderline** (a name that's *slightly* off, a comment of marginal value) → **low-severity** findings the user can dismiss in one keystroke — surfaced, never silently dropped.
+- **Correct-but-unusual** (domain term, math/protocol name, idiomatic abbreviation, deliberate legacy consistency — the when-not-to-flag clause of the cited rule) → route to the **required "Things that look bad but are actually fine" section** with reasoning, **never a finding**. This class makes that section's population mandatory: a naming-quality pass that surfaces findings but lists *nothing* in looks-bad-but-fine is a shallow pass (it pattern-matched instead of considering the surrounding domain) — the empty section is the incompleteness signal (`lessons/looks-bad-but-fine-section`).
+
+**Conformance-over-ideal precedence (079 wiring).** Before flagging a name, resolve the scope's conventions through the 047 overlay. Precedence, highest first: a **079 project convention** (`.claude/rules/<lang>/conventions.md`) > the **file's own observed style** > the **universal default**. A name that *matches a present 079 convention is never flagged*, even when it deviates from the universal default (e.g. an `m_` field prefix where the project's extracted conventions endorse it). The universal default applies only where no more-local convention speaks.
+
+**Apply policy — localized-auto / cross-cutting-suggest-only.**
+- **Comment rewords** and **local-variable renames** are localized → apply directly through the per-finding Apply gate, emitted as ` ```suggestion ` blocks per the [042 contract](../../docs/review-output-contract.md) (the replacement lines for the cited range).
+- **Public / exported renames** are **suggest-only** — a public rename is *not localized* (it ripples across call sites), so it never auto-applies and never becomes a suggestion-fence. Flag it, propose the better name in prose, and note that sweeping the call sites is the user's call. Do not edit call sites.
+
+**Feedback loop.** When the user rejects a naming finding as wrong ("that's a domain term", "that abbreviation is idiomatic here"), route to the §9 `/capture` four-option loop (sharpen / add / retag / lower-threshold) so the universal rule **or** the 079 convention learns the exception — the class gets *more* trustworthy with each correction rather than repeating the false positive.
 
 ## Failure modes
 
