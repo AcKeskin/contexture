@@ -33,10 +33,11 @@ Manual trigger: `/pr-respond`.
 ### 1. Fetch comments (read-only)
 
 ```
-gh pr view <PR> --json reviews,comments,reviewRequests,url,headRefName
+gh pr view <PR> --json reviews,reviewRequests,url,headRefName
+gh api repos/<owner>/<repo>/pulls/<PR>/comments --paginate
 ```
 
-Use `gh api` for richer per-thread fields (`in_reply_to_id`, `original_line`, `path`, `diff_hunk`) when thread context matters. Filter to:
+Per the canonical-command pin (`architectural-rules/universal/canonical-commands.md`, "read all PR comments"), **`gh pr view` truncates review threads at ~30 comments with no signal** — use `gh api.../comments --paginate` to read every comment, and reserve `gh pr view` for the non-comment metadata (reviews, branch, url). `gh api` also carries the richer per-thread fields (`in_reply_to_id`, `original_line`, `path`, `diff_hunk`) for thread context. Filter to:
 - Unresolved review threads.
 - Outstanding general comments since the user's last push.
 

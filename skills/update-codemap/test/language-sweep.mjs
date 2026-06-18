@@ -71,6 +71,7 @@ function assertFixture(fixture, codemap, diagrams) {
   const exp = fixture.expect;
   const classGraph = sectionOf(codemap, 'Class graph');
   const fileDeps = sectionOf(codemap, 'File deps');
+  const callGraph = sectionOf(codemap, 'Call graph');
 
   const results = {};
 
@@ -79,9 +80,15 @@ function assertFixture(fixture, codemap, diagrams) {
 
   // [relation] — the inheritance/impl/composition edge is captured. The class-graph
   // block records `extends:`/`implements:` lines; we accept the base type name appearing
-  // on either, since some languages collapse the distinction.
-  const relRe = new RegExp(`(extends|implements)[^\\n]*\\b${exp.baseType}\\b`, 'i');
-  results.relation = results.class && relRe.test(classGraph);
+  // on either, since some languages collapse the distinction. `baseType: null` means the
+  // language has no inheritance/implements construct (e.g. C structs) — recorded n/a, not
+  // a gap, mirroring the `edgeTo: null` / `calls: null` precedent.
+  if (exp.baseType === null) {
+    results.relation = 'na';
+  } else {
+    const relRe = new RegExp(`(extends|implements)[^\\n]*\\b${exp.baseType}\\b`, 'i');
+    results.relation = results.class && relRe.test(classGraph);
+  }
 
   // [field] — a field of the base/value type was captured
   results.field = new RegExp(`\\b${exp.field}\\b`).test(classGraph);
@@ -94,6 +101,34 @@ function assertFixture(fixture, codemap, diagrams) {
   } else {
     const edgeRe = new RegExp(`${escapeRe(exp.edgeFrom)}[\\s\\S]*?${escapeRe(exp.edgeTo)}|${escapeRe(exp.edgeTo)}[\\s\\S]*?${escapeRe(exp.edgeFrom)}`);
     results.edge = edgeRe.test(fileDeps);
+  }
+
+  // [calls] — the syntactic call edge caller→callee appears in `## Call graph` AND the
+  // visualizer rendered it as a Mermaid edge. `calls: null` means the fixture has no
+  // statically determinable call site (recorded n/a, not a gap), mirroring `edgeTo: null`.
+  if (!exp.calls) {
+    results.calls = 'na';
+  } else {
+    const callerRe = new RegExp(`::${escapeRe(exp.calls.caller)}\\\`\\s+→\\s+\\\`${escapeRe(exp.calls.callee)}\\b`);
+    const inCodemap = callerRe.test(callGraph);
+    // The visualizer renders the callee as a target node labelled with its bare name.
+    const inDiagram = new RegExp(`\\b${escapeRe(exp.calls.callee)}\\b`).test(
+      [...diagrams.matchAll(/```mermaid\n([\s\S]*?)```/g)].map((m) => m[1]).join('\n'));
+    results.calls = inCodemap && inDiagram;
+  }
+
+  // [precision] — the call-graph precision pass ranks a PROJECT-INTERNAL callee above a
+  // BUILTIN one. The fixture's method calls both `exp.calls.callee` (project-defined, e.g.
+  // `scale`) and `exp.builtinCallee` (a stdlib method, e.g. `max`); assert the project edge
+  // appears BEFORE the builtin edge in the `## Call graph` text (resolved-first ordering).
+  // `builtinCallee` absent → n/a (most fixtures don't exercise the ranking).
+  if (!exp.builtinCallee || !exp.calls) {
+    results.precision = 'na';
+  } else {
+    const projIdx = callGraph.search(new RegExp(`→\\s+\`${escapeRe(exp.calls.callee)}\``));
+    const biIdx = callGraph.search(new RegExp(`→\\s+\`${escapeRe(exp.builtinCallee)}\``));
+    // Project edge present AND (builtin absent OR project ranked before builtin).
+    results.precision = projIdx >= 0 && (biIdx < 0 || projIdx < biIdx);
   }
 
   // [mermaid] — visualizer produced at least one well-formed mermaid block with a graph/classDiagram body
@@ -134,7 +169,7 @@ function runFixture(fixture) {
 
 // --- main -------------------------------------------------------------------
 
-const CHECK_KEYS = ['class', 'relation', 'field', 'edge', 'mermaid'];
+const CHECK_KEYS = ['class', 'relation', 'field', 'edge', 'calls', 'precision', 'mermaid'];
 
 function main() {
   const baseline = fs.existsSync(BASELINE) ? JSON.parse(fs.readFileSync(BASELINE, 'utf8')) : {};

@@ -4,6 +4,8 @@
     "relation": true,
     "field": true,
     "edge": true,
+    "calls": true,
+    "precision": true,
     "mermaid": true
   },
   "csharp": {
@@ -11,6 +13,8 @@
     "relation": true,
     "field": true,
     "edge": true,
+    "calls": true,
+    "precision": "na",
     "mermaid": true
   },
   "cpp": {
@@ -18,6 +22,8 @@
     "relation": true,
     "field": true,
     "edge": true,
+    "calls": "na",
+    "precision": "na",
     "mermaid": true
   },
   "python": {
@@ -25,6 +31,8 @@
     "relation": true,
     "field": true,
     "edge": true,
+    "calls": true,
+    "precision": "na",
     "mermaid": true
   },
   "java": {
@@ -32,6 +40,8 @@
     "relation": true,
     "field": true,
     "edge": true,
+    "calls": true,
+    "precision": "na",
     "mermaid": true
   },
   "kotlin": {
@@ -39,6 +49,8 @@
     "relation": true,
     "field": true,
     "edge": true,
+    "calls": true,
+    "precision": "na",
     "mermaid": true
   },
   "swift": {
@@ -46,6 +58,8 @@
     "relation": true,
     "field": true,
     "edge": "na",
+    "calls": true,
+    "precision": "na",
     "mermaid": true
   },
   "rust": {
@@ -53,6 +67,8 @@
     "relation": true,
     "field": true,
     "edge": true,
+    "calls": true,
+    "precision": "na",
     "mermaid": true
   },
   "go": {
@@ -60,6 +76,35 @@
     "relation": true,
     "field": true,
     "edge": true,
+    "calls": true,
+    "precision": "na",
+    "mermaid": true
+  },
+  "c": {
+    "class": true,
+    "relation": "na",
+    "field": true,
+    "edge": true,
+    "calls": true,
+    "precision": "na",
+    "mermaid": true
+  },
+  "ruby": {
+    "class": true,
+    "relation": true,
+    "field": true,
+    "edge": true,
+    "calls": true,
+    "precision": "na",
+    "mermaid": true
+  },
+  "php": {
+    "class": true,
+    "relation": true,
+    "field": true,
+    "edge": true,
+    "calls": true,
+    "precision": "na",
     "mermaid": true
   }
 }

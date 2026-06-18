@@ -1,10 +1,15 @@
 'use strict';
 
 // Verify: read-only audit that the repo's synced subtrees and their entries
-// are wired into ~/.claude/. Two drift modes:
+// are wired into ~/.claude/. Three drift modes:
 //   missing-link — entry exists in repo, no link/copy in ~/.claude/<subtree>/
-//   stale-link   — link/copy in ~/.claude/<subtree>/ points at a repo path
-//                  that no longer exists
+//   stale-link   — a dst entry whose name is still in the repo set but whose
+//                  link/copy diverged from the source (re-link fixes it)
+//   orphan       — a dangling symlink into the repo whose target was renamed or
+//                  deleted (proposal 072). ADVISORY / non-blocking: a plain
+//                  bootstrap run self-heals it via link.js's pruneOrphans, so
+//                  it never fails the exit code — `--verify` only surfaces it,
+//                  answering 072 open-question 2.
 //
 // Mirrors link.js's two modes (whole-dir vs per-item) and its symlink/copy
 // fallback. The ~/.claude/ entry is "linked" if it's either:
@@ -40,12 +45,16 @@ function verifyAll({ repoRoot, homeClaude, subtrees }) {
 
   let missing = 0;
   let stale = 0;
+  let orphans = 0;
   for (const r of subtreeReports) {
     if (r.missing) missing += r.missing.length;
     if (r.stale) stale += r.stale.length;
+    if (r.orphans) orphans += r.orphans.length;
   }
 
-  return { subtreeReports, missing, stale, clean: missing === 0 && stale === 0 };
+  // Orphans are advisory only: a plain bootstrap prunes them automatically, so
+  // they never enter the `clean` (blocking) verdict — only missing/stale do.
+  return { subtreeReports, missing, stale, orphans, clean: missing === 0 && stale === 0 };
 }
 
 function verifyWhole(name, src, dst) {
@@ -68,6 +77,7 @@ function verifyWhole(name, src, dst) {
 function verifyItems(name, srcDir, dstDir) {
   const missing = [];
   const stale = [];
+  const orphans = [];
   let okCount = 0;
 
   if (!fs.existsSync(dstDir)) {
@@ -75,7 +85,7 @@ function verifyItems(name, srcDir, dstDir) {
     for (const entryName of repoEntries) {
       missing.push({ name: entryName, dst: path.join(dstDir, entryName), reason: 'parent-dir-missing' });
     }
-    return { subtree: name, mode: 'items', status: 'drift', missing, stale };
+    return { subtree: name, mode: 'items', status: 'drift', missing, stale, orphans };
   }
 
   const repoEntries = new Set(fs.readdirSync(srcDir));
@@ -94,6 +104,11 @@ function verifyItems(name, srcDir, dstDir) {
     }
   }
 
+  // Dangling symlinks into the repo whose target was renamed/deleted: these are
+  // ORPHANS (proposal 072), the exact set link.js's pruneOrphans removes on a
+  // plain run. Same safety as pruneOrphans — only a symlink whose resolved
+  // target was directly inside srcDir counts; real files/dirs/copies (which may
+  // be user or third-party content in this shared namespace) are never flagged.
   for (const entryName of fs.readdirSync(dstDir)) {
     if (repoEntries.has(entryName)) continue;
     const itemDst = path.join(dstDir, entryName);
@@ -104,10 +119,11 @@ function verifyItems(name, srcDir, dstDir) {
     const absTarget = path.resolve(path.dirname(itemDst), target);
     if (!isInside(absTarget, srcDir)) continue;
     if (!fs.existsSync(absTarget)) {
-      stale.push({ name: entryName, dst: itemDst, target: absTarget, reason: 'target-missing' });
+      orphans.push({ name: entryName, dst: itemDst, target: absTarget, reason: 'source-renamed-or-deleted' });
     }
   }
 
+  // Orphans don't make a subtree 'drift' — they're advisory and self-healing.
   return {
     subtree: name,
     mode: 'items',
@@ -115,6 +131,7 @@ function verifyItems(name, srcDir, dstDir) {
     okCount,
     missing,
     stale,
+    orphans,
   };
 }
 
@@ -347,23 +364,31 @@ function formatReport(verifyResult) {
       } else {
         lines.push(`verify ${r.subtree}: ok (${r.okCount} entries linked)`);
       }
-      continue;
+    } else {
+      const counts = [];
+      if (r.missing && r.missing.length) counts.push(`${r.missing.length} missing-link`);
+      if (r.stale && r.stale.length) counts.push(`${r.stale.length} stale-link`);
+      lines.push(`verify ${r.subtree}: drift — ${counts.join(', ')}`);
+      for (const m of r.missing || []) {
+        lines.push(`  ! ${m.name} (${m.reason})`);
+      }
+      for (const s of r.stale || []) {
+        lines.push(`  ~ ${s.name} → ${s.target} (${s.reason})`);
+      }
     }
-    const counts = [];
-    if (r.missing && r.missing.length) counts.push(`${r.missing.length} missing-link`);
-    if (r.stale && r.stale.length) counts.push(`${r.stale.length} stale-link`);
-    lines.push(`verify ${r.subtree}: drift — ${counts.join(', ')}`);
-    for (const m of r.missing || []) {
-      lines.push(`  ! ${m.name} (${m.reason})`);
-    }
-    for (const s of r.stale || []) {
-      lines.push(`  ~ ${s.name} → ${s.target} (${s.reason})`);
+    // Orphans print regardless of ok/drift status — they're advisory and a
+    // subtree can carry orphans while otherwise being fully linked (status ok).
+    for (const o of r.orphans || []) {
+      lines.push(`  ⓘ orphan: ${o.name} → ${o.target} (${o.reason}; a plain bootstrap prunes it)`);
     }
   }
   if (verifyResult.clean) {
     lines.push('verify: clean');
   } else {
     lines.push(`verify: drift — ${verifyResult.missing} missing-link, ${verifyResult.stale} stale-link`);
+  }
+  if (verifyResult.orphans) {
+    lines.push(`verify: ${verifyResult.orphans} orphan(s) (advisory — self-healed on the next bootstrap; exit code unchanged)`);
   }
   return lines.join('\n');
 }

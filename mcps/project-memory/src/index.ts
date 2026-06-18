@@ -8,6 +8,7 @@ import {
   recentSessionsHandler,
 } from "./tools/recent-sessions.js";
 import { getMemorySchema, getMemoryHandler } from "./tools/get-memory.js";
+import { traceSchema, traceHandler } from "./tools/trace.js";
 
 const server = new McpServer({
   name: "project-memory",
@@ -33,6 +34,13 @@ server.tool(
   "Fetch a single memory by its frontmatter `name` slug. Returns the full body.",
   getMemorySchema,
   getMemoryHandler,
+);
+
+server.tool(
+  "trace_path",
+  "Trace transitive callers / callees of a symbol through the codemap's structural graph (call / file-dep / class edges). Answers 'who calls X', 'what does X reach', impact analysis. Syntactic / name-matched — best-effort, not type-resolved.",
+  traceSchema,
+  traceHandler,
 );
 
 async function main() {

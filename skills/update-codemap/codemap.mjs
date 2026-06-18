@@ -18,6 +18,12 @@ const SKIP_DIRS = new Set([
   '.smoke-tmp', '.smoke-out',
   '.worktrees', 'worktrees', // git worktree copies — indexing them duplicates the whole repo
   '.claude', // the codemap's own output dir (codemap.md / .cache.json / specs / plans) — never index it
+  // Tool caches / env / build dirs that carry no first-class source. Denylist (not a blanket
+  // dot-prefix skip) so deliberately-indexed dotdirs like .github stay in scope.
+  '.cache', '.turbo', '.parcel-cache', '.vite',
+  '.venv', 'venv', '.tox', '.mypy', '.ruff_cache',
+  '.gradle', '.terraform', '.terragrunt-cache', '.serverless',
+  '.dart_tool', '.angular', '.expo', '.docusaurus', '.astro',
 ]);
 
 const SKIP_FILE_PATTERNS = [
@@ -43,32 +49,49 @@ const READ_CAP_EXTENDED = 200;
 const PURPOSE_MAX = 100;
 const SIGNATURE_MAX = 120;
 
+// Per-module cap on rendered call edges (always-on document budget). The full
+// edge set lives in the cache / visualizer-parseable section; the prose `.md` caps each
+// module's subgraph and summarizes the overflow as `(+K more)` — never a silent drop.
+// NOTE: codemap-visualize.mjs has an independent `callEdgeCap` (default 60) that caps again
+// at render time and sums BOTH overflow counts into its note — keep the two in mind when
+// changing either; raising one without the other re-truncates an already-capped section.
+const CALL_EDGE_CAP_PER_MODULE = 60;
+
 const LANG_BY_EXT = {
+  // `.h` stays on cpp-header: C++ headers dominate mixed codebases and the cpp grammar
+  // parses C-style structs/unions fine, so a `.h`-to-`c` split would mis-route far more
+  // than it fixes. Only `.c` routes to the dedicated C extractor. (Spec OQ resolved.)
   '.h': 'cpp-header', '.hpp': 'cpp-header', '.hxx': 'cpp-header', '.hh': 'cpp-header',
   '.cpp': 'cpp-impl', '.cc': 'cpp-impl', '.cxx': 'cpp-impl',
+  '.c': 'c',
   '.cs': 'csharp',
-  '.ts': 'ts', '.tsx': 'ts', '.js': 'ts', '.jsx': 'ts', '.mjs': 'ts', '.cjs': 'ts',
+  '.ts': 'ts', '.js': 'ts', '.mjs': 'ts', '.cjs': 'ts',
+  '.tsx': 'tsx', '.jsx': 'tsx', // JSX-capable grammar; same extractor, same downstream lang family
   '.py': 'python',
   '.java': 'java',
   '.kt': 'kotlin', '.kts': 'kotlin',
   '.swift': 'swift',
   '.rs': 'rust',
   '.go': 'go',
+  '.rb': 'ruby',
+  '.php': 'php',
   '.html': 'web', '.htm': 'web', '.css': 'web', '.scss': 'web', '.sass': 'web', '.less': 'web',
   '.md': 'markdown', '.mdx': 'markdown',
 };
 
 // Internal lang tag → tree-sitter engine grammar tag. cpp-header/cpp-impl both use the
-// `cpp` grammar; the rest map 1:1 to themselves (and only the AST-supported set is routed).
+// `cpp` grammar; .ts/.js use the `typescript` grammar while .tsx/.jsx use the JSX-capable
+// `tsx` grammar (same `ts` extractor walks both — node names are shared).
 const TREE_SITTER_TAG = {
   python: 'python', java: 'java', kotlin: 'kotlin', swift: 'swift',
   rust: 'rust', go: 'go', 'cpp-header': 'cpp', 'cpp-impl': 'cpp',
+  ts: 'ts', tsx: 'tsx', csharp: 'csharp', c: 'c', ruby: 'ruby', php: 'php',
 };
 
 function parseArgs(argv) {
   // mapTokens null = no budget (emit everything). A positive value caps the document
-  // size, truncating lowest-ranked detail first (proposal 081 gap 3). noCache disables
-  // the per-file extraction cache (proposal 081 gap 5) for a guaranteed full rebuild.
+  // size, truncating lowest-ranked detail first (document-size budget). noCache disables
+  // the per-file extraction cache (per-file extraction cache) for a guaranteed full rebuild.
   const args = { root: null, dryRun: false, quiet: false, mapTokens: null, noCache: false };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
@@ -532,7 +555,7 @@ function sliceBalanced(text, fromIndex) {
 
 function extractImports(text, lang) {
   const targets = [];
-  if (lang === 'ts') {
+  if (lang === 'ts' || lang === 'tsx') {
     const re1 = /\bimport\s+(?:[^'"`]+\s+from\s+)?['"]([^'"]+)['"]/g;
     const re2 = /\brequire\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
     let m;
@@ -595,6 +618,12 @@ function resolveImport(target, sourceRel, topLevelDirs, fileIndex) {
     const resolved = path.posix.normalize(path.posix.join(sourceDir, target));
     const hit = matchAgainstIndex(resolved, fileIndex);
     if (hit) return { rel: hit, mod: topLevelDirOf(hit) };
+    // matchAgainstIndex only knows TS/JS extensions. For other languages whose relative
+    // imports are extensionless (Ruby `require_relative "../core/shape"`, Python `.shape`),
+    // try the path's last segment as a file basename across all indexed extensions before
+    // degrading to a module-level edge — so a concrete FILE edge survives.
+    const ext = resolveExtensionlessPath(resolved, sourceRel, fileIndex, topLevelDirs);
+    if (ext && ext.rel) return ext;
     return { mod: topLevelDirOf(resolved) };
   }
   // 2. Path with separator — try as repo-relative.
@@ -759,14 +788,16 @@ function loadPreviousCodemap(codemapPath) {
   return fs.readFileSync(codemapPath, 'utf8');
 }
 
-// ----- Per-file extraction cache (proposal 081 gap 5) -----
+// ----- Per-file extraction cache (per-file extraction cache) -----
 // Stores the parse result for each file keyed by rel path, validated by mtimeMs+size,
 // so a regen re-parses only the files that actually changed (the tree-sitter pass is
 // the expensive part). Cache lives at .claude/codemap.cache.json (gitignored alongside
 // codemap.md). A bumped CACHE_VERSION or a missing/corrupt file → cold rebuild, never a
 // stale read. The cache is advisory: a miss just means "re-extract", so it can never
 // produce a wrong map, only a slower one.
-const CACHE_VERSION = 1;
+// Bumped on cached-entry schema changes (v2 added `calls`; v3 added `defines`) — an older
+// entry lacks the field, so the bump forces a one-time cold rebuild rather than a partial read.
+const CACHE_VERSION = 3;
 
 function loadExtractCache(cachePath) {
   try {
@@ -962,7 +993,7 @@ function publicSurfaceForModule(items, inboundCounts) {
     for (const e of it.exports.slice(0, 3)) {
       // Keep the callable SIGNATURE (the ` — sig` tail) — it's the single
       // highest-signal element of a public surface: the model learns the API
-      // well enough to call it without reading the implementation (proposal 081).
+      // well enough to call it without reading the implementation (retrieval-efficiency tuning).
       // Only strip the `default: ` prefix, which is rendering noise.
       const display = e.name.replace(/^default:\s+/, '');
       const bareName = display.replace(/\s+—\s+.*$/, '');
@@ -1002,7 +1033,7 @@ function computeInternals(modName, items, inboundCounts) {
   return lines;
 }
 
-// ----- Retrieval-efficiency helpers (proposal 081) -----
+// ----- Retrieval-efficiency helpers (retrieval-efficiency tuning) -----
 // Cheap token estimate: ~4 chars/token is the standard rough heuristic. Used only
 // to drive --map-tokens truncation, never for anything that must be exact.
 function estimateTokens(text) {
@@ -1010,7 +1041,7 @@ function estimateTokens(text) {
 }
 
 // Module-level importance = sum of inbound file-edges over the module's files.
-// Degree-centrality proxy for PageRank (proposal 081 OQ1: inbound-degree first,
+// Degree-centrality proxy for PageRank (inbound-degree proxy first,
 // full PageRank deferred). Drives both module ordering and the ranked Map table.
 function computeModuleImportance(groups, inboundCounts) {
   const score = new Map();
@@ -1023,14 +1054,14 @@ function computeModuleImportance(groups, inboundCounts) {
 }
 
 // Order module names by importance desc, then alphabetically. Used for the prose
-// `## Modules` section so the most-depended-on modules lead (proposal 081 gap 2).
+// `## Modules` section so the most-depended-on modules lead (hub-first ordering).
 function modulesByImportance(groups, moduleImportance) {
   return [...groups.keys()].sort(
     (a, b) => (moduleImportance.get(b) || 0) - (moduleImportance.get(a) || 0) || a.localeCompare(b));
 }
 
-// Build the symbol→file index: exported/public symbol name → defining file (proposal
-// 081 gap 4). The literal "where is X" lookup. Ranked by the defining file's inbound
+// Build the symbol→file index: exported/public symbol name → defining file (the
+// symbol index). The literal "where is X" lookup. Ranked by the defining file's inbound
 // count so the most-used symbols survive truncation. Bare names only (signatures live
 // in the module surface + File deps); deduped, first definer wins on collision.
 function buildSymbolIndex(groups, inboundCounts) {
@@ -1195,11 +1226,13 @@ async function main() {
 
   const groups = new Map();
   const moduleImports = new Map();
+  const fileCalls = new Map(); // rel → [{caller, callee}] (call edges)
+  const projectDefines = new Set(); // union of all defined function/method names (project-symbol signal for call-graph precision)
   // Collected during the scan; feeds the C# namespace→file index that resolveImport
   // consults for `using` directives. Built after the loop so heads are read once.
   const namespaceByRel = new Map();
 
-  // Per-file extraction cache (proposal 081 gap 5). Load the prior cache, validate each
+  // Per-file extraction cache (per-file extraction cache). Load the prior cache, validate each
   // file by stamp, reuse the cached parse on a hit. `nextCache` accumulates this run's
   // entries (hits carried forward, misses re-extracted) and is written at the end.
   const cachePath = path.join(root, '.claude', 'codemap.cache.json');
@@ -1225,6 +1258,8 @@ async function main() {
       groups.get(top).push({ rel: f.rel, purpose: cached.purpose, exports: cached.exports, classes: cached.classes, vendored: cached.vendored });
       if (cached.imports && cached.imports.length) moduleImports.set(f.rel, cached.imports);
       if (cached.namespace) namespaceByRel.set(f.rel, cached.namespace);
+      if (cached.calls && cached.calls.length) fileCalls.set(f.rel, cached.calls);
+      if (cached.defines && cached.defines.length) for (const d of cached.defines) projectDefines.add(d);
       continue;
     }
     cacheMisses++;
@@ -1241,6 +1276,8 @@ async function main() {
     let classes = [];
     let text = head.text;
     let astImports = null; // non-null when the tree-sitter engine supplied imports
+    let calls = [];         // call edges; AST-only, empty for regex langs
+    let defines = [];        // function/method names defined in this file (project-symbol signal)
 
     const tsTag = TREE_SITTER_TAG[lang];
     if (!vendored && tsTag && treeSitterReady) {
@@ -1252,18 +1289,20 @@ async function main() {
         exports = ast.exports;
         classes = ast.classes;
         astImports = ast.imports;
+        calls = ast.calls || [];
+        defines = ast.defines || [];
       }
     }
 
     // Regex extraction: primary for ts/csharp, and the fallback for cpp when the AST
     // engine was unavailable or returned null (classes still empty here).
     if (!vendored && classes.length === 0 && exports.length === 0 &&
-        (lang === 'ts' || lang === 'csharp' || lang === 'cpp-header')) {
+        (lang === 'ts' || lang === 'tsx' || lang === 'csharp' || lang === 'cpp-header')) {
       if (head.totalLines > READ_CAP_LINES && text === head.text) {
         const extended = readHead(f.abs, READ_CAP_EXTENDED);
         text = extended.text;
       }
-      if (lang === 'ts') { exports = extractExportsTs(text); classes = extractClassesTs(text); }
+      if (lang === 'ts' || lang === 'tsx') { exports = extractExportsTs(text); classes = extractClassesTs(text); }
       else if (lang === 'csharp') { exports = extractExportsCSharp(text); classes = extractClassesCSharp(text); }
       else if (lang === 'cpp-header') { exports = extractExportsCppHeader(text); classes = extractClassesCpp(text); }
     }
@@ -1279,6 +1318,8 @@ async function main() {
       // includes still come through the engine when ready.)
       imports = astImports !== null ? astImports : extractImports(text, lang);
       if (imports.length) moduleImports.set(f.rel, imports);
+      if (calls.length) fileCalls.set(f.rel, calls);
+      for (const d of defines) projectDefines.add(d);
     }
 
     // C# namespace declaration → index entry, so `using` directives in other files
@@ -1289,9 +1330,16 @@ async function main() {
       const nsMatch = text.match(/^\s*namespace\s+([A-Za-z_][\w.]*)\s*[;{]/m);
       if (nsMatch) { namespace = nsMatch[1]; namespaceByRel.set(f.rel, namespace); }
     }
+    // PHP: `namespace Geo\Core;` → dotted `Geo.Core`, indexed so a `use Geo\Core\IShape`
+    // in another file resolves to this file via the shared byNamespace resolver (PHP
+    // namespaces, like C#, don't mirror directory layout).
+    if (!vendored && lang === 'php') {
+      const nsMatch = text.match(/^\s*namespace\s+([A-Za-z_\\][\w\\]*)\s*[;{]/m);
+      if (nsMatch) { namespace = nsMatch[1].replace(/^\\+/, '').split('\\').filter(Boolean).join('.'); namespaceByRel.set(f.rel, namespace); }
+    }
 
     // Store this run's extraction so the next regen can skip it if unchanged.
-    if (stamp) nextCache[f.rel] = { ...stamp, purpose, exports, classes, vendored, imports, namespace };
+    if (stamp) nextCache[f.rel] = { ...stamp, purpose, exports, classes, vendored, imports, namespace, calls, defines };
   }
   if (!args.noCache) log(args, `cache: ${cacheHits} hits, ${cacheMisses} misses`);
 
@@ -1352,7 +1400,7 @@ async function main() {
   out += `## Overview\n${overviewParts.join(' ')}\n\n`;
 
   // ## Map — the agent's entry point: the most-depended-on hub files, ranked, so the
-  // agent reads these FIRST instead of scanning the tree (proposal 081 gap 2). Distinct
+  // agent reads these FIRST instead of scanning the tree (hub-first ordering). Distinct
   // from `## Hubs` below (≥3 inbound, full list) — this is the top slice with purposes.
   const mapEntries = [];
   for (const [file, count] of inboundCounts.entries()) {
@@ -1376,7 +1424,7 @@ async function main() {
   }
 
   // ## Modules — ordered by importance (sum of inbound edges), most-depended-on first,
-  // so the agent meets the load-bearing modules before the leaves (proposal 081 gap 2).
+  // so the agent meets the load-bearing modules before the leaves (hub-first ordering).
   const sortedModuleNames = modulesByImportance(groups, moduleImportance);
   if (sortedModuleNames.length) {
     out += `## Modules\n`;
@@ -1442,7 +1490,7 @@ async function main() {
   }
 
   // ## Symbol index — "where is X" lookup: exported/public symbol → defining file
-  // (proposal 081 gap 4). Ranked by the file's inbound count so the most-used symbols
+  // (symbol index). Ranked by the file's inbound count so the most-used symbols
   // lead and survive --map-tokens truncation. The agent greps this section instead of
   // the repo. Capped at 200 here; --map-tokens may trim further.
   const symbolIndex = buildSymbolIndex(groups, inboundCounts);
@@ -1515,6 +1563,73 @@ async function main() {
     out += `\n`;
   }
 
+  // ## Call graph — per-module subgraphs of caller→callee edges, mirroring
+  // the per-module ## File deps layout. SYNTACTIC / name-matched: the callee is matched by
+  // bare name only; receiver types are NOT resolved (`x.save()` → `save`), so an edge is a
+  // best-effort name match, never resolved ground truth. Edges are grouped by module, then
+  // ranked PROJECT-INTERNAL-FIRST: a callee that resolves to a project-defined symbol (a name
+  // that is a caller, an export, or a declared type/member anywhere in the repo) ranks above
+  // one that does not — so builtin/stdlib noise (`push`/`join`/`JSON`) is demoted below real
+  // internal edges instead of consuming the cap. Within each tier, ranked by callee in-degree.
+  // Capped per module with a `(+K more)` overflow that counts demoted-and-dropped edges too —
+  // never a silent drop (document budget + no-silent-caps). Parser leader: per-module
+  // `### <mod>` then `- \`file::caller\` → \`callee\`` lines (visualizer keys on the arrow).
+  if (fileCalls.size) {
+    // The project-defined symbol set. A callee in this set is a real in-repo target; one
+    // outside it is a builtin / stdlib / third-party call. Sources, highest-signal first:
+    //   - `projectDefines` — every function/method name DEFINED in any file (the load-bearing
+    //     source; catches non-exported leaf functions like a private `safeLstat`/`scanLeaks`
+    //     that the caller/export sets miss — the exact gap that made real internal edges read
+    //     as external). This is the cheap, flattened analogue of a per-language definition
+    //     registry: name-level, not type-level (receiver-type disambiguation is deferred).
+    //   - callers — functions that make calls (subset of defines in practice, kept for safety).
+    //   - exports + declared type names — public surface a callee may target.
+    // Field names are DELIBERATELY excluded: low-signal, and they shadow builtins (a field
+    // `entries`/`get` would mark every `.entries()`/`.get()` builtin call as project-internal).
+    const projectSymbols = new Set(projectDefines);
+    for (const edges of fileCalls.values()) for (const e of edges) projectSymbols.add(e.caller);
+    for (const items of groups.values()) for (const it of items) {
+      for (const ex of (it.exports || [])) {
+        const bare = ex.name.replace(/^default:\s+/, '').replace(/\s+—\s+.*$/, '').trim();
+        if (bare && !/\s/.test(bare)) projectSymbols.add(bare);
+      }
+    }
+    for (const c of allClassEntries) if (c.name) projectSymbols.add(c.name);
+
+    // Group edges by top-level module; tag each with its source file + resolution status.
+    const byModule = new Map(); // mod → [{ file, caller, callee, resolved }]
+    for (const [rel, edges] of fileCalls.entries()) {
+      const mod = topLevelDirOf(rel);
+      if (!byModule.has(mod)) byModule.set(mod, []);
+      const bucket = byModule.get(mod);
+      for (const e of edges) bucket.push({ file: rel, caller: e.caller, callee: e.callee, resolved: projectSymbols.has(e.callee) });
+    }
+    out += `## Call graph\n`;
+    out += `_Syntactic / name-matched: caller → callee by bare name. Receiver types are unresolved ` +
+      `(e.g. \`x.save()\` is recorded as callee \`save\`), so edges are best-effort matches, not resolved ` +
+      `ground truth. Project-internal edges (callee resolves to a defined symbol) are prioritised; ` +
+      `external/builtin callees are demoted as unresolved. Per-module capped at ${CALL_EDGE_CAP_PER_MODULE} edges; overflow summarized._\n`;
+    for (const mod of [...byModule.keys()].sort()) {
+      const edges = byModule.get(mod);
+      // Rank: project-internal first, then by callee in-degree so the genuine hubs survive.
+      const calleeDegree = new Map();
+      for (const e of edges) calleeDegree.set(e.callee, (calleeDegree.get(e.callee) || 0) + 1);
+      edges.sort((a, b) =>
+        (Number(b.resolved) - Number(a.resolved)) ||
+        (calleeDegree.get(b.callee) - calleeDegree.get(a.callee)) ||
+        a.file.localeCompare(b.file) || a.caller.localeCompare(b.caller) || a.callee.localeCompare(b.callee));
+      const shown = edges.slice(0, CALL_EDGE_CAP_PER_MODULE);
+      const overflow = edges.length - shown.length;
+      out += `### ${mod}\n`;
+      for (const e of shown) {
+        const base = path.posix.basename(e.file);
+        out += `- \`${base}::${e.caller}\` → \`${e.callee}\`\n`;
+      }
+      if (overflow > 0) out += `- (+${overflow} more)\n`;
+    }
+    out += `\n`;
+  }
+
   const sortedGroups = [...groups.keys()].sort();
   for (const g of sortedGroups) {
     out += `## ${g}\n`;
@@ -1530,7 +1645,7 @@ async function main() {
     out += `\n`;
   }
 
-  // --map-tokens budget (proposal 081 gap 3). Truncate ONLY the agent-facing index
+  // --map-tokens budget (document-size budget). Truncate ONLY the agent-facing index
   // sections (Symbol index, then Map) — never the structured sections codemap-visualize
   // parses (Class graph / File deps / Dependencies / per-module listings). Drop the
   // lowest-ranked tail rows first (both sections are pre-sorted by importance) and log
@@ -1556,7 +1671,7 @@ async function main() {
   fs.mkdirSync(path.dirname(codemapPath), { recursive: true });
   const prev = loadPreviousCodemap(codemapPath);
   fs.writeFileSync(codemapPath, out);
-  // Persist the extraction cache (proposal 081 gap 5) only on a real write — dry-run
+  // Persist the extraction cache (per-file extraction cache) only on a real write — dry-run
   // returns above, so its cache never diverges from the on-disk map. --no-cache skips.
   if (!args.noCache) saveExtractCache(cachePath, nextCache);
   if (dirtyClearedFrom !== null) {

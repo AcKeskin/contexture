@@ -2,62 +2,42 @@
 
 File-level changes per public snapshot. Curate freely — this is the human-facing history.
 
-## 2026-06-16 — Add rule-prime hook, extract-conventions and write-tests organs, and review's naming-quality check; codemap ranking, signatures, and symbol index
+## 2026-06-18 — Codemap: AST extraction for ~12 languages (TS/JS/C# + C/Ruby/PHP) and a syntactic call graph ranked project-internal first; codemap-visualize renders it. New trace_path graph-query tool in the project-memory MCP for transitive who-calls / impact analysis. Tier-1 instructions: canonical tool commands, subagent state-harvest channel, bootstrap orphaned-link advisory + prune-on-rename.
 
-_14 added, 22 changed, 0 removed._
+_4 added, 15 changed, 1 removed._
 
 ### Architectural rules
-- added `architectural-rules/universal/naming-and-comments.md`
-- added `architectural-rules/universal/test-quality.md`
-- changed `architectural-rules/README.md`
+- added `architectural-rules/universal/canonical-commands.md`
 
 ### Bootstrap
-- changed `bootstrap/lib/enablement.js`
+- changed `bootstrap/lib/verify.js`
 
 ### CLAUDE.md imports
 - changed `claude-md/_imports.md`
 
-### Commands
-- added `commands/extract-conventions.md`
-- added `commands/write-tests.md`
-
-### Cross-tool instructions
-- changed `.github/instructions/universal.instructions.md`
-
 ### Docs
-- changed `docs/architectural-rules-overlay.md`
 - changed `docs/architectural-rules.md`
-- changed `docs/reference.md`
-- changed `docs/review-organ.md`
 
 ### Hooks
-- added `hooks/lib/resolve-rules.js`
-- added `hooks/rule-prime.js`
+- changed `hooks/agent-output-contract-validator.js`
+
+### MCP servers
+- added `mcps/project-memory/src/retrieval/graph.ts`
+- added `mcps/project-memory/src/tools/trace.ts`
+- added `mcps/project-memory/test/graph.test.ts`
+- changed `mcps/project-memory/src/index.ts`
 
 ### Other
-- added `scripts/lib/changelog.js`
-- changed `README.md`
-
-### Settings
-- changed `settings/settings.template.json`
+- changed `AGENTS.md`
+- removed `CHANGELOG.md`
 
 ### Skills
-- added `skills/extract-conventions/SKILL.md`
-- added `skills/extract-conventions/detect.mjs`
-- added `skills/new-hook/recipes/rule-prime/README.md`
-- added `skills/new-hook/recipes/rule-prime/allow.json.template`
-- added `skills/new-hook/recipes/rule-prime/block.json.template`
-- added `skills/new-hook/recipes/rule-prime/template.js`
-- added `skills/write-tests/SKILL.md`
 - changed `skills/capture/SKILL.md`
-- changed `skills/discover/SKILL.md`
-- changed `skills/draft-plan/SKILL.md`
-- changed `skills/execute/SKILL.md`
-- changed `skills/improve-prompt/SKILL.md`
-- changed `skills/new-agent/SKILL.md`
-- changed `skills/new-agents-md/SKILL.md`
-- changed `skills/new-hook/SKILL.md`
-- changed `skills/prep/SKILL.md`
-- changed `skills/review/SKILL.md`
-- changed `skills/update-codemap/SKILL.md`
+- changed `skills/codemap-visualize/codemap-visualize.mjs`
+- changed `skills/dispatch/SKILL.md`
+- changed `skills/pr-respond/SKILL.md`
 - changed `skills/update-codemap/codemap.mjs`
+- changed `skills/update-codemap/test/baseline.json`
+- changed `skills/update-codemap/test/fixtures.mjs`
+- changed `skills/update-codemap/test/language-sweep.mjs`
+- changed `skills/update-codemap/treesitter.mjs`

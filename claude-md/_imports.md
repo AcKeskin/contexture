@@ -20,6 +20,8 @@ Some subtrees are linked into `~/.claude/` but not imported into `CLAUDE.md` —
 
 | Tree | Linked to | Consumer | Reference | | --- | --- | --- | --- | | `architectural-rules/` | `~/.claude/architectural-rules/` | Discovery, prep, review | [`docs/architectural-rules.md`](../docs/architectural-rules.md) | No user action required beyond running bootstrap.
 
+**Canonical tool commands:** `architectural-rules/universal/canonical-commands.md` pins exact commands next to the verbs the agent runs often (read PR comments, summarize a PR, reversible delete, library-doc lookup) so it doesn't re-derive flags — or silently truncate output — each session. It rides the linked `architectural-rules/` tree above (no `@import`), gated `when-invoking-tools` so it stays off the always-on floor. A project's `CLAUDE.md` `## Canonical commands` section overrides the universal pins. Corrections to an improvised command are capturable as `kind: canonical-command` (capture §5b).
+
 ## Notes
 
 - `@import` path form assumed: relative to `~/.claude/`. Verify on first use — if Claude does not load the fragment, try the full path `@.claude/claude-md/memory-capture.md` or `@~/.claude/claude-md/memory-capture.md` until one resolves, and update this file.

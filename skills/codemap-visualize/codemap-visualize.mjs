@@ -16,6 +16,7 @@ const DEFAULTS = {
   l2FileCap: 40,        // max files rendered per L2 module graph
   l2EdgeCap: 80,        // max edges per L2 module graph before truncation
   classMethodCap: 6,    // max methods to render per class in classDiagram
+  callEdgeCap: 60,      // max call edges rendered per module call-graph
   renderer: 'elk',      // mermaid flowchart renderer hint
   splitPerModule: true, // vault output: one note per module + index
 };
@@ -72,6 +73,7 @@ function loadVisualizeConfig(root) {
     l2FileCap: DEFAULTS.l2FileCap,
     l2EdgeCap: DEFAULTS.l2EdgeCap,
     classMethodCap: DEFAULTS.classMethodCap,
+    callEdgeCap: DEFAULTS.callEdgeCap,
     renderer: DEFAULTS.renderer,
     splitPerModule: DEFAULTS.splitPerModule,
   };
@@ -92,6 +94,7 @@ function loadVisualizeConfig(root) {
     else if (key === 'l2-file-cap') out.l2FileCap = parseInt(val, 10) || out.l2FileCap;
     else if (key === 'l2-edge-cap') out.l2EdgeCap = parseInt(val, 10) || out.l2EdgeCap;
     else if (key === 'class-method-cap') out.classMethodCap = parseInt(val, 10) || out.classMethodCap;
+    else if (key === 'call-edge-cap') out.callEdgeCap = parseInt(val, 10) || out.callEdgeCap;
     else if (key === 'renderer') out.renderer = /^elk$|^dagre$/i.test(val) ? val.toLowerCase() : out.renderer;
     else if (key === 'split-per-module') out.splitPerModule = /^true$/i.test(val);
   }
@@ -155,10 +158,42 @@ function parseClassGraph(lines, startIdx) {
   return { classes, nextIdx: i };
 }
 
+// Parse the ## Call graph block. Shape:
+//   ## Call graph
+//   _legend…_
+//   ### mod/
+//   - `file.ext::caller` → `callee`
+//   - (+K more)
+// Returns { byModule: Map<mod, [{file, caller, callee}]>, overflow: Map<mod, K> } and the
+// index after the section. Edges are syntactic / name-matched (receiver types unresolved).
+function parseCallGraph(lines, startIdx) {
+  const byModule = new Map();
+  const overflow = new Map();
+  let mod = null;
+  let i = startIdx;
+  for (; i < lines.length; i++) {
+    const raw = lines[i];
+    if (/^##\s+/.test(raw)) break; // next top-level section
+    let m;
+    if ((m = raw.match(/^###\s+(.+?)\s*$/))) { mod = m[1].trim(); if (!byModule.has(mod)) byModule.set(mod, []); continue; }
+    if (!mod) continue;
+    if ((m = raw.match(/^-\s+\(\+(\d+)\s+more\)\s*$/))) { overflow.set(mod, parseInt(m[1], 10)); continue; }
+    if ((m = raw.match(/^-\s+`([^`]+)`\s+→\s+`([^`]+)`\s*$/))) {
+      const left = m[1];
+      const sep = left.indexOf('::');
+      const file = sep >= 0 ? left.slice(0, sep) : '';
+      const caller = sep >= 0 ? left.slice(sep + 2) : left;
+      byModule.get(mod).push({ file, caller, callee: m[2] });
+    }
+  }
+  return { callGraph: { byModule, overflow }, nextIdx: i };
+}
+
 function parseCodemap(text) {
   const lines = text.split(/\r?\n/);
   const sections = new Map();
   const groups = [];
+  let callGraph = { byModule: new Map(), overflow: new Map() };
   let projectName = '';
   let lastUpdated = '';
   let currentSection = null;
@@ -242,6 +277,15 @@ function parseCodemap(text) {
         currentSection = null;
         continue;
       }
+      if (header === 'Call graph') {
+        const { callGraph: cg, nextIdx } = parseCallGraph(lines, i + 1);
+        callGraph = cg;
+        i = nextIdx - 1;
+        currentSection = null;
+        currentGroup = null;
+        currentFile = null;
+        continue;
+      }
       if (header.endsWith('/')) {
         currentSection = 'group';
         currentGroup = { name: header, files: [] };
@@ -312,7 +356,7 @@ function parseCodemap(text) {
     return { from: m[1], to: targets };
   }).filter(Boolean);
 
-  return { projectName, lastUpdated, groups, entryPoints, layers, dependencies, fileDeps, classes, overview, moduleInfo, conventions, hubs };
+  return { projectName, lastUpdated, groups, entryPoints, layers, dependencies, fileDeps, classes, overview, moduleInfo, conventions, hubs, callGraph };
 }
 
 function mermaidId(s) {
@@ -943,6 +987,80 @@ function renderCrossModuleClassRelations(parsed) {
   return lines.join('\n');
 }
 
+// ── Call graph ─────────────────────────────────────────────────
+//
+// One Mermaid flowchart per module of caller→callee edges, reusing the per-module
+// subgraph-cluster + degree-ranking + (+K more) overflow machinery from renderFileGraph.
+// Edges are SYNTACTIC / name-matched (receiver types unresolved) — the prose legend says
+// so, and the diagram never claims otherwise. A caller is qualified `file::name` so the
+// same method name in two files doesn't collapse; the callee is a bare name (its
+// definition site is unresolved by design), drawn as a shared target node per module.
+function renderCallGraph(parsed, cfg) {
+  const cg = parsed.callGraph;
+  if (!cg || !cg.byModule || !cg.byModule.size) return null;
+  const out = [];
+  out.push('_Syntactic / name-matched call edges: caller → callee by bare name. Receiver ' +
+    'types are unresolved, so edges are best-effort matches, not resolved ground truth. ' +
+    'Project-internal edges (callee resolves to a defined symbol) are prioritised; external/builtin ' +
+    'callees are demoted as unresolved._');
+  out.push('');
+  // Reconstruct the project-defined symbol set from what the codemap exposes: every `caller`
+  // in the call graph is a project-defined function/method, and every parsed class name is a
+  // declared type. This mirrors the codemap's resolved-first ranking so the rendered diagram
+  // leads with project-internal edges instead of builtin noise. It is a SUBSET of the codemap's
+  // full `defines` set (non-exported leaf functions that never appear as a caller aren't visible
+  // here) — but the codemap already emitted edges resolved-first, so this only has to avoid
+  // re-scrambling that order; a slightly smaller set still keeps true builtins in the tail.
+  const projectSymbols = new Set();
+  for (const edges of cg.byModule.values()) for (const e of edges) if (e.caller && e.caller !== '<module>') projectSymbols.add(e.caller);
+  for (const c of (parsed.classes || [])) if (c.name) projectSymbols.add(c.name);
+
+  for (const mod of [...cg.byModule.keys()].sort()) {
+    const edges = cg.byModule.get(mod);
+    if (!edges.length) continue;
+    // Rank project-internal first (callee resolves to a project symbol), then by callee
+    // in-degree so the genuine hubs survive the per-module cap.
+    const calleeDegree = new Map();
+    for (const e of edges) calleeDegree.set(e.callee, (calleeDegree.get(e.callee) || 0) + 1);
+    const ranked = [...edges].sort((a, b) =>
+      (Number(projectSymbols.has(b.callee)) - Number(projectSymbols.has(a.callee))) ||
+      (calleeDegree.get(b.callee) - calleeDegree.get(a.callee)) ||
+      a.caller.localeCompare(b.caller) || a.callee.localeCompare(b.callee));
+    const shown = ranked.slice(0, cfg.callEdgeCap);
+    const parseOverflow = cg.overflow.get(mod) || 0;
+    const renderOverflow = ranked.length - shown.length;
+
+    const lines = [];
+    lines.push('```mermaid');
+    const init = mermaidInit(cfg.renderer);
+    if (init) lines.push(init);
+    lines.push('graph LR');
+    // Caller node id = file::caller (unique per file); callee node id = callee name.
+    const callerId = (e) => mermaidId(`c_${e.file}__${e.caller}`);
+    const calleeId = (e) => mermaidId(`t_${e.callee}`);
+    const declared = new Set();
+    for (const e of shown) {
+      const cid = callerId(e);
+      if (!declared.has(cid)) { declared.add(cid); lines.push(`  ${cid}["${e.caller}"]`); }
+      const tid = calleeId(e);
+      if (!declared.has(tid)) { declared.add(tid); lines.push(`  ${tid}(["${e.callee}"])`); }
+    }
+    for (const e of shown) lines.push(`  ${callerId(e)} --> ${calleeId(e)}`);
+    lines.push('```');
+
+    out.push(`#### ${mod}`);
+    out.push('');
+    out.push(lines.join('\n'));
+    const omitted = renderOverflow + parseOverflow;
+    if (omitted > 0) {
+      out.push('');
+      out.push(`*${omitted} more call edge(s) omitted (cap ${cfg.callEdgeCap}); ranked by callee in-degree. Full set in the source codemap's \`## Call graph\`.*`);
+    }
+    out.push('');
+  }
+  return out.length > 2 ? out.join('\n') : null;
+}
+
 // ── Module section rendering ─────────────────────────────────────────────────
 function buildExportsByFile(parsed) {
   const m = new Map();
@@ -1121,6 +1239,7 @@ function assembleSingle(parsed, cfg) {
   const structure = renderStructure(parsed, parsed.projectName, skipRegexes);
   const moduleMap = renderModuleMap(parsed, cfg, notes);
   const cross = renderCrossModuleClassRelations(parsed);
+  const callGraph = renderCallGraph(parsed, cfg);
 
   const visibleGroups = parsed.groups
     .filter((g) => !skipRegexes.some((re) => re.test(g.name)))
@@ -1143,9 +1262,10 @@ function assembleSingle(parsed, cfg) {
   // mostly redundant. Skip it here; the bodies themselves carry the data.
   for (const s of moduleSections) out += s.body + '\n';
   if (cross) out += `## Cross-module class relations\n\n${cross}\n\n`;
+  if (callGraph) out += `## Call graph\n\n${callGraph}\n`;
   if (notes.length) out += `## Notes\n\n${notes.join('\n')}\n`;
 
-  return { body: out, moduleSections, notes, structure, moduleMap, cross };
+  return { body: out, moduleSections, notes, structure, moduleMap, cross, callGraph };
 }
 
 // Normalise a candidate folder name for fuzzy matching: lowercase, drop punctuation,
@@ -1213,6 +1333,7 @@ function writeVaultSplit(args, parsed, cfg, single) {
   index += renderModulesIndexList(parsed, single.moduleSections, projectSlug, /*useWikilinks*/ true);
   index += '\n';
   if (single.cross) index += `## Cross-module class relations\n\n${single.cross}\n\n`;
+  if (single.callGraph) index += `## Call graph\n\n${single.callGraph}\n`;
   if (single.notes.length) index += `## Notes\n\n${single.notes.join('\n')}\n`;
 
   fs.mkdirSync(projectDir, { recursive: true });

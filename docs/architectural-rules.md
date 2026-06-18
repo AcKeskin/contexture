@@ -47,12 +47,14 @@ description: <one-line — specific enough for discovery to rank relevance>
 type: user
 kind: architectural-rule
 scope: [<cluster-tag>, <universal | bash | cpp | csharp | python | rust | sql | typescript | web | unity | godot | android | linux | openxr | rendering | webrtc | codecs |...>]
-relevance: <always | when-language-X | when-engine-X | when-platform-X | when-domain-X>
+relevance: <always | when-language-X | when-engine-X | when-platform-X | when-domain-X | during-PHASE | when-touching-X | when-invoking-tools>
 ---
 ```
 
 - `scope` is a flat list. First tag is typically a topical cluster (`raii`, `naming`, `headers`); last tag is the folder's scope for discovery filter.
-- `relevance` is the query gate, with four gate verbs that compose: `always` (universal); `when-language-<lang>` (the file's language); `when-engine-<engine>` (the project's engine, e.g. godot); `when-platform-<os>` (the build target, e.g. android/linux); `when-domain-<domain>` (the problem domain, e.g. openxr/rendering/webrtc/codecs). They are orthogonal — an OpenXR app on Android pulls `openxr/` + `android/`. (`unity/` predates the split and stays `when-domain-unity`.)
+- `relevance` is the query gate. Two families, both composable:
+ - **Scope-axis** (what the project *is*): `always` (universal); `when-language-<lang>`; `when-engine-<engine>` (e.g. godot); `when-platform-<os>` (e.g. android/linux); `when-domain-<domain>` (e.g. openxr/rendering/webrtc/codecs). Orthogonal — an OpenXR app on Android pulls `openxr/` + `android/`. (`unity/` predates the split and stays `when-domain-unity`.)
+ - **Action-axis** (what the agent is *doing*): `during-<phase>` (`during-planning` / `during-review` / `during-execution` / `during-session-close`); `when-touching-<surface>` (e.g. `when-touching-skills`); `when-invoking-tools` (about to run a CLI/MCP verb — gates the canonical-command pins off the always-on floor). Used so a rule loads at the right *moment* rather than always.
 
 ## Body
 

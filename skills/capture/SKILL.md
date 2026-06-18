@@ -39,7 +39,7 @@ From the content and how the user framed it:
 
 When `type` is not `feedback` / `project`, pick `kind`:
 
-| `kind` | Use for | | --- | --- | | `lesson` (default) | Generalizable insight from experience — gotchas, non-obvious findings, principles | | `decision` | An explicit choice with stated reasoning | | `architectural-rule` | A discipline rule — SOLID-adjacent, language idiom, project invariant | | `preference` | User-style preference (verbosity, format, communication) | | `warning` | "This specific thing burned us; do not repeat." Sharp, narrow, references a real prior incident | The `lesson` vs `warning` distinction matters: a `lesson` is a generalizable insight (principle-shaped), a `warning` is a specific landmine that earned its place by citing what went wrong before. If the body has the shape "I did X on Y and it broke Z, can't easily undo," it's a warning, not a lesson. Discovery surfaces warnings first and visually highlights them.
+| `kind` | Use for | | --- | --- | | `lesson` (default) | Generalizable insight from experience — gotchas, non-obvious findings, principles | | `decision` | An explicit choice with stated reasoning | | `architectural-rule` | A discipline rule — SOLID-adjacent, language idiom, project invariant | | `canonical-command` | A verb→exact-command pin — the canonical way to run a tool the agent does often. A specialization of `architectural-rule`; routes to `canonical-commands.md` (see §5b). | | `preference` | User-style preference (verbosity, format, communication) | | `warning` | "This specific thing burned us; do not repeat." Sharp, narrow, references a real prior incident | The `lesson` vs `warning` distinction matters: a `lesson` is a generalizable insight (principle-shaped), a `warning` is a specific landmine that earned its place by citing what went wrong before. If the body has the shape "I did X on Y and it broke Z, can't easily undo," it's a warning, not a lesson. Discovery surfaces warnings first and visually highlights them.
 
 Omit `kind` when default (`lesson`).
 
@@ -81,6 +81,16 @@ When `kind: architectural-rule`, the rule must land in an **overlay tier**, not 
 Surface which lower-tier file is being shadowed/patched so the user confirms intent. For a genuinely new key (no lower-tier file), it's a plain add — no override frontmatter.
 
 This step routes only `kind: architectural-rule`. All other kinds follow steps 5 / 8 unchanged. The `rules` skill (047) is the richer front door for managing existing overlay rules; capture is where a *new* rule is born mid-conversation.
+
+### 5b. Canonical-command route
+
+`kind: canonical-command` is a specialization of `architectural-rule`: it's a verb→exact-command pin that lives in **`canonical-commands.md`**, not its own file. Fires most often when the user *corrects an improvised command* ("no — use `gh api …/comments --paginate`, you missed comments again"): that correction is a candidate pin.
+
+Route it through §5a's overlay-tier choice (user / company / project), but the destination is a **section appended to the tier's `canonical-commands.md`**, not a new per-rule file:
+- **user / company** → `…/architectural-rules-{local,company}/universal/canonical-commands.md`
+- **project** → `<repo>/CLAUDE.md`'s `## Canonical commands` section, or `<repo>/.claude/canonical-commands.md` — project pins override universal ones (the resolution order the shipped `universal/canonical-commands.md` documents).
+
+Draft the entry in that file's strict shape — `### <verb>`, a fenced command block, then a **mandatory** `**Why:**` line (the rationale is what lets the agent adapt; a pin without it is the slop case). Before writing, **redact** per §-redaction: a pinned command must be safe to commit, so a token / API key / internal URL in the command is rejected — force an env var or placeholder. If the verb already has a pin, this is an *override*: surface the existing entry and confirm intent (same as §5a's override flow).
 
 ### 6. Draft
 
