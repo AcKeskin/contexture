@@ -16,7 +16,7 @@ contexture/
 ├── settings/                    # settings.json template + per-machine override
 ├── skills/                      # one folder per skill, each with SKILL.md (committed source; bootstrap mirrors into gitignored .claude/skills/ for Copilot/Codex/Cursor discovery)
 │   ├── prep/   review/   pr-review/   capture/   recap/   discover/
-│   ├── pr-author/   pr-respond/   pre-push/        # GitHub reviewee triad
+│   ├── pr-author/   pr-triage/   pre-push/         # GitHub reviewee triad
 │   ├── deliver/                 # library-only (no slash command)
 │   ├── update-codemap/   codemap-visualize/
 │   ├── new-hook/   new-agent/   new-mcp/   new-agents-md/
@@ -102,7 +102,7 @@ Each skill has a `SKILL.md` that defines when it fires, what it does, and how it
 | `discover` | Retrieves relevant memories and codemap entries for the current task by scope/keyword |
 | `deliver` | Renders memory fragments into working context (library-only — not user-invoked) |
 | `pr-author` | Drafts a PR title + body to a clean contract (Summary / Test plan / Closes) and hands over a ready-to-run `gh pr create` — never opens the PR itself |
-| `pr-respond` | Structures responses to PR review comments — groups by theme, applies local code edits, drafts GitHub replies for you to post (never posts itself) |
+| `pr-triage` | Triages a PR's unresolved review comments into a checklist, walks each to Act / Skip-defer / Note, and routes the Act code changes via /dispatch or /orchestrate — never drafts or posts replies (you write those) |
 | `pre-push` | Pre-push pre-flight checklist — commits-to-ship summary, branch-name / commit-hygiene / AI-attribution / debug-artifact / hook-bypass checks; stops on any flag |
 | `spec` | Interview-driven versioned spec under `.claude/specs/<slug>/`; mandatory `done_criteria:` frontmatter; INDEX tracks the active version |
 | `draft-plan` | Produces a versioned plan from the active spec, with a propose-confirm review gate before the plan lands on disk |
@@ -141,7 +141,7 @@ Each file is a thin entrypoint that delegates to the corresponding skill. One fi
 | `/write-tests` | `skills/write-tests` |
 | `/pr-review` | `skills/pr-review` |
 | `/pr-author` | `skills/pr-author` |
-| `/pr-respond` | `skills/pr-respond` |
+| `/pr-triage` | `skills/pr-triage` |
 | `/pre-push` | `skills/pre-push` |
 | `/capture` | `skills/capture` |
 | `/recap` | `skills/recap` |

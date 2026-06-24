@@ -16,6 +16,23 @@ namespace UnityMcp.Editor.Tools
         // 2021.3 LTS floor. Suppress the warning at call sites until the floor moves to
         // Unity 6+ (deferred to v3).
         #pragma warning disable CS0618
+        /// <summary>
+        /// Resolves any Unity <see cref="Object"/> — scene object OR Project asset — from an
+        /// instanceId. Unlike <see cref="GameObjectOrThrow"/> this does not constrain the
+        /// resolved type, so callers (e.g. editor_select) can address assets as well as scene
+        /// objects. Throws <c>InvalidInput</c> when the id resolves to nothing.
+        /// </summary>
+        public static Object ObjectOrThrow(int id, string fieldName = "instanceId")
+        {
+            var obj = EditorUtility.InstanceIDToObject(id);
+            if (obj == null)
+            {
+                throw new ToolException("InvalidInput",
+                    $"{fieldName} {id} did not resolve to an Object.");
+            }
+            return obj;
+        }
+
         public static GameObject GameObjectOrThrow(int id, string fieldName = "instanceId")
         {
             var go = EditorUtility.InstanceIDToObject(id) as GameObject;

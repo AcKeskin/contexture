@@ -21,8 +21,8 @@ import { formatErrorText } from "./error-envelope.js";
  * and supports dryRun.
  *
  * Closes workflow-feedback proposal #4 — makes UI authoring (Slice N's
- * macros) reproducible across sessions. See spec
- * .claude/specs/unity-mcp-procedure-runner/v1.md for the full contract.
+ * macros) reproducible across sessions. See server/PROCEDURES.md for the
+ * file format, the ref grammar, and worked examples.
  */
 
 // ---------- Input schema ----------

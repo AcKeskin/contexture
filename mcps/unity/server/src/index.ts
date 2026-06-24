@@ -29,16 +29,27 @@ async function ensureCapabilities(): Promise<CapabilityDescriptor | null> {
   return result.descriptor;
 }
 
+const server = new Server(
+  { name: "unity-mcp", version: "0.1.0" },
+  { capabilities: { tools: { listChanged: true } } },
+);
+
+// The Editor's tool set changes across recompiles/domain reloads — the Editor
+// rebinds and rewrites its registry file, and any new C# tool (e.g. a freshly
+// added [UnityMcpTool]) only appears after that. The watcher fires on every
+// such change: invalidate the capability cache AND tell the client the tool
+// list changed, so a spec-compliant client re-fetches tools/list on its own
+// instead of forcing the user to manually reconnect. `tools.listChanged: true`
+// above advertises that we emit this notification.
 const watcher = new RegistryWatcher(() => {
   bridge.invalidateCapabilities();
   console.error("[unity-mcp] registry changed — capability cache invalidated.");
+  server.sendToolListChanged().catch((err) => {
+    const reason = err instanceof Error ? err.message : String(err);
+    console.error(`[unity-mcp] sendToolListChanged failed: ${reason}`);
+  });
 });
 watcher.start();
-
-const server = new Server(
-  { name: "unity-mcp", version: "0.1.0" },
-  { capabilities: { tools: {} } },
-);
 
 let _collisionCheckDone = false;
 

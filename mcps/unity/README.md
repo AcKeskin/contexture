@@ -20,7 +20,7 @@ Because the surface lives on the Editor side and is advertised dynamically, addi
 
 ## Tool surface
 
-~70 typed tools across ~15 domains. snake_case names, domain-prefixed.
+~75 typed tools across ~16 domains. snake_case names, domain-prefixed.
 
 | Domain | Examples |
 |---|---|
@@ -31,11 +31,12 @@ Because the surface lives on the Editor side and is advertised dynamically, addi
 | **Material / physics / settings** | `manage_material`, `manage_physics`, `manage_project_settings`, `manage_packages`, `manage_camera` |
 | **UI authoring** | `ui_create_canvas`, `ui_create_text`, `ui_create_image`, `ui_create_layout_group`, `ui_set_rect` |
 | **Scripts** | `manage_script`, `script_apply_edits`, `find_in_file` |
-| **Editor / input / tests** | `execute_menu_item`, `playmode_set`, `manage_input`, `input_inject`, `run_tests`, `console_read`, `unity_reflect`, `unity_docs` |
+| **Editor / input / tests** | `execute_menu_item`, `playmode_set`, `playmode_step`, `manage_input`, `input_inject`, `run_tests`, `console_read`, `unity_reflect`, `unity_docs` |
+| **Build / profiler** | `build_player`, `build_status`, `set_build_target`, `build_scenes_get`, `build_scenes_set`, `profiler_capture` — build is async (poll `build_status`); `profiler_capture` over N play-mode frames |
 | **Vision** | `view_game`, `view_screen` (true composited final frame — post-FX + overlay UI), `view_scene_from`, `view_scene_orbit`, `view_inspector_preview`, `view_xr_simulator`, `view_user_perspective` — return PNG the agent actually sees |
 | **XR (XRI)** | `xri_get_rig`, `xri_inspect_interactor`, `xri_inspect_interactable`, `xri_get_input_actions`, `xri_simulate_pose`, `xri_inject_device` — gated on XRI |
 | **Spatial UI (MRTK 3)** | `mrtk3_list_uxcomponents`, `mrtk3_inspect_button`/`_handmenu`/`_slider`/…, `mrtk3_validate_component`, `mrtk3_describe_component`, `mrtk3_list_prefabs` — gated on MRTK 3 |
-| **Procedures** | `procedure_run` — replay a JSONC sequence of tool calls (server-side) |
+| **Procedures** | `procedure_run` — replay a JSONC sequence of tool calls (server-side); see [`server/PROCEDURES.md`](./server/PROCEDURES.md) for the file format |
 
 The vision tools return image content natively, so the agent *sees* the scene rather than a path to a screenshot. The MRTK3 tools pair structural inspection with a curated knowledge corpus (`unity-package/Editor/Mrtk3Knowledge/`) that answers *when / why / how* to use a component.
 

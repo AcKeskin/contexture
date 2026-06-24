@@ -1,4 +1,3 @@
-using System;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using UnityEditor;
@@ -33,12 +32,12 @@ namespace UnityMcp.Editor.Tools.Prefabs
         public Task<ToolResult> InvokeAsync(JObject @params, ToolContext ctx)
         {
             int id = @params.Value<int?>("instanceId")
-                ?? throw new ArgumentException("'instanceId' is required.");
+                ?? throw new ToolException("InvalidInput", "'instanceId' is required.");
 
             var go = InstanceIdResolver.GameObjectOrThrow(id);
             if (!PrefabUtility.IsPartOfPrefabInstance(go))
             {
-                throw new ArgumentException("GameObject is not a prefab instance.");
+                throw new ToolException("InvalidInput", "GameObject is not a prefab instance.");
             }
 
             var assetPath = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(go);

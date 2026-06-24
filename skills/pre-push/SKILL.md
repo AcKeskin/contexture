@@ -5,7 +5,7 @@ description: Pre-flight checklist before a git push — commits-to-ship summary 
 
 # pre-push
 
-Reviewee-side pre-flight before a `git push`. The first of the GitHub reviewee triad; siblings are [pr-author](../pr-author/SKILL.md) and [pr-respond](../pr-respond/SKILL.md). The reviewer-side counterpart is [pr-review (030)](../pr-review/SKILL.md).
+Reviewee-side pre-flight before a `git push`. The first of the GitHub reviewee triad; siblings are [pr-author](../pr-author/SKILL.md) and [pr-triage](../pr-triage/SKILL.md). The reviewer-side counterpart is [pr-review (030)](../pr-review/SKILL.md).
 
 Whatever the local branch is, that's what ships to the remote. Most pre-push issues are catchable in seconds; none are caught when the push is improvised inline. This skill runs the checklist once, surfaces flags, and stops on a flag — it does not push past a problem on its own.
 

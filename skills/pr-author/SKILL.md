@@ -5,7 +5,7 @@ description: Draft a pull request title and body to a clean contract — Summary
 
 # pr-author
 
-Reviewee-side PR drafting. The second of the GitHub reviewee triad; siblings are [pre-push](../pre-push/SKILL.md) and [pr-respond](../pr-respond/SKILL.md).
+Reviewee-side PR drafting. The second of the GitHub reviewee triad; siblings are [pre-push](../pre-push/SKILL.md) and [pr-triage](../pr-triage/SKILL.md).
 
 PR title and body get composed in-place each time with varying quality — title length, summary structure, test plan, base branch all improvised. This skill drafts them to a contract, shows you the draft, and hands you a ready-to-run command. **It does not open the PR itself.**
 
@@ -89,6 +89,6 @@ The skill **never runs `gh pr create`**. It writes the body to a temp file and c
 ## Relationship to other organs
 
 - **[pre-push (041)](../pre-push/SKILL.md)** — hands off to pr-author after a first push with no PR.
-- **[pr-respond (041)](../pr-respond/SKILL.md)** — the third triad skill; fires later, when review comments arrive on the opened PR.
+- **[pr-triage (041)](../pr-triage/SKILL.md)** — the third triad skill; runs later, when review comments arrive on the opened PR — triages them into a checklist and routes the code actions (you write the replies).
 - **[git.md (006)](../../architectural-rules/universal/git.md)** — title format (lowercase verb start, no AI attribution).
 - **[discover (002)](../discover/SKILL.md)** — optional, for project-specific PR conventions.

@@ -97,7 +97,7 @@ Any condition fails (bigger than 10 lines, spans files, has caveats, or is a jud
 - **No explanatory comments inside the block** — the "what changed and why" goes in the prose above it. The block is only the code that should land.
 - The skill must cite the **correct range** — sometimes wider than the literal changed line, because GitHub applies a suggestion as a line-range replacement. If extracting a helper changes the surrounding indent, the cited range must cover the lines whose indent changes.
 
-**Why this is the highest-leverage format:** on GitHub a `suggestion` block renders as a one-click "Apply suggestion" button — reviewer effort ≈ writing prose, reviewee effort ≈ zero. It is also the **wire format for the reviewee round-trip**: `pr-respond` parses suggestion blocks out of PR comments and pre-populates its Accept rows from them. A finding whose fix fits the four conditions but is written as prose silently breaks that round-trip.
+**Why this is the highest-leverage format:** on GitHub a `suggestion` block renders as a one-click "Apply suggestion" button — reviewer effort ≈ writing prose, reviewee effort ≈ zero. The reviewee applies the fix straight from the PR thread with no retyping. A finding whose fix fits the four conditions but is written as prose loses that one-click apply.
 
 ## 4. "Looks bad but actually fine" section
 

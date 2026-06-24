@@ -2,42 +2,107 @@
 
 File-level changes per public snapshot. Curate freely — this is the human-facing history.
 
-## 2026-06-18 — Codemap: AST extraction for ~12 languages (TS/JS/C# + C/Ruby/PHP) and a syntactic call graph ranked project-internal first; codemap-visualize renders it. New trace_path graph-query tool in the project-memory MCP for transitive who-calls / impact analysis. Tier-1 instructions: canonical tool commands, subagent state-harvest channel, bootstrap orphaned-link advisory + prune-on-rename.
+## 2026-06-24 — Add the Unity MCP build-profiler tool domain: build_player/build_status (async build via poll handle), set_build_target, build_scenes_get/set, profiler_capture, and playmode_step
 
-_4 added, 15 changed, 1 removed._
+_71 added, 17 changed, 3 removed._
 
-### Architectural rules
-- added `architectural-rules/universal/canonical-commands.md`
-
-### Bootstrap
-- changed `bootstrap/lib/verify.js`
-
-### CLAUDE.md imports
-- changed `claude-md/_imports.md`
+### Commands
+- added `commands/pr-triage.md`
+- removed `commands/pr-respond.md`
 
 ### Docs
-- changed `docs/architectural-rules.md`
-
-### Hooks
-- changed `hooks/agent-output-contract-validator.js`
+- changed `docs/reference.md`
+- changed `docs/review-output-contract.md`
 
 ### MCP servers
-- added `mcps/project-memory/src/retrieval/graph.ts`
-- added `mcps/project-memory/src/tools/trace.ts`
-- added `mcps/project-memory/test/graph.test.ts`
-- changed `mcps/project-memory/src/index.ts`
+- added `mcps/unity/server/PROCEDURES.md`
+- added `mcps/unity/server/scripts/check-tool-list-changed.mjs`
+- added `mcps/unity/server/test/procedure-refs.test.ts`
+- added `mcps/unity/server/test/procedure-runner.test.ts`
+- added `mcps/unity/server/tsconfig.test.json`
+- added `mcps/unity/unity-package/Editor/Tools/Build.meta`
+- added `mcps/unity/unity-package/Editor/Tools/Build/BuildJob.cs`
+- added `mcps/unity/unity-package/Editor/Tools/Build/BuildJob.cs.meta`
+- added `mcps/unity/unity-package/Editor/Tools/Build/BuildJobRegistry.cs`
+- added `mcps/unity/unity-package/Editor/Tools/Build/BuildJobRegistry.cs.meta`
+- added `mcps/unity/unity-package/Editor/Tools/Build/BuildPlayerTool.cs`
+- added `mcps/unity/unity-package/Editor/Tools/Build/BuildPlayerTool.cs.meta`
+- added `mcps/unity/unity-package/Editor/Tools/Build/BuildScenesGetTool.cs`
+- added `mcps/unity/unity-package/Editor/Tools/Build/BuildScenesGetTool.cs.meta`
+- added `mcps/unity/unity-package/Editor/Tools/Build/BuildScenesSetTool.cs`
+- added `mcps/unity/unity-package/Editor/Tools/Build/BuildScenesSetTool.cs.meta`
+- added `mcps/unity/unity-package/Editor/Tools/Build/BuildStatusTool.cs`
+- added `mcps/unity/unity-package/Editor/Tools/Build/BuildStatusTool.cs.meta`
+- added `mcps/unity/unity-package/Editor/Tools/Build/SetBuildTargetTool.cs`
+- added `mcps/unity/unity-package/Editor/Tools/Build/SetBuildTargetTool.cs.meta`
+- added `mcps/unity/unity-package/Editor/Tools/Diff.meta`
+- added `mcps/unity/unity-package/Editor/Tools/Diff/StructuralDiff.cs`
+- added `mcps/unity/unity-package/Editor/Tools/Diff/StructuralDiff.cs.meta`
+- added `mcps/unity/unity-package/Editor/Tools/Editor/EditorGetDirtyStateTool.cs`
+- added `mcps/unity/unity-package/Editor/Tools/Editor/EditorGetDirtyStateTool.cs.meta`
+- added `mcps/unity/unity-package/Editor/Tools/Editor/EditorGetSelectionTool.cs`
+- added `mcps/unity/unity-package/Editor/Tools/Editor/EditorGetSelectionTool.cs.meta`
+- added `mcps/unity/unity-package/Editor/Tools/Editor/EditorRedoTool.cs`
+- added `mcps/unity/unity-package/Editor/Tools/Editor/EditorRedoTool.cs.meta`
+- added `mcps/unity/unity-package/Editor/Tools/Editor/EditorSelectTool.cs`
+- added `mcps/unity/unity-package/Editor/Tools/Editor/EditorSelectTool.cs.meta`
+- added `mcps/unity/unity-package/Editor/Tools/Editor/EditorUndoRedo.cs`
+- added `mcps/unity/unity-package/Editor/Tools/Editor/EditorUndoRedo.cs.meta`
+- added `mcps/unity/unity-package/Editor/Tools/Editor/EditorUndoTool.cs`
+- added `mcps/unity/unity-package/Editor/Tools/Editor/EditorUndoTool.cs.meta`
+- added `mcps/unity/unity-package/Editor/Tools/Editor/PlaymodeStepTool.cs`
+- added `mcps/unity/unity-package/Editor/Tools/Editor/PlaymodeStepTool.cs.meta`
+- added `mcps/unity/unity-package/Editor/Tools/Editor/ProfilerCaptureTool.cs`
+- added `mcps/unity/unity-package/Editor/Tools/Editor/ProfilerCaptureTool.cs.meta`
+- added `mcps/unity/unity-package/Editor/Tools/Editor/ProfilerStatCatalog.cs`
+- added `mcps/unity/unity-package/Editor/Tools/Editor/ProfilerStatCatalog.cs.meta`
+- added `mcps/unity/unity-package/Editor/Tools/GameObjects/FullDump.cs`
+- added `mcps/unity/unity-package/Editor/Tools/GameObjects/FullDump.cs.meta`
+- added `mcps/unity/unity-package/Editor/Tools/GameObjects/GoDiffTool.cs`
+- added `mcps/unity/unity-package/Editor/Tools/GameObjects/GoDiffTool.cs.meta`
+- added `mcps/unity/unity-package/Editor/Tools/GameObjects/GoSerializeFullTool.cs`
+- added `mcps/unity/unity-package/Editor/Tools/GameObjects/GoSerializeFullTool.cs.meta`
+- added `mcps/unity/unity-package/Editor/Tools/Prefabs/PrefabApplyOverrideTool.cs`
+- added `mcps/unity/unity-package/Editor/Tools/Prefabs/PrefabApplyOverrideTool.cs.meta`
+- added `mcps/unity/unity-package/Editor/Tools/Prefabs/PrefabCreateVariantTool.cs`
+- added `mcps/unity/unity-package/Editor/Tools/Prefabs/PrefabCreateVariantTool.cs.meta`
+- added `mcps/unity/unity-package/Editor/Tools/Prefabs/PrefabDiffTool.cs`
+- added `mcps/unity/unity-package/Editor/Tools/Prefabs/PrefabDiffTool.cs.meta`
+- added `mcps/unity/unity-package/Editor/Tools/Prefabs/PrefabEditTool.cs`
+- added `mcps/unity/unity-package/Editor/Tools/Prefabs/PrefabEditTool.cs.meta`
+- added `mcps/unity/unity-package/Editor/Tools/Prefabs/PrefabOverrideResolver.cs`
+- added `mcps/unity/unity-package/Editor/Tools/Prefabs/PrefabOverrideResolver.cs.meta`
+- added `mcps/unity/unity-package/Editor/Tools/Prefabs/PrefabOverridesTool.cs`
+- added `mcps/unity/unity-package/Editor/Tools/Prefabs/PrefabOverridesTool.cs.meta`
+- added `mcps/unity/unity-package/Editor/Tools/Prefabs/PrefabReplaceAssetTool.cs`
+- added `mcps/unity/unity-package/Editor/Tools/Prefabs/PrefabReplaceAssetTool.cs.meta`
+- added `mcps/unity/unity-package/Editor/Tools/Prefabs/PrefabRevertOverrideTool.cs`
+- added `mcps/unity/unity-package/Editor/Tools/Prefabs/PrefabRevertOverrideTool.cs.meta`
+- added `mcps/unity/unity-package/Editor/Tools/Prefabs/PrefabUnpackTool.cs`
+- added `mcps/unity/unity-package/Editor/Tools/Prefabs/PrefabUnpackTool.cs.meta`
+- added `mcps/unity/unity-package/Tests/Editor/SerializedFieldDumperFullFidelityTests.cs`
+- added `mcps/unity/unity-package/Tests/Editor/SerializedFieldDumperFullFidelityTests.cs.meta`
+- added `mcps/unity/unity-package/Tests/Editor/StructuralDiffTests.cs`
+- added `mcps/unity/unity-package/Tests/Editor/StructuralDiffTests.cs.meta`
+- changed `mcps/unity/README.md`
+- changed `mcps/unity/server/.gitignore`
+- changed `mcps/unity/server/package.json`
+- changed `mcps/unity/server/src/index.ts`
+- changed `mcps/unity/server/src/procedure-runner.ts`
+- changed `mcps/unity/unity-package/Editor/Tools/InstanceIdResolver.cs`
+- changed `mcps/unity/unity-package/Editor/Tools/Prefabs/PrefabApplyOverridesTool.cs`
+- changed `mcps/unity/unity-package/Editor/Tools/Prefabs/PrefabCreateFromTool.cs`
+- changed `mcps/unity/unity-package/Editor/Tools/Prefabs/PrefabInstantiateTool.cs`
+- changed `mcps/unity/unity-package/Editor/Tools/Prefabs/PrefabRevertTool.cs`
+- changed `mcps/unity/unity-package/Editor/Tools/SerializedFieldDumper.cs`
 
 ### Other
-- changed `AGENTS.md`
 - removed `CHANGELOG.md`
 
 ### Skills
-- changed `skills/capture/SKILL.md`
-- changed `skills/codemap-visualize/codemap-visualize.mjs`
-- changed `skills/dispatch/SKILL.md`
-- changed `skills/pr-respond/SKILL.md`
-- changed `skills/update-codemap/codemap.mjs`
-- changed `skills/update-codemap/test/baseline.json`
-- changed `skills/update-codemap/test/fixtures.mjs`
-- changed `skills/update-codemap/test/language-sweep.mjs`
-- changed `skills/update-codemap/treesitter.mjs`
+- added `skills/pr-triage/SKILL.md`
+- changed `skills/pr-author/SKILL.md`
+- changed `skills/pr-review/SKILL.md`
+- changed `skills/pre-push/SKILL.md`
+- changed `skills/review/SKILL.md`
+- removed `skills/pr-respond/SKILL.md`

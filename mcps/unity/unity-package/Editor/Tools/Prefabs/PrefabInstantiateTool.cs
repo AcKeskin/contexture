@@ -1,4 +1,3 @@
-using System;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using UnityEditor;
@@ -49,13 +48,13 @@ namespace UnityMcp.Editor.Tools.Prefabs
             string path = @params.Value<string>("path");
             if (string.IsNullOrWhiteSpace(path))
             {
-                throw new ArgumentException("'path' is required.");
+                throw new ToolException("InvalidInput", "'path' is required.");
             }
 
             var prefabAsset = AssetDatabase.LoadAssetAtPath<GameObject>(path);
             if (prefabAsset == null)
             {
-                throw new ArgumentException($"No prefab asset at '{path}'.");
+                throw new ToolException("InvalidInput", $"No prefab asset at '{path}'.");
             }
 
             int? parentId = null;
@@ -74,7 +73,7 @@ namespace UnityMcp.Editor.Tools.Prefabs
             var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefabAsset);
             if (instance == null)
             {
-                throw new InvalidOperationException("PrefabUtility.InstantiatePrefab returned null.");
+                throw new ToolException("Internal", "PrefabUtility.InstantiatePrefab returned null.");
             }
 
             if (parent != null)

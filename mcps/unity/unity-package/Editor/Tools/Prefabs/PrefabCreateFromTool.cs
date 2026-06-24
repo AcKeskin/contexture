@@ -1,4 +1,3 @@
-using System;
 using System.IO;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
@@ -38,18 +37,18 @@ namespace UnityMcp.Editor.Tools.Prefabs
         public Task<ToolResult> InvokeAsync(JObject @params, ToolContext ctx)
         {
             int id = @params.Value<int?>("instanceId")
-                ?? throw new ArgumentException("'instanceId' is required.");
+                ?? throw new ToolException("InvalidInput", "'instanceId' is required.");
             string path = @params.Value<string>("path");
             if (string.IsNullOrWhiteSpace(path))
             {
-                throw new ArgumentException("'path' is required.");
+                throw new ToolException("InvalidInput", "'path' is required.");
             }
             bool connect = @params["connect"]?.Value<bool>() ?? true;
 
             var go = InstanceIdResolver.GameObjectOrThrow(id);
             if (PrefabUtility.IsPartOfPrefabAsset(go))
             {
-                throw new ArgumentException("Source must be a scene GameObject, not a prefab asset.");
+                throw new ToolException("InvalidInput", "Source must be a scene GameObject, not a prefab asset.");
             }
 
             var dir = Path.GetDirectoryName(path);
@@ -71,7 +70,7 @@ namespace UnityMcp.Editor.Tools.Prefabs
 
             if (created == null)
             {
-                throw new InvalidOperationException(
+                throw new ToolException("Internal",
                     $"PrefabUtility.SaveAsPrefab* returned null for '{path}'.");
             }
 

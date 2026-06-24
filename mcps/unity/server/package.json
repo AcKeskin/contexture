@@ -12,9 +12,10 @@
   "scripts": {
     "build": "tsc",
     "start": "node build/index.js",
+    "test": "tsc -p tsconfig.test.json && node --test \"build-test/test/*.test.js\"",
     "smoke": "node scripts/smoke.mjs",
     "smoke:v2": "node scripts/smoke-v2.mjs",
-    "clean": "rimraf build"
+    "clean": "rimraf build build-test"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
