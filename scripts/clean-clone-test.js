@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-// Clean-clone test (proposal 055, step 5).
+// Clean-clone test.
 //
 // Proves a fresh peer fork installs cleanly: copies the repo to a throwaway
 // temp dir, points bootstrap at a throwaway HOME (so os.homedir() resolves to

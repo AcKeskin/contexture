@@ -1,6 +1,6 @@
 'use strict';
 
-// Hook-callable implementation of the proposal-047 architectural-rule overlay
+// Hook-callable implementation of the architectural-rule overlay
 // resolver. This is the single Node entry point that turns the layered tier
 // tree (shipped < company < user < project) into resolved, patched,
 // anchor-stripped rule bodies — the same bytes `/prep` would render, delivered
