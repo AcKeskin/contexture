@@ -122,8 +122,25 @@ function collectShallow(node, type, stopTypes) {
   return out;
 }
 
-function mk(name, kind, { extends: ext = [], implements: impl = [], fields = [], namespace = '', attributes = [] } = {}) {
-  return { name, kind, extends: ext, implements: impl, fields, namespace, attributes };
+function mk(name, kind, { extends: ext = [], implements: impl = [], fields = [], namespace = '', attributes = [], methods = [] } = {}) {
+  return { name, kind, extends: ext, implements: impl, fields, namespace, attributes, methods };
+}
+
+// Method names declared directly in a class/interface body node, for the 087 cross-file
+// type registry (Type → methods). Generic over the body node + the method node types +
+// the name-node types a language uses. Best-effort; only used to confirm an imported
+// receiver's method exists on the imported type.
+function methodNamesIn(bodyNode, methodTypes, nameTypes) {
+  const out = [];
+  if (!bodyNode) return out;
+  for (const m of descendants(bodyNode)) {
+    if (!methodTypes.includes(m.type)) continue;
+    for (const nt of nameTypes) {
+      const id = firstOfType(m, nt);
+      if (id) { out.push(id.text); break; }
+    }
+  }
+  return out;
 }
 
 // Normalise a language-specific module/import path into a `/`-separated path-like target
@@ -494,7 +511,9 @@ const EXTRACTORS = {
           const ty = ann ? (firstOfType(ann, 'type_identifier')?.text || firstOfType(ann, 'predefined_type')?.text || '') : '';
           if (id && !fields.some((f) => f.name === id.text)) fields.push({ name: id.text, type: ty });
         }
-        classes.push(mk(name, kind, { extends: ext, implements: impl, fields }));
+        // Methods (087 cross-file registry): method_definition (class) / method_signature (interface).
+        const methods = methodNamesIn(body, ['method_definition', 'method_signature'], ['property_identifier']);
+        classes.push(mk(name, kind, { extends: ext, implements: impl, fields, methods }));
         if (isExported(n)) exportNames.add(name);
       }
       // Exported functions / consts / enums / type aliases — name-only exports.
@@ -602,9 +621,11 @@ const EXTRACTORS = {
           if (fn) fields.push({ name: fn, type: stripGenericTail(ty) });
         }
       }
+      // Methods (087 cross-file registry): method_declaration in the declaration_list.
+      const methods = methodNamesIn(body, ['method_declaration'], ['identifier']);
       classes.push(mk(name, kind, kind === 'interface' || kind === 'enum'
-        ? { extends: ext, fields, namespace: ns, attributes }
-        : { extends: ext, implements: impl, fields, namespace: ns, attributes }));
+        ? { extends: ext, fields, namespace: ns, attributes, methods }
+        : { extends: ext, implements: impl, fields, namespace: ns, attributes, methods }));
       exports.push({ name });
     }
     return { classes, exports, imports };
@@ -773,11 +794,40 @@ const CALL_CONFIG = {
   php:    { fn: ['function_definition', 'method_declaration'], fnName: 'name', call: ['function_call_expression', 'member_call_expression', 'scoped_call_expression'], target: 'function' },
 };
 
+// Per-language type resolvers. A resolver takes (root, callDetails) and returns
+// [{ caller, callee, receiver, qualified, confidence }] for call sites whose receiver type
+// resolved to a project Type — `qualified` is `Type.method`, `confidence` ∈ [0,1]. Call sites
+// that don't resolve are simply absent (the syntactic edge stands). Populated by the TS and
+// C# resolvers below; languages without an entry keep syntactic edges only (graceful degrade).
+const TYPE_RESOLVERS = {};
+
 // The trailing identifier of a call-target node: a bare identifier returns itself; a
 // member/attribute/selector/field/scope expression returns its rightmost name segment.
 const PROP_TYPES = new Set([
   'property_identifier', 'field_identifier', 'identifier', 'name', 'simple_identifier',
 ]);
+
+// The RECEIVER of a member call — the `x` in `x.method()` — as raw text, or null for a
+// bare call `method()`. Used by the type resolvers to look the receiver's type up in
+// the scope map. A member/access node's first named child is the receiver; the trailing
+// identifier is the method (handled by calleeName). For `this`/`self`/`base` we return the
+// keyword so the resolver can bind it to the enclosing class.
+function receiverOf(targetNode) {
+  if (!targetNode) return null;
+  // A plain identifier call target (`foo()`) has no receiver.
+  if (targetNode.type === 'identifier' || targetNode.type === 'name'
+      || targetNode.type === 'simple_identifier' || targetNode.type === 'property_identifier'
+      || targetNode.type === 'field_identifier') {
+    return null;
+  }
+  // member_expression / member_access_expression / field_expression / attribute / selector /
+  // scoped_identifier: the first named child is the receiver expression.
+  const first = targetNode.namedChild(0);
+  if (!first) return null;
+  // Trim to a simple receiver name when it's an identifier-shaped expression; otherwise return
+  // the raw text (the resolver only resolves simple/this receivers, degrades on the rest).
+  return first.text;
+}
 function calleeName(node) {
   if (!node) return null;
   if (node.type === 'identifier' || node.type === 'name' || node.type === 'simple_identifier'
@@ -810,6 +860,267 @@ function functionName(node, cfg) {
   return firstOfType(node, 'identifier')?.text || null;
 }
 
+// ── 087 type resolvers ───────────────────────────────────────────────────────
+// Confidence scheme (shared): a directly-evidenced type (annotation, `new X()`) scores high;
+// an assignment-inferred type scores medium; anything ambiguous scores below the apply floor
+// so it degrades to the syntactic edge rather than guessing.
+const CONF_ANNOTATION = 0.95; // `const u: User` / typed param / typed field
+const CONF_NEW = 0.9;         // `const u = new User()`
+const CONF_THIS = 0.85;       // `this.method()` bound to the enclosing class
+const CONF_INFERRED = 0.7;    // assignment from a typed source
+
+// Collect the project's declared type names from a tree (classes + interfaces), so a resolver
+// only qualifies receivers whose type is a PROJECT type — builtins/3rd-party stay syntactic.
+function projectTypeNamesTs(root) {
+  const names = new Set();
+  for (const n of descendants(root)) {
+    if (n.type === 'class_declaration' || n.type === 'interface_declaration' || n.type === 'abstract_class_declaration') {
+      const id = firstOfType(n, 'type_identifier') || firstOfType(n, 'identifier');
+      if (id) names.add(id.text);
+    }
+  }
+  return names;
+}
+
+// Does PROJECT class/interface `typeName` declare a method `method`? Walk its body. Includes
+// methods declared directly on the class; inheritance is best-effort (resolves the declared
+// class; an inherited method on a project base resolves transitively, external base degrades).
+function classDeclaresMethodTs(root, typeName, method) {
+  for (const n of descendants(root)) {
+    if (n.type !== 'class_declaration' && n.type !== 'interface_declaration' && n.type !== 'abstract_class_declaration') continue;
+    const id = firstOfType(n, 'type_identifier') || firstOfType(n, 'identifier');
+    if (!id || id.text !== typeName) continue;
+    const body = firstOfType(n, 'class_body') || firstOfType(n, 'interface_body') || firstOfType(n, 'object_type');
+    if (!body) return false;
+    for (const m of descendants(body)) {
+      if (m.type === 'method_definition' || m.type === 'method_signature' || m.type === 'public_field_definition') {
+        const mn = firstOfType(m, 'property_identifier');
+        if (mn && mn.text === method) return true;
+      }
+    }
+    return false;
+  }
+  return false;
+}
+
+// The TS receiver-type resolver. Builds a per-scope name→{type,conf} map from typed
+// declarations, `new X()` initialisers, typed params, and typed class fields; binds `this` to
+// the enclosing class; then for each call-detail with a receiver, resolves the receiver to a
+// project type and confirms the method is declared on it. Returns the resolved subset only.
+function resolveTypesTs(root, callDetails) {
+  const projectTypes = projectTypeNamesTs(root);
+  // Note: do NOT early-return on empty projectTypes — a file may only USE imported types
+  // (no local class) and still produce cross-file unconfirmed resolutions.
+
+  // name → { type, conf }. Flat (function-scoped granularity is enough for the codemap's needs;
+  // shadowing across nested scopes is a rare edge that degrades to the last binding seen).
+  // A type name binds if it's a project type declared HERE *or* a type-shaped (Capitalized)
+  // identifier that may be IMPORTED — the cross-file registry (codemap.mjs) confirms imported
+  // types; a builtin lowercase/predefined type never binds (so `s.length` on a string degrades).
+  const scope = new Map();
+  const typeShaped = (name) => name && /^[A-Z]/.test(name) && !/^(String|Number|Boolean|Object|Array|Map|Set|Promise|Date|RegExp|Error|Symbol|BigInt)$/.test(name);
+  const bindableType = (name) => name && (projectTypes.has(name) || typeShaped(name));
+  const annotatedType = (declNode) => {
+    const ann = firstOfType(declNode, 'type_annotation');
+    if (ann) { const t = firstOfType(ann, 'type_identifier'); if (t) return t.text; }
+    return null;
+  };
+  for (const n of descendants(root)) {
+    // const/let/var: `const u: User` or `const u = new User()`
+    if (n.type === 'variable_declarator') {
+      const nameNode = firstOfType(n, 'identifier');
+      if (!nameNode) continue;
+      const annT = annotatedType(n);
+      if (bindableType(annT)) { scope.set(nameNode.text, { type: annT, conf: CONF_ANNOTATION }); continue; }
+      const newExpr = firstOfType(n, 'new_expression');
+      if (newExpr) {
+        const ctor = firstOfType(newExpr, 'identifier') || firstOfType(newExpr, 'type_identifier');
+        if (ctor && bindableType(ctor.text)) scope.set(nameNode.text, { type: ctor.text, conf: CONF_NEW });
+      }
+    }
+    // typed params: `(u: User)` → required_parameter/optional_parameter with a type_annotation
+    if (n.type === 'required_parameter' || n.type === 'optional_parameter') {
+      const nameNode = firstOfType(n, 'identifier');
+      const annT = annotatedType(n);
+      if (nameNode && bindableType(annT)) scope.set(nameNode.text, { type: annT, conf: CONF_ANNOTATION });
+    }
+    // typed class fields: `private repo: UserRepo`
+    if (n.type === 'public_field_definition') {
+      const nameNode = firstOfType(n, 'property_identifier');
+      const annT = annotatedType(n);
+      if (nameNode && bindableType(annT)) scope.set('this.' + nameNode.text, { type: annT, conf: CONF_ANNOTATION });
+    }
+  }
+
+  // The enclosing class name for a `this.x()` call. Single-class-per-file is the common case;
+  // for multi-class files we resolve `this` to the nearest enclosing class_declaration's name.
+  const enclosingClassName = () => {
+    // We don't have the call node here (callDetails is name-level), so resolve `this` only when
+    // the file declares exactly one class — otherwise `this` is ambiguous and degrades.
+    const classes = [...projectTypes].filter((t) => classExists(root, t));
+    return classes.length === 1 ? classes[0] : null;
+  };
+  const out = [];
+  for (const cd of callDetails) {
+    if (!cd.receiver) continue;
+    let bind = null;
+    if (cd.receiver === 'this') {
+      const cls = enclosingClassName();
+      if (cls) bind = { type: cls, conf: CONF_THIS };
+    } else if (scope.has(cd.receiver)) {
+      bind = scope.get(cd.receiver);
+    } else if (scope.has('this.' + cd.receiver)) {
+      bind = scope.get('this.' + cd.receiver);
+    }
+    if (!bind) continue;
+    if (classDeclaresMethodTs(root, bind.type, cd.callee)) {
+      out.push({ caller: cd.caller, callee: cd.callee, receiver: cd.receiver, qualified: `${bind.type}.${cd.callee}`, confidence: bind.conf });
+    } else if (!classExists(root, bind.type)) {
+      // The receiver's TYPE is known (annotation/new) but its class isn't declared in THIS
+      // file — it's imported. Emit unconfirmed; codemap.mjs confirms the method against the
+      // project Type→methods registry (cross-file). Slightly lower confidence (the type is
+      // certain, the method existence is pending cross-file confirmation).
+      out.push({ caller: cd.caller, callee: cd.callee, receiver: cd.receiver, type: bind.type, qualified: `${bind.type}.${cd.callee}`, confidence: Math.max(0.6, bind.conf - 0.1), unconfirmed: true });
+    }
+  }
+  return out;
+}
+
+// Does the tree declare a class/interface named `name`?
+function classExists(root, name) {
+  for (const n of descendants(root)) {
+    if (n.type === 'class_declaration' || n.type === 'interface_declaration' || n.type === 'abstract_class_declaration') {
+      const id = firstOfType(n, 'type_identifier') || firstOfType(n, 'identifier');
+      if (id && id.text === name) return true;
+    }
+  }
+  return false;
+}
+
+TYPE_RESOLVERS.ts = resolveTypesTs;
+TYPE_RESOLVERS.tsx = resolveTypesTs;
+
+// Project type names in a C# tree (class/struct/record/interface declarations).
+function projectTypeNamesCSharp(root) {
+  const names = new Set();
+  for (const n of descendants(root)) {
+    if (n.type === 'class_declaration' || n.type === 'struct_declaration'
+        || n.type === 'record_declaration' || n.type === 'interface_declaration') {
+      const id = childField(n, 'name') || firstOfType(n, 'identifier');
+      if (id) names.add(id.text);
+    }
+  }
+  return names;
+}
+
+// Does C# PROJECT type `typeName` declare `method`? Walk its declaration_list for
+// method_declarations. Inheritance from a project base is best-effort (the declared type's own
+// methods; an external base degrades to syntactic).
+function classDeclaresMethodCSharp(root, typeName, method) {
+  for (const n of descendants(root)) {
+    if (n.type !== 'class_declaration' && n.type !== 'struct_declaration'
+        && n.type !== 'record_declaration' && n.type !== 'interface_declaration') continue;
+    const id = childField(n, 'name') || firstOfType(n, 'identifier');
+    if (!id || id.text !== typeName) continue;
+    const body = firstOfType(n, 'declaration_list');
+    if (!body) return false;
+    for (const m of descendants(body)) {
+      if (m.type === 'method_declaration') {
+        const mn = childField(m, 'name') || firstOfType(m, 'identifier');
+        if (mn && mn.text === method) return true;
+      }
+    }
+    return false;
+  }
+  return false;
+}
+
+function csharpClassExists(root, name) {
+  return projectTypeNamesCSharp(root).has(name);
+}
+
+// The C# receiver-type resolver. Mirrors the TS one: scope map from typed locals
+// (`User u` / `var u = new User()`), typed fields/properties, typed params; `this` bound to the
+// single enclosing class; resolve receiver → project Type, confirm method declared.
+function resolveTypesCSharp(root, callDetails) {
+  const projectTypes = projectTypeNamesCSharp(root);
+  // No early-return on empty: a file may only USE imported types (cross-file unconfirmed).
+  const scope = new Map();
+  const typeShaped = (name) => name && /^[A-Z]/.test(name) && !/^(String|Int32|Int64|Boolean|Object|Decimal|Double|Single|Byte|Char|DateTime|Guid|List|Dictionary|IEnumerable|Task|Nullable)$/.test(name);
+  const bindableType = (name) => name && (projectTypes.has(name) || typeShaped(name));
+
+  // The declared type name of a C# declaration node: its `type` field, rightmost identifier
+  // (`Geo.Core.User` → `User`). Returns the name if it's a bindable (project or imported) type.
+  const declaredTypeName = (node) => {
+    const t = childField(node, 'type');
+    if (!t) return null;
+    const name = t.text.replace(/<.*$/, '').split('.').pop().trim();
+    return bindableType(name) ? name : null;
+  };
+
+  for (const n of descendants(root)) {
+    // typed local: `User u = ...;` → variable_declaration with a type + variable_declarator
+    if (n.type === 'variable_declaration') {
+      const declT = declaredTypeName(n);
+      for (const d of descendants(n)) {
+        if (d.type === 'variable_declarator') {
+          const nm = childField(d, 'name') || firstOfType(d, 'identifier');
+          if (!nm) continue;
+          if (declT) { scope.set(nm.text, { type: declT, conf: CONF_ANNOTATION }); continue; }
+          // `var u = new User()`
+          const oce = firstOfType(d, 'object_creation_expression');
+          if (oce) {
+            const ct = childField(oce, 'type') || firstOfType(oce, 'identifier');
+            if (ct) { const cn = ct.text.replace(/<.*$/, '').split('.').pop().trim(); if (projectTypes.has(cn)) scope.set(nm.text, { type: cn, conf: CONF_NEW }); }
+          }
+        }
+      }
+    }
+    // typed param: `(User u)` → parameter with a type + name
+    if (n.type === 'parameter') {
+      const nm = childField(n, 'name') || firstOfType(n, 'identifier');
+      const declT = declaredTypeName(n);
+      if (nm && declT) scope.set(nm.text, { type: declT, conf: CONF_ANNOTATION });
+    }
+    // field / property: `private UserRepo repo;` / `public User Owner { get; }`
+    if (n.type === 'field_declaration' || n.type === 'property_declaration') {
+      const declT = declaredTypeName(n) || (() => { const vd = firstOfType(n, 'variable_declaration'); return vd ? declaredTypeName(vd) : null; })();
+      const nm = (n.type === 'property_declaration')
+        ? (childField(n, 'name') || firstOfType(n, 'identifier'))
+        : (() => { const vd = firstOfType(n, 'variable_declarator'); return vd ? (childField(vd, 'name') || firstOfType(vd, 'identifier')) : null; })();
+      if (nm && declT) scope.set('this.' + nm.text, { type: declT, conf: CONF_ANNOTATION });
+    }
+  }
+
+  const enclosingClassName = () => {
+    const classes = [...projectTypes].filter((t) => csharpClassExists(root, t));
+    return classes.length === 1 ? classes[0] : null;
+  };
+  const out = [];
+  for (const cd of callDetails) {
+    if (!cd.receiver) continue;
+    let bind = null;
+    if (cd.receiver === 'this') {
+      const cls = enclosingClassName();
+      if (cls) bind = { type: cls, conf: CONF_THIS };
+    } else if (scope.has(cd.receiver)) {
+      bind = scope.get(cd.receiver);
+    } else if (scope.has('this.' + cd.receiver)) {
+      bind = scope.get('this.' + cd.receiver);
+    }
+    if (!bind) continue;
+    if (classDeclaresMethodCSharp(root, bind.type, cd.callee)) {
+      out.push({ caller: cd.caller, callee: cd.callee, receiver: cd.receiver, qualified: `${bind.type}.${cd.callee}`, confidence: bind.conf });
+    } else if (!csharpClassExists(root, bind.type)) {
+      // Imported type — emit unconfirmed for cross-file method confirmation (see TS resolver).
+      out.push({ caller: cd.caller, callee: cd.callee, receiver: cd.receiver, type: bind.type, qualified: `${bind.type}.${cd.callee}`, confidence: Math.max(0.6, bind.conf - 0.1), unconfirmed: true });
+    }
+  }
+  return out;
+}
+
+TYPE_RESOLVERS.csharp = resolveTypesCSharp;
+
 // Walk the tree once and return { edges, defines }:
 //   edges   — { caller, callee } call edges. `caller` is the enclosing function's name (or
 //             '<module>' for top-level calls); `callee` is the target's trailing identifier.
@@ -823,7 +1134,7 @@ function functionName(node, cfg) {
 // de-noising is a future type-resolution layer's job, not this one's.
 function extractCalls(root, lang) {
   const cfg = CALL_CONFIG[lang];
-  if (!cfg) return { edges: [], defines: [] };
+  if (!cfg) return { edges: [], defines: [], callSeq: [], callDetails: [] };
   const fnTypes = new Set(cfg.fn);
   const callTypes = new Set(cfg.call);
   const edges = [];
@@ -836,6 +1147,21 @@ function extractCalls(root, lang) {
     seen.add(key);
     edges.push({ caller, callee });
   };
+  // callSeq: order-preserving, NON-deduped per-caller call list — the raw material for
+  // sequence diagrams. `descendants` visits in document order, so appending here records
+  // the order calls appear in the source (foo→[bar,baz,bar]). This is static call-structure
+  // order, NOT runtime flow; the consumer must label it as such. The deduped `edges` above
+  // stay the call-GRAPH; callSeq is the call-SEQUENCE — two different shapes, one traversal.
+  const seqByCaller = new Map();
+  const recordSeq = (caller, callee) => {
+    if (!caller || !callee) return;
+    if (!seqByCaller.has(caller)) seqByCaller.set(caller, []);
+    seqByCaller.get(caller).push(callee);
+  };
+  // callDetails: one record per call SITE (not deduped) carrying the receiver text, so the
+  // type resolvers (087, TS/C#) can resolve `recv.method()` → `Type.method`. Additive — the
+  // syntactic edges/defines/callSeq above are untouched; resolvers consume callDetails + the AST.
+  const callDetails = [];
   // Find the nearest enclosing function name for a call node (walk up to the first fn).
   const enclosingName = (n) => {
     for (let a = n.parent; a; a = a.parent) {
@@ -857,9 +1183,13 @@ function extractCalls(root, lang) {
     if (!targetNode) targetNode = n.namedChild(0); // kotlin/swift call_expression: target is first child
     const callee = calleeName(targetNode);
     if (!callee) continue;
-    emit(enclosingName(n), callee);
+    const caller = enclosingName(n);
+    emit(caller, callee);
+    recordSeq(caller, callee);
+    callDetails.push({ caller, callee, receiver: receiverOf(targetNode) });
   }
-  return { edges, defines: [...defines] };
+  const callSeq = [...seqByCaller.entries()].map(([caller, callees]) => ({ caller, callees }));
+  return { edges, defines: [...defines], callSeq, callDetails };
 }
 
 // Parse `text` for `lang` and return { classes, exports, imports }, or null to signal
@@ -890,9 +1220,20 @@ export async function extractWithTreeSitter(text, lang) {
   // Call-site edges + defined-function names. Best-effort: a throw here must not sink the
   // whole extraction — declarations/imports are the load-bearing output, calls are additive.
   try {
-    const { edges, defines } = extractCalls(root, lang);
+    const { edges, defines, callSeq, callDetails } = extractCalls(root, lang);
     result.calls = edges;
     result.defines = defines;
-  } catch { result.calls = []; result.defines = []; }
+    result.callSeq = callSeq || [];
+    // 087 call resolution: when a per-language type resolver exists (TS, C#), resolve each
+    // call site's receiver type → qualified `Type.method` + confidence. Additive + best-effort:
+    // a throw degrades to the syntactic edges (silent-catch-masks-structural-bug → we keep the
+    // syntactic output, never drop it; the failure surfaces as "no resolutions" not a crash).
+    result.callResolution = [];
+    const resolver = TYPE_RESOLVERS[lang];
+    if (resolver && callDetails && callDetails.length) {
+      try { result.callResolution = resolver(root, callDetails) || []; }
+      catch { result.callResolution = []; }
+    }
+  } catch { result.calls = []; result.defines = []; result.callSeq = []; result.callResolution = []; }
   return result;
 }

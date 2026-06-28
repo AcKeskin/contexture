@@ -13,7 +13,7 @@ const { detect } = require('./lib/platform');
 const { linkDir, linkItems, pruneOrphans } = require('./lib/link');
 const { resolveSettings, writeSettings } = require('./lib/settings');
 const { ensureInstalled: ensureCcline } = require('./lib/ccline');
-const { verifyAll, formatReport, scanLeaks, formatLeakReport, planLeakFixes } = require('./lib/verify');
+const { verifyAll, formatReport, scanLeaks, formatLeakReport, planLeakFixes, verifyInstructionGlobs, formatInstructionGlobReport } = require('./lib/verify');
 const { loadEnablement, excludeFor, isFilterable } = require('./lib/enablement');
 const { makeBackupSession } = require('./lib/backup');
 const { registerMcps, MCP_MANIFEST } = require('./lib/mcps');
@@ -53,17 +53,24 @@ async function main(argv) {
   if (flags.verify) {
     const result = verifyAll({ repoRoot, homeClaude: env.homeClaude, subtrees });
     log(formatReport(result));
-    // Share-readiness leak scan (proposal 055) — ADVISORY. Reported but never
+    // Share-readiness leak scan — ADVISORY. Reported but never
     // changes the exit code; only link drift (above) is blocking.
     const extraTokens = loadShareReadinessTokens(env.homeClaude);
     const leaks = scanLeaks({ repoRoot, extraTokens });
     log(formatLeakReport(leaks));
+    // Instruction-glob drift check — ADVISORY. A declared
+    // rulePrime.instructions glob that matches nothing is a likely typo/stale
+    // path; reported, never changes the exit code.
+    const globReport = formatInstructionGlobReport(
+      verifyInstructionGlobs({ repoRoot, homeClaude: env.homeClaude })
+    );
+    if (globReport) log(globReport);
     if (!result.clean) process.exitCode = 1;
     return;
   }
 
   if (flags.fixLeaks) {
-    // Interactive share-readiness fix (proposal 055, step 4). Separate from the
+    // Interactive share-readiness fix. Separate from the
     // read-only/CI-safe --verify path. Propose-confirm-commit per fixable leak;
     // ambiguous leaks are reported as report-only and never auto-touched.
     const extraTokens = loadShareReadinessTokens(env.homeClaude);
@@ -72,7 +79,7 @@ async function main(argv) {
     return;
   }
 
-  // 0. Load enablement config (proposal 034a). Loud-fails on malformed JSON.
+  // 0. Load enablement config. Loud-fails on malformed JSON.
   // In dry-run, do not seed the file; show what would be loaded instead.
   let enablement;
   if (flags.dryRun) {
@@ -253,7 +260,7 @@ function collectExcluded({ exclude, dst, backupSession, subtreeName }) {
 }
 
 // Read the optional share-readiness extra-token list from hook-config.json
-// (proposal 055). Lets a user declare owner-specific strings to flag (their
+//. Lets a user declare owner-specific strings to flag (their
 // name, a personal tool path) without hardcoding the owner into the checker.
 // Absent / malformed config → empty list (the generic patterns still run).
 function loadShareReadinessTokens(homeClaude) {
@@ -267,7 +274,7 @@ function loadShareReadinessTokens(homeClaude) {
   }
 }
 
-// Interactive propose-confirm-commit over the fixable leaks (proposal 055).
+// Interactive propose-confirm-commit over the fixable leaks.
 // Surfaces each fixable leak + its suggested action and asks before doing
 // anything. Ambiguous (report-only) leaks are listed for manual triage.
 // NOTE: the "commit" here surfaces and records the human action — the correct

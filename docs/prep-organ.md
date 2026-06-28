@@ -1,6 +1,6 @@
 # Prep — the prep organ
 
-Implements. Authoritative procedure lives in [`skills/prep/SKILL.md`](../skills/prep/SKILL.md); this doc is the Claude-facing reference.
+Authoritative procedure lives in [`skills/prep/SKILL.md`](../skills/prep/SKILL.md); this doc is the Claude-facing reference.
 
 (Naming note: the proposal and earlier docs used "grounding" for this organ. Renamed to "prep" — the command is `/prep`, the skill is `skills/prep/`, the folder naming throughout.'s filename is unchanged for git history continuity.)
 
@@ -15,7 +15,7 @@ Prep **prevents drift** by surfacing architectural rules before code is written.
 
 ## What prep inherits / does not own
 
-| Concern | Source | What prep does | | --- | --- | --- | | Rule storage + tagging | [001 storage tagging](storage-tagging.md) + [006 architectural-rules](architectural-rules.md) | Reads; never writes | | Retrieval and scoring | [002 discover](discover.md) | Consumes as a caller with structured filters | | Body rendering / cap / ordering | [012 deliver](delivery-organ.md) | Passes `render_bodies: true`; deliver owns the contract | | Rule capture | [011 capture organ](capture-organ.md) | Proposes capture on push-back; capture owns the flow | | Project architecture file format | [006 project-architecture](project-architecture.md) | Reads `.claude/architecture.md` directly (not via discover) | | Episodic recall | [013 session recaps](recap-organ.md) | Explicitly excluded — `include_recaps: false` | | Rule-violation detection | [005 review](review-organ.md) | Complementary — review audits, prep primes | Prep coordinates. It does not invent retrieval, storage, or presentation.
+| Concern | Source | What prep does | | --- | --- | --- | | Rule storage + tagging | [storage tagging](storage-tagging.md) + [architectural-rules](architectural-rules.md) | Reads; never writes | | Retrieval and scoring | [discover](discover.md) | Consumes as a caller with structured filters | | Body rendering / cap / ordering | [deliver](delivery-organ.md) | Passes `render_bodies: true`; deliver owns the contract | | Rule capture | [capture organ](capture-organ.md) | Proposes capture on push-back; capture owns the flow | | Project architecture file format | [project-architecture](project-architecture.md) | Reads `.claude/architecture.md` directly (not via discover) | | Episodic recall | [session recaps](recap-organ.md) | Explicitly excluded — `include_recaps: false` | | Rule-violation detection | [review](review-organ.md) | Complementary — review audits, prep primes | Prep coordinates. It does not invent retrieval, storage, or presentation.
 
 ## Triggers
 
@@ -123,7 +123,7 @@ When the user references a rule while correcting Claude ("you violated SoC", "im
 ## Caps
 
 - **20 rules** per priming pass. Drop from lowest-specificity tier first (universal → language → domain; project-specific rules are never dropped within the cap).
-- **<500 tokens** target for the priming block. If rule bodies are too long, the issue is upstream — compression belongs at storage time (001), not at prep time.
+- **<500 tokens** target for the priming block. If rule bodies are too long, the issue is upstream — compression belongs at storage time, not at prep time.
 - **1 drift prompt per 3 file operations.** Thrashing prevention.
 
 ## Per-concern specialists (parked for v2)

@@ -1,13 +1,13 @@
 ---
 name: prep
-description: Prime the session with architectural rules relevant to the current task — universal + language + domain + project rules — before writing code. The rule-prime hook (077) owns the floor (always + project + single-language tier) mechanically at session start; prep runs the deep pass on top of it (higher top-N, task-specific domain tier) and does not re-prime the floor when the hook's watermark is present. Auto-fire on first substantive task of a session, first task after /clear, and when the user signals a topic shift ("now let's work on X"). Manual trigger via /prep. During subsequent work, observe drift (current request mentions a different module / domain / language, or about to touch files outside the primed scope) and ask the user before proceeding. Do not auto-fire on trivial questions or information requests.
+description: Prime the session with architectural rules relevant to the current task — universal + language + domain + project rules — before writing code. The rule-prime hook owns the floor (always + project + single-language tier) mechanically at session start; prep runs the deep pass on top of it (higher top-N, task-specific domain tier) and does not re-prime the floor when the hook's watermark is present. Auto-fire on first substantive task of a session, first task after /clear, and when the user signals a topic shift ("now let's work on X"). Manual trigger via /prep. During subsequent work, observe drift (current request mentions a different module / domain / language, or about to touch files outside the primed scope) and ask the user before proceeding. Do not auto-fire on trivial questions or information requests.
 ---
 
 # prep
 
-The prep organ (previously "grounding"). Implements. Consumes [discover (002)](../discover/SKILL.md), [deliver (012)](../deliver/SKILL.md), the [architectural-rules tree (006)](../../architectural-rules/README.md), and project `.claude/architecture.md` (when present, per [project-architecture.md](../../docs/project-architecture.md)).
+The prep organ (previously "grounding"). Consumes [discover](../discover/SKILL.md), [deliver](../deliver/SKILL.md), the [architectural-rules tree](../../architectural-rules/README.md), and project `.claude/architecture.md` (when present, per [project-architecture.md](../../docs/project-architecture.md)).
 
-Prep **prevents** drift by priming Claude with the rules *before* code is written. Review (005) **detects** drift after the fact. Different jobs, complementary.
+Prep **prevents** drift by priming Claude with the rules *before* code is written. Review **detects** drift after the fact. Different jobs, complementary.
 
 ## When to run
 
@@ -49,7 +49,9 @@ The watermark is advisory and read-only here. Prep never writes it; it is the ho
 
 ### 1. Identify task scope
 
-From the task text + project context, determine:
+**First — resolve the active region (scope-resolution, 035+037).** Before inferring scope from the task text, run the [scope-resolution resolver](../../docs/scope-resolution-resolver.md) for the task path: the downward longest-prefix walk over `<repo>/.claude/submodules.md` + `<path>/.claude/submodule.md` + `<dir>/.claude/scope.md`. It returns the effective `(corpus-source, scopes, kind, inherit-parent, active-submodule)`. Seed the detection below with this result — the resolved scopes are a prior on Language/Domain, and `corpus-source` selects which corpus the §2 discover call targets (`submodule` → the submodule's own corpus; `parent` → the enclosing corpus + the submodule's scopes; `none` → no rules, an out-of-discipline subtree). **No `submodules.md` (or no match) → single-tree, this step is a no-op and detection proceeds exactly as today** (the no-regression invariant). The walk is prose the resolver doc owns — do not re-derive the manifest formats.
+
+Then, from the task text + project context (seeded by the resolved region), determine:
 
 - **Task type** — one of: `code-writing`, `design`, `debugging`, `review`. Drives `relevance_phases` filter to discover.
  - Code-writing: explicit "implement", "add", "write", "refactor", "fix".
@@ -169,6 +171,14 @@ When any of those is true, stop and say:
 
 No state tracking of file sets. No silent detection. Observe → surface → ask. Matches the collaborator principle.
 
+**Boundary-cross specialization (scope-resolution, 035+037).** When the repo has a `submodules.md`, the task-shift watch above gains a sharper trigger: the active region the [resolver](../../docs/scope-resolution-resolver.md) computes for the new task path. The cross-type — and the response — keys off the **filename**, never the contents:
+
+- **Submodule cross** — the task path enters a *different* `submodule.md`-bearing registered path → treat as a re-prep event (the prompt above), noting the region change (`Submodule: services/api (go) → apps/web (ts)`); the new region may carry a new language/corpus.
+- **Subfolder cross** — the task path crosses a `scope.md` boundary *within the same submodule* → **silent filter swap**: merge the new scopes, no prompt (it's a refinement, not a region change).
+- **Vendored entry** — the task path enters a `kind: vendored` region → surface *"Entered vendored region — discipline disabled. Limit edits to upstream-compatible changes."* and do not propose refactors to that subtree.
+
+This is the same observe→surface→ask mechanism, scoped to declared boundaries. **No `submodules.md` → none of this fires** (no-regression).
+
 ### 8. Push-back handling (continuous, not a one-time step)
 
 When the user corrects Claude with reference to a rule ("you violated SoC", "this imports /api directly — go via services", "that's not how we do naming here"):
@@ -192,7 +202,7 @@ When the user corrects Claude with reference to a rule ("you violated SoC", "thi
 
 - **Does not monitor keystrokes or tool calls in real time.** Task-shift is observed at Claude's own judgement boundaries (about to read / write), not continuously.
 - **Does not persist primed scope across sessions.** Ephemeral per session.
-- **Does not review code for rule violations.** That's review (005). Prep primes; review audits.
+- **Does not review code for rule violations.** That's review. Prep primes; review audits.
 - **Does not auto-capture new rules.** Push-back produces a capture *proposal*, never a silent write.
 - **Does not substitute for the user's architectural judgement.** Surfaces rules, the user decides which apply in context.
 - **Does not modify rule files.** Read-only over the architectural-rules tree.
@@ -200,14 +210,14 @@ When the user corrects Claude with reference to a rule ("you violated SoC", "thi
 
 ## Relationship to other organs
 
-- **discover (002)** — prep's retrieval engine. Prep never re-implements discovery logic.
-- **deliver (012)** — prep passes `render_bodies: true`; deliver handles tier ordering and caps within its own contract.
-- **capture (011)** — push-back → capture proposal. Prep never writes directly.
-- **architectural-rules tree (006)** — the corpus prep primes from. Prep's quality is bounded by the corpus's quality.
-- **project-architecture.md (006)** — the project's canonical architectural file. Prep reads it directly (step 3), not via discover.
-- **review (005)** — review consumes the same primed scope signal. For now, prep's primed-scope note is session-internal only.
-- **recap (013)** — prep does not load recaps into the priming block. Recaps belong in `/discover`-style recall, not rule priming.
-- **rule-prime hook (077)** — the mechanical half of priming. The hook owns the *floor* (always + project + single-language tier at SessionStart; incremental tiers at UserPromptSubmit) and records it in the `rulePrime` session watermark. Prep reads that watermark (step 0) and runs the *deep* pass — higher top-N, task-specific domain tier, architecture file — instead of re-priming the floor. When the hook is off, prep owns the floor as before (the legacy path). Prep + hook are the same belt-and-suspenders shape as the 049 rule+hook pair: prep is the discretionary deep prime, the hook is the mechanical floor backstop. Drift between the floor the hook primes and the deep set prep adds is a flag.
-- **persist-before-discard rule + clear-context-decision-guard hook (049)** — prep surfaces `universal/persist-before-discard.md` like any other rule when the scope matches session-close. That rule is the intent-shaping half (don't *suggest* clearing with decisions pending); the `clear-context-decision-guard` SessionStart hook is the mechanical backstop (recover at next session start). Rule and hook must stay aligned — drift between them is a flag.
+- **discover** — prep's retrieval engine. Prep never re-implements discovery logic.
+- **deliver** — prep passes `render_bodies: true`; deliver handles tier ordering and caps within its own contract.
+- **capture** — push-back → capture proposal. Prep never writes directly.
+- **architectural-rules tree** — the corpus prep primes from. Prep's quality is bounded by the corpus's quality.
+- **project-architecture.md** — the project's canonical architectural file. Prep reads it directly (step 3), not via discover.
+- **review** — review consumes the same primed scope signal. For now, prep's primed-scope note is session-internal only.
+- **recap** — prep does not load recaps into the priming block. Recaps belong in `/discover`-style recall, not rule priming.
+- **rule-prime hook** — the mechanical half of priming. The hook owns the *floor* (always + project + single-language tier at SessionStart; incremental tiers at UserPromptSubmit) and records it in the `rulePrime` session watermark. Prep reads that watermark (step 0) and runs the *deep* pass — higher top-N, task-specific domain tier, architecture file — instead of re-priming the floor. When the hook is off, prep owns the floor as before (the legacy path). Prep + hook are the same belt-and-suspenders shape as the 049 rule+hook pair: prep is the discretionary deep prime, the hook is the mechanical floor backstop. Drift between the floor the hook primes and the deep set prep adds is a flag.
+- **persist-before-discard rule + clear-context-decision-guard hook** — prep surfaces `universal/persist-before-discard.md` like any other rule when the scope matches session-close. That rule is the intent-shaping half (don't *suggest* clearing with decisions pending); the `clear-context-decision-guard` SessionStart hook is the mechanical backstop (recover at next session start). Rule and hook must stay aligned — drift between them is a flag.
 
 See [`docs/prep-organ.md`](../../docs/prep-organ.md) for the scope map and the rationale behind each rule.

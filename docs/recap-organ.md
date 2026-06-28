@@ -1,12 +1,12 @@
 # Session recaps — episodic memory tier
 
-Implements. Authoritative procedure lives in [`skills/recap/SKILL.md`](../skills/recap/SKILL.md); this doc is the Claude-facing reference.
+Authoritative procedure lives in [`skills/recap/SKILL.md`](../skills/recap/SKILL.md); this doc is the Claude-facing reference.
 
 (Naming note: the proposal uses "rollup" for this artefact; renamed to "recap" — `/recap`, `skills/recap/`, `type: session-recap`.'s filename preserved for git history.)
 
 ## Two tiers at a glance
 
-| Tier | Lives in | Shape | Capture | Retention | |---|---|---|---|---| | **Rules** (existing) | `memory/feedback/`, `memory/architectural-rules/`, `memory/decisions/`, `memory/lessons/`, `memory/preferences/` | rule + why + scope | deliberate via [capture (011)](capture-organ.md) | durable, rarely deleted | | **Session recaps** (new) | `memory/sessions/YYYY-MM-DD-<slug>.md` | structured: request / investigated / learned / completed / next-steps / references | end-of-session, user-confirmed via [recap skill](../skills/recap/SKILL.md) | episodic, auto-surfaced only if ≤ 30 days | Rules answer *how should I work*; recaps answer *what happened and where did I leave off*. Conflating them (what claude-mem does) drowns rules in session chatter at retrieval time. Two tiers, different jobs.
+| Tier | Lives in | Shape | Capture | Retention | |---|---|---|---|---| | **Rules** (existing) | `memory/feedback/`, `memory/architectural-rules/`, `memory/decisions/`, `memory/lessons/`, `memory/preferences/` | rule + why + scope | deliberate via [capture](capture-organ.md) | durable, rarely deleted | | **Session recaps** (new) | `memory/sessions/YYYY-MM-DD-<slug>.md` | structured: request / investigated / learned / completed / next-steps / references | end-of-session, user-confirmed via [recap skill](../skills/recap/SKILL.md) | episodic, auto-surfaced only if ≤ 30 days | Rules answer *how should I work*; recaps answer *what happened and where did I leave off*. Conflating them (what claude-mem does) drowns rules in session chatter at retrieval time. Two tiers, different jobs.
 
 ## File format
 
@@ -45,18 +45,18 @@ Conservative trigger rule: only propose when the user signals closure. Pure time
 ## Retention
 
 - **Keep indefinitely.** Markdown files are cheap; old recaps are git-log-equivalent, sometimes useful.
-- **30-day auto-surface cutoff.** Discovery (002) does not surface recaps older than 30 days unless the task text explicitly names a project / branch / date that matches. See [`skills/discover/SKILL.md`](../skills/discover/SKILL.md) §8a.
+- **30-day auto-surface cutoff.** Discovery does not surface recaps older than 30 days unless the task text explicitly names a project / branch / date that matches. See [`skills/discover/SKILL.md`](../skills/discover/SKILL.md) §8a.
 - **No automated deletion.** User prunes `sessions/` manually if the folder grows unwieldy. Same principle as git log — nobody auto-deletes old commits.
 
 ## Promotion path (Learned → rule)
 
-The `Learned` section is the promotion pipeline. After a recap commits, the recap skill iterates each `Learned` item and asks whether to promote it to a rule-tier memory via [capture (011)](capture-organ.md). Per-item opt-in — *promote / skip / skip-all-remaining*. Capture's own classification (kind / scope / relevance) runs per promoted item; user confirms at capture's own flow.
+The `Learned` section is the promotion pipeline. After a recap commits, the recap skill iterates each `Learned` item and asks whether to promote it to a rule-tier memory via [capture](capture-organ.md). Per-item opt-in — *promote / skip / skip-all-remaining*. Capture's own classification (kind / scope / relevance) runs per promoted item; user confirms at capture's own flow.
 
 Keeps the rule tier pristine (only deliberately promoted knowledge) while giving a natural holding area for lessons not yet confirmed as durable. Nothing auto-promotes.
 
 ## Retrieval
 
-Discovery (002) gains a recap channel:
+Discovery gains a recap channel:
 
 1. **Scan** `memory/sessions/` under the resolved project memory directory.
 2. **Apply the 30-day cutoff** for auto-surfacing. Recaps older survive only when task text explicitly names a matching date / branch / slug.
@@ -67,7 +67,7 @@ Programmatic callers can pass `include_recaps: false` to opt out.
 
 ## Presentation
 
-Delivery (012) slots recaps as a named tier in the default ordering:
+Delivery slots recaps as a named tier in the default ordering:
 
 1. Architectural rules
 2. Project-specific facts

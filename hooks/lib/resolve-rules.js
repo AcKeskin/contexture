@@ -4,13 +4,13 @@
 // resolver. This is the single Node entry point that turns the layered tier
 // tree (shipped < company < user < project) into resolved, patched,
 // anchor-stripped rule bodies — the same bytes `/prep` would render, delivered
-// by a trigger (the rule-prime hook, proposal 077) instead of by a model turn.
+// by a trigger (the rule-prime hook) instead of by a model turn.
 //
 // Why this lives here and not in the discover skill: a skill is model-driven
 // prose, not callable code. The 047 algorithm was specified in
 // docs/architectural-rules-overlay.md but never implemented as a subroutine.
 // 077's hook needs to *call* it on the critical path, so it is implemented
-// once here and consumed by the hook. Future MCP / agent-side callers (071)
+// once here and consumed by the hook. Future MCP / agent-side callers
 // reuse this module rather than re-deriving the algorithm.
 //
 // Algorithm (docs/architectural-rules-overlay.md § Resolution):

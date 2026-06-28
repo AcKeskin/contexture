@@ -1,7 +1,5 @@
 # Bootstrap — per-machine install
 
-Implements.
-
 ## What it does
 
 Wires this `contexture` clone into `~/.claude/` and installs per-machine tools. Idempotent — safe to re-run.

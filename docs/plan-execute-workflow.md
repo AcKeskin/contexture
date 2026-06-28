@@ -1,6 +1,6 @@
 # Plan / Execute workflow — reference
 
-Implements. Codifies the `spec → plan → execute → review` workflow as user-invoked building blocks. Convention, not framework.
+Codifies the `spec → plan → execute → review` workflow as user-invoked building blocks. Convention, not framework.
 
 ## What this owns
 
@@ -12,12 +12,12 @@ Implements. Codifies the `spec → plan → execute → review` workflow as user
 
 ## What this does not own
 
-- **Rule storage** — lives in the architectural-rules tree (006) and memory (001/011).
-- **Rule retrieval** — discover (002).
+- **Rule storage** — lives in the architectural-rules tree and memory (001/011).
+- **Rule retrieval** — discover.
 - **Rule priming before code** — prep (004, formerly "grounding").
-- **Drift detection after code** — review (005).
-- **Memory capture** — capture (011).
-- **Tool protection** — security hooks (008).
+- **Drift detection after code** — review.
+- **Memory capture** — capture.
+- **Tool protection** — security hooks.
 
 The workflow is a *sequencer* across those organs. It does not replace any of them.
 
@@ -86,6 +86,16 @@ After execute completes, user invokes `/review` to audit for drift. Review is th
 ### Phase 4.5 — /checkpoint (optional)
 
 After building, `/checkpoint --scope module` steps back over the just-built module(s): did it drift from the intent, do the pieces **cohere** (integration-fit), is it still worth it, what was learned. Where `/review` checks *code vs rules*, `/checkpoint` checks *work vs intent* + cross-module fit — a different lens. Optional; reach for it after a multi-module build. (See [checkpoint-organ](checkpoint-organ.md).)
+
+### Phase 5 — /close-out (the terminus)
+
+Once the work has actually shipped (done-criteria met), `/close-out <slug>` **closes the chain**: it reconciles the spec to what really shipped (a new `as-shipped` spec version — your original intent stays readable as the prior version), retires the spent plan + blueprint to a dated `.claude/archive/` folder, and logs **one** ship line to `CHANGELOG.md`. `/execute` offers it for you when a plan finishes. Where Phase 1's done-criteria *opened* the boundary ("what does done mean"), `/close-out` *closes* it ("done — here's what's now true, the working files are filed away"). Never auto-fires; every spec edit and file move is confirmed first. (See the [`close-out` skill](../skills/close-out/SKILL.md).)
+
+### Which closing organ, when? (the three are not the same)
+
+Three organs fire near the end of work, and they're easy to confuse. They differ by *what they're about*:
+
+| Organ | About | Does | Use when | | --- | --- | --- | --- | | **/recap** | the **session** | writes a "what we did today / where we left off" note | wrapping up a work session (may span several features, or half of one) | | **/close-out** | a **feature** (slug) | reconciles its spec to reality, files away its plan, logs the ship | that *specific feature* has shipped | | **/checkpoint** | a **scope** (a diff / module / the whole project) | audits "does this serve the point + cohere?" and routes fixes | you want to step back and judge fit, at any zoom | Rule of thumb: **`/recap` = the session, `/close-out` = the feature, `/checkpoint` = the judgment.** They compose — a session-end `/recap` will *offer* `/close-out` for any feature that shipped during it.
 
 ## When to skip
 

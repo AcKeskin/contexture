@@ -7,13 +7,13 @@
 // hookSpecificOutput.additionalContext — the orchestrator sees a system
 // reminder on its next turn; the tool call itself is never blocked.
 //
-//  1. Output-contract validation (proposal 027 umbrella). If the agent's
+//  1. Output-contract validation. If the agent's
 //     definition under <project>/agents/<type>.md declares an `## Output
 //     contract` section, verify the response's last fenced ```yaml block
 //     contains the v1 schema's required keys (`files_changed`,
 //     `residual_risks`). Opt-in per agent; non-declaring agents are skipped.
 //
-//  2. Harvest recognition (proposal 050). ANY subagent — opt-in or not — may
+//  2. Harvest recognition. ANY subagent — opt-in or not — may
 //     append an optional `harvest:` YAML block carrying capture-worthy state
 //     (decisions / lessons / open_questions) it produced in its isolated
 //     context. When present and non-empty, surface a non-blocking advisory
@@ -148,8 +148,8 @@ function lastYamlBlock(text) {
 }
 
 // The last fenced yaml block that is NOT a harvest block — the contract return.
-// A harvest block (top-level `harvest:` key) is a separate channel (proposal
-// 050) and must not be validated as the contract.
+// A harvest block (top-level `harvest:` key) is a separate channel and must
+// not be validated as the contract.
 function lastContractYamlBlock(text) {
   let match;
   let last = null;

@@ -5,7 +5,7 @@ description: Run a plan's steps one at a time — pick an execution strategy up 
 
 # execute
 
-The execute organ. Implements the execution leg of. Consumes [prep (004)](../prep/SKILL.md) for per-step rule re-load on boundary crossings; consumes [discover (002)](../discover/SKILL.md) indirectly via prep.
+The execute organ. Implements the execution leg. Consumes [prep](../prep/SKILL.md) for per-step rule re-load on boundary crossings; consumes [discover](../discover/SKILL.md) indirectly via prep.
 
 Execute is the *last phase* of the `spec → plan → execute → review` workflow. It runs a plan step-by-step with verification gates. It does not plan, does not draft, does not commit.
 
@@ -74,19 +74,19 @@ The skipped steps are assumed done — execute does not verify them. The user ha
 
 ### 2.5 Choose execution strategy
 
-Before the step loop, pick *how* to run — the engineer chooses the method and the interrupt cadence rather than defaulting blindly. Default = **sequential + per-step** (today's behaviour) when nothing is specified, so this is additive, never a surprise. Announce the chosen method + cadence in one line before the loop.
+Before the step loop, pick *how* to run — the **method** is the engineer's choice here; the **interrupt cadence** is read from the autonomy contract ([autonomize](../autonomize/SKILL.md)), not resolved separately. Default = **sequential** method + the contract's `ask` posture (which defaults to `forks-only` ≈ today's behaviour) when nothing is specified, so this is additive, never a surprise. Announce the chosen method + the contract-derived cadence in one line before the loop.
 
-**Method** (`--strategy`):
+**Method** (`--strategy`) — execute's own concern (how to run; not an autonomy question, kept here):
 - **sequential** (default) — run the steps in order in this context, one at a time (§3). Right for most plans; preserves the verification-gated discipline.
 - **subtask** — decompose a plan with a few independent step-groups into in-context subtasks, single-context. Right when groups are independent but isolation isn't needed.
 - **multi-agent** — when the steps are genuinely parallel-safe and heavy, **hand off to `/orchestrate`** (which owns decompose / place / dispatch / converge under 027's caps). Execute does *not* re-implement dispatch — it routes. Refuse multi-agent for a sequential chain (orchestrate refuses it too).
 
-**Prompting cadence** (`--cadence` — when execute stops for the user):
-- **per-step** (default) — confirm on every verification failure + every delegation (the current behaviour).
-- **on-failure-only** — run clean steps uninterrupted; stop only on a verification failure or a boundary/scope surprise. Fewer round-trips (the efficiency *conversations* axis) for a trusted plan.
-- **milestones** — stop at named milestone steps (or every N) for a look; otherwise proceed.
+**Interrupt cadence — read from the autonomy contract's `ask` field** (no longer execute's own `--cadence` resolution; the contract is the single writer of the ask/cadence dial — avoids the parallel-surfaces-drift of two surfaces resolving the same thing). Resolve the effective contract (`live > kickoff > inferred > default > implicit-default`, per autonomize) and read `ask`:
+- **forks-only** (the contract default) — confirm on verification failures + delegations + real forks; run clean steps uninterrupted otherwise. Maps to the old `on-failure-only`/`per-step` middle, gated on reversibility (act-dont-ask).
+- **every-step** — confirm on every consequential step (the old `per-step`, for a contract the user wants tightly supervised).
+- **until-blocked** — run uninterrupted until genuinely blocked or an irreversible/boundary surprise (the most autonomous cadence).
 
-Resolve via `--strategy` / `--cadence` flags, a stored `preferences/`-tier preference, or a single up-front prompt when the plan is non-trivial and nothing was specified. The §3 loop honours the chosen cadence at its prompt points (3b delegation, 3d/3e verify/fail).
+The §3 loop honours the contract-derived cadence at its prompt points (3b delegation, 3d/3e verify/fail). If no autonomy contract is resolvable (autonomize not present / `active.md` + default both absent), fall back to the implicit-default posture (`forks-only`) — execute never blocks on the contract being set.
 
 ### 3. For each step
 
@@ -170,6 +170,11 @@ Wait for the user's choice. Never advance on a `fail`.
 
 If the plan's pinned spec has a `done_criteria` list (non-empty in non-legacy plans), run a final assessment pass before declaring completion. **The plan's per-step verification answers "did this step do its part." The done-criteria assessment answers "did the spec actually get satisfied." Both gates matter.**
 
+**The autonomy contract's `stopping` posture governs *how* this pass behaves** (read the effective contract per [autonomize](../autonomize/SKILL.md); the contract selects the posture, it never re-decides whether a criterion is *met* — that stays this section's evaluation):
+- **criteria-met** (default) — the standard pass below: every criterion must be met; flag any finished item that traces to no criterion (gold-plating).
+- **user-anytime** — the "leave it here, perfect next session" posture: do **not** push to satisfy unmet criteria. Freeze a coherent best-so-far, list which criteria are met vs outstanding, and hand off (offer `/recap`). The outstanding criteria are *recorded, not failed*.
+- **diminishing-returns** / **budget** — stop when the last step yielded nothing material, or at the step/turn ceiling; report met-vs-outstanding without pushing further.
+
 Procedure:
 
 1. Open the pinned spec file (path from the plan's `spec:` frontmatter). Read its `done_criteria:` frontmatter list.
@@ -219,7 +224,14 @@ Emit:
 >
 > Run `/review` before committing — execute drove the changes, review checks for drift.
 
-Do **not** auto-invoke review. Do **not** auto-commit. Both are the user's call.
+**Offer the close ( + 092).** A completed plan with done-criteria met *is* a shipped unit of work — the canonical ship moment. After the summary, offer the close at the depth that fits:
+
+- **Just the changelog line** (the minimum): *"&lt;slug&gt; shipped — log it to CHANGELOG? (y/N)"*. On `y`, invoke [`update-changelog`](../update-changelog/SKILL.md) with the slug (it composes a ship line behind its own accept/edit/reject gate).
+- **The full terminus** (when the slug has a spec/plan to close out): *"…or run `/close-out &lt;slug&gt;` to close the chain — reconcile shipped reality into the spec, retire the plan + blueprint, and log the ship line in one pass."* [`close-out`](../close-out/SKILL.md) *contains* the changelog write, so it is the superset, not a second offer — point at it when there's a spec to reconcile, and the bare changelog line otherwise.
+
+execute is a *doorway*, not the changelog writer and not the closer — both `/update-changelog` and `/close-out` run behind their own propose-confirm gates. Skip the offer on `abort completion` (nothing shipped) and when running `--task` against a throwaway plan (no spec to reconcile → no `/close-out`, the bare changelog line still applies). The offer follows the active autonomy contract's `ask` posture (same as every other execute prompt).
+
+Do **not** auto-invoke review, `/close-out`, or `/update-changelog`. Do **not** auto-commit. All are the user's call.
 
 ## What execute does not do
 
@@ -253,11 +265,14 @@ Do **not** auto-invoke review. Do **not** auto-commit. Both are the user's call.
 
 ## Relationship to other organs
 
-- **prep (004)** — execute re-invokes prep on module boundary crossings. Prep loads rules; execute honours them per-step.
-- **discover (002)** — execute does not call discover directly; prep handles that. If a step genuinely needs a memory lookup Mid-run, the user can call `/discover` in their own turn.
-- **review (005)** — execute's post-completion prompt nudges the user to `/review`. Review is not an execute sub-step.
-- **capture (011)** — if a step surfaces a new lesson (e.g. a subagent returns a useful pattern), the user can invoke `/capture` themselves. Execute does not auto-capture.
-- **security hooks (008)** — execute runs inside the hook-protected tool surface. Outside-project writes, force-pushes to main, env-file edits all still block. Execute does not special-case around hooks.
+- **prep** — execute re-invokes prep on module boundary crossings. Prep loads rules; execute honours them per-step.
+- **discover** — execute does not call discover directly; prep handles that. If a step genuinely needs a memory lookup Mid-run, the user can call `/discover` in their own turn.
+- **review** — execute's post-completion prompt nudges the user to `/review`. Review is not an execute sub-step.
+- **capture** — if a step surfaces a new lesson (e.g. a subagent returns a useful pattern), the user can invoke `/capture` themselves. Execute does not auto-capture.
+- **security hooks** — execute runs inside the hook-protected tool surface. Outside-project writes, force-pushes to main, env-file edits all still block. Execute does not special-case around hooks.
+- **work-state** — `/work-state <slug>` reports the slug's stale-pin state (plan pinned to a superseded spec version). Consuming that check as a **pre-run guard** here — execute warning/refusing when the plan pins a superseded spec — is a **deferred v2 seam** (not built; v1 ships the standalone report). Until then, execute's existing `superseded`-status plan warning (Edge cases) is the only pin-related guard.
+- **close-out** — the scope chain's terminus. execute offers `/close-out <slug>` on done-criteria-met (§4b) as the fuller close — reconcile spec + retire plan/blueprint + record the ship line. The invitation only; close-out never auto-fires.
+- **update-changelog** — execute offers the bare ship line (§4b) when there's no spec to reconcile; otherwise `/close-out` subsumes it.
 
 ## Debug
 

@@ -88,7 +88,7 @@ The skill **never runs `gh pr create`**. It writes the body to a temp file and c
 
 ## Relationship to other organs
 
-- **[pre-push (041)](../pre-push/SKILL.md)** — hands off to pr-author after a first push with no PR.
-- **[pr-triage (041)](../pr-triage/SKILL.md)** — the third triad skill; runs later, when review comments arrive on the opened PR — triages them into a checklist and routes the code actions (you write the replies).
-- **[git.md (006)](../../architectural-rules/universal/git.md)** — title format (lowercase verb start, no AI attribution).
-- **[discover (002)](../discover/SKILL.md)** — optional, for project-specific PR conventions.
+- **[pre-push](../pre-push/SKILL.md)** — hands off to pr-author after a first push with no PR.
+- **[pr-triage](../pr-triage/SKILL.md)** — the third triad skill; runs later, when review comments arrive on the opened PR — triages them into a checklist and routes the code actions (you write the replies).
+- **[git.md](../../architectural-rules/universal/git.md)** — title format (lowercase verb start, no AI attribution).
+- **[discover](../discover/SKILL.md)** — optional, for project-specific PR conventions.

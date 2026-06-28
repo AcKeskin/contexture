@@ -5,7 +5,7 @@ description: Capture a memory (lesson / decision / rule / preference / feedback 
 
 # capture
 
-The capture organ. Implements. Writes stored memory for future discovery; inherits format from and kind taxonomy from.
+The capture organ. Writes stored memory for future discovery; inherits format and kind taxonomy.
 
 ## Prerequisite — load the format spec
 
@@ -15,7 +15,7 @@ Before classifying or writing anything, **Read `~/.claude/claude-md/memory-captu
 
 - User types `/capture [content]` (explicit trigger).
 - User says "remember that…", "save this as a memory," "capture this lesson."
-- Another skill invokes capture programmatically (e.g. review's user-correction feedback loop from when shipped).
+- Another skill invokes capture programmatically (e.g. review's user-correction feedback loop when shipped).
 - **High-stakes auto-propose.** Claude *proposes* a capture unprompted — **at the moment it happens, mid-session** — when a genuinely high-stakes item surfaces: (a) a decision that reverses or supersedes a prior shipped decision; (b) a correction the user phrases with finality ("never do X again", "this is the rule now"); (c) a `kind: warning`-shaped event ("I did X, it broke Z, hard to undo"). This is auto-***propose***, never auto-***write*** — the standard accept/edit/reject (§7) still gates every write, so the collaborator principle holds. Fire **on the event, not at session close** — deferring to `/recap` loses it when no recap runs (the [[incremental-capture-survives-missing-stop]] rule). Keep it **rare**: only the three shapes above; never auto-propose ordinary lessons.
 - **Otherwise do not auto-fire.** No session-start or per-turn triggers. Mode B (silent episodic auto-*write*) stays parked — 061 widens auto-*propose* for high-stakes items only, never silent capture.
 
@@ -80,7 +80,7 @@ When `kind: architectural-rule`, the rule must land in an **overlay tier**, not 
 
 Surface which lower-tier file is being shadowed/patched so the user confirms intent. For a genuinely new key (no lower-tier file), it's a plain add — no override frontmatter.
 
-This step routes only `kind: architectural-rule`. All other kinds follow steps 5 / 8 unchanged. The `rules` skill (047) is the richer front door for managing existing overlay rules; capture is where a *new* rule is born mid-conversation.
+This step routes only `kind: architectural-rule`. All other kinds follow steps 5 / 8 unchanged. The `rules` skill is the richer front door for managing existing overlay rules; capture is where a *new* rule is born mid-conversation.
 
 ### 5b. Canonical-command route
 

@@ -5,7 +5,7 @@ description: Author a quality test suite for EXISTING code to a standard. Detect
 
 # write-tests
 
-The test-authoring organ. Implements. Fills the hole between [test-driven-development](../test-driven-development/SKILL.md) (the test-*first* workflow for *new* code) and the testability design rule (the code-side rule for making code testable): no organ today, pointed at *existing* code, authors a quality suite to a standard. `/write-tests` does. It writes to [`universal/test-quality.md`](../../architectural-rules/universal/test-quality.md) — the standard `/review` also audits against.
+The test-authoring organ. Fills the hole between [test-driven-development](../test-driven-development/SKILL.md) (the test-*first* workflow for *new* code) and the testability design rule (the code-side rule for making code testable): no organ today, pointed at *existing* code, authors a quality suite to a standard. `/write-tests` does. It writes to [`universal/test-quality.md`](../../architectural-rules/universal/test-quality.md) — the standard `/review` also audits against.
 
 ## When to run
 
@@ -118,16 +118,16 @@ Do not invoke `/review`, do not commit. The authored tests are the user's to run
 - **Does not auto-adjust a failing test to match the code.** A failure surfaces a code-vs-test question (§6). Auto-matching defeats the purpose.
 - **Does not claim exhaustiveness.** Reports covered AND deliberately-not-covered.
 - **Does not re-judge coverage inside the language-pro agent.** The agent writes the accepted plan idiomatically; it does not redesign it.
-- **Does not lower the standard to dodge testability friction.** Surfaces the friction as a code-design (048) signal instead.
+- **Does not lower the standard to dodge testability friction.** Surfaces the friction as a code-design signal instead.
 - **Does not replace `test-driven-development`.** That's the test-first workflow for new code; this authors tests for code that already exists.
 
 ## Relationship to other organs
 
 - **test-driven-development** — the sibling workflow: test-*first* for new code. `/write-tests` is test-*after*, pointed at existing code. Both honor the same `test-quality.md` standard; the horizontal-vs-vertical ordering lesson governs the order within an authored suite (one behavior at a time).
-- **testability design rule (048)** — the code-side pair. `test-quality.md` is the test side; testability is the code side. When authoring hits friction, surface a testability finding rather than working around it.
-- **review (005)** — audits existing tests against `test-quality.md` (the same standard this writes to). `/write-tests` authors; `/review` audits.
-- **convention-extraction (079)** — supplies the project's extracted test conventions (framework, naming, layout) this conforms to where present.
-- **rule-prime-hook (077)** — primes `test-quality.md` under `when-writing-tests`, so the standard is in context before the suite is written.
+- **testability design rule** — the code-side pair. `test-quality.md` is the test side; testability is the code side. When authoring hits friction, surface a testability finding rather than working around it.
+- **review** — audits existing tests against `test-quality.md` (the same standard this writes to). `/write-tests` authors; `/review` audits.
+- **convention-extraction** — supplies the project's extracted test conventions (framework, naming, layout) this conforms to where present.
+- **rule-prime-hook** — primes `test-quality.md` under `when-writing-tests`, so the standard is in context before the suite is written.
 - **language-pro agents** — own idiomatic test authoring (§5). Dispatched with positive scope + hard placement, no further spawn.
 
 ## Debug

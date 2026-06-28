@@ -55,6 +55,8 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
 
 5. **Prep.** Invoke `skills/prep/SKILL.md` with the spec topic / task text. Architectural rules must be loaded before steps are drafted.
 
+ **Autonomy-contract check** (optional —): if no autonomy contract is set for this work (no `active.md`, no kickoff from `/spec`), optionally ask one question — *"How autonomous should the execute run be — push to all criteria or MVP-and-stop, interrupt every step or only on forks?"* — and call [autonomize](../autonomize/SKILL.md) to record it, so `/execute` reads a calibrated cadence/stopping instead of the bare default. Skip when the spec already set a contract, the user gave a terse preference, or the default obviously fits. One optional question, never a gate — the explicit `/autonomize` command stays available.
+
 6. **Discover.**
 
  ```
@@ -185,6 +187,8 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
  > Want a concrete blueprint (intent + the mature shape — classes, interfaces, deps, build order) before coding? Run `/blueprint <slug>`.
 
  Offer it once, in the close only. Do not push it; `/blueprint` is a deliberate choice, and small plans rarely need it.
+
+ **Offer a changelog decision line — significant changes only.** A *new* plan for a slug (v1) is a significant planning-artifact change worth recording: offer *"Drafted the &lt;slug&gt; plan — log a decision line to CHANGELOG? (y/N)"*. On `y`, invoke [`update-changelog`](../update-changelog/SKILL.md) (it composes a `◆` decision line behind its own accept/edit/reject gate). **Do not offer on a routine plan re-draft (v→v+1)** — that is authoring churn, already tracked by the plan version chain + INDEX (changelog-contract §5). draft-plan is a *doorway*, not the writer.
 
 ## Spec pinning
 

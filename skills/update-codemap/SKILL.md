@@ -1,6 +1,6 @@
 ---
 name: update-codemap
-description: Regenerate the project codemap at .claude/codemap.md — produce an LLM-facing architecture document with prose overview, per-module roles, detected conventions, hub files, and structured file/class graphs for downstream visualization. Use when the user types /update-codemap or asks to refresh / create / update the codemap for the current project.
+description: Regenerate the project codemap at.claude/codemap.md — produce an LLM-facing architecture document with prose overview, per-module roles, detected conventions, hub files, and structured file/class graphs for downstream visualization. Use when the user types /update-codemap or asks to refresh / create / update the codemap for the current project.
 ---
 
 # update-codemap
@@ -15,24 +15,24 @@ Resolve the script **relative to this SKILL.md's real location**, never relative
 
 ```sh
 # device-agnostic: resolve the skill's real dir (collapses the ~/.claude symlink), run the co-located script
-SKILL_DIR="$(dirname "$(realpath "$0")")"   # $0 = this SKILL.md's path as invoked
-node "$SKILL_DIR/codemap.mjs"                 # writes .claude/codemap.md
-node "$SKILL_DIR/codemap.mjs" --dry-run       # preview to stdout, no write
-node "$SKILL_DIR/codemap.mjs" --root <dir>    # explicit project root
-node "$SKILL_DIR/codemap.mjs" --map-tokens N  # cap doc size ~N tokens (trims index sections only)
-node "$SKILL_DIR/codemap.mjs" --no-cache      # ignore the per-file cache, full re-parse
+SKILL_DIR="$(dirname "$(realpath "$0")")" # $0 = this SKILL.md's path as invoked
+node "$SKILL_DIR/codemap.mjs" # writes.claude/codemap.md
+node "$SKILL_DIR/codemap.mjs" --dry-run # preview to stdout, no write
+node "$SKILL_DIR/codemap.mjs" --root <dir> # explicit project root
+node "$SKILL_DIR/codemap.mjs" --map-tokens N # cap doc size ~N tokens (trims index sections only)
+node "$SKILL_DIR/codemap.mjs" --no-cache # ignore the per-file cache, full re-parse
 ```
 
 Regeneration is **incremental**: a per-file extraction cache at `.claude/codemap.cache.json` (gitignored, beside `codemap.md`) is validated by each file's size + mtime, so an unchanged file skips its read + parse (the tree-sitter pass is the expensive part). A changed/added/removed file re-extracts. `--no-cache` forces a cold rebuild; a bumped cache version or a corrupt cache file degrades safely to cold. The cache can only make a run slower on a miss, never produce a wrong map.
 
-If `realpath` is unavailable (rare on Windows shells), the script also lives at the canonical `contexture/skills/update-codemap/codemap.mjs`; run it with an explicit `--root .` against the target project.
+If `realpath` is unavailable (rare on Windows shells), the script also lives at the canonical `contexture/skills/update-codemap/codemap.mjs`; run it with an explicit `--root.` against the target project.
 
 ### Multi-language extraction (tree-sitter)
 
 Class graph, exports, and import edges for **Python, Java, Kotlin, Swift, Rust, Go, and C++** come from tree-sitter (AST), via the optional deps in this skill's `package.json`. One-time install, from the skill folder:
 
 ```sh
-npm install --prefix "$SKILL_DIR"     # fetches web-tree-sitter + tree-sitter-wasms (~30 MB, gitignored)
+npm install --prefix "$SKILL_DIR" # fetches web-tree-sitter + tree-sitter-wasms (~30 MB, gitignored)
 ```
 
 Without the deps the script **degrades gracefully**: TS/C#/C++ still extract via regex; the other languages index as files with no class graph or edges (a log line points here). TypeScript and C# always use the regex extractors (mature, no AST needed). Coverage is verified end-to-end by `test/language-sweep.mjs` — run it after any extractor change; it must stay at 45/45 (Swift's file-edge is `n/a` — Swift has no file-level import syntax). The `web-tree-sitter` pin is `~0.25` deliberately: 0.26+ dropped the grammar ABI that `tree-sitter-wasms@0.1.13` ships, and 0.24− is CommonJS-only.
@@ -69,6 +69,8 @@ Strip quotes, trim whitespace. If the result is empty, fall back to the director
 ### 2. Build the file list (Glob + skip rules)
 
 Glob `**/*` from project root. Apply skip rules to produce the **included** set.
+
+**Build-output denoise (.gitignore-honoring + compiled-twin backstop).** Beyond the fixed directory denylist below, the walk reads `.gitignore` files **per-directory** (root + nested) and skips what they ignore — so a project's build-output dirs (including non-standard or nested names like `mcps/unity/server/build-test/`) are excluded by the intent the repo already declares, without enumerating names here. A backstop also drops a `.js`/`.cjs`/`.mjs` file when a sibling `.ts`/`.tsx` source of the same basename exists in the same directory (a compiled twin), catching build output that isn't gitignored. **Scoped runs** (a `--root` below the git repo root) can't see ancestor `.gitignore`/`codemap.config.md` above the scope — the run **warns** and lists those files so build output isn't silently re-included; re-run from the repo root or copy the relevant rules into the scope.
 
 **Skip directories outright (do not descend):**
 - `node_modules/`, `bower_components/`
@@ -136,8 +138,8 @@ For each included file:
 
 - **Read cap**: read the first 80 lines. If exports clearly extend past line 80 (rare), bump to 200 lines for that file. If still clipped, include the file in the codemap with purpose line and add `exports: <partial — extend read cap>` — do not silently truncate.
 - **Purpose line**: derive from
-  1. First top-of-file docblock / comment block, single-lined and trimmed to ≤ 100 chars. **Skip license/copyright boilerplate and banner-rule lines** (`Copyright`, `SPDX-License-Identifier`, `Licensed under`, `All rights reserved`, GNU/Apache/MIT/BSD notices, and decoration rules like `*****` / `----`) — these are not the file's purpose. Keep scanning past the banner for the first real description comment.
-  2. Else inferred from filename + top declarations. Active voice. No trailing punctuation.
+ 1. First top-of-file docblock / comment block, single-lined and trimmed to ≤ 100 chars. **Skip license/copyright boilerplate and banner-rule lines** (`Copyright`, `SPDX-License-Identifier`, `Licensed under`, `All rights reserved`, GNU/Apache/MIT/BSD notices, and decoration rules like `*****` / `----`) — these are not the file's purpose. Keep scanning past the banner for the first real description comment.
+ 2. Else inferred from filename + top declarations. Active voice. No trailing punctuation.
 - **Exports**: extract per language rules (§5).
 
 ### 5. Per-language extraction rules
@@ -156,9 +158,9 @@ For each included file:
 
 **TypeScript/JavaScript:**
 - Scan for top-level `export` declarations: functions, classes, types, interfaces, enums, `const`, `let`, `var`.
-- `export default ...` is listed separately, prefixed `default: `.
+- `export default...` is listed separately, prefixed `default: `.
 - `export { A, B as C }` forms: list `A`, `C`.
-- `export * from './x'` re-exports: list as `re-exports from ./x`.
+- `export * from './x'` re-exports: list as `re-exports from./x`.
 - JSX/TSX: no special handling beyond the above — components are just exported functions/classes.
 
 **Signatures (all languages with exports):**
@@ -177,7 +179,9 @@ For each included file:
 
 ### 6. Assemble the output
 
-The output is structured for LLM consumption: a ranked **Map** entry table first (the "start here" hub list), then the prose header (Overview, Modules, Conventions detected, Hubs, **Symbol index**), then the structured sections (Entry points, Layers, Dependencies, File deps, Class graph), then per-module file groups. The visualize tool keys on the structured sections by name and on `## <name>/` group headings; the Map and Symbol index sections are additive agent aids it ignores; everything else is benign noise.
+The output is structured for LLM consumption: a ranked **Map** entry table first (the "start here" hub list), then the prose header (Overview, Modules, Conventions detected, Hubs, **Symbol index**), then the structured sections (Entry points, Layers, Dependencies, File deps, Class graph, **Call graph**, **Call sequence**), then per-module file groups. The visualize tool keys on the structured sections by name and on `## <name>/` group headings; the Map and Symbol index sections are additive agent aids it ignores; everything else is benign noise.
+
+The **Call graph** is the function→function edges (caller → callee). For most languages these are syntactic name-matches; for TypeScript and C# they are receiver-type-resolved where possible (`user.save` → `User.save`), with a confidence floor and an honest degrade to the syntactic bare name when the receiver type can't be resolved. The **Call sequence** preserves the *order* calls appear in each function's source (the raw material the visualizer turns into sequence diagrams) — it is static call-structure order, not a runtime trace.
 
 Template (exact, sections present only when they have content):
 
@@ -191,11 +195,7 @@ Last updated: <YYYY-MM-DD in UTC>
 ## Map
 Start here — the most-depended-on files, ranked by importers:
 
-| File | Importers | Role |
-|---|---|---|
-| `<file>` | <N> | <purpose> |
-
-## Modules
+| File | Importers | Role | |---|---|---| | `<file>` | <N> | <purpose> | ## Modules
 ### <module>/
 **Role:** <hardcoded role for well-known module names, else top-file purpose or humanized folder name>
 **Purpose:** <2-3 most-imported files' purposes, concatenated>
@@ -229,15 +229,24 @@ Start here — the most-depended-on files, ranked by importers:
 
 ## Class graph
 - <kind>: `<ClassName>` in `<file>`
-  namespace: <ns>
-  extends: <Base> ; <Base>
-  implements: <Iface> ; <Iface>
-  attributes: <Attr> ; <Attr>
-  fields: <name>: <Type> ; <name>: <Type>
+ namespace: <ns>
+ extends: <Base>; <Base>
+ implements: <Iface>; <Iface>
+ attributes: <Attr>; <Attr>
+ fields: <name>: <Type>; <name>: <Type>
+
+## Call graph
+### <module>/
+- `<file>::<caller>` → `<callee>` (syntactic name-match, most languages)
+- `<file>::<caller>` → `<Type>.<method>` (TypeScript / C#: receiver-type-resolved, 087)
+
+## Call sequence
+### <module>/
+- `<file>::<caller>`: `<a>` → `<b>` → `<a>` (order calls appear in the source; duplicates kept)
 
 ## <top-level-dir>/
 - `<path/relative/to/root>` — <purpose line>
-  exports: <list separated by ` ; ` (with optional signatures)>
+ exports: <list separated by `; ` (with optional signatures)>
 - `<path>` — <purpose line>
 ```
 
@@ -282,10 +291,10 @@ Start here — the most-depended-on files, ranked by importers:
 **Dependencies section** — adjacency list, module-level, weighted:
 - For each top-level directory, collect all import targets from files inside it.
 - An import target is a file path or package name pulled from regex matches:
-  - TS/JS: `import ... from '<target>'`, `import('<target>')`, `require('<target>')`.
-  - C#: `using <namespace>;` (map namespace prefix to module by best-effort folder match).
-  - C++: both `#include "<path>"` and `#include <path>`. Angle-bracket includes are matched against the in-tree file list — if the basename / suffix resolves to a file in the project, the edge counts. Otherwise the include is external and dropped.
-  - Python: `import <module>`, `from <module> import ...`.
+ - TS/JS: `import... from '<target>'`, `import('<target>')`, `require('<target>')`.
+ - C#: `using <namespace>;` (map namespace prefix to module by best-effort folder match).
+ - C++: both `#include "<path>"` and `#include <path>`. Angle-bracket includes are matched against the in-tree file list — if the basename / suffix resolves to a file in the project, the edge counts. Otherwise the include is external and dropped.
+ - Python: `import <module>`, `from <module> import...`.
 - Resolve each target in three steps: relative path → repo-relative path or top-level segment → basename lookup against the in-tree file index (prefers same-module on collision). Bare-name C++ includes (`#include "openxr_core.h"`) resolve via the basename step.
 - Weight each edge by the number of distinct (source-file, target-file) pairs that resolved to it. Rendered as `<target> (<weight>)`.
 - Drop module-level self-edges (`auth → auth`); intra-module file-to-file edges still appear in `## File deps`.
@@ -302,12 +311,12 @@ Start here — the most-depended-on files, ranked by importers:
 **Class graph section** — class-level data extracted from TS/JS, C#, and C++ headers. One block per class, in (file, name) alphabetical order:
 - Header line: `` - <kind>: `<ClassName>` in `<file>` `` where `<kind>` is `class` / `interface` / `struct` / `record` / `enum`. The parser keys off this prefix.
 - Sub-lines (indented two spaces) — each starts with a stable keyword and a colon. Emitted only when non-empty:
-  - `namespace: <ns>` (C# only).
-  - `extends: <Base> ; <Base>` — base class(es). C# applies the `I[A-Z]` heuristic to split the inheritance list; C++ surfaces the whole list as extends (no language-level distinction).
-  - `implements: <Iface> ; <Iface>` — interface list (TS, C#).
-  - `attributes: <Attr> ; <Attr>` — attribute identifiers preceding the type declaration (C#).
-  - `fields: <name>: <Type> ; <name>: <Type>` — public fields / auto-properties. Type references are normalized (`Func<Task<T>>` → `Func`).
-- Separator inside multi-value lines is ` ; ` (space-semicolon-space), because parameter / generic / tuple syntax contains commas. `codemap-visualize` splits on the same token to render UML class diagrams.
+ - `namespace: <ns>` (C# only).
+ - `extends: <Base>; <Base>` — base class(es). C# applies the `I[A-Z]` heuristic to split the inheritance list; C++ surfaces the whole list as extends (no language-level distinction).
+ - `implements: <Iface>; <Iface>` — interface list (TS, C#).
+ - `attributes: <Attr>; <Attr>` — attribute identifiers preceding the type declaration (C#).
+ - `fields: <name>: <Type>; <name>: <Type>` — public fields / auto-properties. Type references are normalized (`Func<Task<T>>` → `Func`).
+- Separator inside multi-value lines is `; ` (space-semicolon-space), because parameter / generic / tuple syntax contains commas. `codemap-visualize` splits on the same token to render UML class diagrams.
 - Omit the section when no classes are extracted.
 - Drives both `## Conventions detected` (same run) and `codemap-visualize`'s UML output (downstream).
 
@@ -344,7 +353,7 @@ If there was no previous codemap, report:
 - `initial scan: N files, M with exports across X top-level groups`
 
 If `.claude/codemap.config.md` was found and applied, add one line:
-- `config applied: N skip patterns from .claude/codemap.config.md`
+- `config applied: N skip patterns from.claude/codemap.config.md`
 
 If `.claude/codemap.dirty` was present at start of run, add one line:
 - `dirty sentinel cleared (last marked: <ISO timestamp from sentinel contents>)`
@@ -353,10 +362,10 @@ If parsing produced warnings, append a `warnings:` block listing each malformed 
 ```
 config applied: 3 skip patterns (1 malformed, ignored — see warnings below)
 warnings:
-  - line 12: pattern missing closing backtick: `Library
+ - line 12: pattern missing closing backtick: `Library
 ```
 
-Do not dump the full diff — just the counts and a pointer to `git diff .claude/codemap.md` for specifics.
+Do not dump the full diff — just the counts and a pointer to `git diff.claude/codemap.md` for specifics.
 
 ## What update-codemap does NOT do
 
@@ -406,7 +415,7 @@ Full example:
 
 - `## Skip` — additive to defaults. Bullet list of backtick-quoted gitignore-style globs. See §2 parsing rules.
 - `## Vendored` — bullet list of backtick-quoted gitignore-style globs. Files under these patterns are scanned for tree structure but get `<vendored>` as their purpose line and no `exports:` entry. Imports out of vendored files are not emitted into `## Dependencies` / `## File deps`. Use this for in-tree third-party SDKs (e.g. bundled OpenXR headers) that you want represented in the tree but not as part of the project's surface area. Imports *into* vendored files (e.g. project code that `#include`s a bundled header) still produce edges — vendored is about ownership of the file, not visibility.
-- `## Layers` — `<LayerName>: <module>, <module>, ...` per bullet. Module names match top-level directories. Surfaces in the codemap's `## Layers` section and is consumed by `codemap-visualize` to cluster L1 nodes.
+- `## Layers` — `<LayerName>: <module>, <module>,...` per bullet. Module names match top-level directories. Surfaces in the codemap's `## Layers` section and is consumed by `codemap-visualize` to cluster L1 nodes.
 - `## Auto-update` — `enabled: true` (or `- enabled: true`) opts the project into the codemap-dirty hook. The hook touches `.claude/codemap.dirty` on any project-tree write so the next `/update-codemap` run knows the codemap is stale. Anything other than `enabled: true` (missing line, `enabled: false`, missing section) keeps the project opt-out — no sentinel is ever written. The hook is registered globally; this section is the per-project gate.
 
 **Glob semantics (Skip and Vendored):**

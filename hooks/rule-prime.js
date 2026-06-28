@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-// Rule-prime hook (proposal 077). Two events, one file:
+// Rule-prime hook. Two events, one file:
 //
 //   SessionStart (startup | clear | compact)  → FLOOR prime via { context }
 //       Resolve always-tier + project-tier rule bodies and inject them so the
@@ -29,8 +29,10 @@
 
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const io = require('./lib/hook-io');
 const { resolveRules } = require('./lib/resolve-rules');
+const { expandInstructionGlobs } = require('./lib/glob-files');
 
 // Per-session watermark key in ~/.claude/session-state.json. Records the primed
 // tier-set so UserPromptSubmit stays idempotent and /prep can run the deep pass.
@@ -199,6 +201,183 @@ function renderRules(rules, { heading }) {
   return lines.join('\n');
 }
 
+// --- Glob-addressed instruction files ------------------------
+// An ADDITIVE, declared `rulePrime.instructions` glob-array (in hook-config.json)
+// names extra instruction files to prime beyond the fixed CLAUDE.md tree — for
+// monorepos (packages/*/AGENTS.md) and adopting existing instruction files in
+// place (.cursor/rules/*.md). Off-by-default: absent declaration → [] → nothing
+// changes (zero new always-on cost). The matched files are split into SHALLOW
+// (subtree at/near the project root → floor-primed at SessionStart) and DEEP
+// (nested subtree → scope-gated at UserPromptSubmit, primed only when the turn
+// implicates that subtree). Both ride the existing budget cap as tier `project`.
+//
+// A matched file is rendered as a rule-shaped entry { name, body, tier, scope,
+// annotation } so it flows through renderRules + capToBudget unchanged.
+
+const INSTRUCTION_FILE_BYTE_CAP = 8000; // per-file read ceiling — an instruction
+// source is prose guidance, not a data dump; cap the read so one huge file can't
+// dominate the budget block (the budget cap then trims at the token layer too).
+
+// Load + shape the declared instruction matches for this repo. Returns
+// { shallow: [entry], deep: [{ entry, subtree }] }. Fail-soft per file.
+function loadInstructionSources(cwd) {
+  const result = { shallow: [], deep: [] };
+  let patterns;
+  try {
+    patterns = io.hookConfig('rulePrime').instructions;
+  } catch {
+    return result; // no/!readable config → nothing
+  }
+  if (!Array.isArray(patterns) || patterns.length === 0) return result;
+
+  let matches;
+  try {
+    matches = expandInstructionGlobs(patterns, cwd);
+  } catch {
+    return result; // expansion error → fail open, prime nothing extra
+  }
+
+  for (const m of matches) {
+    let body;
+    try {
+      body = fs.readFileSync(m.file, 'utf8');
+    } catch {
+      continue; // unreadable match → skip
+    }
+    if (body.length > INSTRUCTION_FILE_BYTE_CAP) {
+      body = body.slice(0, INSTRUCTION_FILE_BYTE_CAP) + '\n…(truncated — instruction file exceeds prime cap)';
+    }
+    const entry = {
+      name: `instructions: ${m.relpath}`,
+      body,
+      tier: 'project', // declared-by-project → kept above plain shipped under budget pressure
+      scope: ['instructions'],
+      annotation: '[declared instruction source]',
+    };
+    // Shallow = the literal prefix is the project root or a single top-level dir
+    // (no nested subtree to gate on). Deep = a nested subtree → scope-gate it.
+    const depth = m.subtree ? m.subtree.split('/').length : 0;
+    if (depth <= 1) result.shallow.push(entry);
+    else result.deep.push({ entry, subtree: m.subtree });
+  }
+  return result;
+}
+
+// True when an implicated path-or-scope set intersects a declared subtree. The
+// hot-path scope gate for deep instruction files: a packages/web/AGENTS.md primes
+// only when the turn touches packages/web/. v1 gate = substring/segment-prefix
+// intersection against the prompt text + recent files (the 035/037 resolver is
+// the fuller answer; this is the pragmatic subtree-intersection it documents).
+function subtreeImplicated(subtree, prompt, payload) {
+  if (!subtree) return false;
+  const hay = [String(prompt || '')]
+    .concat((payload.recent_files || []))
+    .concat((payload.recently_touched_files || []))
+    .concat((payload.edited_files || []))
+    .join('\n')
+    .replace(/\\/g, '/')
+    .toLowerCase();
+  return hay.includes(subtree.toLowerCase());
+}
+
+// --- Autonomy contract — recall-before-ask line ---------------
+// The autonomize organ owns one effort/stopping/ask contract; this hook is one
+// of its readers. When the active contract DEVIATES from the implicit default,
+// inject a single recall-before-ask deviation line so problem-1 (re-asking what
+// the front-loaded artefact already answers) is addressed mechanically, at the
+// turn a question would fire. At default → inject NOTHING (zero cost in the
+// common case). The contract VALUES live in the `autonomy:` frontmatter of the
+// session file `.claude/autonomy/active.md` (highest precedence) or, absent it,
+// the resolved 047 `autonomy-default.md` rule. Fail-open: any parse/IO error
+// returns null (no line) — a priming hook never blocks a turn.
+
+const IMPLICIT_AUTONOMY = { effort: 'balanced', stopping: 'criteria-met', ask: 'forks-only' };
+
+// Parse the `autonomy:` block (effort/stopping/ask) from a markdown/frontmatter
+// file's text. Minimal — three known keys, no general YAML. Returns {} on miss.
+// SCOPED: the per-key scan runs ONLY inside the matched `autonomy:` block, never
+// the whole document — so a stray top-level `effort:`/`stopping:`/`ask:` elsewhere
+// in the frontmatter cannot be mis-grabbed. No `autonomy:` block → {} (the caller
+// then keeps the implicit default, which deviates from nothing → no recall line).
+function parseAutonomyBlock(text) {
+  const out = {};
+  if (!text) return out;
+  // Capture the indented body under an `autonomy:` line, up to the next
+  // non-indented line (`^\S`), a `---` fence, or end of text.
+  const m = text.match(/^autonomy:[ \t]*\r?\n([\s\S]*?)(?=^\S|^---[ \t]*$|$(?![\s\S]))/m);
+  if (!m) return out; // no block → empty; do NOT fall through to the whole text
+  const block = m[1];
+  for (const key of ['effort', 'stopping', 'ask']) {
+    const km = block.match(new RegExp(`^[ \\t]+${key}:[ \\t]*([a-z-]+)[ \\t]*$`, 'm'));
+    if (km) out[key] = km[1];
+  }
+  return out;
+}
+
+// The 047 tier directories that can hold an autonomy-default.md, in precedence
+// order (highest first). Mirrors resolve-rules.js `tierDir` — kept local because
+// that function is not exported and the set is small + stable. We deliberately
+// duplicate WHICH directories exist (cheap, stable) rather than couple to the
+// resolver's internals. The autonomy-default rule lives under universal/.
+function autonomyDefaultCandidates(cwd) {
+  const home = path.join(os.homedir(), '.claude');
+  const rel = path.join('universal', 'autonomy-default.md');
+  return [
+    cwd ? path.join(cwd, '.claude', 'rules', rel) : null, // project
+    path.join(home, 'architectural-rules-local', rel), // user
+    path.join(home, 'architectural-rules-company', rel), // company
+    path.join(home, 'architectural-rules', rel), // shipped
+  ].filter(Boolean);
+}
+
+// Resolve the effective contract: session active.md first, else the highest-
+// precedence 047 autonomy-default.md rule (read directly for its `autonomy:`
+// frontmatter — resolveRules emits bodies, not custom frontmatter keys, and
+// exposes no file path). Returns the merged posture over the implicit default.
+// Pure read; no model turn.
+function resolveAutonomyContract(cwd) {
+  const contract = Object.assign({}, IMPLICIT_AUTONOMY);
+  try {
+    // 1. Session contract (the live/kickoff write target): project active.md.
+    const activePath = path.join(cwd, '.claude', 'autonomy', 'active.md');
+    if (fs.existsSync(activePath)) {
+      Object.assign(contract, parseAutonomyBlock(fs.readFileSync(activePath, 'utf8')));
+      return contract;
+    }
+    // 2. Persistent default: first existing autonomy-default.md down the tiers.
+    for (const p of autonomyDefaultCandidates(cwd)) {
+      if (fs.existsSync(p)) {
+        Object.assign(contract, parseAutonomyBlock(fs.readFileSync(p, 'utf8')));
+        break;
+      }
+    }
+  } catch {
+    // Fail-open — any error leaves the implicit default, which deviates from
+    // nothing, so no line is injected. A contract read never breaks a turn.
+  }
+  return contract;
+}
+
+// Build the recall-before-ask line IFF the contract deviates from the implicit
+// default. Returns the line string, or null at default (the common, zero-cost
+// case). The `ask` posture shapes the emphasis; any deviation triggers the line.
+function autonomyRecallLine(cwd) {
+  const c = resolveAutonomyContract(cwd);
+  const deviates =
+    c.effort !== IMPLICIT_AUTONOMY.effort ||
+    c.stopping !== IMPLICIT_AUTONOMY.stopping ||
+    c.ask !== IMPLICIT_AUTONOMY.ask;
+  if (!deviates) return null;
+  return (
+    `## Autonomy contract active (effort=${c.effort}, stopping=${c.stopping}, ask=${c.ask})\n` +
+    `Before asking the user a question, first scan the front-loaded context ` +
+    `(the handed-over spec / example / checklist / rules) and state why the answer ` +
+    `is not derivable from it — recall and apply what you were already given rather ` +
+    `than re-asking. Calibrate effort and stopping to the contract above. ` +
+    `(Autonomy contract. Run /autonomize to adjust.)`
+  );
+}
+
 // --- SessionStart branch ----------------------------------------------------
 
 function sessionStart(payload) {
@@ -222,18 +401,24 @@ function sessionStart(payload) {
   // The floor rules' scopes are all "primed" for watermark purposes.
   for (const r of floor.rules) for (const s of r.scope) primedScopes.add(s);
 
+  // Glob-addressed instruction sources: shallow matches join the floor.
+  // Deep (nested-subtree) matches are scope-gated at UserPromptSubmit, not here.
+  const instructionSources = loadInstructionSources(cwd);
+  const floorRules = floor.rules.concat(instructionSources.shallow);
+  for (const e of instructionSources.shallow) for (const s of e.scope) primedScopes.add(s);
+
   // Budget guard: cap the always-tier (the per-task cost) at the 046/047 floor.
   // Project-tier rules are not always-on, but they ride the same SessionStart
   // injection, so we guard the combined floor block and drop lowest-priority
   // (resolver returns them key-sorted) rules on overflow rather than blocking.
   const renderOne = (r) =>
     `\n### ${r.name}${r.annotation ? ' ' + r.annotation : ''}\n${r.body}`;
-  const capped = capToBudget(floor.rules, renderOne, ALWAYS_TIER_TOKEN_CAP);
+  const capped = capToBudget(floorRules, renderOne, ALWAYS_TIER_TOKEN_CAP);
   if (capped.overflowed) {
     logBudgetAdvisory(
-      `resolved floor ≈${estimateTokens(floor.rules.map(renderOne).join(''))} tok ` +
-        `exceeds ${ALWAYS_TIER_TOKEN_CAP} tok cap; injected ${capped.kept.length}/${floor.rules.length} rules ` +
-        `(${capped.dropped} dropped). Trim universal/ relevance:always or phase-gate rules.`
+      `resolved floor ≈${estimateTokens(floorRules.map(renderOne).join(''))} tok ` +
+        `exceeds ${ALWAYS_TIER_TOKEN_CAP} tok cap; injected ${capped.kept.length}/${floorRules.length} rules ` +
+        `(${capped.dropped} dropped). Trim universal/ relevance:always or phase-gate rules (incl. declared instruction sources).`
     );
   }
 
@@ -367,38 +552,83 @@ function userPromptSubmit(payload) {
   const cwd = payload.cwd || io.projectRoot();
   const prompt = payload.prompt || '';
 
+  // The two injections this branch can make, assembled independently and
+  // combined into one additionalContext block:
+  //   (a) drift-prime — language/domain rule bodies for newly-implicated scopes
+  //   (b) the autonomy recall-before-ask line, IFF the contract deviates from
+  //       default. (b) is scope-independent — it must fire even
+  //       when no rule scopes are fresh, so it is computed before the rule-block
+  //       early returns and the handler no longer bails before reaching it.
+  const sections = [];
+
+  // (b) Autonomy recall line — deviation-only, zero cost at default.
+  const recall = autonomyRecallLine(cwd);
+  if (recall) sections.push(recall);
+
+  // (a) Drift-prime rule bodies for freshly-implicated, not-yet-primed scopes.
   const implicated = new Set([
     ...detectScopesFromText(prompt),
     ...detectScopesFromFiles(payload),
   ]);
-  if (!implicated.size) return io.allow();
+  let freshPrimed = [];
+  if (implicated.size) {
+    const primed = primedScopeSet();
+    const fresh = [...implicated].filter((s) => !primed.has(s));
+    if (fresh.length) {
+      const res = resolveRules({ cwd, scopes: fresh });
+      const block = res.rules.length
+        ? renderRules(res.rules, { heading: `## Primed rules for this turn (${fresh.join(', ')})` })
+        : '';
+      if (block) {
+        sections.push(block);
+        freshPrimed = fresh; // only watermark scopes we actually primed
+      }
+    }
+  }
 
-  // Subtract scopes already primed this session (idempotent against the floor).
-  const primed = primedScopeSet();
-  const fresh = [...implicated].filter((s) => !primed.has(s));
-  if (!fresh.length) return io.allow(); // everything already primed → nothing
+  // (c) Deep glob-addressed instruction sources — scope-gated. A nested-
+  // subtree match (packages/web/AGENTS.md) primes only when this turn implicates
+  // that subtree, and only once per session (watermarked by `instructions:<sub>`).
+  let freshSubtrees = [];
+  {
+    const deep = loadInstructionSources(cwd).deep;
+    if (deep.length) {
+      const primed = primedScopeSet();
+      const fresh = deep.filter(
+        (d) =>
+          subtreeImplicated(d.subtree, prompt, payload) &&
+          !primed.has(`instructions:${d.subtree}`)
+      );
+      if (fresh.length) {
+        const block = renderRules(fresh.map((d) => d.entry), {
+          heading: `## Primed instruction sources for this turn (${[...new Set(fresh.map((d) => d.subtree))].join(', ')})`,
+        });
+        if (block) {
+          sections.push(block);
+          freshSubtrees = [...new Set(fresh.map((d) => `instructions:${d.subtree}`))];
+        }
+      }
+    }
+  }
 
-  const res = resolveRules({ cwd, scopes: fresh });
-  if (!res.rules.length) return io.allow();
-
-  const block = renderRules(res.rules, {
-    heading: `## Primed rules for this turn (${fresh.join(', ')})`,
-  });
-  if (!block) return io.allow();
+  if (!sections.length) return io.allow(); // nothing to inject this turn
 
   // UserPromptSubmit's model-visible channel is hookSpecificOutput.additionalContext.
   const out = {
     hookSpecificOutput: {
       hookEventName: 'UserPromptSubmit',
-      additionalContext: block,
+      additionalContext: sections.join('\n\n'),
     },
   };
   process.stdout.write(JSON.stringify(out) + '\n');
 
-  // Record the newly-primed scopes so a later prompt for the same tier is a
-  // no-op. Union with the existing set; writeMark preserves floor metadata.
-  const merged = new Set([...(readMark().scopes || []), ...fresh]);
-  writeMark({ scopes: [...merged] });
+  // Record the newly-primed scopes + instruction subtrees so a later prompt for
+  // the same tier/subtree is a no-op. (The recall line is not watermarked — it
+  // re-asserts every turn the contract deviates, which is the point.)
+  if (freshPrimed.length || freshSubtrees.length) {
+    const merged = new Set([...(readMark().scopes || []), ...freshPrimed, ...freshSubtrees]);
+    writeMark({ scopes: [...merged] });
+  }
   return io.allow();
 }
 

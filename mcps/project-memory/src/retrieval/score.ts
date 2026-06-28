@@ -41,7 +41,7 @@ const WEIGHT = {
 
 /**
  * Score and rank parsed memories against a discover-shaped query. Mirrors the
- * `/discover` skill's matching contract (proposals 002 / 023):
+ * `/discover` skill's matching contract:
  *
  *   - Scope tag overlap (+3 each) — strongest signal.
  *   - Relevance phase overlap (+2 each); `relevance: always` (+1) unconditional.

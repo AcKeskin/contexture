@@ -1,7 +1,5 @@
 # Statusline — CCometixLine
 
-Implements.
-
 ## What it does
 
 Always-on statusline showing Model | Directory | Git Branch Status | Context Window Information.

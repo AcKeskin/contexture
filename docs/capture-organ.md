@@ -1,6 +1,6 @@
 # Capture — the capture organ
 
-Implements. Authoritative procedure lives in [`skills/capture/SKILL.md`](../skills/capture/SKILL.md); this doc is the Claude-facing reference.
+Authoritative procedure lives in [`skills/capture/SKILL.md`](../skills/capture/SKILL.md); this doc is the Claude-facing reference.
 
 ## What capture owns
 
@@ -16,7 +16,7 @@ Capture does not redefine discipline that already lives elsewhere. The organ lea
 
 ## Invocation shapes
 
-| Form | Who | What happens | | --- | --- | --- | | `/capture <text>` | User | `<text>` is the candidate memory content. | | `/capture` | User | Infer content from recent turns; ask one clarifying question if ambiguous. | | Natural language: "remember that…", "save this" | User | Description match triggers the skill. | | Programmatic (another skill) | Review (005), future | Caller passes structured content + suggested classification. | Never auto-fired. See §"Mode A vs Mode B" below.
+| Form | Who | What happens | | --- | --- | --- | | `/capture <text>` | User | `<text>` is the candidate memory content. | | `/capture` | User | Infer content from recent turns; ask one clarifying question if ambiguous. | | Natural language: "remember that…", "save this" | User | Description match triggers the skill. | | Programmatic (another skill) | Review, future | Caller passes structured content + suggested classification. | Never auto-fired. See §"Mode A vs Mode B" below.
 
 ## The flow
 
@@ -37,22 +37,22 @@ Mode B is revisited once v1 is in use and there is evidence of what genuinely ge
 
 ## Feedback vs preference — folder split
 
-A point of confusion worth pinning: both `type: feedback` and `kind: preference` are about "how the user wants things done." The folder layout from is explicit:
+A point of confusion worth pinning: both `type: feedback` and `kind: preference` are about "how the user wants things done." The folder layout is explicit:
 
 - **`feedback/`** — keyed on `type: feedback`. Uses the `**Why:** / **How to apply:**` body shape. User-given rules with incident-backed reasoning.
 - **`preferences/`** — keyed on `kind: preference` (with `type: user`). Lighter-weight style notes.
 
 When in doubt: incident-backed rule from a correction → `feedback/`; lightweight style preference → `preferences/`. Capture skill respects this split deterministically.
 
-## Relationship to discovery (002)
+## Relationship to discovery
 
 Capture is the write path; discovery is the read path. A poorly classified capture returns poor discovery matches later — there is no correction mechanism short of manually editing the file. Treat classification as load-bearing and lean on user confirmation to catch mistakes before they bake in.
 
-## Relationship to architectural rules (006)
+## Relationship to architectural rules
 
 `kind: architectural-rule` captures target the global tree (`~/.claude/architectural-rules/<scope>/`), not per-project memory. Capture must recognise the universal / language / domain / project split from 006 and route accordingly. For project-specific architectural rules, the two homes are (a) per-project memory with `scope: [project-<name>]` or (b) the project's `.claude/architecture.md` file (version control is user's choice). Capture writes memories; it does not edit `.claude/architecture.md` unless the user explicitly asks.
 
-## Relationship to session recaps (013)
+## Relationship to session recaps
 
 Session recaps are written by the `/recap` flow, not `/capture`. Recaps are a different memory shape (episodic, structured fields, per-session file). Their `Learned` section is a promotion candidate — lessons surfaced there can later be re-captured as rule-tier memories via this skill.
 

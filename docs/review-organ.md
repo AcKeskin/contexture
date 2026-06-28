@@ -1,8 +1,8 @@
 # Review — the review organ
 
-Implements. Authoritative procedure lives in [`skills/review/SKILL.md`](../skills/review/SKILL.md); this doc is the Claude-facing reference.
+Authoritative procedure lives in [`skills/review/SKILL.md`](../skills/review/SKILL.md); this doc is the Claude-facing reference.
 
-Prep (004) prevents drift; review detects it. Different jobs, complementary. Together they close the discipline loop — a rule exists (001/006), it's primed before work (004), it's audited after (005), and user corrections feed back into the corpus (011).
+Prep prevents drift; review detects it. Different jobs, complementary. Together they close the discipline loop — a rule exists (001/006), it's primed before work, it's audited after, and user corrections feed back into the corpus.
 
 ## What review owns
 
@@ -13,7 +13,7 @@ Prep (004) prevents drift; review detects it. Different jobs, complementary. Tog
 
 ## What review inherits / does not own
 
-| Concern | Source | What review does | | --- | --- | --- | | Rule storage + tagging | [001 storage tagging](storage-tagging.md) + [006 architectural-rules](architectural-rules.md) | Reads the rule corpus; never writes except via capture | | Retrieval | [002 discover](discover.md) | Consumes as a caller with `during-review` phase filter | | Body rendering | [012 deliver](delivery-organ.md) | Passes `render_bodies: true`; deliver owns the format contract | | Rule capture / sharpening / addition | [011 capture](capture-organ.md) | Feedback loop routes every rule change through capture | | Pre-work priming | [004 prep](prep-organ.md) | Complementary — review informs prep when the same drift recurs | | Project architecture file format | [006 project-architecture](project-architecture.md) | Reads `.claude/architecture.md` directly (not via discover) | | Syntax / style linting | External linters | Not review's job | | Security / performance / accessibility / i18n audits | Future skills | Out of scope | Review coordinates reads + heuristics + user interaction. Writes route through capture.
+| Concern | Source | What review does | | --- | --- | --- | | Rule storage + tagging | [storage tagging](storage-tagging.md) + [architectural-rules](architectural-rules.md) | Reads the rule corpus; never writes except via capture | | Retrieval | [discover](discover.md) | Consumes as a caller with `during-review` phase filter | | Body rendering | [deliver](delivery-organ.md) | Passes `render_bodies: true`; deliver owns the format contract | | Rule capture / sharpening / addition | [capture](capture-organ.md) | Feedback loop routes every rule change through capture | | Pre-work priming | [prep](prep-organ.md) | Complementary — review informs prep when the same drift recurs | | Project architecture file format | [project-architecture](project-architecture.md) | Reads `.claude/architecture.md` directly (not via discover) | | Syntax / style linting | External linters | Not review's job | | Security / performance / accessibility / i18n audits | Future skills | Out of scope | Review coordinates reads + heuristics + user interaction. Writes route through capture.
 
 ## Trigger — user-invoked only
 

@@ -5,7 +5,7 @@ description: Render a selection of retrieved fragments into Claude's working con
 
 # deliver
 
-The delivery organ. Implements. Takes an already-selected set of fragments and produces the rendered block Claude reads.
+The delivery organ. Takes an already-selected set of fragments and produces the rendered block Claude reads.
 
 ## When to run
 
@@ -115,7 +115,7 @@ Return the rendered string to the caller. Caller owns display decisions (show to
 
 ## What deliver does NOT do
 
-- **Does not select fragments.** Selection / filtering / scoring belongs to discover (002) or the calling skill.
+- **Does not select fragments.** Selection / filtering / scoring belongs to discover or the calling skill.
 - **Does not compress, paraphrase, or summarise.** Compression is storage-time. Delivery is faithful to source.
 - **Does not enforce relevance.** Bodies passed in are assumed relevant by the caller.
 - **Does not maintain state.** No cache, no history, no memoization.

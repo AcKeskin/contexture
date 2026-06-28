@@ -168,7 +168,7 @@ function filesEqual(a, b) {
   return fs.readFileSync(a).equals(fs.readFileSync(b));
 }
 
-// Remove orphaned links left by a rename/delete (proposal 072). An orphan is a
+// Remove orphaned links left by a rename/delete. An orphan is a
 // SYMLINK in dstDir that pointed at an item in srcDir which no longer exists —
 // e.g. after renaming `document` → `blueprint`, the dst `document` symlink
 // dangles at the deleted source. Safety: only ever removes a dangling symlink

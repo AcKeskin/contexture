@@ -53,7 +53,7 @@ export const discoverSchema = {
     .boolean()
     .optional()
     .describe(
-      "Include matching codemap entries (<project>/.claude/codemap.md, proposal 003). Default false. Skipped silently when no codemap exists.",
+      "Include matching codemap entries (<project>/.claude/codemap.md). Default false. Skipped silently when no codemap exists.",
     ),
   cwd: z
     .string()

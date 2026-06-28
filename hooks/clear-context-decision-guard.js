@@ -6,7 +6,7 @@
 // been persisted, and — if none were recapped — inject a one-line nudge into
 // the new session's context advising a /recap.
 //
-// Implements proposal 049 (clear-context decision guard), v2 design. The v1
+// The clear-context decision guard, v2 design. The v1
 // "advise at PreCompact" approach is not buildable: at PreCompact/SessionEnd,
 // plain stdout on exit 0 goes to the debug log (model never sees it) and exit 2
 // blocks (which a non-blocking guard must not do). SessionStart is the one

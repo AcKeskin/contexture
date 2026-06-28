@@ -1,6 +1,6 @@
 # Checkpoint — scope-dialed fit-and-intent
 
-Implements. Authoritative procedure: [`skills/checkpoint/SKILL.md`](../skills/checkpoint/SKILL.md); this doc is the Claude-facing reference.
+Authoritative procedure: [`skills/checkpoint/SKILL.md`](../skills/checkpoint/SKILL.md); this doc is the Claude-facing reference.
 
 ## What it is
 

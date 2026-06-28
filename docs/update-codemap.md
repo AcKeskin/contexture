@@ -1,6 +1,6 @@
 # Update codemap — project context generator
 
-Implements. Authoritative procedure lives in [`skills/update-codemap/SKILL.md`](../skills/update-codemap/SKILL.md); this doc is the Claude-facing reference.
+Authoritative procedure lives in [`skills/update-codemap/SKILL.md`](../skills/update-codemap/SKILL.md); this doc is the Claude-facing reference.
 
 ## What it does
 

@@ -2,7 +2,7 @@
 'use strict';
 
 // Deterministic mechanical-convention detector for /extract-conventions
-// (proposal 079, Step 2). Frequency-analyzes a sampled file set for the
+// (Step 2). Frequency-analyzes a sampled file set for the
 // MECHANICAL conventions a machine can count without judgment: identifier case
 // style per kind, member prefixes, import/using ordering, indentation, brace
 // style. Returns each detected convention with its dominant value, share,

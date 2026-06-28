@@ -5,9 +5,9 @@ description: Audit code in scope against your architectural rules; report drift 
 
 # review
 
-The review organ. Implements. Consumes [discover (002)](../discover/SKILL.md), [deliver (012)](../deliver/SKILL.md), the [architectural-rules tree (006)](../../architectural-rules/README.md), and routes corrections through [capture (011)](../capture/SKILL.md).
+The review organ. Consumes [discover](../discover/SKILL.md), [deliver](../deliver/SKILL.md), the [architectural-rules tree](../../architectural-rules/README.md), and routes corrections through [capture](../capture/SKILL.md).
 
-Prep (004) prevents drift by priming before code is written. Review detects drift after the fact and proposes concrete cleanups. Different jobs, complementary.
+Prep prevents drift by priming before code is written. Review detects drift after the fact and proposes concrete cleanups. Different jobs, complementary.
 
 ## When to run
 
@@ -414,7 +414,7 @@ Catches identifiers and comments that are **technically correct but read badly**
 **Conformance-over-ideal precedence (079 wiring).** Before flagging a name, resolve the scope's conventions through the 047 overlay. Precedence, highest first: a **079 project convention** (`.claude/rules/<lang>/conventions.md`) > the **file's own observed style** > the **universal default**. A name that *matches a present 079 convention is never flagged*, even when it deviates from the universal default (e.g. an `m_` field prefix where the project's extracted conventions endorse it). The universal default applies only where no more-local convention speaks.
 
 **Apply policy — localized-auto / cross-cutting-suggest-only.**
-- **Comment rewords** and **local-variable renames** are localized → apply directly through the per-finding Apply gate, emitted as ` ```suggestion ` blocks per the [042 contract](../../docs/review-output-contract.md) (the replacement lines for the cited range).
+- **Comment rewords** and **local-variable renames** are localized → apply directly through the per-finding Apply gate, emitted as ` ```suggestion ` blocks per the [contract](../../docs/review-output-contract.md) (the replacement lines for the cited range).
 - **Public / exported renames** are **suggest-only** — a public rename is *not localized* (it ripples across call sites), so it never auto-applies and never becomes a suggestion-fence. Flag it, propose the better name in prose, and note that sweeping the call sites is the user's call. Do not edit call sites.
 
 **Feedback loop.** When the user rejects a naming finding as wrong ("that's a domain term", "that abbreviation is idiomatic here"), route to the §9 `/capture` four-option loop (sharpen / add / retag / lower-threshold) so the universal rule **or** the 079 convention learns the exception — the class gets *more* trustworthy with each correction rather than repeating the false positive.
@@ -441,11 +441,11 @@ Catches identifiers and comments that are **technically correct but read badly**
 
 ## Relationship to other organs
 
-- **discover (002)** — rule retrieval. Same pattern as prep.
-- **deliver (012)** — rule-body rendering inside discover. `render_bodies: true` on every call.
-- **capture (011)** — feedback-loop writeback. Sharpen / add / retag / adjust-threshold all route through capture where they involve writing to the memory tree.
-- **prep (004)** — complementary. When review keeps finding the same drift in an area prep should have covered, the prep rule for that scope needs sharpening. The feedback loop routes that change.
-- **architectural-rules tree (006)** — the corpus. Review's quality is bounded by the corpus's quality. Feedback loop is how the corpus improves.
-- **recap (013)** — review findings are not automatically captured; the user can ask `/recap` separately after a review if the run produced notable learnings.
+- **discover** — rule retrieval. Same pattern as prep.
+- **deliver** — rule-body rendering inside discover. `render_bodies: true` on every call.
+- **capture** — feedback-loop writeback. Sharpen / add / retag / adjust-threshold all route through capture where they involve writing to the memory tree.
+- **prep** — complementary. When review keeps finding the same drift in an area prep should have covered, the prep rule for that scope needs sharpening. The feedback loop routes that change.
+- **architectural-rules tree** — the corpus. Review's quality is bounded by the corpus's quality. Feedback loop is how the corpus improves.
+- **recap** — review findings are not automatically captured; the user can ask `/recap` separately after a review if the run produced notable learnings.
 
 See [`docs/review-organ.md`](../../docs/review-organ.md) for the scope map and rationales.

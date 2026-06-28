@@ -55,7 +55,7 @@ The point is *intent + mature concrete shape*, aligned. It is **not** a process 
 
 **Mode 2 (from-code):**
 - `.claude/codemap.md` (if present) — module/file/class structure, exports, dependency edges. Drives the concrete shape structurally.
-- The codebase — Read/Grep the modules the codemap names. Inference is bounded by codemap's regex/basename extraction (not full AST) — the same limit codemap-visualize documents.
+- The codebase — Read/Grep the modules the codemap names. Inference is bounded by codemap's extraction quality (tree-sitter AST across ~18 languages, with a regex fallback only when the tree-sitter deps aren't installed) — the same limit codemap-visualize documents.
 
 ### 3. Determine output version and paths
 
@@ -80,7 +80,7 @@ Three parts. **Omit any part whose source material is empty** — no "N/A" place
 ### 4.4 Mode 2 inference discipline
 
 - Structural parts (module map, classes, data model, dependencies) are sourced from the codemap/code and are reasonably reliable.
-- Behavioral parts (runtime flows) are **inferred** from call graphs. Every such diagram carries a `%% inferred — verify against runtime` comment as its first line, and `## Notes` states: *"Runtime flows are inferred from static structure, bounded by codemap's regex/basename extraction — verify against the running system. Intent (part 1) is reconstructed from code; run `/spec <slug>` to capture the real intent if it matters."*
+- Behavioral parts (runtime flows) are **inferred** from call graphs. Every such diagram carries a `%% inferred — verify against runtime` comment as its first line, and `## Notes` states: *"Runtime flows are inferred from the codemap's static call graph (tree-sitter AST; TS/C# receiver-type-resolved, other languages syntactic name-match) — static call structure, not a runtime trace; verify against the running system. Intent (part 1) is reconstructed from code; run `/spec <slug>` to capture the real intent if it matters."*
 - Never present inferred behavior as authoritative.
 
 ### 4.5 Fan-out caps
@@ -160,7 +160,7 @@ If Mode 2, append the inference-verification reminder.
 ## Limits (v1)
 
 - Mermaid only. C4 emits a native block + a flowchart fallback (native C4 renders inconsistently across Obsidian versions; the flowchart is the reliable floor).
-- Mode-2 behavioral inference is bounded by codemap's extraction quality (regex/basename, not AST) — inferred diagrams are labelled, never authoritative.
+- Mode-2 behavioral inference is bounded by codemap's extraction quality (tree-sitter AST; regex only as a no-deps fallback) — inferred diagrams are labelled, never authoritative.
 - Per-section vault split threshold and gap-batching granularity reuse codemap-visualize's config shape; tune with usage, do not add knobs speculatively.
 - No incremental render — each run authors a full new version.
 - In-repo output stays under `.claude/docs/<slug>/` (the design-artefact location) for v1; a dedicated `.claude/blueprints/` tree is a later option if blueprints and design docs need separating.

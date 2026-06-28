@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-// Rule-prime hook (proposal 077). Two events, one file:
+// Rule-prime hook. Two events, one file:
 //
 //   SessionStart (startup | clear | compact)  → FLOOR prime via { context }
 //       Resolve always-tier + project-tier rule bodies and inject them so the

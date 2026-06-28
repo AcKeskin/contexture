@@ -8,7 +8,7 @@ deprecated: true
 
 > **Deprecated.** Superseded by `/checkpoint --scope corpus`, which runs these same passes through the shared `retrospect-core` engine. Kept present and fully functional until `/checkpoint` is proven in real use, then retires — new work should reach for `/checkpoint`.
 
-The decision & delivery retrospective organ. Implements the Lens-A half of. Runs the four decision/delivery passes over the project's own record; delegates orientation, baseline-diff, rendering, routing, and persistence to [retrospect-core](../retrospect-core/SKILL.md).
+The decision & delivery retrospective organ. Implements the Lens-A half. Runs the four decision/delivery passes over the project's own record; delegates orientation, baseline-diff, rendering, routing, and persistence to [retrospect-core](../retrospect-core/SKILL.md).
 
 **Where it sits.** Every other backward-looking organ points at a narrow target — `review` at code, `pr-review` at one diff, `memory-audit` at memory-file *integrity*, `recap` at *one session*. retrospect is the macro layer above them: it reviews the **body** of decisions and delivery for *validity drift* across many ships, and it routes the fixes it finds back into those narrower organs. It is the automation of the manual "drop pass" the backlog reaches for by hand.
 
@@ -125,10 +125,10 @@ The conformance report uses the same retrospect-core spine; the only difference 
 ## Relationship to other organs
 
 - **retrospect-core** — the shared engine; owns orient/diff/render/route/persist.
-- **recap (013)** — the feeder. recaps are an input corpus (Pass 3); retrospect is the cross-session aggregator recap can't be.
-- **memory-audit (024)** — the integrity sibling; retrospect routes decision-integrity *fixes* to it and defers to it on all mechanical checks.
-- **capture (011)** — the route for uncaptured lessons, contradiction pairs, and re-stated decisions.
-- **review (005)** — the code counterpart; same propose-confirm-commit shape, same 042 output contract, different corpus.
+- **recap** — the feeder. recaps are an input corpus (Pass 3); retrospect is the cross-session aggregator recap can't be.
+- **memory-audit** — the integrity sibling; retrospect routes decision-integrity *fixes* to it and defers to it on all mechanical checks.
+- **capture** — the route for uncaptured lessons, contradiction pairs, and re-stated decisions.
+- **review** — the code counterpart; same propose-confirm-commit shape, same 042 output contract, different corpus.
 - **the project's proposals / backlog** — both an input (the delivery record) and an output route (consolidation/amendment stubs).
 
 See the design notes for the boundary rationale and the open questions.

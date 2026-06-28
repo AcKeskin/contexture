@@ -1,6 +1,6 @@
 # Deliver — the delivery organ
 
-Implements. Authoritative procedure lives in [`skills/deliver/SKILL.md`](../skills/deliver/SKILL.md); this doc is the Claude-facing reference.
+Authoritative procedure lives in [`skills/deliver/SKILL.md`](../skills/deliver/SKILL.md); this doc is the Claude-facing reference.
 
 ## What delivery owns
 
@@ -60,7 +60,7 @@ Every fragment carries its `path` in the header. Delivery never rewrites a fragm
 
 Two consequences:
 - Delivery is safe to call repeatedly on the same selection — output is deterministic.
-- Any change to fragment content happens at the file (via capture) or via storage-time compression (001), never at delivery time.
+- Any change to fragment content happens at the file (via capture) or via storage-time compression, never at delivery time.
 
 ## Relationship to discovery
 
@@ -70,7 +70,7 @@ User-invoked `/discover` stays summary-only by default — less context noise, f
 
 ## Relationship to future consumers
 
-- **Prep (004)** — at task start, calls discover with structured filters + `render_bodies: true`, receives the delivered block, reads it before writing code.
+- **Prep** — at task start, calls discover with structured filters + `render_bodies: true`, receives the delivered block, reads it before writing code.
 - **Review (005, pending)** — during diff inspection, calls discover for matching architectural rules + `render_bodies: true`, evaluates the diff against them.
 - **Plan/execute (010, pending)** — at milestone boundaries, calls discover for relevant decisions + `render_bodies: true`.
 

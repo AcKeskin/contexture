@@ -103,6 +103,10 @@ draft global `AGENTS.md`) held in-conversation. Read order:
 4. **Canonical commands.** If `architectural-rules/universal/canonical-commands.md` exists, project its verb→command pins into the Dev-commands section as a *seed* the
  Pass-2 command interview confirms. If absent, the command section starts empty and Pass 2 asks
  cold.
+5. **Domain glossary.** If a project-tier glossary (`<repo>/.claude/rules/glossary.md`) exists, project its ubiquitous-language terms into the **`## Domain Language`** section —
+ term → one-line definition, so a non-Claude agent shares the project's vocabulary. Drop the
+ per-term code-symbol map (the generic reader wants the meaning, not the Claude-internal link).
+ Absent → omit the section entirely.
 
 Compose the draft in the required order (see Compose). The draft is a starting point, not a
 finished file — Pass 2 fills the gaps.
@@ -216,6 +220,13 @@ Assemble each `AGENTS.md` in this order (lead-with-prohibitions):
 ## Conventions
 <flattened always-tier + detected-language (+ confirmed-domain) rules, as imperative prose>
 
+## Domain Language
+<present ONLY when a project-tier glossary (`.claude/rules/glossary.md`) exists:
+project the ubiquitous-language terms — term → one-line definition — so a non-Claude agent
+shares the domain's vocabulary. Omit the whole section when there is no glossary. Project the
+terms + definitions; drop the per-term code-symbol map (an AGENTS.md reader wants the meaning,
+not the Claude-internal symbol link).>
+
 ## Working discipline
 <fixed cross-tool behavioral patterns — see below. Project verbatim; these are vendor-neutral
 and apply to any agent reading this file. Not interviewed, not corpus-derived.>
@@ -328,19 +339,19 @@ Stop. Do not commit. Do not invoke `/review`. The files go into the next user-co
 
 ## Relationship to other organs
 
-- **discover (002)** — Pass 1 reads architectural rules through discover's resolution path so the
+- **discover** — Pass 1 reads architectural rules through discover's resolution path so the
  047 overlay is already applied. Do not re-resolve; do not read the raw shipped tree.
-- **capture (011)** — Pass-2 landmines route to capture (batched) so they land as durable
+- **capture** — Pass-2 landmines route to capture (batched) so they land as durable
  `warning`-kind memories, not only in the projected file. Capture's own confirm flow runs.
-- **prep (004)** — when building or editing this skill, prep with `[skills, instructions]` scope.
-- **review (005)** — review can flag a stale `AGENTS.md` (older than its source corpus) as drift;
+- **prep** — when building or editing this skill, prep with `[skills, instructions]` scope.
+- **review** — review can flag a stale `AGENTS.md` (older than its source corpus) as drift;
  it does not regenerate.
 - **canonical-commands** — producer→consumer seam: 036 pins commands *inside* the
  corpus; this skill projects them *outward*. If 036 shipped, the command interview confirms from
  the pins; if not, it asks cold.
 - **org profile** — a team-shared org-tier `AGENTS.md` floor layers under the
  repo's. Documented seam; not built here.
-- **architectural-rules tree (006)** — `universal/skill-auto-fire.md` (trigger in description) and
+- **architectural-rules tree** — `universal/skill-auto-fire.md` (trigger in description) and
  `universal/no-hardcoded-machine-paths.md` (global path from config) both apply directly.
  `universal/agent-instruction-authoring.md` is the source of the fixed **Working discipline**
  block — re-projected into the emitted AGENTS.md so non-Claude agents inherit the same patterns.

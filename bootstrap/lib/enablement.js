@@ -1,7 +1,7 @@
 'use strict';
 
 // Enablement: read ~/.claude/hook-config.json's `enabled` block, decide
-// what gets linked and what hook bundles get registered. Per proposal 034a.
+// what gets linked and what hook bundles get registered. Set by enablement config.
 //
 // Two halves of the schema:
 //   enabled.skills   = { exclude: [<entry-name>...] }    (per-subtree)

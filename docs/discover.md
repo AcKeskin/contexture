@@ -1,6 +1,6 @@
 # Discover — unified retrieval skill
 
-Implements. Authoritative procedure lives in [`skills/discover/SKILL.md`](../skills/discover/SKILL.md); this doc is the Claude-facing reference.
+Authoritative procedure lives in [`skills/discover/SKILL.md`](../skills/discover/SKILL.md); this doc is the Claude-facing reference.
 
 ## What it does
 

@@ -1,6 +1,6 @@
 # Architectural rules — scopes, locations, consumption
 
-Implements. Companion to [`claude-md/memory-capture.md`](../claude-md/memory-capture.md) (frontmatter template) and [`docs/storage-tagging.md`](storage-tagging.md) (tag semantics).
+Companion to [`claude-md/memory-capture.md`](../claude-md/memory-capture.md) (frontmatter template) and [`docs/storage-tagging.md`](storage-tagging.md) (tag semantics).
 
 ## The four scopes
 
@@ -48,13 +48,14 @@ type: user
 kind: architectural-rule
 scope: [<cluster-tag>, <universal | bash | cpp | csharp | python | rust | sql | typescript | web | unity | godot | android | linux | openxr | rendering | webrtc | codecs |...>]
 relevance: <always | when-language-X | when-engine-X | when-platform-X | when-domain-X | during-PHASE | when-touching-X | when-invoking-tools>
+# during-PHASE examples: during-planning | during-review | during-execution | during-session | during-session-close
 ---
 ```
 
 - `scope` is a flat list. First tag is typically a topical cluster (`raii`, `naming`, `headers`); last tag is the folder's scope for discovery filter.
 - `relevance` is the query gate. Two families, both composable:
  - **Scope-axis** (what the project *is*): `always` (universal); `when-language-<lang>`; `when-engine-<engine>` (e.g. godot); `when-platform-<os>` (e.g. android/linux); `when-domain-<domain>` (e.g. openxr/rendering/webrtc/codecs). Orthogonal — an OpenXR app on Android pulls `openxr/` + `android/`. (`unity/` predates the split and stays `when-domain-unity`.)
- - **Action-axis** (what the agent is *doing*): `during-<phase>` (`during-planning` / `during-review` / `during-execution` / `during-session-close`); `when-touching-<surface>` (e.g. `when-touching-skills`); `when-invoking-tools` (about to run a CLI/MCP verb — gates the canonical-command pins off the always-on floor). Used so a rule loads at the right *moment* rather than always.
+ - **Action-axis** (what the agent is *doing*): `during-<phase>` (`during-planning` / `during-review` / `during-execution` / `during-session` / `during-session-close`); `when-touching-<surface>` (e.g. `when-touching-skills`); `when-invoking-tools` (about to run a CLI/MCP verb — gates the canonical-command pins off the always-on floor). Used so a rule loads at the right *moment* rather than always. (`during-session` fires mid-session once history has accumulated — the scope-boundary guard's pivot watch; distinct from `during-session-close`, which fires at the clear/compact boundary.)
 
 ## Body
 

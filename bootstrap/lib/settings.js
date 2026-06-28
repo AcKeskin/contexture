@@ -9,7 +9,7 @@
 //   - The `hooks` key gets a scoped deep-merge so user-added hook events
 //     (e.g. a third-party SessionStart hook) coexist with our defaults rather than
 //     clobbering each other.
-//   - Per proposal 034a, the template is structured into `hookBundles`
+//   - Per the enablement config, the template is structured into `hookBundles`
 //     (security / gitDiscipline / bootstrapDrift). The resolver picks
 //     enabled bundles based on `enabled.hookBundles` from hook-config.json,
 //     concatenates their event arrays into the final `hooks` field, and

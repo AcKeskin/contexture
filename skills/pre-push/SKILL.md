@@ -5,7 +5,7 @@ description: Pre-flight checklist before a git push — commits-to-ship summary 
 
 # pre-push
 
-Reviewee-side pre-flight before a `git push`. The first of the GitHub reviewee triad; siblings are [pr-author](../pr-author/SKILL.md) and [pr-triage](../pr-triage/SKILL.md). The reviewer-side counterpart is [pr-review (030)](../pr-review/SKILL.md).
+Reviewee-side pre-flight before a `git push`. The first of the GitHub reviewee triad; siblings are [pr-author](../pr-author/SKILL.md) and [pr-triage](../pr-triage/SKILL.md). The reviewer-side counterpart is [pr-review](../pr-review/SKILL.md).
 
 Whatever the local branch is, that's what ships to the remote. Most pre-push issues are catchable in seconds; none are caught when the push is improvised inline. This skill runs the checklist once, surfaces flags, and stops on a flag — it does not push past a problem on its own.
 
@@ -52,7 +52,7 @@ Show the user a one-block summary: branch, upstream (or "first push — no upstr
 
 ### 2. Pre-flight checklist
 
-Run the seven checks. Each is **tick** (pass, silent) or **flag** (surface). Optionally load project rules first via [discover (002)](../discover/SKILL.md) (`kind: "architectural-rule"`, scopes `[git, <detected-language>, global]`) to pick up project branch-name / commit conventions; fall back to the built-in smells when no project rule exists.
+Run the seven checks. Each is **tick** (pass, silent) or **flag** (surface). Optionally load project rules first via [discover](../discover/SKILL.md) (`kind: "architectural-rule"`, scopes `[git, <detected-language>, global]`) to pick up project branch-name / commit conventions; fall back to the built-in smells when no project rule exists.
 
 1. **Branch name follows convention.** Per project standards if discovery surfaced any; else flag obvious smells: spaces, leading slash, bare `wip` / `test` / `asdf` / `tmp`, uppercase-only, or a name identical to the default branch.
 2. **Commits clean.** No `fixup!` / `squash!` / `wip` prefixes still in `git log @{u}..HEAD` (or `<base>..HEAD` on first push). These belong squashed before push, not after.
@@ -85,14 +85,14 @@ Per-repo scratch-branch exemption lives in the project's `.claude/` config when 
 
 - **Does not force-push.** It never constructs a `--force` / `--force-with-lease` flag itself. The user runs force-push manually if they mean to.
 - **Does not bypass hooks.** It never adds `--no-verify`. It *reads* reflog for diagnostic traces of prior bypass, but respects `allow-skip-hooks` arming and never interferes with it.
-- **Does not run the full review.** Pre-push is a fast hygiene pass, not [review (005)](../review/SKILL.md). A diff-level audit is a separate, heavier skill; running it here would make every push slow. (v2 may add an opt-in `--full` that chains a fast review.)
+- **Does not run the full review.** Pre-push is a fast hygiene pass, not [review](../review/SKILL.md). A diff-level audit is a separate, heavier skill; running it here would make every push slow. (v2 may add an opt-in `--full` that chains a fast review.)
 - **Does not commit.** It surfaces staged leftovers and dirty trees; it doesn't decide commit granularity for the user.
 - **Does not push past a flag silently.** Every flag stops the flow until the user resolves or overrides it.
 
 ## Relationship to other organs
 
-- **[pr-author (041)](../pr-author/SKILL.md)** — fires right after a first push to a non-default branch with no PR. pre-push hands off to it.
-- **[git.md (006)](../../architectural-rules/universal/git.md)** — the source for commit hygiene + AI-attribution checks (checks 2, 3).
-- **[discover (002)](../discover/SKILL.md)** — optional rule retrieval for project-specific branch-name / commit conventions (check 1).
-- **security hooks (008)** — their unresolved secret flags become pre-push stop conditions (check 7).
+- **[pr-author](../pr-author/SKILL.md)** — fires right after a first push to a non-default branch with no PR. pre-push hands off to it.
+- **[git.md](../../architectural-rules/universal/git.md)** — the source for commit hygiene + AI-attribution checks (checks 2, 3).
+- **[discover](../discover/SKILL.md)** — optional rule retrieval for project-specific branch-name / commit conventions (check 1).
+- **security hooks** — their unresolved secret flags become pre-push stop conditions (check 7).
 - **`allow-skip-hooks`** — pre-push respects its arming; intentional hook-skips under it are not flagged (check 6).

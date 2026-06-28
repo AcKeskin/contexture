@@ -38,7 +38,7 @@ Prompt:
 ```
 What should the agent be called? (lowercase-with-dashes, no extension)
 Convention: language/runtime experts end in -pro (rust-pro, cpp-pro).
-            Domain experts end in -pro or describe the domain (security-reviewer, metal-video-source-pro).
+ Domain experts end in -pro or describe the domain (security-reviewer, metal-video-source-pro).
 ```
 
 Validate: lowercase letters, digits, hyphens only. No leading/trailing hyphen, no double hyphens. Reject otherwise with the rule restated.
@@ -47,9 +47,9 @@ Collision check immediately: if `agents/<name>.md` already exists, offer:
 
 ```
 Agent '<name>' already exists at agents/<name>.md.
-  (o)verwrite — replace the file
-  (r)ename    — pick a new name
-  (a)bort     — exit without changes
+ (o)verwrite — replace the file
+ (r)ename — pick a new name
+ (a)bort — exit without changes
 Choice?
 ```
 
@@ -59,7 +59,7 @@ Prompt:
 
 ```
 In one sentence, what specific class of tasks is this agent for?
-Bad:  "Writing good Rust code." (a generic coder does that)
+Bad: "Writing good Rust code." (a generic coder does that)
 Good: "Auditing Rust async runtimes for Send/Sync violations and pinning bugs." (specific, narrow, testable)
 ```
 
@@ -76,9 +76,9 @@ Three sub-prompts in order. Use AskUserQuestion when the choice space is enumera
 
 ```
 Q1. Primary language(s)? (e.g. Swift, Objective-C, Rust, TypeScript)
-Q2. Platform / runtime target? (e.g. iOS+macOS, Linux server, browser, Unity, .NET 8)
+Q2. Platform / runtime target? (e.g. iOS+macOS, Linux server, browser, Unity,.NET 8)
 Q3. Specific framework / library / subsystem this agent specializes in?
-    (e.g. AVFoundation+Metal, Tokio, React 19+, Entity Framework Core)
+ (e.g. AVFoundation+Metal, Tokio, React 19+, Entity Framework Core)
 ```
 
 Capture all three verbatim. They become the opening paragraph and feed the description's PROACTIVELY clause.
@@ -112,10 +112,10 @@ List 3–5. Each should be one the agent will need the answer to in order to avo
 plausible-looking output that fails on real input.
 
 Example for a Postgres-debugging agent:
-  1. Which Postgres version, and is it managed (RDS/Cloud SQL) or self-hosted?
-  2. What's the workload — OLTP, OLAP, mixed? Average row size? Indexed?
-  3. What's the failure mode — slow query, lock contention, replication lag, OOM?
-  4. Read replica involved? Streaming or logical replication?
+ 1. Which Postgres version, and is it managed (RDS/Cloud SQL) or self-hosted?
+ 2. What's the workload — OLTP, OLAP, mixed? Average row size? Indexed?
+ 3. What's the failure mode — slow query, lock contention, replication lag, OOM?
+ 4. Read replica involved? Streaming or logical replication?
 
 Now yours (one per line, blank line to finish):
 ```
@@ -137,12 +137,12 @@ These are the "I've been burned by this exact thing" entries — narrow, concret
 symptom the user will see if it slips through.
 
 Example for a Metal video agent:
-  - CVPixelBufferLockBaseAddress + memcpy into a fresh MTLBuffer.
-    Symptom: CPU pegged, GPU starved.
-  - Hardcoding 32BGRA on a 10-bit HDR source.
-    Symptom: HDR clipped to SDR.
+ - CVPixelBufferLockBaseAddress + memcpy into a fresh MTLBuffer.
+ Symptom: CPU pegged, GPU starved.
+ - Hardcoding 32BGRA on a 10-bit HDR source.
+ Symptom: HDR clipped to SDR.
 
-Now yours (one per line; format "rule. Symptom: ...". Blank line to finish):
+Now yours (one per line; format "rule. Symptom:...". Blank line to finish):
 ```
 
 Reject if:
@@ -159,10 +159,10 @@ When this agent's output looks plausible but is wrong, what's the triage order?
 List 3–7 steps, cheapest checks first. Each step should rule out a class of causes.
 
 Example for a Metal video agent:
-  1. Is anything reaching the screen at all? (GPU frame capture)
-  2. Is the layout wrong, or are the colors wrong? (different root causes)
-  3. Sample one pixel and compare against expected values.
-  4. Print CVImageBuffer attachments (matrix, transfer, primaries).
+ 1. Is anything reaching the screen at all? (GPU frame capture)
+ 2. Is the layout wrong, or are the colors wrong? (different root causes)
+ 3. Sample one pixel and compare against expected values.
+ 4. Print CVImageBuffer attachments (matrix, transfer, primaries).
 
 Now yours (one per line, blank line to finish):
 ```
@@ -193,10 +193,10 @@ What artefacts does this agent produce? Be specific about file types, build flag
 test framework, and any required scaffolding.
 
 Example for a Metal video agent:
-  - Swift and/or Objective-C files with a Decoder / FramePool / MetalBridge / Renderer split.
-  - XCTest scaffolding with golden-frame readback.
-  - os_signpost intervals around decode→wrap→encode.
-  - Build flags: -fobjc-arc, MTL_ENABLE_DEBUG_INFO=INCLUDE_SOURCE.
+ - Swift and/or Objective-C files with a Decoder / FramePool / MetalBridge / Renderer split.
+ - XCTest scaffolding with golden-frame readback.
+ - os_signpost intervals around decode→wrap→encode.
+ - Build flags: -fobjc-arc, MTL_ENABLE_DEBUG_INFO=INCLUDE_SOURCE.
 
 Now yours (one bullet per line, blank line to finish):
 ```
@@ -209,13 +209,13 @@ Prompt:
 
 ```
 When should the user see this agent invoked PROACTIVELY?
-List 2–4 specific situations. These become the "Use PROACTIVELY for ..." sentence in the description.
+List 2–4 specific situations. These become the "Use PROACTIVELY for..." sentence in the description.
 
 Example for a Metal video agent:
-  - VTDecompressionSession pipelines
-  - CVPixelBuffer→MTLTexture wrapping
-  - HDR10/HLG/Dolby Vision decode
-  - Camera/decoder→Metal interop in Swift or Objective-C
+ - VTDecompressionSession pipelines
+ - CVPixelBuffer→MTLTexture wrapping
+ - HDR10/HLG/Dolby Vision decode
+ - Camera/decoder→Metal interop in Swift or Objective-C
 
 Now yours (one per line, blank line to finish):
 ```
@@ -283,7 +283,7 @@ Show the full composed file as a preview:
 
 ```
 About to write:
-  agents/<name>.md  (~<N> lines)
+ agents/<name>.md (~<N> lines)
 
 Preview:
 <full file content>
@@ -299,13 +299,13 @@ Write `agents/<name>.md`. Then:
 
 ```
 ✓ <name> scaffolded.
-  File:     agents/<name>.md
-  Symlink:  ~/.claude/agents/<name>.md (via bootstrap — already live if previously bootstrapped)
-  Activate: appears as Agent subagent_type='<name>' in next session.
+ File: agents/<name>.md
+ Symlink: ~/.claude/agents/<name>.md (via bootstrap — already live if previously bootstrapped)
+ Activate: appears as Agent subagent_type='<name>' in next session.
 
 Suggested next steps:
-  - Add an entry to README.md under the agents list.
-  - Test by invoking: Agent({ subagent_type: '<name>', description: '...', prompt: '...' })
+ - Add an entry to README.md under the agents list.
+ - Test by invoking: Agent({ subagent_type: '<name>', description: '...', prompt: '...' })
 ```
 
 Stop. Do not commit. Do not invoke `/review`. The agent file will go into the next user-confirmed commit.
@@ -321,10 +321,10 @@ Stop. Do not commit. Do not invoke `/review`. The agent file will go into the ne
 
 ## Relationship to other organs
 
-- **prep (004)** — when designing a new agent file, prep with `[skills, agents]` scope to load house-style and naming conventions.
-- **capture (011)** — surprises during the interview ("the user keeps producing generic answers for step 5") are capture candidates — they hint that the example needs to be sharper.
-- **review (005)** — review can catch agent files that have drifted from this template (missing pre-flight, no anti-patterns, generic job-to-be-done).
-- **architectural-rules tree (006)** — `universal/skill-auto-fire.md` applies: this skill fires via description on `/new-agent`, no SessionStart hook involved.
+- **prep** — when designing a new agent file, prep with `[skills, agents]` scope to load house-style and naming conventions.
+- **capture** — surprises during the interview ("the user keeps producing generic answers for step 5") are capture candidates — they hint that the example needs to be sharper.
+- **review** — review can catch agent files that have drifted from this template (missing pre-flight, no anti-patterns, generic job-to-be-done).
+- **architectural-rules tree** — `universal/skill-auto-fire.md` applies: this skill fires via description on `/new-agent`, no SessionStart hook involved.
 
 ## Anchors — existing house style
 

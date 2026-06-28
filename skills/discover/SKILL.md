@@ -112,6 +112,8 @@ Carry per-file resolution metadata (winning tier, patch deltas, orphaned anchors
 
 If no manifest exists and no overlay dirs are present, this step resolves to "shipped tier only" — identical to pre-047 behaviour. The overlay is inert until populated.
 
+**Scope-resolution corpus source.** When a resolver `corpus-source` arrived from §6, it selects *which corpus* this overlay walks, before the tier resolution above: `submodule` → enumerate the active submodule's own `<submodule>/.claude/architectural-rules/` (in addition to / over the parent tiers per `inherit-parent`); `parent` → the enclosing tiers as normal, scoped to the submodule's tags; `none` → **short-circuit: load no rules for this subtree** (an out-of-discipline / vendored region). The submodule corpus layers as the most-local tier (above project), last-write-wins by relative path, per the [resolver merge order](../../docs/scope-resolution-resolver.md). Absent a resolver input → the standard tier walk above, unchanged.
+
 ### 5. Read frontmatter of primary candidates
 
 For each primary candidate, Read the file and parse frontmatter. Extract `scope`, `relevance`, `kind`, `relations`, `superseded_by`.
@@ -143,7 +145,9 @@ After 5a, re-sort the surfaced set by score (relation-pulled entries take their 
 
 ### 6. Inferring task scopes
 
-From the task text, infer candidate scope tags:
+**Resolver-provided scopes are hard inputs (scope-resolution, 035+037).** When the caller (prep) ran the [scope-resolution resolver](../../docs/scope-resolution-resolver.md) for the task path, its resolved scopes + `corpus-source` arrive as a prior: treat the resolved scopes as **hard scope inputs** (a task under a `go` submodule carries the `go`/region scopes, not the sibling region's), and honor the `corpus-source` in §4a (below). **Absent manifests → no resolver input → infer scopes exactly as below (no regression).**
+
+From the task text, infer candidate scope tags (seeded by any resolver-provided scopes):
 - Strong hints: filenames or module names mentioned (`src/auth/` → scope `auth`).
 - Medium hints: domain words (`login`, `password`, `session` → scope `auth`).
 - Fall back to `[global]` only if nothing specific surfaces.
@@ -214,12 +218,12 @@ No stored context found for: [list of task aspects with no matches].
 Want to provide context, or should I proceed with what I have?
 ```
 
-Display rules from:
+Display rules:
 - `kind: warning` entries get the `📛` prefix and appear at the top of their tier.
 - `[related_to <source>]` annotations explain why a fragment surfaced via single-hop expansion (the user can tell direct match from relation pull at a glance).
 - `⚡ contradicts <other>` flags pairs where the user needs to reconcile two memories that disagree.
 
-Overlay annotations from (architectural-rule candidates only) — **non-default rules only**, a plain shipped rule shows nothing extra:
+Overlay annotations (architectural-rule candidates only) — **non-default rules only**, a plain shipped rule shows nothing extra:
 - `[company override]` / `[user override]` — a higher tier replaced the shipped file.
 - `[user patch over shipped (−1 ~1 +1)]` — a field patch applied, with delta counts.
 - `[⚠ orphaned patch anchor]` — a patch referenced an id that no longer exists; base loaded un-patched.
@@ -287,7 +291,7 @@ Return the report content as structured data rather than the prose template — 
 - Does not modify memory files (read-only).
 - Does not suggest new tags for existing memories.
 - Does not cross projects (only the current project's memory dir + global context already loaded).
-- Does not *manage* the overlay (add/disable/edit rules) — that's the `rules` skill (047). Discover only *resolves* the tiers at read time; it never writes a manifest or rule file.
+- Does not *manage* the overlay (add/disable/edit rules) — that's the `rules` skill. Discover only *resolves* the tiers at read time; it never writes a manifest or rule file.
 
 ## Limits (v1)
 

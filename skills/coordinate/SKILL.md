@@ -66,8 +66,8 @@ On close, remove this session's row (or mark `Status: done`). Surface any hand-o
 
 ## Relationship to other organs
 
-- **orchestrate (056)** — the *subagent* path (fire-and-forget children, one parent, reconverge). coordinate is the *peer-session* path (no parent, shared board). 070's "board now, orchestrate later": a future increment may fold this into orchestrate's deferred background-session runtime.
-- **recap (013)** — per-session episodic close; coordinate is live cross-session state *during* work. A session's `done` teardown pairs naturally with `/recap`.
+- **orchestrate** — the *subagent* path (fire-and-forget children, one parent, reconverge). coordinate is the *peer-session* path (no parent, shared board). 070's "board now, orchestrate later": a future increment may fold this into orchestrate's deferred background-session runtime.
+- **recap** — per-session episodic close; coordinate is live cross-session state *during* work. A session's `done` teardown pairs naturally with `/recap`.
 - **execute / draft-plan / spec** — the per-phase fresh sessions that this board keeps aligned (the fragmentation those phases recommend is what creates the need).
 
 See `.claude/specs/coordinate/v1.md` for the design.

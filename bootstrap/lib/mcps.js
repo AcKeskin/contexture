@@ -6,7 +6,7 @@
 // the manifest does NOT unregister it (user-owned entries are sacred — if
 // they want it gone, they run `claude mcp remove <name>` themselves).
 //
-// Per proposal 020 Phase 1 ship criteria: bootstrap registers it into
+// Per the Phase 1 ship criteria: bootstrap registers it into
 // ~/.claude.json. Today's manifest is just project-memory; future MCPs
 // under mcps/ get added here as they ship.
 
@@ -22,7 +22,7 @@ const MCP_MANIFEST = [
     relativeBuildPath: 'mcps/project-memory/build/index.js',
     runtime: 'node',
     enabled: true,
-    description: 'Retrieval-only MCP over project memory tree + session rollups (proposal 020 Phase 1)',
+    description: 'Retrieval-only MCP over project memory tree + session rollups',
   },
 ];
 

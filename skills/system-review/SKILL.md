@@ -8,7 +8,7 @@ deprecated: true
 
 > **Deprecated.** Superseded by `/checkpoint --scope corpus`, which runs these coherence passes through the shared `retrospect-core` engine. Kept present and fully functional until `/checkpoint` is proven in real use, then retires — new work should reach for `/checkpoint`.
 
-The system / surface-coherence organ. Implements the Lens-B half of. Runs the four coherence passes over the organ surface; delegates orientation, baseline-diff, rendering, routing, and persistence to [retrospect-core](../retrospect-core/SKILL.md).
+The system / surface-coherence organ. Implements the Lens-B half. Runs the four coherence passes over the organ surface; delegates orientation, baseline-diff, rendering, routing, and persistence to [retrospect-core](../retrospect-core/SKILL.md).
 
 **Where it sits.** [retrospect](../retrospect/SKILL.md) audits the *decision & delivery history*; system-review audits the *system that history produced*. Same altitude (step back over the whole, not one file/session), same engine, different target: retrospect reads proposals/decisions/recaps; system-review reads `skills/`, `agents/`, `commands/`, `hooks/`, `settings/`, `architectural-rules/`, `mcps/`, and the vision. It is the automation of the manual coverage-map re-sort and "drop pass" the backlog does by hand — but pointed at the *organs*, not the *decisions*.
 
@@ -107,9 +107,9 @@ Read the vision (`visions/default/v1.md`) and the project's subsystem/coverage m
 ## Relationship to other organs
 
 - **retrospect-core** — the shared engine (orient/diff/render/route/persist).
-- **retrospect (060)** — the history-side sibling. system-review's Pass-4 untraced findings often pair with a retrospect consolidation finding (the decision and the organ drifted together).
-- **review (005)** — code-quality review of the config repo's *implementation*; system-review is structure-review of its *organ shape*. Complementary, non-overlapping (the boundary this skill itself must keep).
-- **capture (011)** — the route for ratifying an untraced organ's rationale.
+- **retrospect** — the history-side sibling. system-review's Pass-4 untraced findings often pair with a retrospect consolidation finding (the decision and the organ drifted together).
+- **review** — code-quality review of the config repo's *implementation*; system-review is structure-review of its *organ shape*. Complementary, non-overlapping (the boundary this skill itself must keep).
+- **capture** — the route for ratifying an untraced organ's rationale.
 - **the project's proposals / backlog** — the primary output route; organ changes become proposals.
 - **the vision** (`visions/default/v1.md`) — the Pass-4 yardstick.
 

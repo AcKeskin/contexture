@@ -10,56 +10,56 @@ For the overview, the discipline loop, and install, see the [README](../README.m
 ```
 contexture/
 ├── README.md
-├── bootstrap/                   # install scripts (Node — Windows-tested, untested elsewhere)
-│   ├── bootstrap.js
-│   └── lib/                     # platform / link / settings / ccline
-├── settings/                    # settings.json template + per-machine override
-├── skills/                      # one folder per skill, each with SKILL.md (committed source; bootstrap mirrors into gitignored .claude/skills/ for Copilot/Codex/Cursor discovery)
-│   ├── prep/   review/   pr-review/   capture/   recap/   discover/
-│   ├── pr-author/   pr-triage/   pre-push/         # GitHub reviewee triad
-│   ├── deliver/                 # library-only (no slash command)
-│   ├── update-codemap/   codemap-visualize/
-│   ├── new-hook/   new-agent/   new-mcp/   new-agents-md/
-│   ├── project-instructions/    # cross-tool projection (AGENTS.md + Copilot)
-│   ├── memory-audit/
-│   ├── brainstorm/   envision/   spec/   draft-plan/   blueprint/   execute/
-│   ├── checkpoint/   human-view/   coordinate/   # fit-check · approval view · multi-session board
-│   ├── retrospect/   retrospect-core/   system-review/  # meta-review (retrospect + system-review deprecated → /checkpoint)
-│   ├── orchestrate/             # goal-directed concurrent-work convergence
-│   ├── systematic-debugging/    # yoinked from superpowers plugin
-│   ├── test-driven-development/ # yoinked
-│   ├── dispatch/
-│   ├── improve-prompt/
-│   └── using-git-worktrees/
-├── commands/                    # slash-command shims, one file each
-├── agents/                      # subagents (cpp-pro, c-sharp-pro, rust-pro, react-pro, security-reviewer, metal-video-source-pro, vision-os-pro, unity-pro, unity-ui-pro, mcp-ts-pro, mcp-py-pro)
-├── hooks/                       # Node hook scripts (default-on protection — see docs/security-hooks.md)
-│   ├── rm-rf-blocker.js
-│   ├── env-file-write-blocker.js
-│   ├── outside-project-write-blocker.js
-│   ├── force-push-main-blocker.js
-│   ├── git-config-write-blocker.js
-│   ├── hook-skip-blocker.js
-│   ├── bootstrap-drift-injector.js
-│   ├── agent-output-contract-validator.js
-│   ├── codemap-dirty-marker.js
-│   ├── clear-context-decision-guard.js
-│   └── lib/                     # shared hook-io + path utilities
-├── mcps/                        # MCP server projects (standalone, not bootstrapped)
-│   ├── lib/                     # shared TypeScript utilities (fetch, rate-limit, errors)
-│   ├── lib-py/                  # shared Python utilities (fetch, rate-limit, errors)
-│   ├── project-memory/          # first-party memory-retrieval MCP (registered by bootstrap)
-│   └── unity/                   # Unity Editor MCP server (see “Unity MCP” section)
-├── claude-md/                   # fragments imported into ~/.claude/CLAUDE.md
-│   ├── _imports.md
-│   └── memory-capture.md        # frontmatter + folder-layout rules
-├── architectural-rules/         # tagged rule memories, synced across machines (shipped tier)
-│   ├── universal/   config-authoring/                     # govern user code / govern harness-authoring
-│   ├── bash/   cpp/   csharp/   python/   rust/   sql/   typescript/   unity/   web/
-│   └── README.md
-└── docs/                        # Claude-facing reference, one per organ
-    ├── _implementing/           # one-pagers (gitignored, short-lived)
-    └── *.md                     # permanent references
+├── bootstrap/ # install scripts (Node — Windows-tested, untested elsewhere)
+│ ├── bootstrap.js
+│ └── lib/ # platform / link / settings / ccline
+├── settings/ # settings.json template + per-machine override
+├── skills/ # one folder per skill, each with SKILL.md (committed source; bootstrap mirrors into gitignored.claude/skills/ for Copilot/Codex/Cursor discovery)
+│ ├── prep/ review/ pr-review/ capture/ recap/ discover/
+│ ├── pr-author/ pr-triage/ pre-push/ # GitHub reviewee triad
+│ ├── deliver/ # library-only (no slash command)
+│ ├── update-codemap/ codemap-visualize/
+│ ├── new-hook/ new-agent/ new-mcp/ new-agents-md/
+│ ├── project-instructions/ # cross-tool projection (AGENTS.md + Copilot)
+│ ├── memory-audit/
+│ ├── brainstorm/ envision/ spec/ draft-plan/ blueprint/ execute/
+│ ├── checkpoint/ human-view/ coordinate/ # fit-check · approval view · multi-session board
+│ ├── retrospect/ retrospect-core/ system-review/ # meta-review (retrospect + system-review deprecated → /checkpoint)
+│ ├── orchestrate/ # goal-directed concurrent-work convergence
+│ ├── systematic-debugging/ # yoinked from superpowers plugin
+│ ├── test-driven-development/ # yoinked
+│ ├── dispatch/
+│ ├── improve-prompt/
+│ └── using-git-worktrees/
+├── commands/ # slash-command shims, one file each
+├── agents/ # subagents (cpp-pro, c-sharp-pro, rust-pro, react-pro, security-reviewer, metal-video-source-pro, vision-os-pro, unity-pro, unity-ui-pro, mcp-ts-pro, mcp-py-pro)
+├── hooks/ # Node hook scripts (default-on protection — see docs/security-hooks.md)
+│ ├── rm-rf-blocker.js
+│ ├── env-file-write-blocker.js
+│ ├── outside-project-write-blocker.js
+│ ├── force-push-main-blocker.js
+│ ├── git-config-write-blocker.js
+│ ├── hook-skip-blocker.js
+│ ├── bootstrap-drift-injector.js
+│ ├── agent-output-contract-validator.js
+│ ├── codemap-dirty-marker.js
+│ ├── clear-context-decision-guard.js
+│ └── lib/ # shared hook-io + path utilities
+├── mcps/ # MCP server projects (standalone, not bootstrapped)
+│ ├── lib/ # shared TypeScript utilities (fetch, rate-limit, errors)
+│ ├── lib-py/ # shared Python utilities (fetch, rate-limit, errors)
+│ ├── project-memory/ # first-party memory-retrieval MCP (registered by bootstrap)
+│ └── unity/ # Unity Editor MCP server (see “Unity MCP” section)
+├── claude-md/ # fragments imported into ~/.claude/CLAUDE.md
+│ ├── _imports.md
+│ └── memory-capture.md # frontmatter + folder-layout rules
+├── architectural-rules/ # tagged rule memories, synced across machines (shipped tier)
+│ ├── universal/ config-authoring/ # govern user code / govern harness-authoring
+│ ├── bash/ cpp/ csharp/ python/ rust/ sql/ typescript/ unity/ web/
+│ └── README.md
+└── docs/ # Claude-facing reference, one per organ
+ ├── _implementing/ # one-pagers (gitignored, short-lived)
+ └── *.md # permanent references
 ```
 
 Directories are created lazily as proposals require them — no speculative scaffolding.
@@ -68,163 +68,67 @@ Directories are created lazily as proposals require them — no speculative scaf
 
 ### hooks/ — Safety guardrails (PreToolUse event handlers)
 
-| Hook | Event | What it does |
-|------|-------|--------------|
-| `rm-rf-blocker` | PreToolUse / Bash | Blocks destructive `rm -rf` on top-level paths (root, home, parent directories) |
-| `env-file-write-blocker` | PreToolUse / Write* | Blocks writes to `.env`, credentials, API keys, and certificates |
-| `force-push-main-blocker` | PreToolUse / Bash | Blocks force pushes to main/master; feature branches are unrestricted |
-| `git-config-write-blocker` | PreToolUse / Bash | Blocks global/system git config writes; local project-level config allowed |
-| `hook-skip-blocker` | PreToolUse / Bash | Blocks `--no-verify` / `--no-gpg-sign` unless `/allow-skip-hooks` was used first |
-| `outside-project-write-blocker` | PreToolUse / Write* | Blocks writes outside the project directory (allow-lists `~/.claude` and per-machine entries in `hook-config.json`) |
-| `bootstrap-drift-injector` | SessionStart | Warns when the local bootstrap state is stale relative to the repo |
-| `agent-output-contract-validator` | PostToolUse / Agent | Advisory — validates subagent output against the contract declared by the agent file. Posts a `hookSpecificOutput.additionalContext` advisory; never blocks |
-| `codemap-dirty-marker` | PostToolUse / Write* | Opt-in per project via `.claude/codemap.config.md` `## Auto-update` `enabled: true`. Touches `.claude/codemap.dirty` so the next `/update-codemap` knows the codemap is stale |
-| `clear-context-decision-guard` | SessionStart [clear/compact] | Advisory — scans the prior transcript for unrecapped decision signals after a clear/compact and surfaces a recap nudge via `{ context }` at the next session start; never blocks |
-| `rule-prime` | SessionStart [startup/clear/compact] + UserPromptSubmit | Advisory — mechanically primes resolved architectural rules into context: the always+project floor (plus the one language tier for single-language repos) at session start via `{ context }`, and incremental language/domain tiers per prompt via `additionalContext` (deterministic match, no model call). Budget-guarded, idempotent against a per-session watermark; never blocks. The mechanical half of `/prep` |
-| `lib/hook-io.js` | — | *Shared utility — payload reading, fail-open exit codes, `advise()` helper for PostToolUse advisories* |
-| `lib/resolve-rules.js` | — | *Shared utility — the 047 tier-overlay resolver as callable code (precedence, whole-file override, patch-by-anchor, anchor-strip); the engine `rule-prime` calls* |
+| Hook | Event | What it does | |------|-------|--------------| | `rm-rf-blocker` | PreToolUse / Bash | Blocks destructive `rm -rf` on top-level paths (root, home, parent directories) | | `env-file-write-blocker` | PreToolUse / Write* | Blocks writes to `.env`, credentials, API keys, and certificates | | `force-push-main-blocker` | PreToolUse / Bash | Blocks force pushes to main/master; feature branches are unrestricted | | `git-config-write-blocker` | PreToolUse / Bash | Blocks global/system git config writes; local project-level config allowed | | `hook-skip-blocker` | PreToolUse / Bash | Blocks `--no-verify` / `--no-gpg-sign` unless `/allow-skip-hooks` was used first | | `outside-project-write-blocker` | PreToolUse / Write* | Blocks writes outside the project directory (allow-lists `~/.claude` and per-machine entries in `hook-config.json`) | | `bootstrap-drift-injector` | SessionStart | Warns when the local bootstrap state is stale relative to the repo | | `agent-output-contract-validator` | PostToolUse / Agent | Advisory — validates subagent output against the contract declared by the agent file. Posts a `hookSpecificOutput.additionalContext` advisory; never blocks | | `codemap-dirty-marker` | PostToolUse / Write* | Opt-in per project via `.claude/codemap.config.md` `## Auto-update` `enabled: true`. Touches `.claude/codemap.dirty` so the next `/update-codemap` knows the codemap is stale | | `clear-context-decision-guard` | SessionStart [clear/compact] | Advisory — scans the prior transcript for unrecapped decision signals after a clear/compact and surfaces a recap nudge via `{ context }` at the next session start; never blocks | | `rule-prime` | SessionStart [startup/clear/compact] + UserPromptSubmit | Advisory — mechanically primes resolved architectural rules into context: the always+project floor (plus the one language tier for single-language repos) at session start via `{ context }`, and incremental language/domain tiers per prompt via `additionalContext` (deterministic match, no model call). Also loads declared **glob-addressed instruction files** (see below), and injects the **autonomy recall-before-ask line** when the active autonomy contract deviates from the default (zero cost at default; the only reader-seam autonomize has on a hook). Budget-guarded, idempotent against a per-session watermark; never blocks. The mechanical half of `/prep` | | `lib/hook-io.js` | — | *Shared utility — payload reading, fail-open exit codes, `advise` helper for PostToolUse advisories* | | `lib/resolve-rules.js` | — | *Shared utility — the 047 tier-overlay resolver as callable code (precedence, whole-file override, patch-by-anchor, anchor-strip); the engine `rule-prime` calls* | | `lib/glob-files.js` | — | *Shared utility — path-aware instruction-glob expander; `rule-prime` (load) + `bootstrap --verify` (drift-check) call it* | Hooks ship in default-on bundles — `security`, `gitDiscipline`, `bootstrapDrift`, `agentOutputContracts`, `codemapDirty`, `sessionGuard`, and `rulePrime`. Bundles can be excluded per machine in `~/.claude/hook-config.json` under `enabled.hookBundles`. All hooks fail-open (exit 0 = allow, exit 2 = block, JSON stdout = advise). See [security-hooks](security-hooks.md).
 
-Hooks ship in default-on bundles — `security`, `gitDiscipline`, `bootstrapDrift`, `agentOutputContracts`, `codemapDirty`, `sessionGuard`, and `rulePrime`. Bundles can be excluded per machine in `~/.claude/hook-config.json` under `enabled.hookBundles`. All hooks fail-open (exit 0 = allow, exit 2 = block, JSON stdout = advise). See [security-hooks](security-hooks.md).
+### `rulePrime.instructions` — glob-addressed instruction files
+
+Beyond the fixed CLAUDE.md tree, a project can declare **additional instruction files by path or glob** in `~/.claude/hook-config.json`, which the `rule-prime` hook loads alongside the resolved corpus:
+
+```jsonc
+{
+ "rulePrime": {
+ "instructions": [
+ "docs/coding-standards.md", // a fixed file → floor-primed at session start
+ "packages/*/AGENTS.md", // per-package, glob-addressed → scope-gated
+ ".cursor/rules/*.md" // adopt existing rule files in place
+ ]
+ }
+}
+```
+
+- **Additive + off-by-default.** No declaration → no change, zero new always-on cost. CLAUDE.md stays the fixed primary root.
+- **Glob syntax:** literal paths, basename `*`/`?`, **path-segment `*`** (`packages/*/AGENTS.md` matches every package), and a recursive `**` segment. Vendored/generated dirs (`node_modules`, `dist`, …) are skipped.
+- **Scope-gated.** A match under a nested subtree (`packages/web/AGENTS.md`) primes only on a turn that implicates that subtree — so a 12-package glob never loads all 12 at once. Shallow/top-level matches floor-prime at session start.
+- **Budget-respecting.** Matched files count against the same always-tier cap as rules (tier `project`, kept above plain shipped rules under pressure).
+- **Drift-checked.** `bootstrap --verify` warns (non-blocking, exit code unchanged) on a declared glob that matches nothing — a likely typo or stale path.
+
+v1 globs free-form prose instruction files only (not structured rule-corpus files; that is the 035/037 resolver's job). The declaration home is `hook-config.json`; sourcing instruction files from 047 overlay tiers (so company/user tiers declare sources) is a deferred v2 extension.
+
+### The autonomy contract — one owner, many readers
+
+`autonomize` owns a single **autonomy contract** — three fields that calibrate how hard the model pushes toward a goal without per-step human input:
+
+| Field | Values | Meaning | |-------|--------|---------| | `effort` | `minimal` \| `balanced` \| `thorough` \| `exhaustive` | per-step depth **and** the loop's willingness-to-continue | | `stopping` | `criteria-met` \| `diminishing-returns` \| `budget` \| `user-anytime` | the stopping posture — `criteria-met` defers to the spec's 026 done-criteria, it does not redefine "done" | | `ask` | `forks-only` \| `every-step` \| `until-blocked` | a pointer at the shipped ambiguity-depth + act-don't-ask rules, not a new protocol | It is set four ways, resolved **live > kickoff > 047-default > implicit-default** (`balanced` / `criteria-met` / `forks-only` — matching current behaviour, so the organ adds nothing until tuned). A live steer is task-scoped and never persists. The **persistent default is a rule file** — [`architectural-rules/universal/autonomy-default.md`](../architectural-rules/universal/autonomy-default.md) — carrying the posture in an `autonomy:` frontmatter block, so it gets the 047 cascade/override/disable for free; readers parse that frontmatter directly (`relevance: on-demand`, off the always-on floor).
+
+**One owner, many readers** (the `retrospect-core` shape): `autonomize` is the sole writer; the workflow organs *read* the effective contract at their decision points —
+
+| Reader | Reads | At | |--------|-------|-----| | `execute` | `ask` (cadence), `stopping` (§4a done-criteria posture) | the largest consumer seam | | `checkpoint` | `stopping` | sizes the fit-pass drift question (`user-anytime` → freeze-and-record) | | `orchestrate` | `effort` + `ask` (Q3 dispatch), `stopping` (Q4 converge) | per-unit, at dispatch only | | `spec` / `draft-plan` | set it inline as one optional kickoff question | the implicit surface of the kickoff mode | | `rule-prime` hook | injects the recall-before-ask line when the contract deviates | every turn, deviation-only | No hook of its own, no always-on cost, propose-confirm on every write.
 
 ### skills/ — Autonomous behavioural organs
 
 Each skill has a `SKILL.md` that defines when it fires, what it does, and how it interacts with the user.
 
-| Skill | Purpose |
-|-------|---------|
-| `prep` | Primes session with architectural rules before coding; auto-fires on first substantive task |
-| `review` | Audits code against loaded rules for 7 drift categories (dead code, monoliths, SoC, patterns, principles, comment-drift, naming-quality). Supports `--vault` to persist to Obsidian |
-| `extract-conventions` | Observes a scope's dominant code conventions and writes a 047 project-tier `conventions.md` that overrides universal defaults for that scope. Hybrid detection — mechanical conventions deterministically (`detect.mjs`), semantic conventions model-judged + confidence-flagged. Per-category propose-confirm gate; language-pro-delegated authoring; conflicts with shipped rules surfaced at confirm. The first organ to auto-populate the project tier |
-| `write-tests` | Authors a quality test suite for existing code to the `test-quality` standard — detects framework + conventions (reusing `extract-conventions` output where present), proposes a confirmable test plan, delegates idiomatic authoring to the language-pro agent. Characterization-with-flags stance (pins current behavior but flags suspicious-as-bug); on a run failure surfaces the test-vs-code discrepancy rather than auto-adjusting |
-| `pr-review` | Reviews a GitHub PR via `gh` CLI across correctness/design/hygiene/security. Writes a canonical artefact to the Obsidian vault with iteration tracking (flat → folder on iteration 2) and stub redirects so wikilinks never break |
-| `capture` | Stores memories via propose-confirm-commit with relation tracking and secret redaction |
-| `recap` | Writes episodic session records; promotes learned items to rule-tier via capture |
-| `discover` | Retrieves relevant memories and codemap entries for the current task by scope/keyword |
-| `deliver` | Renders memory fragments into working context (library-only — not user-invoked) |
-| `pr-author` | Drafts a PR title + body to a clean contract (Summary / Test plan / Closes) and hands over a ready-to-run `gh pr create` — never opens the PR itself |
-| `pr-triage` | Triages a PR's unresolved review comments into a checklist, walks each to Act / Skip-defer / Note, and routes the Act code changes via /dispatch or /orchestrate — never drafts or posts replies (you write those) |
-| `pre-push` | Pre-push pre-flight checklist — commits-to-ship summary, branch-name / commit-hygiene / AI-attribution / debug-artifact / hook-bypass checks; stops on any flag |
-| `spec` | Interview-driven versioned spec under `.claude/specs/<slug>/`; mandatory `done_criteria:` frontmatter; INDEX tracks the active version |
-| `draft-plan` | Produces a versioned plan from the active spec, with a propose-confirm review gate before the plan lands on disk |
-| `blueprint` | Authors a concrete pre-build blueprint — intent (what we wanted) + the mature shape (classes, interfaces, dependencies, module relationships, build order) with Mermaid UML, from vision+spec+plan or `--from-code`; optional, after `/draft-plan` |
-| `human-view` | Projects an LLM-optimized planning artefact (plan / blueprint / spec / vision) into a human-readable approval view — goal + concrete decisions + an alignment check |
-| `execute` | Runs a plan step-by-step with per-step verification gates |
-| `orchestrate` | Goal-directed orchestration & convergence for concurrent work — decompose-or-refuse, place each unit (shared tree / worktree / serialize), fan out via `dispatch`, verify-then-converge (merge or synthesis) |
-| `coordinate` | Keeps multiple live sessions aligned via a shared gitignored session board — register / check / hand-off / collision-detect; a session can claim coordinator. Peer-session alignment, distinct from subagents |
-| `checkpoint` | Scope-dialed fit-and-intent check (diff / module / corpus) — "does this serve the point + cohere + what did I learn?"; diff scope composes `/code-review` + a fit-pass. Supersedes the now-deprecated `retrospect` + `system-review` |
-| `update-codemap` | Regenerates `.claude/codemap.md` with file tree, purposes, exports + signatures, entry points, layers, inter-module dependency adjacency, and a class graph (TS/C#/C++ — fields, extends/implements, namespace, attributes). Clears the dirty sentinel after a successful write |
-| `codemap-visualize` | Renders a UML-heavy document from `.claude/codemap.md` — ASCII Structure tree, topologically auto-layered Module map, per-module sections with class diagrams + subfolder-clustered file graphs, and a cross-module class relations diagram. Writes to `.claude/codemap.diagrams.md` and the Obsidian vault under `Projects/<ProjectFolder>/Codemap/` |
-| `brainstorm` | Shapes a half-formed idea or crystallizes a blurry one (name, one-line description, in/out edges, end-goal) — upstream of `/envision`; writes a light `.claude/ideas/<slug>.md` note |
-| `envision` | Interview-driven top-level project vision — intent, UX walkthrough, 4–8 named modules (role/owns/depends-on/does-not-do), boundaries, relations, cross-cutting concerns, non-goals (≥ 3), mandatory module-map diagram. Versioned under `.claude/visions/<slug>/v<N>.md`. Upstream of `/spec`. Breadth-over-depth — refuses to drift into implementation detail |
-| `systematic-debugging` | Enforces root-cause investigation before fixes (4-phase process) |
-| `test-driven-development` | Enforces red-green-refactor discipline before implementation |
-| `new-hook` | End-to-end hook scaffolding with recipe selection and settings merge |
-| `new-agent` | Interview-driven subagent scaffolding (job-to-be-done, anti-patterns, debug workflow) |
-| `new-mcp` | Interview-driven MCP server scaffolding (TypeScript/Python, simple/API wrapper) |
-| `new-agents-md` | Distill-then-interview generator that projects the discipline corpus into a vendor-neutral root `AGENTS.md` for non-Claude agents (interactive companion to `project-instructions`) |
-| `project-instructions` | Deterministic cross-tool projector — regenerates root `AGENTS.md`, lean `.github/copilot-instructions.md`, and per-scope `.github/instructions/*.instructions.md` from the corpus (`node skills/project-instructions/project-instructions.mjs`) |
-| `dispatch` | Delegates independent problems to parallel subagents with depth caps |
-| `improve-prompt` | Improves any prompt — text/LLM or generative image/video/audio — model-agnostically; interviews to fill real gaps, then returns a rewritten prompt plus rationale (what changed, assumptions, optional per-model notes) |
-| `using-git-worktrees` | Creates isolated worktrees with gitignore safety and baseline test verification |
-| `memory-audit` | Checks memory tree for 9 integrity dimensions (orphans, dupes, schema gaps, stale refs) |
-| `rules` | Manages the architectural-rule overlay across the shipped / company / user / project tiers — list, disable/enable (global/project/session), whole-file or field-patch override, resolve (`where`), sync company repo. Every mutation previews before→after on the effective corpus |
-
-### commands/ — Slash-command shims
+| Skill | Purpose | |-------|---------| | `prep` | Primes session with architectural rules before coding; auto-fires on first substantive task | | `review` | Audits code against loaded rules for 7 drift categories (dead code, monoliths, SoC, patterns, principles, comment-drift, naming-quality). Supports `--vault` to persist to Obsidian | | `extract-conventions` | Observes a scope's dominant code conventions and writes a 047 project-tier `conventions.md` that overrides universal defaults for that scope. Hybrid detection — mechanical conventions deterministically (`detect.mjs`), semantic conventions model-judged + confidence-flagged. Per-category propose-confirm gate; language-pro-delegated authoring; conflicts with shipped rules surfaced at confirm. The first organ to auto-populate the project tier | | `write-tests` | Authors a quality test suite for existing code to the `test-quality` standard — detects framework + conventions (reusing `extract-conventions` output where present), proposes a confirmable test plan, delegates idiomatic authoring to the language-pro agent. Characterization-with-flags stance (pins current behavior but flags suspicious-as-bug); on a run failure surfaces the test-vs-code discrepancy rather than auto-adjusting | | `pr-review` | Reviews a GitHub PR via `gh` CLI across correctness/design/hygiene/security. Writes a canonical artefact to the Obsidian vault with iteration tracking (flat → folder on iteration 2) and stub redirects so wikilinks never break | | `capture` | Stores memories via propose-confirm-commit with relation tracking and secret redaction | | `recap` | Writes episodic session records; promotes learned items to rule-tier via capture | | `discover` | Retrieves relevant memories and codemap entries for the current task by scope/keyword | | `deliver` | Renders memory fragments into working context (library-only — not user-invoked) | | `pr-author` | Drafts a PR title + body to a clean contract (Summary / Test plan / Closes) and hands over a ready-to-run `gh pr create` — never opens the PR itself | | `pr-triage` | Triages a PR's unresolved review comments into a checklist, walks each to Act / Skip-defer / Note, and routes the Act code changes via /dispatch or /orchestrate — never drafts or posts replies (you write those) | | `pre-push` | Pre-push pre-flight checklist — commits-to-ship summary, branch-name / commit-hygiene / AI-attribution / debug-artifact / hook-bypass checks; stops on any flag | | `spec` | Interview-driven versioned spec under `.claude/specs/<slug>/`; mandatory `done_criteria:` frontmatter; INDEX tracks the active version | | `draft-plan` | Produces a versioned plan from the active spec, with a propose-confirm review gate before the plan lands on disk | | `blueprint` | Authors a concrete pre-build blueprint — intent (what we wanted) + the mature shape (classes, interfaces, dependencies, module relationships, build order) with Mermaid UML, from vision+spec+plan or `--from-code`; optional, after `/draft-plan` | | `human-view` | Projects an LLM-optimized planning artefact (plan / blueprint / spec / vision) into a human-readable approval view — goal + concrete decisions + an alignment check | | `execute` | Runs a plan step-by-step with per-step verification gates | | `close-out` | The scope chain's terminus — reconciles a shipped slug's spec to what actually shipped (a new `as-shipped` version, intent preserved via supersedes), retires the spent plan/blueprint to a dated `.claude/archive/` folder, and records one ship line via `update-changelog`. Mode A, propose-confirm; `/execute` offers it on done-criteria-met | | `work-state` | Reports a slug's position in the scope chain (`envision→…→execute→close-out`) as deterministic structured state — per-stage missing/present/stale/done + next-action + the load-bearing stale-spec-pin check. Read-only, filesystem-derived, no model call. `/status` alias | | `glossary` | Extracts a project's ubiquitous language (domain term → definition → code symbol) into a project-tier `.claude/rules/glossary.md` the rule-prime hook primes and `review` cites as a vocabulary-drift reference — the *meaning* leg beside codemap's structure and `extract-conventions`' style. Frequency-ranked candidates, confidence-flagged definitions, per-group propose-confirm | | `update-changelog` | The single writer of the canonical `CHANGELOG.md` ship-record — one line per shipped unit, propose-confirm. Several organs (`recap` / `checkpoint` / `execute` / `close-out` / `spec` / `draft-plan`) offer it; this skill does the write | | `autonomize` | Owns one goal-directed autonomy contract (effort / stopping / ask) that the workflow organs read at their decision points — set as a persistent 047-tier default, per-task at kickoff, a live mid-flight steer, or via a short interview. Propose-confirm, never auto-fires | | `orchestrate` | Goal-directed orchestration & convergence for concurrent work — decompose-or-refuse, place each unit (shared tree / worktree / serialize), fan out via `dispatch`, verify-then-converge (merge or synthesis) | | `coordinate` | Keeps multiple live sessions aligned via a shared gitignored session board — register / check / hand-off / collision-detect; a session can claim coordinator. Peer-session alignment, distinct from subagents | | `checkpoint` | Scope-dialed fit-and-intent check (diff / module / corpus) — "does this serve the point + cohere + what did I learn?"; diff scope composes `/code-review` + a fit-pass. Supersedes the now-deprecated `retrospect` + `system-review` | | `retrospect-core` | Shared engine for the meta-review organs (the deprecated `retrospect`/`system-review` and `checkpoint`'s corpus scope) — orient, NEW/CARRIED/RESOLVED baseline diff, propose-confirm-commit-with-routing, 042-contract render, persist. Library-only — not user-invoked | | `humanize` | Detects, scores, and rewrites AI-texture in user-facing prose (tech docs / email / PR-proposal-issue) — density-not-instance, advisory likelihood not a binary verdict, voice-calibrated rewrite that preserves every argument. Refuses the terse model corpus (memory, codemap, specs) | | `update-codemap` | Regenerates `.claude/codemap.md` with file tree, purposes, exports + signatures, entry points, layers, inter-module dependency adjacency, a class graph, a call graph (syntactic, with TypeScript/C# receiver-type resolution to `Type.method`), and a call sequence — tree-sitter AST extraction across ~18 languages. Honours per-directory `.gitignore` to denoise build output; warns on scoped runs about ancestor ignore/config it can't see. Clears the dirty sentinel after a successful write | | `codemap-visualize` | Renders a UML-heavy document from `.claude/codemap.md` — ASCII Structure tree, a top-down Module map (labeled edges, hub + cycle highlighting, legend), per-module class diagrams + subfolder-clustered file graphs, a cross-module class relations diagram, per-module call-graph diagrams, and Mermaid sequence diagrams for high-signal entry points. Writes to `.claude/codemap.diagrams.md` and the Obsidian vault under `Projects/<ProjectFolder>/Codemap/` | | `brainstorm` | Shapes a half-formed idea or crystallizes a blurry one (name, one-line description, in/out edges, end-goal) — upstream of `/envision`; writes a light `.claude/ideas/<slug>.md` note | | `envision` | Interview-driven top-level project vision — intent, UX walkthrough, 4–8 named modules (role/owns/depends-on/does-not-do), boundaries, relations, cross-cutting concerns, non-goals (≥ 3), mandatory module-map diagram. Versioned under `.claude/visions/<slug>/v<N>.md`. Upstream of `/spec`. Breadth-over-depth — refuses to drift into implementation detail | | `systematic-debugging` | Enforces root-cause investigation before fixes (4-phase process) | | `test-driven-development` | Enforces red-green-refactor discipline before implementation | | `new-hook` | End-to-end hook scaffolding with recipe selection and settings merge | | `new-agent` | Interview-driven subagent scaffolding (job-to-be-done, anti-patterns, debug workflow) | | `new-mcp` | Interview-driven MCP server scaffolding (TypeScript/Python, simple/API wrapper) | | `new-agents-md` | Distill-then-interview generator that projects the discipline corpus into a vendor-neutral root `AGENTS.md` for non-Claude agents (interactive companion to `project-instructions`) | | `project-instructions` | Deterministic cross-tool projector — regenerates root `AGENTS.md`, lean `.github/copilot-instructions.md`, and per-scope `.github/instructions/*.instructions.md` from the corpus (`node skills/project-instructions/project-instructions.mjs`) | | `dispatch` | Delegates independent problems to parallel subagents with depth caps | | `improve-prompt` | Improves any prompt — text/LLM or generative image/video/audio — model-agnostically; interviews to fill real gaps, then returns a rewritten prompt plus rationale (what changed, assumptions, optional per-model notes) | | `using-git-worktrees` | Creates isolated worktrees with gitignore safety and baseline test verification | | `memory-audit` | Checks memory tree for 9 integrity dimensions (orphans, dupes, schema gaps, stale refs) | | `rules` | Manages the architectural-rule overlay across the shipped / company / user / project tiers — list, disable/enable (global/project/session), whole-file or field-patch override, resolve (`where`), sync company repo. Every mutation previews before→after on the effective corpus | ### commands/ — Slash-command shims
 
 Each file is a thin entrypoint that delegates to the corresponding skill. One file per command.
 
-| Command | Invokes |
-|---------|---------|
-| `/prep` | `skills/prep` |
-| `/review` | `skills/review` |
-| `/extract-conventions` | `skills/extract-conventions` |
-| `/write-tests` | `skills/write-tests` |
-| `/pr-review` | `skills/pr-review` |
-| `/pr-author` | `skills/pr-author` |
-| `/pr-triage` | `skills/pr-triage` |
-| `/pre-push` | `skills/pre-push` |
-| `/capture` | `skills/capture` |
-| `/recap` | `skills/recap` |
-| `/discover` | `skills/discover` |
-| `/execute` | `skills/execute` |
-| `/draft-plan` | Produces a versioned plan from an active spec |
-| `/spec` | Interviews the user, writes a versioned spec under `.claude/specs/` |
-| `/blueprint` | `skills/blueprint` |
-| `/brainstorm` | `skills/brainstorm` |
-| `/checkpoint` | `skills/checkpoint` |
-| `/human-view` | `skills/human-view` |
-| `/coordinate` | `skills/coordinate` |
-| `/envision` | Interviews the user, writes a versioned top-level project vision under `.claude/visions/` |
-| `/improve-prompt` | `skills/improve-prompt` |
-| `/update-codemap` | `skills/update-codemap` |
-| `/codemap-visualize` | `skills/codemap-visualize` |
-| `/new-hook` | `skills/new-hook` |
-| `/new-agent` | `skills/new-agent` |
-| `/new-mcp` | `skills/new-mcp` |
-| `/memory-audit` | `skills/memory-audit` |
-| `/rules` | `skills/rules` |
-| `/allow-skip-hooks` | Arms hook-skip-blocker to permit the next N git bypass commands |
-
-A few skills have no command shim and are invoked by name or auto-fire only: `orchestrate`, `new-agents-md`, `deliver` (library-only), `dispatch`, `systematic-debugging`, `test-driven-development`, `using-git-worktrees`, `project-instructions` (run as a Node CLI).
+| Command | Invokes | |---------|---------| | `/prep` | `skills/prep` | | `/review` | `skills/review` | | `/extract-conventions` | `skills/extract-conventions` | | `/write-tests` | `skills/write-tests` | | `/pr-review` | `skills/pr-review` | | `/pr-author` | `skills/pr-author` | | `/pr-triage` | `skills/pr-triage` | | `/pre-push` | `skills/pre-push` | | `/capture` | `skills/capture` | | `/recap` | `skills/recap` | | `/discover` | `skills/discover` | | `/execute` | `skills/execute` | | `/close-out` | `skills/close-out` | | `/work-state` | `skills/work-state` (alias `/status`) | | `/glossary` | `skills/glossary` | | `/update-changelog` | `skills/update-changelog` | | `/draft-plan` | Produces a versioned plan from an active spec | | `/spec` | Interviews the user, writes a versioned spec under `.claude/specs/` | | `/blueprint` | `skills/blueprint` | | `/brainstorm` | `skills/brainstorm` | | `/checkpoint` | `skills/checkpoint` | | `/human-view` | `skills/human-view` | | `/coordinate` | `skills/coordinate` | | `/envision` | Interviews the user, writes a versioned top-level project vision under `.claude/visions/` | | `/improve-prompt` | `skills/improve-prompt` | | `/update-codemap` | `skills/update-codemap` | | `/codemap-visualize` | `skills/codemap-visualize` | | `/new-hook` | `skills/new-hook` | | `/new-agent` | `skills/new-agent` | | `/new-mcp` | `skills/new-mcp` | | `/memory-audit` | `skills/memory-audit` | | `/rules` | `skills/rules` | | `/humanize` | `skills/humanize` | | `/retrospect` | `skills/retrospect` (deprecated → `/checkpoint --scope corpus`) | | `/system-review` | `skills/system-review` (deprecated → `/checkpoint --scope corpus`) | | `/allow-skip-hooks` | Arms hook-skip-blocker to permit the next N git bypass commands | A few skills have no command shim and are invoked by name or auto-fire only: `orchestrate`, `autonomize`, `new-agents-md`, `deliver` (library-only), `dispatch`, `systematic-debugging`, `test-driven-development`, `using-git-worktrees`, `project-instructions` (run as a Node CLI).
 
 ### agents/ — Specialized subagent definitions
 
 Language and domain experts with tailored system prompts, tool allowlists, and model selections.
 
-| Agent | Domain |
-|-------|--------|
-| `cpp-pro` | Modern C++ (C++11–23) — RAII, smart pointers, templates, performance |
-| `c-sharp-pro` | Modern C# / .NET — async, LINQ, EF Core, ASP.NET Core |
-| `rust-pro` | Idiomatic Rust — ownership, lifetimes, traits, async with Tokio |
-| `react-pro` | React 19+ — hooks, Server Components, concurrent rendering |
-| `metal-video-source-pro` | Metal textures from VideoToolbox via zero-copy IOSurface bridging |
-| `vision-os-pro` | visionOS — RealityKit, ARKit, Swift↔Obj-C++ bridging |
-| `unity-pro` | Unity 2022.3+ — gameplay, scenes/prefabs, ScriptableObject, Addressables, scripting perf, build pipeline |
-| `unity-ui-pro` | Unity UI — UI Toolkit (UXML/USS/UIDocument) and UGUI, data binding, gamepad/keyboard input, runtime UI perf |
-| `security-reviewer` | OWASP Top 10 / LLM Top 10 / Zero Trust vulnerability review |
-| `mcp-ts-pro` | TypeScript MCP servers — @modelcontextprotocol/sdk, Zod schemas, stdio/HTTP transport |
-| `mcp-py-pro` | Python MCP servers — FastMCP, httpx, async tools, venv setup |
-
-### mcps/ — MCP server projects
+| Agent | Domain | |-------|--------| | `cpp-pro` | Modern C++ (C++11–23) — RAII, smart pointers, templates, performance | | `c-sharp-pro` | Modern C# /.NET — async, LINQ, EF Core, ASP.NET Core | | `rust-pro` | Idiomatic Rust — ownership, lifetimes, traits, async with Tokio | | `react-pro` | React 19+ — hooks, Server Components, concurrent rendering | | `metal-video-source-pro` | Metal textures from VideoToolbox via zero-copy IOSurface bridging | | `vision-os-pro` | visionOS — RealityKit, ARKit, Swift↔Obj-C++ bridging | | `unity-pro` | Unity 2022.3+ — gameplay, scenes/prefabs, ScriptableObject, Addressables, scripting perf, build pipeline | | `unity-ui-pro` | Unity UI — UI Toolkit (UXML/USS/UIDocument) and UGUI, data binding, gamepad/keyboard input, runtime UI perf | | `security-reviewer` | OWASP Top 10 / LLM Top 10 / Zero Trust vulnerability review | | `mcp-ts-pro` | TypeScript MCP servers — @modelcontextprotocol/sdk, Zod schemas, stdio/HTTP transport | | `mcp-py-pro` | Python MCP servers — FastMCP, httpx, async tools, venv setup | ### mcps/ — MCP server projects
 
 MCP (Model Context Protocol) server projects scaffolded by `/new-mcp`. Most are standalone — registered directly in `~/.claude.json` and run independently. The exception is `project-memory/`, the first-party memory MCP, which the bootstrap registers for you.
 
-| Directory | Purpose |
-|-----------|---------|
-| `lib/` | Shared TypeScript utilities for API-wrapping servers (fetch, rate limiting, error formatting) |
-| `lib-py/` | Shared Python utilities for API-wrapping servers (httpx-based fetch, rate limiting, errors) |
-| `project-memory/` | First-party memory-retrieval MCP — three discover-shaped tools over the per-project memory store; retrieval-only; **registered by bootstrap** (the one MCP that is not standalone) |
-| `unity/` | Custom Unity Editor MCP — TypeScript server + C# Editor extension (see below) |
-| `godot/` | Custom Godot 4.x editor-bridge MCP — TypeScript server + GDScript editor plugin (see below) |
-| `<name>/` | Individual MCP server projects (created by `/new-mcp`) |
-
-#### Unity MCP
+| Directory | Purpose | |-----------|---------| | `lib/` | Shared TypeScript utilities for API-wrapping servers (fetch, rate limiting, error formatting) | | `lib-py/` | Shared Python utilities for API-wrapping servers (httpx-based fetch, rate limiting, errors) | | `project-memory/` | First-party memory-retrieval MCP — three discover-shaped tools over the per-project memory store; retrieval-only; **registered by bootstrap** (the one MCP that is not standalone) | | `unity/` | Custom Unity Editor MCP — TypeScript server + C# Editor extension (see below) | | `godot/` | Custom Godot 4.x editor-bridge MCP — TypeScript server + GDScript editor plugin (see below) | | `<name>/` | Individual MCP server projects (created by `/new-mcp`) | #### Unity MCP
 
 `mcps/unity/` is a custom Unity Editor MCP server developed in-tree alongside the other contexture tooling. Two processes — a TypeScript MCP server (stdio) and a C# Unity Editor extension (local HTTP bridge) — communicating over `localhost`. Tool surface is project-aware: capability negotiation at connect-time enables/disables tools based on installed packages (URP/HDRP, XRI, MRTK 3, test framework, etc.).
 
 Domains exposed today (incremental slices A–N + post-N work):
 
-| Domain | Representative tools |
-|---|---|
-| Scene / GameObject | `scene_info`, `scene_load`, `scene_save`, `scene_create` (seeds Main Camera + Directional Light by default; opt-in EventSystem; capability-aware XR rig from a template prefab), `go_create`, `go_find`, `go_set_transform`, `go_set_parent` |
-| Component | `component_add`, `component_remove`, `component_set_property` / `component_set_properties` (asset refs by `{$guid}` / `{$path}`), `component_describe` |
-| Asset pipeline | `asset_find`, `asset_create`, `asset_move`, `asset_import`, `asset_get_dependencies`, `manage_material` |
-| Project settings | `manage_project_settings` (Tags / Layers / Quality), `manage_camera`, `manage_physics` |
-| Input System | `manage_input` — read (`list_assets` / `inspect_asset` / `find_action`) **and** write `.inputactions` (`create_asset` / `add_map` / `add_action` / `add_binding` / `remove_*`) via the Input System API so Unity owns the GUIDs and `.meta` |
-| Packages | `manage_packages` (UPM ops) |
-| Scripts | `script_manage`, `script_find`, `script_edit` |
-| Tests / Play Mode | `run_tests` (TestRunnerApi-backed), `playmode_set` (bounded Play Mode control) |
-| Console | `console_read`, `console_filter`, `console_clear` |
-| UI authoring | `ui_create_button`, `ui_create_text`, `ui_create_panel`, `ui_create_image`, `execute_menu_item` |
-| Discovery / visibility | `component_describe`, `component_preview`, `component_tree` |
-| Documentation | `unity_docs` (fetch official Unity docs) |
-| Reflection | `unity_reflect` (read-only C# API inspection) |
-| Validation | `validate_component` (generalized validator with MRTK rules under `#if UNITY_MCP_HAS_MRTK`) |
-| Orchestration | `procedure_run` (server-side multi-step orchestrator — collapses N atomic frame-boundary waits into 1) |
-| MRTK 3 | `mrtk3_*` family (inspect / validate UX components, gated on package presence) |
-| XR Interaction (XRI) | `xri_*` family — driver takeover so input injection survives MRTK's per-frame state rewrite |
-
-Reference: [`mcps/unity/CONTRIBUTING-DEBUG.md`](../mcps/unity/CONTRIBUTING-DEBUG.md). Error envelopes carry structured details on a second `Details: { ... }` line (parsed by callers via `/^Details: (\{.*\})$/m` + `JSON.parse`).
+| Domain | Representative tools | |---|---| | Scene / GameObject | `scene_info`, `scene_load`, `scene_save`, `scene_create` (seeds Main Camera + Directional Light by default; opt-in EventSystem; capability-aware XR rig from a template prefab), `go_create`, `go_find`, `go_set_transform`, `go_set_parent` | | Component | `component_add`, `component_remove`, `component_set_property` / `component_set_properties` (asset refs by `{$guid}` / `{$path}`), `component_describe` | | Asset pipeline | `asset_find`, `asset_create`, `asset_move`, `asset_import`, `asset_get_dependencies`, `manage_material` | | Project settings | `manage_project_settings` (Tags / Layers / Quality), `manage_camera`, `manage_physics` | | Input System | `manage_input` — read (`list_assets` / `inspect_asset` / `find_action`) **and** write `.inputactions` (`create_asset` / `add_map` / `add_action` / `add_binding` / `remove_*`) via the Input System API so Unity owns the GUIDs and `.meta` | | Packages | `manage_packages` (UPM ops) | | Scripts | `script_manage`, `script_find`, `script_edit` | | Tests / Play Mode | `run_tests` (TestRunnerApi-backed), `playmode_set` (bounded Play Mode control) | | Console | `console_read`, `console_filter`, `console_clear` | | UI authoring | `ui_create_button`, `ui_create_text`, `ui_create_panel`, `ui_create_image`, `execute_menu_item` | | Discovery / visibility | `component_describe`, `component_preview`, `component_tree` | | Documentation | `unity_docs` (fetch official Unity docs) | | Reflection | `unity_reflect` (read-only C# API inspection) | | Validation | `validate_component` (generalized validator with MRTK rules under `#if UNITY_MCP_HAS_MRTK`) | | Orchestration | `procedure_run` (server-side multi-step orchestrator — collapses N atomic frame-boundary waits into 1) | | MRTK 3 | `mrtk3_*` family (inspect / validate UX components, gated on package presence) | | XR Interaction (XRI) | `xri_*` family — driver takeover so input injection survives MRTK's per-frame state rewrite | Reference: [`mcps/unity/CONTRIBUTING-DEBUG.md`](../mcps/unity/CONTRIBUTING-DEBUG.md). Error envelopes carry structured details on a second `Details: {... }` line (parsed by callers via `/^Details: (\{.*\})$/m` + `JSON.parse`).
 
 #### Godot MCP
 
@@ -237,18 +141,7 @@ It has a **dual surface** Godot rewards that Unity's single editor funnel doesn'
 
 Tool surface (grows from the plugin's dynamic capability descriptor — no hardcoded tool list; ~42 tools, ~43 on a C# project):
 
-| Domain | Surface | Representative tools |
-|---|---|---|
-| Project / scene / node | socket | `project_info`, `scene_info` / `scene_create` / `scene_open` / `scene_save` / `scene_reload`, `node_find` / `node_create` / `node_delete` / `node_reparent` / `node_duplicate` / `node_set_property` (all undoable) |
-| Scripts | socket | `script_create`, `script_attach`, `script_edit`, `script_validate` |
-| Project settings / input | socket | `project_settings_get` / `set`, `input_map_list` / `add` / `remove` |
-| Game UI (Control nodes) | socket | `ui_create_control` (anchor-preset-aware, undoable), `ui_inspect_control`, `ui_set_anchors`, `ui_get_theme`, `ui_set_theme_override`, `ui_set_container_layout` |
-| Content pipeline | socket | `import_asset` (image → `res://`, driven editor import), `set_resource` (Texture2D / AtlasTexture / StyleBoxTexture, undoable), `instance_scene` (instance a `.tscn` undoably), `create_resource` (author a custom `.tres`) |
-| Viewport | socket | `view` (capture the 2D/3D editor viewport as a PNG — needs a windowed editor) |
-| Runtime introspection | debugger | `runtime_tree`, `runtime_get_property` / `set_property`, `runtime_emit_signal` (inspect/modify the *live running game* over the `EngineDebugger` channel) |
-| Run / export / build | CLI + socket | `run_project` / `get_debug_output` (CLI), `play_scene` / `stop_scene` (socket — run/stop the current scene without manual F5/F6), `export_preset`, `dotnet_build` (C# projects only — advertised only when the project is C#) |
-
-Value coercion: socket setters coerce JSON to Godot Variants for common types (primitives, `Vector2/3`(`i`), `Color`, `Rect2`(`i`), `NodePath`, `res://` `Resource`/`StyleBox`) — unsupported types return a structured `InvalidInput` naming the type, never a silent wrong value.
+| Domain | Surface | Representative tools | |---|---|---| | Project / scene / node | socket | `project_info`, `scene_info` / `scene_create` / `scene_open` / `scene_save` / `scene_reload`, `node_find` / `node_create` / `node_delete` / `node_reparent` / `node_duplicate` / `node_set_property` (all undoable) | | Scripts | socket | `script_create`, `script_attach`, `script_edit`, `script_validate` | | Project settings / input | socket | `project_settings_get` / `set`, `input_map_list` / `add` / `remove` | | Game UI (Control nodes) | socket | `ui_create_control` (anchor-preset-aware, undoable), `ui_inspect_control`, `ui_set_anchors`, `ui_get_theme`, `ui_set_theme_override`, `ui_set_container_layout` | | Content pipeline | socket | `import_asset` (image → `res://`, driven editor import), `set_resource` (Texture2D / AtlasTexture / StyleBoxTexture, undoable), `instance_scene` (instance a `.tscn` undoably), `create_resource` (author a custom `.tres`) | | Viewport | socket | `view` (capture the 2D/3D editor viewport as a PNG — needs a windowed editor) | | Runtime introspection | debugger | `runtime_tree`, `runtime_get_property` / `set_property`, `runtime_emit_signal` (inspect/modify the *live running game* over the `EngineDebugger` channel) | | Run / export / build | CLI + socket | `run_project` / `get_debug_output` (CLI), `play_scene` / `stop_scene` (socket — run/stop the current scene without manual F5/F6), `export_preset`, `dotnet_build` (C# projects only — advertised only when the project is C#) | Value coercion: socket setters coerce JSON to Godot Variants for common types (primitives, `Vector2/3`(`i`), `Color`, `Rect2`(`i`), `NodePath`, `res://` `Resource`/`StyleBox`) — unsupported types return a structured `InvalidInput` naming the type, never a silent wrong value.
 
 Install differs from Unity: copy/symlink `godot-plugin/addons/claude_mcp/` into your project's `addons/`, enable it (Project Settings → Plugins), then register the server with `claude mcp add`. The plugin writes a per-project registry file (`~/.claude/godot-mcp/instances/<projectId>.json`) carrying the port **and the editor's own binary path** — so the server finds both the socket and the `godot` binary even when it isn't on `PATH`.
 
@@ -258,21 +151,7 @@ Reference: [`mcps/godot/README.md`](../mcps/godot/README.md) (install + full too
 
 Queryable rules consumed by prep (before coding) and review (after coding). Each file has frontmatter with `scope`, `relevance`, and optional `kind`.
 
-| Scope | Rules |
-|-------|-------|
-| `universal/` (15) | change-discipline, code-standards, config-is-truth, deep-modules, docs-and-comments, git, layering, naming, naming-and-comments, no-hardcoded-machine-paths, persist-before-discard, planning-depth, skill-auto-fire, solid-and-responsibilities, test-quality. Most are `relevance: always`; `naming-and-comments` (during-review) and `test-quality` (during-review + when-writing-tests) are phase-gated — zero always-on cost |
-| `config-authoring/` (2) | cross-tool-core, share-readiness — rules about *authoring this harness* (not user code): keep it shareable / leak-free, project cleanly cross-tool |
-| `bash/` (3) | quoting, safety, structure |
-| `cpp/` (7) | concurrency, const-correctness, error-paths, headers, modern-cpp-raii, ownership, templates |
-| `csharp/` (6) | async, collections-and-linq, disposal, exceptions, naming, nullable |
-| `python/` (5) | errors-and-resources, idioms, naming, packaging, typing |
-| `rust/` (10) | dependability, documentation, error-handling, flexibility, future-proofing, interoperability, macros, naming, predictability, type-safety |
-| `sql/` (3) | formatting, query-structure, schema |
-| `typescript/` (4) | async, modules, narrowing, type-system |
-| `unity/` (8) | component-design, input-actions-on-pointer, meta-files, namespaces-and-imports, serialization-and-inspector, ui-code, uitoolkit-uss-limits, ugui-skill-usage |
-| `web/` (3) | async, layering, state |
-
-The table above is the **shipped tier** — the corpus that travels with this repo. You don't hand-edit it: the next `git pull` + bootstrap would clobber the change (the symlink points back at the repo). Instead, the **rule overlay** gives your own and your team's rules an update-safe home that *composes* with the shipped corpus.
+| Scope | Rules | |-------|-------| | `universal/` (15) | change-discipline, code-standards, config-is-truth, deep-modules, docs-and-comments, git, layering, naming, naming-and-comments, no-hardcoded-machine-paths, persist-before-discard, planning-depth, skill-auto-fire, solid-and-responsibilities, test-quality. Most are `relevance: always`; `naming-and-comments` (during-review) and `test-quality` (during-review + when-writing-tests) are phase-gated — zero always-on cost | | `config-authoring/` (2) | cross-tool-core, share-readiness — rules about *authoring this harness* (not user code): keep it shareable / leak-free, project cleanly cross-tool | | `bash/` (3) | quoting, safety, structure | | `cpp/` (7) | concurrency, const-correctness, error-paths, headers, modern-cpp-raii, ownership, templates | | `csharp/` (6) | async, collections-and-linq, disposal, exceptions, naming, nullable | | `python/` (5) | errors-and-resources, idioms, naming, packaging, typing | | `rust/` (10) | dependability, documentation, error-handling, flexibility, future-proofing, interoperability, macros, naming, predictability, type-safety | | `sql/` (3) | formatting, query-structure, schema | | `typescript/` (4) | async, modules, narrowing, type-system | | `unity/` (8) | component-design, input-actions-on-pointer, meta-files, namespaces-and-imports, serialization-and-inspector, ui-code, uitoolkit-uss-limits, ugui-skill-usage | | `web/` (3) | async, layering, state | The table above is the **shipped tier** — the corpus that travels with this repo. You don't hand-edit it: the next `git pull` + bootstrap would clobber the change (the symlink points back at the repo). Instead, the **rule overlay** gives your own and your team's rules an update-safe home that *composes* with the shipped corpus.
 
 #### Rule overlay — four tiers
 
@@ -280,11 +159,11 @@ Rules resolve across four tiers. Each tier mirrors the shipped layout exactly (`
 
 ```mermaid
 flowchart TB
-  P["① project/.claude/rules/<br/>(per-repo, committed)"]
-  U["② ~/.claude/architectural-rules-local/<br/>(your machine, never synced)"]
-  C["③ ~/.claude/architectural-rules-company/<br/>(team repo clone)"]
-  S["④ ~/.claude/architectural-rules/<br/>(shipped — symlink into this repo)"]
-  P -->|wins over| U -->|wins over| C -->|wins over| S
+ P["① project/.claude/rules/<br/>(per-repo, committed)"]
+ U["② ~/.claude/architectural-rules-local/<br/>(your machine, never synced)"]
+ C["③ ~/.claude/architectural-rules-company/<br/>(team repo clone)"]
+ S["④ ~/.claude/architectural-rules/<br/>(shipped — symlink into this repo)"]
+ P -->|wins over| U -->|wins over| C -->|wins over| S
 ```
 
 Effective precedence, highest first: **① project > ② user-local > ③ company > ④ shipped.** For any `<scope>/<name>` key, the highest tier that defines it wins.

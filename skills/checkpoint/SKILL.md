@@ -30,6 +30,7 @@ Every scope produces `Finding` objects per the [retrospect-core](../retrospect-c
 
 1. **Correctness (compose).** Invoke `code-review` on the change for bugs + cleanup. If `code-review` is unavailable, note it and proceed with the fit-pass only.
 2. **Fit-pass (the added lens).** Read the slug's intent (vision/spec if present) + the surrounding architecture (codemap, the touched module's boundaries). Ask: *does this change serve where we're going, and cohere with the whole* — not just "is it locally correct". Findings: scope creep, a change that contradicts the stated intent, a boundary it quietly crosses, a simpler shape that fits better.
+ - **Size the fit question to the autonomy contract's `stopping` posture** ([autonomize](../autonomize/SKILL.md), — read the effective contract): under **`criteria-met`** (default), ask the full fit question above *plus* gold-plating (any finished item tracing to no stated criterion?). Under **`user-anytime`**, do not flag "more could be done" as drift — the posture is freeze-a-coherent-best-so-far and record what remains; the fit question becomes *is what's here coherent and honestly scoped*, not *is it complete*. Under **`diminishing-returns`** / **`budget`**, treat "stopped before perfect" as intended, not a finding. The contract selects which fit question to ask; checkpoint does not redefine fit.
 3. Render **one report, two sections** (correctness from `code-review` + fit from the fit-pass). One action, both lenses.
 
 ### module scope — the post-build checkpoint (the core need)
@@ -39,6 +40,8 @@ Over the just-built module(s), four passes:
 - **Integration-fit** — *the sharpest blade:* do the just-built modules actually **cohere with each other** — consistent boundaries, assumptions, and seams — or did they drift apart while built heads-down? Nothing else in the system checks this.
 - **Continue-or-kill** — now that it's real, is the direction still worth it, or did building reveal it's not?
 - **Lessons** — what did building this teach (capture-worthy)? Routes to `/capture`.
+
+When a module-scope checkpoint confirms a built unit is **good and worth keeping** (drift clean, coheres, continue), offer a changelog ship line: *"&lt;unit&gt; checks out — log it to CHANGELOG? (y/N)"*. On `y`, invoke [`skills/update-changelog/SKILL.md`](../update-changelog/SKILL.md) with the unit — it composes a ship line behind its own accept/edit/reject gate. checkpoint is a *doorway*, not the changelog writer. Skip when the checkpoint kills/defers the work (nothing shipped to log).
 
 ### corpus scope — the history + system audit (absorbed)
 

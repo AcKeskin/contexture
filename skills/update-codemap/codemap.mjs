@@ -57,6 +57,17 @@ const SIGNATURE_MAX = 120;
 // changing either; raising one without the other re-truncates an already-capped section.
 const CALL_EDGE_CAP_PER_MODULE = 60;
 
+// Call-sequence section caps (always-on document budget). callSeq is voluminous and
+// per-caller, so the `.md` shows only the highest-fan-out callers per module and caps the
+// callees per chain — the visualizer expands a small set into sequence diagrams, it does
+// not need every chain. Overflow is summarized, never silently dropped.
+const CALL_SEQ_CALLERS_PER_MODULE = 8;  // top-fan-out callers shown per module
+const CALL_SEQ_CALLEES_PER_CHAIN = 12;  // ordered callees shown per caller chain
+
+// 087 confidence floor: a type-resolved call edge replaces its syntactic name-match only when
+// confidence ≥ this; below it the syntactic edge stands (flagged), never a low-confidence guess.
+const CALL_RESOLUTION_FLOOR = 0.6;
+
 const LANG_BY_EXT = {
   // `.h` stays on cpp-header: C++ headers dominate mixed codebases and the cpp grammar
   // parses C-style structs/unions fine, so a `.h`-to-`c` split would mis-route far more
@@ -186,28 +197,123 @@ function configGlobToRegex(pattern) {
   return new RegExp('(^|/)' + re + '$');
 }
 
+// Compile a single .gitignore file's entries into root-relative skip regexes. Patterns are
+// relative to the gitignore's own directory (dirRel, '' for root), so a nested
+// mcps/unity/server/.gitignore line `build-test/` becomes the regex for
+// mcps/unity/server/build-test/. Comments / blanks / negations (`!`) are dropped — a
+// negation re-includes a path, which the skip pipeline can't express.
+function compileGitignore(absPath, dirRel) {
+  let text;
+  try { text = fs.readFileSync(absPath, 'utf8'); } catch { return []; }
+  const out = [];
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || line.startsWith('#') || line.startsWith('!')) continue;
+    const pat = line.replace(/^\//, ''); // leading slash = anchor to this dir; configGlobToRegex anchors anyway
+    // Prefix the pattern with the gitignore's own dir so it matches root-relative paths.
+    // Building the full glob and compiling once avoids surgery on the regex source.
+    const full = dirRel ? `${dirRel}/${pat}` : pat;
+    out.push(configGlobToRegex(full));
+  }
+  return out;
+}
+
+// When the scan root is a SUBFOLDER of a larger git repo (a scoped run), .gitignore and
+// codemap.config.md files that live ABOVE the scan root are invisible to the per-directory
+// walk — so build-output rules like `mcps/*/build-test/` declared at the repo root stop
+// applying, and build twins can leak back in. Rather than silently guess at translating those
+// ancestor rules to the scoped root, surface them: warn and list what the user should check.
+// Non-blocking — the scan continues. (Also lists nested .gitignore inside the scope so the
+// user can confirm what IS honoured.)
+function checkScopeContext(root, args) {
+  const notes = [];
+  // Walk up from the scan root looking for the enclosing git repo root (.git dir/file).
+  let repoRoot = null;
+  let dir = path.resolve(root);
+  for (let i = 0; i < 40; i++) {
+    if (fs.existsSync(path.join(dir, '.git'))) { repoRoot = dir; break; }
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  const scoped = repoRoot && path.resolve(repoRoot) !== path.resolve(root);
+  if (scoped) {
+    // Collect ancestor .gitignore + codemap.config.md between repoRoot (inclusive) and the
+    // scan root (exclusive).
+    const ancestors = [];
+    let d = path.dirname(path.resolve(root));
+    const stop = path.resolve(repoRoot);
+    for (let i = 0; i < 40; i++) {
+      const gi = path.join(d, '.gitignore');
+      if (fs.existsSync(gi)) ancestors.push(path.relative(root, gi).replace(/\\/g, '/'));
+      const cfg = path.join(d, '.claude', 'codemap.config.md');
+      if (fs.existsSync(cfg)) ancestors.push(path.relative(root, cfg).replace(/\\/g, '/'));
+      if (path.resolve(d) === stop) break;
+      const parent = path.dirname(d);
+      if (parent === d) break;
+      d = parent;
+    }
+    if (ancestors.length) {
+      notes.push(`scope: scanning a SUBFOLDER of git repo ${path.relative(process.cwd(), repoRoot) || '.'} — ` +
+        `${ancestors.length} ancestor ignore/config file(s) ABOVE the scope are NOT applied:`);
+      for (const a of ancestors) notes.push(`  • ${a}`);
+      notes.push(`  → if these declare build-output or skip rules for this subtree (e.g. \`build/\`, \`build-test/\`), ` +
+        `they won't be honoured here. Re-run from the repo root, or copy the relevant rules into ` +
+        `${path.join(path.relative(process.cwd(), root) || '.', '.gitignore')} / a local codemap.config.md.`);
+    } else {
+      notes.push(`scope: scanning a subfolder of ${path.relative(process.cwd(), repoRoot) || '.'} — ` +
+        `no ancestor .gitignore / codemap.config.md found above the scope (nothing to honour from above).`);
+    }
+  }
+  // Always: list nested .gitignore inside the scope so the user can confirm what IS honoured.
+  const nested = [];
+  (function scan(d) {
+    let ents;
+    try { ents = fs.readdirSync(d, { withFileTypes: true }); } catch { return; }
+    for (const e of ents) {
+      if (e.isDirectory()) { if (!SKIP_DIRS.has(e.name)) scan(path.join(d, e.name)); }
+      else if (e.name === '.gitignore') nested.push(path.relative(root, path.join(d, e.name)).replace(/\\/g, '/'));
+    }
+  })(path.resolve(root));
+  if (nested.length) {
+    notes.push(`scope: ${nested.length} .gitignore inside the scope (honoured): ${nested.join(', ')}`);
+  }
+  for (const n of notes) log(args, n);
+}
+
 function walk(root, configSkipRegexes) {
   const files = [];
-  function recur(dir) {
+  // Honour .gitignore per-directory: each dir's .gitignore governs its subtree (root +
+  // nested). This is the primary build-output denoise — a project's build dirs (build/,
+  // build-test/, possibly under a nested package) are excluded by the intent the repo
+  // already declares, with no name-enumeration in this tool.
+  function recur(dir, inheritedGitignore) {
     let entries;
     try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    let gitignoreRegexes = inheritedGitignore;
+    const giPath = path.join(dir, '.gitignore');
+    if (fs.existsSync(giPath)) {
+      const dirRel = path.relative(root, dir).replace(/\\/g, '/');
+      gitignoreRegexes = inheritedGitignore.concat(compileGitignore(giPath, dirRel));
+    }
+    const allSkip = configSkipRegexes.concat(gitignoreRegexes);
     for (const ent of entries) {
       const abs = path.join(dir, ent.name);
       const rel = path.relative(root, abs).replace(/\\/g, '/');
       if (ent.isDirectory()) {
         if (SKIP_DIRS.has(ent.name)) continue;
-        if (configSkipRegexes.some((re) => re.test(rel + '/'))) continue;
-        recur(abs);
+        if (allSkip.some((re) => re.test(rel + '/'))) continue;
+        recur(abs, gitignoreRegexes);
       } else if (ent.isFile()) {
         if (SKIP_FILENAMES.has(ent.name)) continue;
         if (SKIP_FILENAME_PREFIXES.some((p) => ent.name.startsWith(p))) continue;
         if (SKIP_FILE_PATTERNS.some((re) => re.test(ent.name))) continue;
-        if (configSkipRegexes.some((re) => re.test(rel))) continue;
+        if (allSkip.some((re) => re.test(rel))) continue;
         files.push({ abs, rel });
       }
     }
   }
-  recur(root);
+  recur(root, []);
   return files;
 }
 
@@ -795,9 +901,10 @@ function loadPreviousCodemap(codemapPath) {
 // codemap.md). A bumped CACHE_VERSION or a missing/corrupt file → cold rebuild, never a
 // stale read. The cache is advisory: a miss just means "re-extract", so it can never
 // produce a wrong map, only a slower one.
-// Bumped on cached-entry schema changes (v2 added `calls`; v3 added `defines`) — an older
-// entry lacks the field, so the bump forces a one-time cold rebuild rather than a partial read.
-const CACHE_VERSION = 3;
+// Bumped on cached-entry schema changes (v2 added `calls`; v3 added `defines`; v4 added
+// `callSeq`; v5 added `callResolution`) — an older entry lacks the field, so the bump forces a
+// one-time cold rebuild rather than a partial read.
+const CACHE_VERSION = 5;
 
 function loadExtractCache(cachePath) {
   try {
@@ -946,6 +1053,23 @@ function inferModulePurpose(items, inboundCounts) {
     unique.push(p);
   }
   return unique.join('. ');
+}
+
+// A module is markdown-dominant when most of its files are .md (a rule/doc corpus, e.g.
+// architectural-rules/ or docs/). For these, the per-file purpose derivation scrapes the
+// first `#` heading or frontmatter of each rule as if it were a code-doc comment, so the
+// aggregated folder summary becomes leaked rule content ("typing. lifecycle. …") instead of
+// a description of the folder. Summarise by role (humanised name + file count) instead.
+const MARKDOWN_DOMINANT_RATIO = 0.6;
+function isMarkdownDominant(items) {
+  if (!items.length) return false;
+  const md = items.filter((it) => path.extname(it.rel).toLowerCase() === '.md').length;
+  return md / items.length >= MARKDOWN_DOMINANT_RATIO;
+}
+function markdownFolderRole(modName, items) {
+  const name = modName.replace(/\/$/, '').replace(/[-_]+/g, ' ');
+  const n = items.length;
+  return `${name} — ${n} ${n === 1 ? 'file' : 'files'}`;
 }
 
 function findModuleEntry(modName, items, entryPoints) {
@@ -1205,7 +1329,41 @@ async function main() {
   const configRegexes = config.skipPatterns.map(configGlobToRegex);
   if (config.skipPatterns.length) log(args, `config: ${config.skipPatterns.length} skip patterns`);
 
-  const allFiles = walk(root, configRegexes);
+  // Scoped-run guard: if root is a subfolder of a larger repo, warn about ancestor
+  // .gitignore / codemap.config.md the per-dir walk can't see (and list nested ones honoured).
+  checkScopeContext(root, args);
+
+  // walk() honours .gitignore per-directory (root + nested) as the primary build-output
+  // denoise — SKIP_DIRS only catches the standard names; a project's non-standard or nested
+  // build dir (e.g. mcps/unity/server/build-test/) is excluded by the repo's declared intent,
+  // not by enumerating names here.
+  let allFiles = walk(root, configRegexes);
+
+  // Compiled-twin backstop: drop a .js/.cjs/.mjs file when a sibling .ts/.tsx source of the
+  // same basename lives in the same directory — that .js is build output (a compiled twin),
+  // not source, and counting it doubles importer counts and pollutes the Map. Conservative:
+  // only dropped when a .ts twin actually exists, so hand-written standalone .js is kept.
+  // Catches build output the .gitignore pass missed, and generalises to any build-dir name.
+  {
+    const tsKeys = new Set();
+    for (const f of allFiles) {
+      const ext = path.extname(f.rel).toLowerCase();
+      if (ext === '.ts' || ext === '.tsx') {
+        tsKeys.add(f.rel.slice(0, -ext.length)); // dir + basename, no extension
+      }
+    }
+    const before = allFiles.length;
+    allFiles = allFiles.filter((f) => {
+      const ext = path.extname(f.rel).toLowerCase();
+      if (ext === '.js' || ext === '.cjs' || ext === '.mjs') {
+        return !tsKeys.has(f.rel.slice(0, -ext.length));
+      }
+      return true;
+    });
+    const dropped = before - allFiles.length;
+    if (dropped) log(args, `compiled-twin backstop: dropped ${dropped} .js files shadowing .ts source`);
+  }
+
   log(args, `scanned: ${allFiles.length} files`);
 
   // Tree-sitter readiness: probe once. When the optional deps aren't installed this is
@@ -1227,6 +1385,8 @@ async function main() {
   const groups = new Map();
   const moduleImports = new Map();
   const fileCalls = new Map(); // rel → [{caller, callee}] (call edges)
+  const fileCallSeq = new Map(); // rel → [{caller, callees: [...source order, deduped NOT]}] (call SEQUENCE, for sequence diagrams)
+  const fileCallResolution = new Map(); // rel → [{caller, callee, receiver, qualified, confidence}] (087 type-resolved edges)
   const projectDefines = new Set(); // union of all defined function/method names (project-symbol signal for call-graph precision)
   // Collected during the scan; feeds the C# namespace→file index that resolveImport
   // consults for `using` directives. Built after the loop so heads are read once.
@@ -1259,6 +1419,8 @@ async function main() {
       if (cached.imports && cached.imports.length) moduleImports.set(f.rel, cached.imports);
       if (cached.namespace) namespaceByRel.set(f.rel, cached.namespace);
       if (cached.calls && cached.calls.length) fileCalls.set(f.rel, cached.calls);
+      if (cached.callSeq && cached.callSeq.length) fileCallSeq.set(f.rel, cached.callSeq);
+      if (cached.callResolution && cached.callResolution.length) fileCallResolution.set(f.rel, cached.callResolution);
       if (cached.defines && cached.defines.length) for (const d of cached.defines) projectDefines.add(d);
       continue;
     }
@@ -1277,6 +1439,8 @@ async function main() {
     let text = head.text;
     let astImports = null; // non-null when the tree-sitter engine supplied imports
     let calls = [];         // call edges; AST-only, empty for regex langs
+    let callSeq = [];        // ordered per-caller call sequence (AST-only); raw material for sequence diagrams
+    let callResolution = []; // 087 type-resolved call edges (TS/C# only); empty otherwise
     let defines = [];        // function/method names defined in this file (project-symbol signal)
 
     const tsTag = TREE_SITTER_TAG[lang];
@@ -1290,6 +1454,8 @@ async function main() {
         classes = ast.classes;
         astImports = ast.imports;
         calls = ast.calls || [];
+        callSeq = ast.callSeq || [];
+        callResolution = ast.callResolution || [];
         defines = ast.defines || [];
       }
     }
@@ -1319,6 +1485,8 @@ async function main() {
       imports = astImports !== null ? astImports : extractImports(text, lang);
       if (imports.length) moduleImports.set(f.rel, imports);
       if (calls.length) fileCalls.set(f.rel, calls);
+      if (callSeq.length) fileCallSeq.set(f.rel, callSeq);
+      if (callResolution.length) fileCallResolution.set(f.rel, callResolution);
       for (const d of defines) projectDefines.add(d);
     }
 
@@ -1339,7 +1507,7 @@ async function main() {
     }
 
     // Store this run's extraction so the next regen can skip it if unchanged.
-    if (stamp) nextCache[f.rel] = { ...stamp, purpose, exports, classes, vendored, imports, namespace, calls, defines };
+    if (stamp) nextCache[f.rel] = { ...stamp, purpose, exports, classes, vendored, imports, namespace, calls, callSeq, callResolution, defines };
   }
   if (!args.noCache) log(args, `cache: ${cacheHits} hits, ${cacheMisses} misses`);
 
@@ -1430,8 +1598,11 @@ async function main() {
     out += `## Modules\n`;
     for (const modName of sortedModuleNames) {
       const items = groups.get(modName);
-      const role = inferModuleRole(modName, items);
-      const purpose = inferModulePurpose(items, inboundCounts);
+      // Markdown-dominant folders (rule/doc corpora) get a name+count role and no scraped
+      // purpose — see isMarkdownDominant. Code modules keep the inferred role/purpose.
+      const mdDominant = isMarkdownDominant(items);
+      const role = mdDominant ? markdownFolderRole(modName, items) : inferModuleRole(modName, items);
+      const purpose = mdDominant ? '' : inferModulePurpose(items, inboundCounts);
       const entry = findModuleEntry(modName, items, entryPoints);
       const surface = publicSurfaceForModule(items, inboundCounts);
       const depsOn = moduleEdges.has(modName)
@@ -1546,6 +1717,53 @@ async function main() {
       }
     }
   }
+
+  // 087 cross-file confirmation. The per-file resolvers (TS/C#) emit `unconfirmed` resolutions
+  // when a receiver's TYPE is known (annotation / `new`) but its class is declared in ANOTHER
+  // file (imported). Confirm those against the project Type→methods registry built from every
+  // file's extracted class methods: keep the qualified edge only when the method actually exists
+  // on that type; drop it otherwise (degrade to the syntactic edge — never a false resolved edge,
+  // honest-degrade per silent-catch-masks-structural-bug). Same-file resolutions are already
+  // confirmed and pass through untouched.
+  const typeMethodRegistry = new Map(); // typeName → Set<method>
+  for (const c of allClassEntries) {
+    if (!c.name || !c.methods || !c.methods.length) continue;
+    if (!typeMethodRegistry.has(c.name)) typeMethodRegistry.set(c.name, new Set());
+    const set = typeMethodRegistry.get(c.name);
+    for (const m of c.methods) set.add(m);
+  }
+  for (const [rel, resolutions] of fileCallResolution.entries()) {
+    const confirmed = [];
+    for (const r of resolutions) {
+      if (!r.unconfirmed) { confirmed.push(r); continue; } // same-file, already confirmed
+      const methods = typeMethodRegistry.get(r.type);
+      if (methods && methods.has(r.callee)) {
+        // Cross-file confirmed: the imported type really declares this method.
+        confirmed.push({ caller: r.caller, callee: r.callee, receiver: r.receiver, qualified: r.qualified, confidence: r.confidence });
+      }
+      // else: unconfirmed against the registry → drop (the syntactic edge stands).
+    }
+    if (confirmed.length) fileCallResolution.set(rel, confirmed);
+    else fileCallResolution.delete(rel);
+  }
+
+  // 087 apply: build a lookup (file, caller, callee) → { qualified, confidence } for resolutions
+  // at/above the confidence floor. The call-graph emit consults this to render the resolved
+  // `Type.method` in place of the bare callee; below-floor or absent → the syntactic edge stands.
+  // A single syntactic edge (file, caller, callee) can resolve to MULTIPLE qualified targets
+  // when the same method name is called on different typed receivers in one function
+  // (`r.get()` → Repo.get AND `c.get()` → Cache.get). The syntactic graph collapsed them by
+  // name; resolution un-collapses them. So map to a SET of qualified names, and the emit
+  // expands one syntactic edge into one line per resolved target.
+  const resolvedEdgeMap = new Map(); // `${file} ${caller} ${callee}` → Set<qualified>
+  for (const [rel, resolutions] of fileCallResolution.entries()) {
+    for (const r of resolutions) {
+      if (r.confidence < CALL_RESOLUTION_FLOOR) continue;
+      const key = `${rel} ${r.caller} ${r.callee}`;
+      if (!resolvedEdgeMap.has(key)) resolvedEdgeMap.set(key, new Set());
+      resolvedEdgeMap.get(key).add(r.qualified);
+    }
+  }
   if (allClassEntries.length) {
     out += `## Class graph\n`;
     const sorted = allClassEntries.sort((a, b) => a.file.localeCompare(b.file) || a.name.localeCompare(b.name));
@@ -1602,13 +1820,30 @@ async function main() {
       const mod = topLevelDirOf(rel);
       if (!byModule.has(mod)) byModule.set(mod, []);
       const bucket = byModule.get(mod);
-      for (const e of edges) bucket.push({ file: rel, caller: e.caller, callee: e.callee, resolved: projectSymbols.has(e.callee) });
+      for (const e of edges) {
+        // 087: attach the type-resolved qualified callee(s) (Type.method) when the resolver
+        // produced them above the floor; one syntactic edge may expand into several resolved
+        // ones (same method name, different typed receivers). Else the edge stays syntactic.
+        const res = resolvedEdgeMap.get(`${rel} ${e.caller} ${e.callee}`);
+        const base = { file: rel, caller: e.caller, callee: e.callee, resolved: projectSymbols.has(e.callee) };
+        if (res && res.size) {
+          for (const q of res) bucket.push({ ...base, qualified: q });
+        } else {
+          bucket.push({ ...base, qualified: null });
+        }
+      }
     }
+    const anyTypeResolved = [...byModule.values()].some((es) => es.some((e) => e.qualified));
     out += `## Call graph\n`;
     out += `_Syntactic / name-matched: caller → callee by bare name. Receiver types are unresolved ` +
       `(e.g. \`x.save()\` is recorded as callee \`save\`), so edges are best-effort matches, not resolved ` +
       `ground truth. Project-internal edges (callee resolves to a defined symbol) are prioritised; ` +
       `external/builtin callees are demoted as unresolved. Per-module capped at ${CALL_EDGE_CAP_PER_MODULE} edges; overflow summarized._\n`;
+    if (anyTypeResolved) {
+      out += `_**Type-resolved:** TypeScript and C# call edges shown as \`Type.method\` are ` +
+        `receiver-type-resolved (the receiver's type was resolved via declarations/imports, confidence ≥ ${CALL_RESOLUTION_FLOOR}). ` +
+        `Bare-name edges are syntactic fallback. Other languages remain syntactic-only._\n`;
+    }
     for (const mod of [...byModule.keys()].sort()) {
       const edges = byModule.get(mod);
       // Rank: project-internal first, then by callee in-degree so the genuine hubs survive.
@@ -1623,11 +1858,57 @@ async function main() {
       out += `### ${mod}\n`;
       for (const e of shown) {
         const base = path.posix.basename(e.file);
-        out += `- \`${base}::${e.caller}\` → \`${e.callee}\`\n`;
+        // Render the resolved Type.method when present, else the syntactic bare callee.
+        const target = e.qualified || e.callee;
+        out += `- \`${base}::${e.caller}\` → \`${target}\`\n`;
       }
       if (overflow > 0) out += `- (+${overflow} more)\n`;
     }
     out += `\n`;
+  }
+
+  // ## Call sequence — ordered per-caller call chains (the raw material for sequence
+  // diagrams). Unlike ## Call graph (a deduped name-matched edge set), this preserves the
+  // ORDER calls appear in the source and keeps duplicates. It is STATIC call-structure order,
+  // NOT runtime flow — no conditionals, loops, or await timing — and the visualizer renders
+  // it as sequence diagrams with that caveat. Capped: top-fan-out callers per module, callees
+  // per chain; overflow summarized.
+  if (fileCallSeq.size) {
+    const seqByModule = new Map(); // mod → [{ file, caller, callees }]
+    for (const [rel, seqs] of fileCallSeq.entries()) {
+      const mod = topLevelDirOf(rel);
+      if (!seqByModule.has(mod)) seqByModule.set(mod, []);
+      const bucket = seqByModule.get(mod);
+      for (const s of seqs) {
+        if (s && s.caller && s.callees && s.callees.length) bucket.push({ file: rel, caller: s.caller, callees: s.callees });
+      }
+    }
+    if ([...seqByModule.values()].some((b) => b.length)) {
+      out += `## Call sequence\n`;
+      out += `_Static call-structure order: the order calls appear in each function's source — NOT runtime flow ` +
+        `(no conditionals, loops, or await timing). Duplicates are kept. Syntactic / name-matched, like the call graph. ` +
+        `The visualizer renders these as sequence diagrams with the same caveat. Top ${CALL_SEQ_CALLERS_PER_MODULE} fan-out ` +
+        `callers per module, ${CALL_SEQ_CALLEES_PER_CHAIN} callees per chain; overflow summarized._\n`;
+      for (const mod of [...seqByModule.keys()].sort()) {
+        const chains = seqByModule.get(mod).filter((c) => c.callees.length);
+        if (!chains.length) continue;
+        // Rank callers by fan-out (chain length) so the most illustrative chains survive the cap.
+        chains.sort((a, b) => b.callees.length - a.callees.length ||
+          a.file.localeCompare(b.file) || a.caller.localeCompare(b.caller));
+        const shownChains = chains.slice(0, CALL_SEQ_CALLERS_PER_MODULE);
+        const chainOverflow = chains.length - shownChains.length;
+        out += `### ${mod}\n`;
+        for (const c of shownChains) {
+          const base = path.posix.basename(c.file);
+          const shownCallees = c.callees.slice(0, CALL_SEQ_CALLEES_PER_CHAIN);
+          const calleeOverflow = c.callees.length - shownCallees.length;
+          const seq = shownCallees.map((x) => `\`${x}\``).join(' → ') + (calleeOverflow > 0 ? ` → (+${calleeOverflow} more)` : '');
+          out += `- \`${base}::${c.caller}\`: ${seq}\n`;
+        }
+        if (chainOverflow > 0) out += `- (+${chainOverflow} more callers)\n`;
+      }
+      out += `\n`;
+    }
   }
 
   const sortedGroups = [...groups.keys()].sort();

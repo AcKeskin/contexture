@@ -196,11 +196,22 @@ depth annotation):
  negative fences. The unit is also *placed* (Q2) where that scope is physically enforced.
 2. **Placement** — which worktree, or "shared tree" (from Q2).
 3. **Step budget** — `maxTurns` (a real subagent frontmatter field; a generic count). The
- forced-BLOCKED return (Q3.5) trips when the budget is exhausted.
+ forced-BLOCKED return (Q3.5) trips when the budget is exhausted. **Scale the budget to the
+ autonomy contract's `effort`** ([autonomize](../autonomize/SKILL.md), — read
+ the effective contract): `minimal` → a tight budget (favour an early BLOCKED over deep
+ work); `thorough`/`exhaustive` → a larger budget. `maxTurns` does **not** cascade from the
+ parent, so the contract's effort must be set *explicitly per unit* — it propagates into each
+ dispatch, it is not inherited.
 4. **Convergence-contract reference** — return a `produced:` block per *Unit return contract*
  above, so the parent can reassemble.
 5. **`harvest:` invitation** — "if you reach a decision, lesson, or landmine
  worth keeping beyond this task, emit a `harvest:` block."
+6. **Ask posture** — carry the contract's `ask` posture into the unit prompt (`forks-only` →
+ the unit returns BLOCKED on a real fork rather than guessing; `every-step` → it confirms
+ nothing mid-run, since there is no mid-flight channel — it returns more granular partials;
+ `until-blocked` → it runs to its budget). Read at dispatch only — the platform has no
+ mid-flight steering channel ([[subagentstop-no-model-visible-channel]]), so the contract is
+ *applied prevent-not-supervise* when the unit is launched, never streamed in.
 
 **Scope is stated positively and fenced by placement.** The prompt does *not* rely on "do NOT
 touch X" — that phrasing is folklore with ~0% deterrent effect
@@ -290,6 +301,14 @@ self-assessed success — that is Q4's separate-verifier job ("a grader can't gr
 This is the half neither existing organ owns. After the units return, convergence has **two
 stages — verify, then combine.** The verify stage is the backstop for everything Q3.5's
 dispatch-time prevention didn't catch. **A unit's self-reported success is never the verdict.**
+
+**The autonomy contract's `stopping` posture shapes convergence** ([autonomize](../autonomize/SKILL.md)): under **`criteria-met`** (default), converge only when every unit's success
+criteria are met — a BLOCKED or short unit is re-dispatched / re-scoped, not absorbed. Under
+**`user-anytime`** / **`diminishing-returns`** / **`budget`**, converge the *best coherent
+result the returned units already give* — synthesize what's done, record what each BLOCKED
+unit left outstanding, and hand off rather than re-dispatching to chase completeness. The
+contract selects whether Q4 *pushes to completeness or freezes a coherent best-so-far*; it
+does not change the verify discipline below (self-report is never the verdict, regardless).
 
 #### Stage 1 — verify each unit (independently, not by self-report)
 
@@ -440,7 +459,7 @@ The **one load-bearing takeaway is already inline in Q4 Stage-1**: the boundary 
 
 ## Relationship to other organs
 
-- **`dispatch` (027):** the dispatch engine this skill calls. Every unit
+- **`dispatch`:** the dispatch engine this skill calls. Every unit
  dispatch walks 027's three gates. Drift between this skill's dispatch wording and 027 is a
  flag.
 - ** (subagent state coordination):** dispatch prompts carry 050's `harvest:`

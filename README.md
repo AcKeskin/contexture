@@ -111,7 +111,8 @@ flowchart TB
     end
     subgraph SC["📐 Scope (heavyweight track)"]
       direction LR
-      brainstorm["/brainstorm"] --> envision["/envision"] --> spec["/spec"] --> plan["/draft-plan"] --> blueprint["/blueprint"] --> exec["/execute"]
+      brainstorm["/brainstorm"] --> envision["/envision"] --> spec["/spec"] --> plan["/draft-plan"] --> blueprint["/blueprint"] --> exec["/execute"] --> closeout["/close-out<br/>(reconcile + file)"]
+      workstate["/work-state<br/>(where's this slug?)"]
     end
     subgraph VER["✅ Verification"]
       direction LR
@@ -139,11 +140,12 @@ flowchart TB
 | --- | --- |
 | **The discipline loop** | Rules primed before (mechanically, by the `rule-prime` hook + `/prep`), `/review` after, `/capture` to grow the rule corpus. The thing this repo is really about. |
 | **Mechanical rule priming** | A `rule-prime` hook puts the relevant rules in context at session start and per prompt — no reliance on the agent remembering to `/prep`. Budget-guarded, deterministic, never blocks a turn. |
-| **Convention & test organs** | `/extract-conventions` observes a scope's house style and writes it as a project-tier rule the priming + review then enforce; `/write-tests` authors a quality suite for existing code to a standard, with a confirmable plan and a characterization-with-flags stance. |
+| **Observe-and-record organs** | Three artefacts that read a codebase and write down what's tacit: `/update-codemap` (structure), `/extract-conventions` (house style → a project-tier rule the priming + review then enforce), and `/glossary` (the domain's *vocabulary* — term → meaning → code symbol, cited by review as a vocabulary-drift reference). `/write-tests` authors a quality suite for existing code to a standard, with a confirmable plan and a characterization-with-flags stance. |
 | **Rule overlay** | A four-tier rule corpus — shipped / company / user / project — that composes update-safely. `/rules` to override (whole-file or field-patch), disable, or resolve. Your edits survive `git pull`. |
+| **Autonomy contract** | `/autonomize` sets one *how-hard-to-push* contract (effort / stopping / when-to-ask) that the workflow organs — `/execute`, `/checkpoint`, `/orchestrate`, the spec/plan kickoff — read at their decision points. Set it once as a project default or steer it live ("keep going" / "leave it here"); calibrates a goal-directed run without per-step babysitting. Defaults to current behaviour, so it adds nothing until you tune it. |
 | **Stored context** | A codemap (architecture snapshot) + memory store (rules, decisions, lessons) that `/discover` retrieves on demand. |
 | **Safety hooks** | Default-on guardrails — block `rm -rf` on top-level paths, writes to `.env`, force-push to main, global git-config edits, `--no-verify` bypass. |
-| **Spec → plan → execute** | A heavyweight track for non-trivial features: interview-driven spec, versioned plan, step-by-step execute with per-step verification. |
+| **Spec → plan → execute → close-out** | A heavyweight track for non-trivial features: interview-driven spec, versioned plan, step-by-step execute with per-step verification, and `/close-out` to reconcile the spec to what shipped + file the spent artefacts + log the ship. `/work-state <slug>` reports where any feature sits in the chain (and flags a plan pinned to a stale spec). |
 | **Debugging discipline** | `/systematic-debugging` front-doors a bug: reproduce, instrument, find the root cause first, before any fix is proposed. |
 | **Authoring meta-skills** | `/new-hook`, `/new-agent`, `/new-mcp` — interview-driven scaffolding for extending the toolkit. |
 | **Humanize prose** | `/humanize` flags and rewrites AI-texture in user-facing writing (READMEs, PRs, email): advisory density, never a binary verdict, calibrated to your own voice. |
@@ -176,10 +178,10 @@ flowchart LR
   P --> E["/execute slug<br/>step-by-step,<br/>verify each"]
   E -.->|missing rule found| C["/capture"]
   C -.-> E
-  E --> R["/review"]
+  E --> R["/review"] --> X["/close-out slug<br/>reconcile spec ·<br/>file artefacts · log ship"]
 ```
 
-The chain is opt-in and versioned — specs evolve `v1 → v2`, plans rebuild against them, nothing is destroyed.
+The chain is opt-in and versioned — specs evolve `v1 → v2`, plans rebuild against them, nothing is destroyed. `/close-out` ends it: once the work ships it reconciles the spec to what actually shipped and files the spent plan away. Lost track of where a feature sits? `/work-state <slug>` reports its position in the chain (and flags a plan pinned to a superseded spec).
 
 **When something's broken (a different mode).** Not a loop, not the build track. You show up with a symptom and `/systematic-debugging` front-doors it: reproduce, instrument, root-cause-first, before any fix. It's an investigator's posture, so the tools differ too: a debugger, logs, `git bisect`/`blame`, the codemap to orient. A structural cause can graduate into Loop B (spec a real refactor); a one-liner you just fix.
 
@@ -187,10 +189,11 @@ The chain is opt-in and versioned — specs evolve `v1 → v2`, plans rebuild ag
 | --- | --- |
 | One-line fix, obvious diff | Naked Claude — no ceremony |
 | Typical edits within a known module | Loop A (`/prep` → code → `/review`) |
-| New feature spanning files / decisions | Loop B (`/spec` → `/draft-plan` → `/execute`) |
+| New feature spanning files / decisions | Loop B (`/spec` → `/draft-plan` → `/execute` → `/close-out`) |
 | Greenfield, no clear shape yet | Loop B with `/envision` upstream |
 | Something's broken / a test is failing | `/systematic-debugging` (reproduce → root-cause first) |
-| Picking up after a break | `/discover <topic>` |
+| Picking up after a break | `/discover <topic>`, or `/work-state <slug>` for where a feature stands |
+| A feature has shipped | `/close-out <slug>` — reconcile the spec, file the plan, log the ship |
 | End of a session that produced anything | `/recap` |
 
 ## Other agents (cross-tool)

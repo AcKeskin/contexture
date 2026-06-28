@@ -1,6 +1,6 @@
 # Architectural-rule overlay — tiers, resolution, management
 
-Implements. Builds on [006 architectural-rules](architectural-rules.md) (the tree + file format) and is consumed by [002 discover](discover.md) (the resolver) and [004 prep](prep-organ.md) / [005 review](review-organ.md) (the consumers).
+Builds on [architectural-rules](architectural-rules.md) (the tree + file format) and is consumed by [discover](discover.md) (the resolver) and [prep](prep-organ.md) / [review](review-organ.md) (the consumers).
 
 ## Why this exists
 
@@ -89,7 +89,7 @@ Everything downstream is unchanged — discover scoring, prep capping, deliver r
 
 ### Callable subroutine
 
-The algorithm above is implemented as a hook-callable Node module at [`hooks/lib/resolve-rules.js`](../hooks/lib/resolve-rules.js) — the single entry point that turns the tier tree into resolved, patched, anchor-stripped rule bodies without a model turn. The discover skill describes the same algorithm as prose for the model-driven `/prep` and `/review` paths; the module is the executable form the **rule-prime hook** (077) calls on the critical path.
+The algorithm above is implemented as a hook-callable Node module at [`hooks/lib/resolve-rules.js`](../hooks/lib/resolve-rules.js) — the single entry point that turns the tier tree into resolved, patched, anchor-stripped rule bodies without a model turn. The discover skill describes the same algorithm as prose for the model-driven `/prep` and `/review` paths; the module is the executable form the **rule-prime hook** calls on the critical path.
 
 ```js
 const { resolveRules } = require('./lib/resolve-rules');
@@ -100,6 +100,8 @@ const { rules, warnings } = resolveRules({ cwd, scopes, relevancePhases });
 ```
 
 Contract: **fail-open** like every hook lib — any I/O or parse error degrades to fewer rules (or shipped-only / empty), never throws to the caller. A crashing resolver must never break a turn. `scopes` / `relevancePhases` are optional hard filters; omit them to resolve the whole enabled corpus. This is a *trigger over the existing path*, not a second resolver — the same precedence, patch, disable, and anchor-strip semantics specified above, in code.
+
+**Custom frontmatter keys are not surfaced.** `resolveRules` returns only the standard fields above (it parses `name` / `scope` / `relevance` / `override` / `mode` for resolution and emits the rule *body*). A rule that carries a typed payload in its own frontmatter — e.g. [`universal/autonomy-default.md`](../architectural-rules/universal/autonomy-default.md)'s `autonomy:` block — is a **rule whose payload is its frontmatter**: it still gets the tier cascade / override / disable for free, but its consumer (`autonomize`) reads that frontmatter *directly* from the resolved file rather than through `resolveRules`, which would drop it. Use this pattern for tiered config that should ride the overlay without abusing the body-resolver for non-body values; `relevance: on-demand` keeps such a rule off the always-on floor.
 
 ## Locked rules (company) — soft lock with audit
 

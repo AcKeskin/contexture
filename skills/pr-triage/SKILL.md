@@ -5,7 +5,7 @@ description: Triage a PR's unresolved review comments into a checklist, then wal
 
 # pr-triage
 
-Reviewee-side **triage** of PR review feedback. A sibling of the GitHub reviewee organs [pre-push](../pre-push/SKILL.md) and [pr-author](../pr-author/SKILL.md); the reviewer side is [pr-review (030)](../pr-review/SKILL.md).
+Reviewee-side **triage** of PR review feedback. A sibling of the GitHub reviewee organs [pre-push](../pre-push/SKILL.md) and [pr-author](../pr-author/SKILL.md); the reviewer side is [pr-review](../pr-review/SKILL.md).
 
 This skill does **not** respond to reviewers. You write every reply yourself, every time — pr-triage never drafts reply text and never posts. What it does is turn a pile of unresolved comments into a worked checklist and drive the *code actions* the comments call for: it fetches the unresolved comments, lays them out as a themed checklist, and walks each one with you to a decision. When a comment needs a code change, pr-triage routes that change to [/dispatch](../dispatch/SKILL.md) or [/orchestrate](../orchestrate/SKILL.md) rather than editing inline — so independent fixes fan out in parallel and cross-cutting ones decompose properly.
 
@@ -40,7 +40,7 @@ gh pr view <PR> --json reviews,reviewRequests,url,headRefName
 gh api repos/<owner>/<repo>/pulls/<PR>/comments --paginate
 ```
 
-Per the canonical-command pin (`architectural-rules/universal/canonical-commands.md`, "read all PR comments"), **`gh pr view` truncates review threads at ~30 comments with no signal** — use `gh api .../comments --paginate` to read every comment, and reserve `gh pr view` for the non-comment metadata (reviews, branch, url). `gh api` also carries the richer per-thread fields (`in_reply_to_id`, `original_line`, `path`, `diff_hunk`) for context. Filter to:
+Per the canonical-command pin (`architectural-rules/universal/canonical-commands.md`, "read all PR comments"), **`gh pr view` truncates review threads at ~30 comments with no signal** — use `gh api.../comments --paginate` to read every comment, and reserve `gh pr view` for the non-comment metadata (reviews, branch, url). `gh api` also carries the richer per-thread fields (`in_reply_to_id`, `original_line`, `path`, `diff_hunk`) for context. Filter to:
 - Unresolved review threads.
 - Outstanding general comments since the user's last push.
 
@@ -60,13 +60,7 @@ Group by **theme, not chronology** — themes derived from comment content:
 Render as an **editable checklist** — one row per comment, every comment present so none is silently dropped. Each row starts with no outcome assigned:
 
 ```
-| # | Theme            | File:Line              | Comment gist            | Outcome | Detail                          |
-|---|------------------|------------------------|-------------------------|---------|---------------------------------|
-| 1 | Behavior change  | src/auth/login.ts:42   | "handle null token"     | —       |                                 |
-| 2 | Architectural    | src/api/client.ts:88   | "move this to services" | —       |                                 |
-| 3 | Test coverage    | src/auth/login.ts:67   | "add a test for expiry" | —       |                                 |
-| 4 | Question         | src/db/pool.ts:12      | "why 30s timeout?"      | —       |                                 |
-```
+| # | Theme | File:Line | Comment gist | Outcome | Detail | |---|------------------|------------------------|-------------------------|---------|---------------------------------| | 1 | Behavior change | src/auth/login.ts:42 | "handle null token" | — | | | 2 | Architectural | src/api/client.ts:88 | "move this to services" | — | | | 3 | Test coverage | src/auth/login.ts:67 | "add a test for expiry" | — | | | 4 | Question | src/db/pool.ts:12 | "why 30s timeout?" | — | | ```
 
 ### 3. Walk each comment with the user
 
@@ -79,13 +73,7 @@ Go through the checklist row by row. For each comment, the user picks **one of t
 Update the checklist live as outcomes are assigned:
 
 ```
-| # | Theme            | File:Line              | Comment gist            | Outcome      | Detail                                   |
-|---|------------------|------------------------|-------------------------|--------------|------------------------------------------|
-| 1 | Behavior change  | src/auth/login.ts:42   | "handle null token"     | Act          | add null guard before deref              |
-| 2 | Architectural    | src/api/client.ts:88   | "move this to services" | Note         | "keeping here — see services boundary"   |
-| 3 | Test coverage    | src/auth/login.ts:67   | "add a test for expiry" | Act          | new expiry test case                     |
-| 4 | Question         | src/db/pool.ts:12      | "why 30s timeout?"      | Skip/defer   | answer on GitHub myself                  |
-```
+| # | Theme | File:Line | Comment gist | Outcome | Detail | |---|------------------|------------------------|-------------------------|--------------|------------------------------------------| | 1 | Behavior change | src/auth/login.ts:42 | "handle null token" | Act | add null guard before deref | | 2 | Architectural | src/api/client.ts:88 | "move this to services" | Note | "keeping here — see services boundary" | | 3 | Test coverage | src/auth/login.ts:67 | "add a test for expiry" | Act | new expiry test case | | 4 | Question | src/db/pool.ts:12 | "why 30s timeout?" | Skip/defer | answer on GitHub myself | ```
 
 The user can revisit any row and change its outcome before execution.
 
@@ -102,8 +90,8 @@ Present the classification and **confirm before fan-out**:
 
 ```
 Routing the 2 Act rows:
-  #1 add null guard (login.ts:42)      → /dispatch  (isolated)
-  #3 add expiry test (login.ts:67)     → /dispatch  (isolated)
+ #1 add null guard (login.ts:42) → /dispatch (isolated)
+ #3 add expiry test (login.ts:67) → /dispatch (isolated)
 Proceed? (y / reclassify / hold)
 ```
 
@@ -126,8 +114,8 @@ Surface the still-open rows explicitly so nothing is lost:
 
 ```
 Still open (you respond on GitHub):
-  #4 (db/pool.ts:12) — deferred: "why 30s timeout?"
-  #2 (api/client.ts:88) — your note: "keeping here — see services boundary"
+ #4 (db/pool.ts:12) — deferred: "why 30s timeout?"
+ #2 (api/client.ts:88) — your note: "keeping here — see services boundary"
 ```
 
 Suggest re-running [pre-push](../pre-push/SKILL.md) when the acted-on changes are ready to push.
@@ -152,5 +140,5 @@ Suggest re-running [pre-push](../pre-push/SKILL.md) when the acted-on changes ar
 
 - **[dispatch](../dispatch/SKILL.md)** — the execution route for independent Act rows. pr-triage classifies a row as isolated and hands the fix to dispatch's parallel fan-out; it does not re-implement dispatch.
 - **[orchestrate](../orchestrate/SKILL.md)** — the execution route for cross-cutting Act rows. pr-triage hands a multi-file / interdependent change (or a group of related rows) to orchestrate as one goal; orchestrate owns decompose / place / converge.
-- **[pr-review (030)](../pr-review/SKILL.md)** — reviewer-side counterpart. A user might `/pr-review` someone else's PR and `/pr-triage` the comments on their own.
-- **[pre-push (041)](../pre-push/SKILL.md)** — the next step once the acted-on changes are ready to push.
+- **[pr-review](../pr-review/SKILL.md)** — reviewer-side counterpart. A user might `/pr-review` someone else's PR and `/pr-triage` the comments on their own.
+- **[pre-push](../pre-push/SKILL.md)** — the next step once the acted-on changes are ready to push.

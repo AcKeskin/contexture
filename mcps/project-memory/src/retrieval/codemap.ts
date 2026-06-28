@@ -35,8 +35,8 @@ export interface CodemapQuery {
 }
 
 /**
- * Locate, parse, and score a project's codemap (`<projectRoot>/.claude/codemap.md`,
- * proposal 003). Returns null when no codemap exists — discover §8 skips
+ * Locate, parse, and score a project's codemap (`<projectRoot>/.claude/codemap.md`).
+ * Returns null when no codemap exists — discover §8 skips
  * silently in that case.
  *
  * Scoring mirrors discover §8: keyword/scope hits against the entry's path and

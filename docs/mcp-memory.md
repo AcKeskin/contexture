@@ -1,6 +1,6 @@
 # project-memory MCP — retrieval over the memory tree
 
-Implements. Authoritative implementation lives in [`mcps/project-memory/`](../mcps/project-memory/); this doc is the Claude-facing reference.
+Authoritative implementation lives in [`mcps/project-memory/`](../mcps/project-memory/); this doc is the Claude-facing reference.
 
 ## What it does
 

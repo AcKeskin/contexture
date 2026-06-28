@@ -1,6 +1,6 @@
 # Coordinate — multi-session alignment
 
-Implements. Authoritative procedure: [`skills/coordinate/SKILL.md`](../skills/coordinate/SKILL.md); this doc is the Claude-facing reference.
+Authoritative procedure: [`skills/coordinate/SKILL.md`](../skills/coordinate/SKILL.md); this doc is the Claude-facing reference.
 
 ## What it is
 

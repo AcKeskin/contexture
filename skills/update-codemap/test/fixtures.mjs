@@ -30,11 +30,17 @@ export const FIXTURES = [
         `import { Shape } from '../core/shape';\n\n` +
         `function scale(v: number): number { return 3.14 * v; }\n\n` +
         `export class Circle implements Shape {\n  public radius: number = 1;\n  area(): number { return scale(Math.max(this.radius, this.radius)); }\n}\n`,
+      // 087 resolution fixture: two classes both declare get(); typed receivers must disambiguate.
+      'app/store.ts':
+        `class Repo { get(): number { return 1; } }\n` +
+        `class Cache { get(): number { return 2; } }\n` +
+        `function lookup() {\n  const r: Repo = new Repo();\n  const c = new Cache();\n  r.get();\n  c.get();\n}\n`,
     },
     // area() calls BOTH the project-defined `scale` and the builtin `Math.max`. The call-graph
     // precision pass must rank the project-internal `→ scale` edge ABOVE the builtin `→ max`
-    // edge. `builtinCallee` drives the [precision] check.
-    expect: { className: 'Circle', baseType: 'Shape', relation: 'implements', field: 'x', edgeFrom: 'app/circle.ts', edgeTo: 'core/shape.ts', calls: { caller: 'area', callee: 'scale' }, builtinCallee: 'max' },
+    // edge. `builtinCallee` drives the [precision] check. `resolution` drives the 087 [resolution]
+    // check: r.get() and c.get() must resolve to Repo.get / Cache.get, not a collapsed `get`.
+    expect: { className: 'Circle', baseType: 'Shape', relation: 'implements', field: 'x', edgeFrom: 'app/circle.ts', edgeTo: 'core/shape.ts', calls: { caller: 'area', callee: 'scale' }, builtinCallee: 'max', resolution: { qualified: ['Repo.get', 'Cache.get'] } },
   },
 
   {
@@ -46,8 +52,16 @@ export const FIXTURES = [
       'app/Circle.cs':
         `using Geo.Core;\n\nnamespace Geo.App;\n\n` +
         `public class Circle : IShape {\n  public double Radius;\n  private static double Scale(double v) { return 3.14 * v; }\n  public double Area() { return Scale(Radius * Radius); }\n}\n`,
+      // 087 resolution fixture: two classes both declare Get(); typed receivers must disambiguate.
+      'app/Store.cs':
+        `namespace Geo.App;\n\n` +
+        `public class Repo { public int Get() { return 1; } }\n` +
+        `public class Cache { public int Get() { return 2; } }\n` +
+        `public class Lookup {\n  public void Run() {\n    Repo r = new Repo();\n    var c = new Cache();\n    r.Get();\n    c.Get();\n  }\n}\n`,
     },
-    expect: { className: 'Circle', baseType: 'IShape', relation: 'implements', field: 'X', edgeFrom: 'app/Circle.cs', edgeTo: 'core/Shape.cs', calls: { caller: 'Area', callee: 'Scale' } },
+    // `resolution` drives the 087 [resolution] check: r.Get()/c.Get() must resolve to
+    // Repo.Get / Cache.Get, not a collapsed `Get`.
+    expect: { className: 'Circle', baseType: 'IShape', relation: 'implements', field: 'X', edgeFrom: 'app/Circle.cs', edgeTo: 'core/Shape.cs', calls: { caller: 'Area', callee: 'Scale' }, resolution: { qualified: ['Repo.Get', 'Cache.Get'] } },
   },
 
   {

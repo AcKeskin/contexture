@@ -6,7 +6,7 @@
 //   stale-link   — a dst entry whose name is still in the repo set but whose
 //                  link/copy diverged from the source (re-link fixes it)
 //   orphan       — a dangling symlink into the repo whose target was renamed or
-//                  deleted (proposal 072). ADVISORY / non-blocking: a plain
+//                  deleted. ADVISORY / non-blocking: a plain
 //                  bootstrap run self-heals it via link.js's pruneOrphans, so
 //                  it never fails the exit code — `--verify` only surfaces it,
 //                  answering 072 open-question 2.
@@ -105,7 +105,7 @@ function verifyItems(name, srcDir, dstDir) {
   }
 
   // Dangling symlinks into the repo whose target was renamed/deleted: these are
-  // ORPHANS (proposal 072), the exact set link.js's pruneOrphans removes on a
+  // ORPHANS, the exact set link.js's pruneOrphans removes on a
   // plain run. Same safety as pruneOrphans — only a symlink whose resolved
   // target was directly inside srcDir counts; real files/dirs/copies (which may
   // be user or third-party content in this shared namespace) are never flagged.
@@ -197,7 +197,7 @@ function filesEqual(a, b) {
   return fs.readFileSync(a).equals(fs.readFileSync(b));
 }
 
-// --- Share-readiness leak scan (proposal 055) -------------------------------
+// --- Share-readiness leak scan -------------------------------
 //
 // Advisory grep over linked authoring artefacts for owner-coupling leaks —
 // machine paths, owner identity, owner-specific tool assumptions. NON-BLOCKING:
@@ -297,7 +297,7 @@ function scanLeaks({ repoRoot, extraTokens }) {
   return { findings, scanned };
 }
 
-// Classify a leak finding's fixability (proposal 055, step 4).
+// Classify a leak finding's fixability.
 // Only mechanically-unambiguous leaks get an auto-fix proposal; ambiguous ones
 // (owner-specific tool assumptions) are report-only. Returns null when not
 // auto-fixable, else { suggestion } describing the proposed replacement.
@@ -393,11 +393,71 @@ function formatReport(verifyResult) {
   return lines.join('\n');
 }
 
+// --- Instruction-glob drift check ----------------------------
+// The `rulePrime.instructions` glob-array (hook-config.json) names extra
+// instruction files for the prime hook to load. A glob that matches NOTHING is
+// almost always a typo or a stale path — surface it. ADVISORY: reported, never
+// alters the exit code (the 055 scanLeaks discipline). Reads the declaration
+// from the home hook-config.json; expands each glob against repoRoot via the
+// hook's own expander so the check and the runtime agree on semantics.
+function verifyInstructionGlobs({ repoRoot, homeClaude }) {
+  const findings = [];
+  let patterns = [];
+  try {
+    const cfgPath = path.join(homeClaude, 'hook-config.json');
+    if (fs.existsSync(cfgPath)) {
+      const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+      const rp = cfg && cfg.rulePrime;
+      if (rp && Array.isArray(rp.instructions)) patterns = rp.instructions;
+    }
+  } catch {
+    return { findings: [], checked: 0 }; // unreadable config → nothing to check
+  }
+  if (!patterns.length) return { findings: [], checked: 0 };
+
+  let expandOne;
+  try {
+    ({ expandOne } = require(path.join(repoRoot, 'hooks', 'lib', 'glob-files')));
+  } catch {
+    return { findings: [], checked: patterns.length }; // expander absent → skip
+  }
+  for (const pattern of patterns) {
+    if (typeof pattern !== 'string' || !pattern.trim()) continue;
+    let matched = 0;
+    try {
+      matched = expandOne(pattern, repoRoot).length;
+    } catch {
+      matched = 0;
+    }
+    if (matched === 0) findings.push({ glob: pattern, matched: 0 });
+  }
+  return { findings, checked: patterns.length };
+}
+
+function formatInstructionGlobReport(globResult) {
+  if (!globResult.checked) return ''; // nothing declared → silent (off-by-default)
+  const lines = [''];
+  if (!globResult.findings.length) {
+    lines.push(`instruction-globs: ${globResult.checked} declared glob(s) all match — ok`);
+    return lines.join('\n');
+  }
+  lines.push(
+    `instruction-globs: ADVISORY — ${globResult.findings.length} of ${globResult.checked} declared glob(s) match nothing (non-blocking; exit code unchanged):`
+  );
+  for (const f of globResult.findings) {
+    lines.push(`  ⚠ "${f.glob}" matched 0 files — likely a typo or stale path`);
+  }
+  lines.push('  (fix the pattern in hook-config.json rulePrime.instructions, or remove it)');
+  return lines.join('\n');
+}
+
 module.exports = {
   verifyAll,
   formatReport,
   scanLeaks,
   formatLeakReport,
   classifyFix,
+  verifyInstructionGlobs,
+  formatInstructionGlobReport,
   planLeakFixes,
 };

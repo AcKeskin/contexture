@@ -1,6 +1,6 @@
 # Brainstorm — the ideation organ
 
-Implements. Authoritative procedure: [`skills/brainstorm/SKILL.md`](../skills/brainstorm/SKILL.md); this doc is the Claude-facing reference.
+Authoritative procedure: [`skills/brainstorm/SKILL.md`](../skills/brainstorm/SKILL.md); this doc is the Claude-facing reference.
 
 ## What it is
 

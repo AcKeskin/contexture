@@ -5,9 +5,9 @@ description: Review a GitHub PR as an assigned reviewer — fetch the diff via g
 
 # pr-review
 
-Reviews Pull Requests the user has been assigned to review on GitHub. Fetches PR data via the `gh` CLI, optionally loads architectural rules via [discover (002)](../discover/SKILL.md), and analyzes the diff across four categories. The terminal report is the live render; the canonical artefact is written to the Obsidian vault (§10) as `Projects\<ProjectFolder>\Code Reviews\PR-<NNN> — <Title>.md`. Re-reviews of the same PR promote the file to a subfolder with one file per iteration. The user posts their review manually on GitHub — pr-review never posts.
+Reviews Pull Requests the user has been assigned to review on GitHub. Fetches PR data via the `gh` CLI, optionally loads architectural rules via [discover](../discover/SKILL.md), and analyzes the diff across four categories. The terminal report is the live render; the canonical artefact is written to the Obsidian vault (§10) as `Projects\<ProjectFolder>\Code Reviews\PR-<NNN> — <Title>.md`. Re-reviews of the same PR promote the file to a subfolder with one file per iteration. The user posts their review manually on GitHub — pr-review never posts.
 
-Review (005) audits local code against architectural rules and reports drift. pr-review analyzes an external PR diff as a reviewer. Different jobs, complementary — review is "does our code still follow our rules", pr-review is "does this incoming change make sense."
+Review audits local code against architectural rules and reports drift. pr-review analyzes an external PR diff as a reviewer. Different jobs, complementary — review is "does our code still follow our rules", pr-review is "does this incoming change make sense."
 
 ## When to run
 
@@ -26,13 +26,7 @@ Review (005) audits local code against architectural rules and reports drift. pr
 
 ### 1. Resolve PR target
 
-| Form | Resolution |
-| --- | --- |
-| `/pr-review` (no args) | Run `gh pr view --json number,title,state` for the current branch. If no PR is associated, bail: "No PR found for the current branch. Pass a PR number: `/pr-review <number>`." |
-| `/pr-review <number>` | Use the given number directly. |
-| `/pr-review <number> <path...>` | Use the given number; save paths as the path filter for step 5. |
-
-Validate that the PR exists. If the PR is merged or closed, warn:
+| Form | Resolution | | --- | --- | | `/pr-review` (no args) | Run `gh pr view --json number,title,state` for the current branch. If no PR is associated, bail: "No PR found for the current branch. Pass a PR number: `/pr-review <number>`." | | `/pr-review <number>` | Use the given number directly. | | `/pr-review <number> <path...>` | Use the given number; save paths as the path filter for step 5. | Validate that the PR exists. If the PR is merged or closed, warn:
 
 > PR #N is `<state>`. Review anyway? (y/N)
 
@@ -54,8 +48,8 @@ Display a summary header:
 
 ```
 PR #<N>: <title>
-Author: <author>    Base: <base> <- <head>
-Files changed: <changedFiles>    +<additions> -<deletions>
+Author: <author> Base: <base> <- <head>
+Files changed: <changedFiles> +<additions> -<deletions>
 Labels: <labels>
 URL: <url>
 ```
@@ -83,20 +77,20 @@ Rules are **optional and user-driven**, not automatic. Ask two questions sequent
 **Question 1:**
 
 > Load architectural rules for this review?
->   1. Yes — load project rules via discover
->   2. No — review without architectural rules
+> 1. Yes — load project rules via discover
+> 2. No — review without architectural rules
 
 On `1`: invoke `skills/discover/SKILL.md` programmatically:
 
 ```
 {
-  task_keywords: [<derived from PR title + changed file paths>],
-  scopes: [<detected language(s)>, <detected domain(s) from file paths>, "global"],
-  kind: "architectural-rule",
-  relevance_phases: ["always", "during-review"],
-  top_n: 15,
-  render_bodies: true,
-  include_recaps: false
+ task_keywords: [<derived from PR title + changed file paths>],
+ scopes: [<detected language(s)>, <detected domain(s) from file paths>, "global"],
+ kind: "architectural-rule",
+ relevance_phases: ["always", "during-review"],
+ top_n: 15,
+ render_bodies: true,
+ include_recaps: false
 }
 ```
 
@@ -107,8 +101,8 @@ On `2`: skip rule loading.
 **Question 2** (always, regardless of Q1 answer):
 
 > Any specific guidelines, checklists, or context to apply during this review?
->   - Paste text, provide a file path, or a URL — I'll incorporate it.
->   - Or press Enter to skip.
+> - Paste text, provide a file path, or a URL — I'll incorporate it.
+> - Or press Enter to skip.
 
 If the user provides text: store as supplementary review context. If a file path: Read it. If a URL: fetch content via WebFetch. If empty: proceed without.
 
@@ -136,13 +130,13 @@ For each file in scope:
 
 ```
 {
-  file: string,
-  line: number | range,
-  category: "correctness" | "design" | "hygiene" | "security",
-  severity: "critical" | "high" | "medium" | "low",
-  what: string,
-  suggestion: string,          // prose, OR a ```suggestion block when the §6.7 conditions hold
-  rule_cited: string | null
+ file: string,
+ line: number | range,
+ category: "correctness" | "design" | "hygiene" | "security",
+ severity: "critical" | "high" | "medium" | "low",
+ what: string,
+ suggestion: string, // prose, OR a ```suggestion block when the §6.7 conditions hold
+ rule_cited: string | null
 }
 ```
 
@@ -172,8 +166,8 @@ Output shape:
 ```
 # PR Review: #<N> — <title>
 
-Author: <author>    Base: <base> <- <head>
-Files in scope: N of M    +<additions> -<deletions>
+Author: <author> Base: <base> <- <head>
+Files in scope: N of M +<additions> -<deletions>
 Rules loaded: K architectural rules | none (user opted out)
 Supplementary context: loaded | none
 
@@ -182,25 +176,25 @@ Supplementary context: loaded | none
 ## <file-path-1> (+A -D)
 
 - [Critical] L<line>: <what's wrong>
-  Recommendation:
-  ```suggestion
-  <literal replacement lines for the cited range — fix fits §6.7>
-  ```
-  Rule: <rule name>
+ Recommendation:
+ ```suggestion
+ <literal replacement lines for the cited range — fix fits §6.7>
+ ```
+ Rule: <rule name>
 
 - [High] L<line>-<line>: <what's wrong>
-  Recommendation: <prose — fix is too big / spans files / needs judgment>
+ Recommendation: <prose — fix is too big / spans files / needs judgment>
 
 - [Medium] L<line>: <what's wrong>
-  Recommendation:
-  ```suggestion
-  <literal replacement lines>
-  ```
+ Recommendation:
+ ```suggestion
+ <literal replacement lines>
+ ```
 
 ## <file-path-2> (+A -D)
 
 - [Low] L<line>: <what's wrong>
-  Recommendation: <prose or ```suggestion block per §6.7>
+ Recommendation: <prose or ```suggestion block per §6.7>
 
 ## <file-path-3> — no findings
 
@@ -208,22 +202,9 @@ Supplementary context: loaded | none
 
 ## Summary
 
-| Category              | Critical | High | Medium | Low | Total |
-|-----------------------|----------|------|--------|-----|-------|
-| Correctness & bugs    | 0        | 1    | 2      | 0   | 3     |
-| Design & patterns     | 0        | 0    | 1      | 1   | 2     |
-| PR hygiene            | 0        | 0    | 0      | 2   | 2     |
-| Security              | 1        | 0    | 0      | 0   | 1     |
-| **Total**             | **1**    | **1**| **3**  | **3**| **8** |
+| Category | Critical | High | Medium | Low | Total | |-----------------------|----------|------|--------|-----|-------| | Correctness & bugs | 0 | 1 | 2 | 0 | 3 | | Design & patterns | 0 | 0 | 1 | 1 | 2 | | PR hygiene | 0 | 0 | 0 | 2 | 2 | | Security | 1 | 0 | 0 | 0 | 1 | | **Total** | **1** | **1**| **3** | **3**| **8** | ## Key findings
 
-## Key findings
-
-| # | File:Line                    | Sev      | Category     | Finding                              | Suggestion                        |
-|---|------------------------------|----------|--------------|--------------------------------------|-----------------------------------|
-| 1 | src/auth/login.ts:42         | Critical | Security     | SQL injection via string concat      | Use parameterized query           |
-| 2 | src/auth/login.ts:67         | High     | Correctness  | Null check missing after getUserById | Guard with early return           |
-
-## Review checklist
+| # | File:Line | Sev | Category | Finding | Suggestion | |---|------------------------------|----------|--------------|--------------------------------------|-----------------------------------| | 1 | src/auth/login.ts:42 | Critical | Security | SQL injection via string concat | Use parameterized query | | 2 | src/auth/login.ts:67 | High | Correctness | Null check missing after getUserById | Guard with early return | ## Review checklist
 
 - [ ] #1 [Critical/Security] src/auth/login.ts:42 — SQL injection
 - [ ] #2 [High/Correctness] src/auth/login.ts:67 — null check
@@ -254,9 +235,9 @@ Verdict: APPROVE
 After the report, write to the vault (§10), then prompt:
 
 > Want to:
->   1. Drill into a specific file or finding for more detail
->   2. Re-review with different scope or rules
->   3. Done — take the checklist to GitHub (vault file saved at `<path>`)
+> 1. Drill into a specific file or finding for more detail
+> 2. Re-review with different scope or rules
+> 3. Done — take the checklist to GitHub (vault file saved at `<path>`)
 
 On `1`: ask which file or finding number. Show expanded context (surrounding code, full hunk, alternative suggestions). Loop back to the prompt.
 
@@ -294,35 +275,35 @@ Examples (matching the existing convention):
 - **First review:** write the flat `PR-<NNN> — <Title>.md` per above. Frontmatter gains `iterations: 1` and `last_reviewed: YYYY-MM-DD`.
 - **Second review (iteration 2) triggers promotion to subfolder.** Always propose first:
 
-  > PR #<N> already has a review at `PR-<NNN> — <Title>.md`. Promote to subfolder for iteration 2? (y/N)
+ > PR #<N> already has a review at `PR-<NNN> — <Title>.md`. Promote to subfolder for iteration 2? (y/N)
 
-  On `y`:
+ On `y`:
 
-  1. Create `<vault-root>\Projects\<ProjectFolder>\Code Reviews\PR-<NNN> — <Title>\` (folder name = the original flat filename without `.md`).
-  2. Move the original body into `iteration-1.md` inside the folder. Frontmatter stays on `iteration-1.md` — it is the source of truth for this PR review thread.
-  3. Write the new review pass as `iteration-2.md` — body only (no frontmatter); the findings, diagram, verdict, etc. for the second pass.
-  4. Update `iteration-1.md` frontmatter: bump `iterations: 2`, update `last_reviewed`, extend an `iterations:` array with per-iteration verdicts and dates. The body of `iteration-1.md` is **not** rewritten.
-  5. **Leave a stub redirect at the old flat path** so existing wikilinks resolve:
+ 1. Create `<vault-root>\Projects\<ProjectFolder>\Code Reviews\PR-<NNN> — <Title>\` (folder name = the original flat filename without `.md`).
+ 2. Move the original body into `iteration-1.md` inside the folder. Frontmatter stays on `iteration-1.md` — it is the source of truth for this PR review thread.
+ 3. Write the new review pass as `iteration-2.md` — body only (no frontmatter); the findings, diagram, verdict, etc. for the second pass.
+ 4. Update `iteration-1.md` frontmatter: bump `iterations: 2`, update `last_reviewed`, extend an `iterations:` array with per-iteration verdicts and dates. The body of `iteration-1.md` is **not** rewritten.
+ 5. **Leave a stub redirect at the old flat path** so existing wikilinks resolve:
 
-     ```markdown
-     ---
-     redirect: PR-<NNN> — <Title>/iteration-1.md
-     ---
+ ```markdown
+ ---
+ redirect: PR-<NNN> — <Title>/iteration-1.md
+ ---
 
-     Moved to [PR-<NNN> — <Title>/iteration-1.md](PR-<NNN> — <Title>/iteration-1.md).
-     ```
+ Moved to [PR-<NNN> — <Title>/iteration-1.md](PR-<NNN> — <Title>/iteration-1.md).
+ ```
 
-     No dead links. Obsidian wikilinks `[[PR-<NNN> — <Title>]]` continue to resolve.
+ No dead links. Obsidian wikilinks `[[PR-<NNN> — <Title>]]` continue to resolve.
 
 - **Third and subsequent reviews:** append `iteration-N.md` inside the existing subfolder. Update `iteration-1.md` frontmatter's `iterations:` array and `last_reviewed`. Never rewrite prior iteration files.
 
 - **Additional promotion triggers** (over and above iteration count):
-  - Flat file size exceeds **3000 lines** → propose promotion at the next review or whenever the user asks to add content.
-  - User passes `--expand` or asks to split ("this needs its own folder", "split this review") → promote immediately.
+ - Flat file size exceeds **3000 lines** → propose promotion at the next review or whenever the user asks to add content.
+ - User passes `--expand` or asks to split ("this needs its own folder", "split this review") → promote immediately.
 
 - **Discussion log.** GitHub thread excerpts, off-PR conversations, decisions made outside the review. After promotion, the user can create `discussion.md` inside the subfolder. The skill does not write `discussion.md` automatically — it is user-managed. After promotion, mention it in chat:
 
-  > Folder ready. Add GitHub thread excerpts or off-review discussion to `discussion.md` inside the folder if needed.
+ > Folder ready. Add GitHub thread excerpts or off-review discussion to `discussion.md` inside the folder if needed.
 
 - **Attachments.** Design docs, screenshots, external references → `attachments/` subfolder inside the PR folder. User-managed; the skill does not create it.
 
@@ -342,21 +323,21 @@ state: open | merged | closed | draft
 files_changed: <N>
 additions: <A>
 deletions: <D>
-reviewer: <reviewer>          # resolved from `git config user.name`; never hardcode an identity
-reviewed_on: <YYYY-MM-DD>      # first review date
-last_reviewed: <YYYY-MM-DD>    # most recent iteration date
+reviewer: <reviewer> # resolved from `git config user.name`; never hardcode an identity
+reviewed_on: <YYYY-MM-DD> # first review date
+last_reviewed: <YYYY-MM-DD> # most recent iteration date
 iterations: <N>
 iteration_log:
-  - n: 1
-    date: <YYYY-MM-DD>
-    verdict: REQUEST_CHANGES
-    findings: { critical: 1, high: 3, medium: 5, low: 2 }
-    head_sha: <commit sha at time of review>
-  - n: 2
-    date: <YYYY-MM-DD>
-    verdict: APPROVE
-    findings: { critical: 0, high: 0, medium: 1, low: 1 }
-    head_sha: <commit sha at time of review>
+ - n: 1
+ date: <YYYY-MM-DD>
+ verdict: REQUEST_CHANGES
+ findings: { critical: 1, high: 3, medium: 5, low: 2 }
+ head_sha: <commit sha at time of review>
+ - n: 2
+ date: <YYYY-MM-DD>
+ verdict: APPROVE
+ findings: { critical: 0, high: 0, medium: 1, low: 1 }
+ head_sha: <commit sha at time of review>
 verdict: <latest iteration verdict>
 ---
 ```
@@ -414,7 +395,7 @@ When architectural rules are loaded, cite the relevant rule. Without rules, find
 - **Test coverage.** New logic without corresponding test changes (detected by checking if test files are in the diff when source files are).
 - **Documentation.** Public API changes without docstring/comment updates.
 - **TODOs.** New TODO comments introduced without tracking references.
-- **Debug artifacts.** `console.log`, `print()`, `debugger` statements in non-test code.
+- **Debug artifacts.** `console.log`, `print`, `debugger` statements in non-test code.
 
 Self-evident — no rule citation required.
 
@@ -432,16 +413,16 @@ Self-evident for most security findings. Cite loaded architectural rules when ap
 ## Failure modes
 
 - **`gh` not installed or not authenticated.** Bail immediately:
-  > `gh` CLI is required for pr-review. Install from https://cli.github.com/ and run `gh auth login`.
+ > `gh` CLI is required for pr-review. Install from https://cli.github.com/ and run `gh auth login`.
 
 - **Not a git repository or no GitHub remote.** Bail:
-  > Not in a git repository with a GitHub remote. Navigate to the project directory first.
+ > Not in a git repository with a GitHub remote. Navigate to the project directory first.
 
 - **PR number invalid or not found.** Bail:
-  > PR #N not found in this repository. Verify the number and try again.
+ > PR #N not found in this repository. Verify the number and try again.
 
 - **No PR for current branch (auto-detect mode).** Bail with guidance:
-  > No PR found for the current branch (`<branch>`). Pass a PR number explicitly: `/pr-review <number>`.
+ > No PR found for the current branch (`<branch>`). Pass a PR number explicitly: `/pr-review <number>`.
 
 - **PR is a draft.** Warn but don't block.
 
@@ -452,13 +433,13 @@ Self-evident for most security findings. Cite loaded architectural rules when ap
 - **Binary files in diff.** Skip silently. Note count in report header.
 
 - **Empty diff.** Report:
-  > PR #N has no file changes. Nothing to review.
+ > PR #N has no file changes. Nothing to review.
 
 ## What pr-review does NOT do
 
 - **Does not post to GitHub.** No `gh pr review`, no comment creation. All output is local.
 - **Does not auto-fire.** Not on any hook, not at any session boundary.
-- **Does not replace review (005).** Review audits local code for architectural drift. pr-review reviews incoming PRs as a reviewer. Different scopes.
+- **Does not replace review.** Review audits local code for architectural drift. pr-review reviews incoming PRs as a reviewer. Different scopes.
 - **Does not check out the PR branch.** Works entirely from `gh pr diff` and `gh pr view` — the local working tree is not modified.
 - **Does not run tests.** Findings are from static analysis of the diff. Running the PR's test suite is the user's (or CI's) job.
 - **Does not force-load architectural rules.** Rule loading is opt-in per step 4.
@@ -467,9 +448,9 @@ Self-evident for most security findings. Cite loaded architectural rules when ap
 
 ## Relationship to other organs
 
-- **discover (002)** — optional rule retrieval, user-gated (step 4 Q1). Same query interface as prep/review, but only invoked when the user opts in.
-- **deliver (012)** — rule-body rendering inside discover. `render_bodies: true` when discover is invoked.
-- **review (005)** — complementary. Review audits the user's own code for drift. pr-review reviews someone else's PR. A user might `/review` their own branch before submitting, and `/pr-review` when reviewing someone else's.
-- **prep (004)** — not consumed by pr-review. Prep primes before writing code; pr-review is read-only analysis.
-- **capture (011)** — not directly invoked. If the user discovers a pattern worth capturing during PR review, they can invoke `/capture` separately.
-- **architectural-rules tree (006)** — the corpus, when loaded via discover. pr-review's design-category findings can cite rules from this tree.
+- **discover** — optional rule retrieval, user-gated (step 4 Q1). Same query interface as prep/review, but only invoked when the user opts in.
+- **deliver** — rule-body rendering inside discover. `render_bodies: true` when discover is invoked.
+- **review** — complementary. Review audits the user's own code for drift. pr-review reviews someone else's PR. A user might `/review` their own branch before submitting, and `/pr-review` when reviewing someone else's.
+- **prep** — not consumed by pr-review. Prep primes before writing code; pr-review is read-only analysis.
+- **capture** — not directly invoked. If the user discovers a pattern worth capturing during PR review, they can invoke `/capture` separately.
+- **architectural-rules tree** — the corpus, when loaded via discover. pr-review's design-category findings can cite rules from this tree.

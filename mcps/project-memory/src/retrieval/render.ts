@@ -16,7 +16,7 @@ interface RenderFlags {
  * Render a ranked memory list into the MCP-tool text response. Two density
  * modes: name+description only (cheap, scannable) or full body (heavier,
  * passes the actual content). Matches the `/deliver` skill's tier shape
- * (proposal 012) — caller decides density.
+ * — caller decides density.
  */
 export function renderScoredMemories(
   results: ScoredMemory[],
@@ -66,7 +66,7 @@ function renderOne(
 ): string {
   const fm = memory.frontmatter;
   const relPath = relativePath(opts.memoryRoot, memory.filePath);
-  // Warnings get a 📛 prefix so they read as landmines at a glance (proposal 023).
+  // Warnings get a 📛 prefix so they read as landmines at a glance.
   const warnPrefix = fm.kind === "warning" ? "📛 " : "";
   const header = [
     `${warnPrefix}**${fm.name ?? relPath}**`,

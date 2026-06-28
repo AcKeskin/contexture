@@ -131,6 +131,18 @@ function assertFixture(fixture, codemap, diagrams) {
     results.precision = projIdx >= 0 && (biIdx < 0 || projIdx < biIdx);
   }
 
+  // [resolution] — 087 receiver-type resolution: the fixture has two classes declaring a
+  // same-named method (e.g. User.save / Post.save) on typed receivers; assert the resolver
+  // disambiguated to the RIGHT `Type.method` in the `## Call graph` (not a collapsed bare name).
+  // `resolution: null` / absent → n/a (only the TS + C# fixtures exercise type resolution).
+  if (!exp.resolution) {
+    results.resolution = 'na';
+  } else {
+    // Every expected qualified edge (`Type.method`) must appear in the call graph.
+    results.resolution = exp.resolution.qualified.every((q) =>
+      new RegExp(`→\\s+\`${escapeRe(q)}\``).test(callGraph));
+  }
+
   // [mermaid] — visualizer produced at least one well-formed mermaid block with a graph/classDiagram body
   const blocks = [...diagrams.matchAll(/```mermaid\n([\s\S]*?)```/g)].map((m) => m[1]);
   results.mermaid = blocks.some((b) => /\b(graph|classDiagram|flowchart)\b/.test(b)) &&
@@ -169,7 +181,7 @@ function runFixture(fixture) {
 
 // --- main -------------------------------------------------------------------
 
-const CHECK_KEYS = ['class', 'relation', 'field', 'edge', 'calls', 'precision', 'mermaid'];
+const CHECK_KEYS = ['class', 'relation', 'field', 'edge', 'calls', 'precision', 'resolution', 'mermaid'];
 
 function main() {
   const baseline = fs.existsSync(BASELINE) ? JSON.parse(fs.readFileSync(BASELINE, 'utf8')) : {};

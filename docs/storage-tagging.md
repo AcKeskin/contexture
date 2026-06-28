@@ -1,6 +1,6 @@
 # Storage tagging — memory frontmatter and folders
 
-Implements. Companion to the authoritative instructions in [`claude-md/memory-capture.md`](../claude-md/memory-capture.md) — this doc is the Claude-facing reference, that fragment is what Claude actually reads at runtime.
+Companion to the authoritative instructions in [`claude-md/memory-capture.md`](../claude-md/memory-capture.md) — this doc is the Claude-facing reference, that fragment is what Claude actually reads at runtime.
 
 ## Frontmatter schema
 

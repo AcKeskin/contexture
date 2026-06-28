@@ -5,7 +5,7 @@ description: Scaffold a new Claude Code hook end-to-end — pick a recipe, name 
 
 # new-hook
 
-The hook scaffold organ. Implements. Closes the gap that no existing skill — in this project or in the audited plugin set — helps with: building new Claude Code hooks correctly, including the matcher / event vocabulary, the fail-open exit-code contract, and the high-stakes `~/.claude/settings.json` registration edit.
+The hook scaffold organ. Closes the gap that no existing skill — in this project or in the audited plugin set — helps with: building new Claude Code hooks correctly, including the matcher / event vocabulary, the fail-open exit-code contract, and the high-stakes `~/.claude/settings.json` registration edit.
 
 ## When to run
 
@@ -204,7 +204,7 @@ PostToolUse, Stop, SubagentStop, Notification, PreCompact. No current use case. 
 
 ## Relationship to other organs
 
-- **prep (004)** — when designing a new recipe, prep with `[skills, hooks]` scope. The recipe README + template is the artefact.
-- **capture (011)** — surprises during a scaffold run (a settings.json edge case, a recipe placeholder that didn't substitute cleanly) are capture candidates.
-- **review (005)** — review's drift detection catches recipe templates that fall out of sync with the recipe README contract.
-- **architectural-rules tree (006)** — `universal/skill-auto-fire.md` applies: this skill fires via description on `/new-hook`, no SessionStart hook involved.
+- **prep** — when designing a new recipe, prep with `[skills, hooks]` scope. The recipe README + template is the artefact.
+- **capture** — surprises during a scaffold run (a settings.json edge case, a recipe placeholder that didn't substitute cleanly) are capture candidates.
+- **review** — review's drift detection catches recipe templates that fall out of sync with the recipe README contract.
+- **architectural-rules tree** — `universal/skill-auto-fire.md` applies: this skill fires via description on `/new-hook`, no SessionStart hook involved.

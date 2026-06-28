@@ -5,9 +5,9 @@ description: Shared engine for the meta-review organs — orientation pass, NEW/
 
 # retrospect-core
 
-The meta-review engine. Implements the shared spine of. It is to [retrospect](../retrospect/SKILL.md) and [system-review](../system-review/SKILL.md) what [deliver (012)](../deliver/SKILL.md) is to discover/prep/review: one mechanism, many consumers, so the meta-review skills stay single-responsibility without duplicating the engine.
+The meta-review engine. Implements the shared spine. It is to [retrospect](../retrospect/SKILL.md) and [system-review](../system-review/SKILL.md) what [deliver](../deliver/SKILL.md) is to discover/prep/review: one mechanism, many consumers, so the meta-review skills stay single-responsibility without duplicating the engine.
 
-It does **not** know how to find decision drift or organ overlap — that domain logic lives in the calling skill's *passes*. retrospect-core owns the four things every meta-review run shares: orient, diff against the prior run, render per the [review output contract (042)](../../docs/review-output-contract.md), and route each confirmed finding to the organ that actually fixes it.
+It does **not** know how to find decision drift or organ overlap — that domain logic lives in the calling skill's *passes*. retrospect-core owns the four things every meta-review run shares: orient, diff against the prior run, render per the [review output contract](../../docs/review-output-contract.md), and route each confirmed finding to the organ that actually fixes it.
 
 ## When to run
 
@@ -109,8 +109,8 @@ When a finding needs a memory/proposal **body** shown inline, call [deliver](../
 Iterate findings in report order. For each, present it and offer:
 
 - **Apply** → execute by `route`:
- - `capture` → invoke [capture (011)](../capture/SKILL.md) with `proposed_action` as candidate content. Capture classifies kind/scope/relevance and runs its own confirm. (Used for: uncaptured lessons, sharpened/added rules.)
- - `memory-audit` → the fix is a *mechanical* memory edit (e.g. add a missing `superseded_by` back-link, fix a broken relation). Apply it as a direct Edit framed as the memory-audit fix, or hand off to [memory-audit (024)](../memory-audit/SKILL.md) `--check` for the relevant dimension when the run surfaced several. retrospect-core never decides memory *validity* itself beyond the caller's verdict — it routes the integrity fix.
+ - `capture` → invoke [capture](../capture/SKILL.md) with `proposed_action` as candidate content. Capture classifies kind/scope/relevance and runs its own confirm. (Used for: uncaptured lessons, sharpened/added rules.)
+ - `memory-audit` → the fix is a *mechanical* memory edit (e.g. add a missing `superseded_by` back-link, fix a broken relation). Apply it as a direct Edit framed as the memory-audit fix, or hand off to [memory-audit](../memory-audit/SKILL.md) `--check` for the relevant dimension when the run surfaced several. retrospect-core never decides memory *validity* itself beyond the caller's verdict — it routes the integrity fix.
  - `proposal` → write a stub under the project's `proposals/` directory (next free slot or a `BACKLOG.md` row), titled from `proposed_action`, body = the finding + why. Never auto-fills a full proposal; it captures the candidate so it isn't lost. Confirm the slot number with the user first.
  - `direct-fix` → a self-evident edit the organ owns outright (e.g. an index line, a stale path in a coverage map). Edit, confirm.
 - **Skip** → discard for this run (ephemeral; does not become next run's `wont_fix`).
@@ -145,9 +145,9 @@ The artefact is committable — diffing `v3.md`↔`v4.md` shows which decisions 
 
 ## Relationship to other organs
 
-- **deliver (012)** — called to render memory/proposal bodies inside reports. Same library-only posture.
-- **review (005)** — the donor of the orient/diff/persist machinery; this is that machinery extracted and generalised off code. review keeps its own copy inlined (it predates this) — a future refactor could point review here too, but that is not in 060's scope.
-- **capture (011) / memory-audit (024)** — the two routing targets for lessons and memory-integrity fixes respectively.
+- **deliver** — called to render memory/proposal bodies inside reports. Same library-only posture.
+- **review** — the donor of the orient/diff/persist machinery; this is that machinery extracted and generalised off code. review keeps its own copy inlined (it predates this) — a future refactor could point review here too, but that is not in 060's scope.
+- **capture / memory-audit** — the two routing targets for lessons and memory-integrity fixes respectively.
 - **retrospect / system-review** — the two consumers. They own corpus + passes; they delegate the spine here.
 
 See the design notes for the charter boundaries this engine enforces.

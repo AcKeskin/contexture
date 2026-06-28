@@ -1,6 +1,6 @@
 # Human-view — the approval projection
 
-Implements. Authoritative procedure: [`skills/human-view/SKILL.md`](../skills/human-view/SKILL.md); this doc is the Claude-facing reference.
+Authoritative procedure: [`skills/human-view/SKILL.md`](../skills/human-view/SKILL.md); this doc is the Claude-facing reference.
 
 ## What it is
 

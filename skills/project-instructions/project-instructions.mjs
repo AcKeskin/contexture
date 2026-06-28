@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// project-instructions.mjs — deterministic cross-tool instruction projector (proposal 053 / cross-tool-projection).
+// project-instructions.mjs — deterministic cross-tool instruction projector.
 //
 // Reads the curated discipline corpus (architectural-rules/ + the hand-authored
 // cross-tool-core fragment) and projects it into vendor-neutral instruction files

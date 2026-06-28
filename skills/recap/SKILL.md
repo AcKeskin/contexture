@@ -5,7 +5,7 @@ description: Write a session recap — an episodic record of what a work session
 
 # recap
 
-Session recaps (previously "rollups") are the second memory tier — episodic, per-session, structured. Rules (existing tier) answer *how should I work*; recaps answer *what happened and where did I leave off*. Implements. Format follows [`claude-md/memory-capture.md`](../../claude-md/memory-capture.md) §"Folder layout" — `type: session-recap`, lands under `memory/sessions/`.
+Session recaps (previously "rollups") are the second memory tier — episodic, per-session, structured. Rules (existing tier) answer *how should I work*; recaps answer *what happened and where did I leave off*. Format follows [`claude-md/memory-capture.md`](../../claude-md/memory-capture.md) §"Folder layout" — `type: session-recap`, lands under `memory/sessions/`.
 
 ## When to run
 
@@ -97,7 +97,12 @@ Ask: *accept / edit / reject*.
 1. Create `sessions/` folder if absent.
 2. Write the file (new) or append a dated section (if the user chose "append" in step 4).
 3. Report the written path.
-4. Proceed to step 8 (promotion pass).
+4. **Offer the close for any shipped unit ( + 092).** If this session's `Completed` section records a *shipped unit of work* (a proposal landed, a feature/organ shipped — not mere in-progress edits), offer the close at the depth that fits the unit:
+ - **A shipped feature that has a spec/plan under `.claude/` (a closeable slug)** → offer the **full close**: *"This session shipped &lt;slug&gt; — run `/close-out &lt;slug&gt;` to reconcile its spec, file the plan, and log the ship line in one pass? (y/N)"*. On `y`, invoke [`skills/close-out/SKILL.md`](../close-out/SKILL.md) — it *contains* the changelog write, so it is the superset, not a second offer.
+ - **A shipped unit with no spec/plan to reconcile** (a doc change, a one-off) → offer just the **changelog line**: *"This session shipped &lt;unit&gt; — log it to CHANGELOG? (y/N)"*. On `y`, invoke [`skills/update-changelog/SKILL.md`](../update-changelog/SKILL.md).
+
+ recap is a *doorway*, not the writer — it never writes the changelog or reconciles a spec itself; both `/close-out` and `/update-changelog` run behind their own accept/edit/reject gates. Skip silently when nothing shipped (sessions that only investigated/planned produce no offer).
+5. Proceed to step 8 (promotion pass).
 
 **On edit:** take the user's edit as the new draft; loop to step 6.
 
@@ -135,19 +140,21 @@ This closes the loop: capture guards entry (§6b), the scoreboard makes growth v
 ## What recap does NOT do
 
 - **Does not auto-fire.** Ever. Mode B parked.
-- **Does not do cross-session consolidation.** Recap is strictly **micro/episodic** — one session, what happened today, what's next tomorrow. Stepping back over the *body* of many sessions/ships to ask "what still coheres, what's drifted" is [retrospect (060)](../retrospect/SKILL.md)'s job. Recap *feeds* retrospect (its recaps are an input corpus, swept by retrospect's uncaptured-lessons pass); it does not aggregate across sessions itself.
+- **Does not do cross-session consolidation.** Recap is strictly **micro/episodic** — one session, what happened today, what's next tomorrow. Stepping back over the *body* of many sessions/ships to ask "what still coheres, what's drifted" is [retrospect](../retrospect/SKILL.md)'s job. Recap *feeds* retrospect (its recaps are an input corpus, swept by retrospect's uncaptured-lessons pass); it does not aggregate across sessions itself.
 - **Does not summarise each tool call.** That's claude-mem's granularity; recap rejects it as too noisy. Recap is session-level, not tool-level.
 - **Does not sync across machines.**, memory is local. Each PC has its own session log.
-- **Does not write directly to rule-tier memory.** Promotion flows through capture (011) so classification is consistent.
+- **Does not write directly to rule-tier memory.** Promotion flows through capture so classification is consistent.
 - **Does not update `MEMORY.md`'s index entries.** Recaps are discovered by folder scan ( §"Retrieval"), not via the index. (It DOES update the budget scoreboard header — §9 — but never the per-memory index lines.)
 - **Does not manage recap retention.** Keep recaps indefinitely; discovery ages auto-surfacing at 30 days; manual pruning only. (It DOES run the corpus bloat check on rule-tier memory — §9 — but only surfaces a nudge, never prunes unprompted.)
 
 ## Relationship to other organs
 
-- **capture (011)** — promotion path. Recap's Learned items pass through capture to become rule-tier memories.
-- **retrospect (060)** — the macro aggregator above recap. Recap is the per-session feeder; retrospect sweeps *all* recaps since its last run for `Learned` items the per-session promotion pass (§8) missed, and consolidates across the body of work recap only records one slice of.
-- **discover (002)** — discovery scans `sessions/` as a retrieval source with a 30-day auto-surface cutoff (see discover §8a).
-- **deliver (012)** — recaps render as tier `session-recap` in delivery's default ordering, between project-facts and codemap.
+- **capture** — promotion path. Recap's Learned items pass through capture to become rule-tier memories.
+- **retrospect** — the macro aggregator above recap. Recap is the per-session feeder; retrospect sweeps *all* recaps since its last run for `Learned` items the per-session promotion pass (§8) missed, and consolidates across the body of work recap only records one slice of.
+- **discover** — discovery scans `sessions/` as a retrieval source with a 30-day auto-surface cutoff (see discover §8a).
+- **deliver** — recaps render as tier `session-recap` in delivery's default ordering, between project-facts and codemap.
 - **git log** — complementary, not duplicative. Git is authoritative for commits; recaps add the *why* and *what was learned* that commit messages don't capture.
+- **update-changelog** — recap *offers* a changelog ship line for a session's shipped unit (§7.4); update-changelog is the writer. recap = per-session episodic record; changelog = the canonical chronological ship index.
+- **close-out** — when a session shipped a *feature* (a slug with a spec/plan), recap §7.4 offers `/close-out <slug>` (the superset that reconciles the spec + files the plan + logs the ship line) instead of the bare changelog offer. recap is about the **session**; close-out is about the **feature** — distinct subjects, so recap is a doorway, not the closer.
 
 See [`docs/recap-organ.md`](../../docs/recap-organ.md) for the two-tier memory model and retention policy.

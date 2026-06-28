@@ -5,7 +5,7 @@ description: Observe a scope's dominant code conventions and write a 047 project
 
 # extract-conventions
 
-The convention-extraction organ. Implements. The first organ to **auto-populate** the 047 project tier (047 specced the project tier hand-authored). Gates on [rule-prime-hook (077)](../../hooks/rule-prime.js) for its output to be load-bearing — without 077 priming the extracted file, it is an inert surface. Feeds [naming-comment-quality (078)](../../architectural-rules/universal/naming-and-comments.md), whose audit cites the project-tier conventions this writes.
+The convention-extraction organ. The first organ to **auto-populate** the 047 project tier (047 specced the project tier hand-authored). Gates on [rule-prime-hook](../../hooks/rule-prime.js) for its output to be load-bearing — without 077 priming the extracted file, it is an inert surface. Feeds [naming-comment-quality](../../architectural-rules/universal/naming-and-comments.md), whose audit cites the project-tier conventions this writes.
 
 Extract observes a scope and makes its **implicit, tacit conventions explicit** — a durable artefact that 077 primes and 078 audits, replacing the stateless per-run re-inference that is drift-prone and points a reviewer at nothing.
 
@@ -156,7 +156,7 @@ relations: # only when a conflict was overridden in §5
 
 Report the write:
 
-> Wrote `<project>/.claude/rules/<lang>/conventions.md` (N conventions across M categories). With the rule-prime hook (077) active, this primes into context when you touch <lang> and overrides the universal defaults for this scope. /review (078) audits against it.
+> Wrote `<project>/.claude/rules/<lang>/conventions.md` (N conventions across M categories). With the rule-prime hook active, this primes into context when you touch <lang> and overrides the universal defaults for this scope. /review audits against it.
 
 ### 8. Stop
 
@@ -165,7 +165,7 @@ Do not invoke `/review`, do not commit. The written file is the user's to commit
 ## What extract-conventions does NOT do
 
 - **Does not auto-fire.** Mode A only. No hook, no session/task trigger.
-- **Does not generate formatter/linter config.** No `.editorconfig` / ESLint / clang-format. It writes human-and-model-readable conventions prose for judgment-based review (078), not mechanical enforcement.
+- **Does not generate formatter/linter config.** No `.editorconfig` / ESLint / clang-format. It writes human-and-model-readable conventions prose for judgment-based review, not mechanical enforcement.
 - **Does not claim exhaustiveness.** Reports dominant, confidently-observed conventions with confidence levels — not every micro-pattern. Honesty over coverage.
 - **Does not present inference as fact.** Semantic conventions are flagged lower-confidence; an absent pattern is never asserted.
 - **Does not auto-write.** Per-category propose-confirm-commit gate; nothing lands until accepted.
@@ -176,12 +176,12 @@ Do not invoke `/review`, do not commit. The written file is the user's to commit
 
 ## Relationship to other organs
 
-- **rule-prime-hook (077)** — the consumer that makes this output load-bearing. **Hard dependency** for payoff: 077 primes the extracted file into context. Without it the file is inert (the exact disease 077 fixes).
-- **naming-comment-quality (078)** — the auditor. 079's extracted conventions are the project-tier rules 078 cites; conformance precedence is project convention > file-local style > universal default.
+- **rule-prime-hook** — the consumer that makes this output load-bearing. **Hard dependency** for payoff: 077 primes the extracted file into context. Without it the file is inert (the exact disease 077 fixes).
+- **naming-comment-quality** — the auditor. 079's extracted conventions are the project-tier rules 078 cites; conformance precedence is project convention > file-local style > universal default.
 - **047 overlay / rules skill** — the tier this writes to and resolves against. First organ to auto-populate the project tier. `/rules where <key>` shows the written file winning over the shipped default.
 - **language-pro agents** — own idiomatic prose authoring (§6). Dispatched with positive scope + hard placement, no further spawn.
-- **codemap (003)** — adjacent extractor (structure vs conventions). `detect.mjs` is independent of codemap's AST machinery in v1; a future version may consume the codemap's tree-sitter output for structural conventions.
-- **new-agents-md (053)** — downstream beneficiary: real extracted conventions materially improve 053's `## Conventions` section.
+- **codemap** — adjacent extractor (structure vs conventions). `detect.mjs` is independent of codemap's AST machinery in v1; a future version may consume the codemap's tree-sitter output for structural conventions.
+- **new-agents-md** — downstream beneficiary: real extracted conventions materially improve 053's `## Conventions` section.
 
 ## Debug
 
