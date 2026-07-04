@@ -18,7 +18,7 @@ It is **optional and post-planning** — reached for *after* `/draft-plan` when 
 envision → spec → draft-plan → [ blueprint ] → execute (blueprint optional)
 ```
 
-It **authors** (writes new diagrams + the concrete shape). It is **not** `codemap-visualize` (which *renders* structure from finished code — derived, post-hoc). Mermaid templates live in [`mermaid-templates.md`](mermaid-templates.md).
+It **authors** (writes new diagrams + the concrete shape). It is **not** `visualise-codemap` (which *renders* structure from finished code — derived, post-hoc). Mermaid templates live in [`mermaid-templates.md`](mermaid-templates.md).
 
 The point is *intent + mature concrete shape*, aligned. It is **not** a process log: how the plan was arrived at is deliberately out of scope — keep a light "key decisions" note only when it's free (§4 step 3).
 
@@ -55,12 +55,12 @@ The point is *intent + mature concrete shape*, aligned. It is **not** a process 
 
 **Mode 2 (from-code):**
 - `.claude/codemap.md` (if present) — module/file/class structure, exports, dependency edges. Drives the concrete shape structurally.
-- The codebase — Read/Grep the modules the codemap names. Inference is bounded by codemap's extraction quality (tree-sitter AST across ~18 languages, with a regex fallback only when the tree-sitter deps aren't installed) — the same limit codemap-visualize documents.
+- The codebase — Read/Grep the modules the codemap names. Inference is bounded by codemap's extraction quality (tree-sitter AST across ~18 languages, with a regex fallback only when the tree-sitter deps aren't installed) — the same limit visualise-codemap documents.
 
 ### 3. Determine output version and paths
 
 - In-repo: `.claude/docs/<slug>/`. Empty/absent → `v1.md`. Else → `v<N+1>.md`; mark the previous active `status: superseded`, `superseded_by: v<N+1>.md`.
-- Vault: `<Vault>/Projects/<ProjectFolder>/Docs/<slug>-blueprint.md` (or per-section split — see step 7). Reuse codemap-visualize's `<ProjectFolder>` inference and allowlist-surfacing.
+- Vault: `<Vault>/Projects/<ProjectFolder>/Docs/<slug>-blueprint.md` (or per-section split — see step 7). Reuse visualise-codemap's `<ProjectFolder>` inference and allowlist-surfacing.
 
 ### 4. Author the blueprint (adaptive — omit empty)
 
@@ -85,7 +85,7 @@ Three parts. **Omit any part whose source material is empty** — no "N/A" place
 
 ### 4.5 Fan-out caps
 
-Keep diagrams legible (mirroring codemap-visualize's `l2-*` guards):
+Keep diagrams legible (mirroring visualise-codemap's `l2-*` guards):
 - Sequence diagram > ~12 participants → split per sub-scenario; note the split.
 - Class diagram > ~15 nodes → split per module/aggregate; note the split.
 A diagram that routinely blows the cap signals over-broad scope — a finding, not a render bug.
@@ -125,7 +125,7 @@ No draft scratch file — only the accepted blueprint is written.
 
 **In-repo** (always single file): `.claude/docs/<slug>/v<N>.md`. Create the dir if absent. Supersede the previous active version when N > 1. Update `.claude/docs/INDEX.md` (same shape as specs/plans INDEX).
 
-**Vault:** reuse codemap-visualize's conventions exactly.
+**Vault:** reuse visualise-codemap's conventions exactly.
 - *Single-file mode* (≤ ~4 diagrams): `<Vault>/Projects/<ProjectFolder>/Docs/<slug>-blueprint.md`, frontmatter + full body.
 - *Per-section split* (above the threshold): an index note + one note per part under `<Vault>/Projects/<ProjectFolder>/Docs/<slug>/`, each with a back-link and its diagrams. Obsidian renders one-diagram-per-note far faster on large blueprints.
 - **Allowlist:** if the vault write is blocked, surface the exact `outsideProjectWriteBlocker.allow` line to add. **Do not edit `hook-config.json`** — the user owns hook-config edits.
@@ -144,7 +144,7 @@ If Mode 2, append the inference-verification reminder.
 - Does not implement anything — it pins the concrete shape; `/execute` builds it.
 - Does not merge with `/draft-plan` — the plan stays the stepped plan; the blueprint is the optional concrete synthesis on top.
 - Does not narrate *how* the plan was arrived at — process is out of scope; it shows intent + the mature concrete answer (a one-line key-decision note is the only concession).
-- Does not render structure from finished code as its primary job — that's `codemap-visualize`. Mode 2 overlaps its input but produces an *authored* blueprint (intent + concrete shape + alignment), not a raw structural index.
+- Does not render structure from finished code as its primary job — that's `visualise-codemap`. Mode 2 overlaps its input but produces an *authored* blueprint (intent + concrete shape + alignment), not a raw structural index.
 - Does not use PlantUML/Graphviz. Mermaid only.
 - Does not present Mode-2 inferred behavior as authoritative.
 - Does not auto-fire. Manual, optional.
@@ -152,7 +152,7 @@ If Mode 2, append the inference-verification reminder.
 
 ## Relationship to other skills
 
-- **codemap-visualize** — closest sibling, **opposite direction**. codemap-visualize *renders structure from finished code* (post-hoc, derived); blueprint *commits the concrete shape from intent* (pre-code). codemap-visualize shows what the code **is**; blueprint shows what it's **meant to be**. Reuses codemap-visualize's vault conventions, `<ProjectFolder>` inference, Mermaid-only limit, fan-out-cap discipline, and allowlist-surfacing.
+- **visualise-codemap** — closest sibling, **opposite direction**. visualise-codemap *renders structure from finished code* (post-hoc, derived); blueprint *commits the concrete shape from intent* (pre-code). visualise-codemap shows what the code **is**; blueprint shows what it's **meant to be**. Reuses visualise-codemap's vault conventions, `<ProjectFolder>` inference, Mermaid-only limit, fan-out-cap discipline, and allowlist-surfacing.
 - **draft-plan** — upstream, **no merge**. The plan is the stepped how; the blueprint is the optional concrete what. The review gate matches `draft-plan`'s.
 - **spec / vision** — the intent sources (part 1). The spec is the authoritative Mode-1 input.
 - **capture / `decisions/` memory** — a part-3 key-decision note may cross-link to a captured decision via an Obsidian wikilink.
@@ -161,6 +161,6 @@ If Mode 2, append the inference-verification reminder.
 
 - Mermaid only. C4 emits a native block + a flowchart fallback (native C4 renders inconsistently across Obsidian versions; the flowchart is the reliable floor).
 - Mode-2 behavioral inference is bounded by codemap's extraction quality (tree-sitter AST; regex only as a no-deps fallback) — inferred diagrams are labelled, never authoritative.
-- Per-section vault split threshold and gap-batching granularity reuse codemap-visualize's config shape; tune with usage, do not add knobs speculatively.
+- Per-section vault split threshold and gap-batching granularity reuse visualise-codemap's config shape; tune with usage, do not add knobs speculatively.
 - No incremental render — each run authors a full new version.
 - In-repo output stays under `.claude/docs/<slug>/` (the design-artefact location) for v1; a dedicated `.claude/blueprints/` tree is a later option if blueprints and design docs need separating.

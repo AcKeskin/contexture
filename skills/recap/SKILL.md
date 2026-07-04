@@ -20,6 +20,7 @@ Session recaps (previously "rollups") are the second memory tier — episodic, p
 1. **Session context.** The current in-conversation transcript — what the user asked for, what Claude investigated / touched / shipped, what was learned that's worth future recall.
 2. **Arguments after `/recap`** — optional short title for the recap. When omitted, Claude infers from the session's primary goal.
 3. **Working directory** — `$CLAUDE_PROJECT_DIR` or `cwd`. Determines which project's memory tree receives the recap.
+4. **The `--under-wrap` signal** (set only when [`wrap`](../wrap/SKILL.md) invokes recap as part of the session-terminus ceremony). When present, recap **suppresses its own §7.4 close/changelog doorways** — `/wrap` owns those offers (its steps 4–5), so recap offering them too would double-offer. Everything else (gather, draft, write, §8 promotion, §9 bloat check) runs unchanged. Absent the signal (a standalone `/recap`), §7.4 fires as normal.
 
 ## Procedure
 
@@ -97,7 +98,7 @@ Ask: *accept / edit / reject*.
 1. Create `sessions/` folder if absent.
 2. Write the file (new) or append a dated section (if the user chose "append" in step 4).
 3. Report the written path.
-4. **Offer the close for any shipped unit ( + 092).** If this session's `Completed` section records a *shipped unit of work* (a proposal landed, a feature/organ shipped — not mere in-progress edits), offer the close at the depth that fits the unit:
+4. **Offer the close for any shipped unit.** **Skipped entirely when invoked with `--under-wrap`** (Inputs §4) — `/wrap` owns the close/changelog offers, so recap stays a silent doorway in that path to avoid a double-offer. Absent the signal (standalone `/recap`), offer as normal: if this session's `Completed` section records a *shipped unit of work* (a proposal landed, a feature/organ shipped — not mere in-progress edits), offer the close at the depth that fits the unit:
  - **A shipped feature that has a spec/plan under `.claude/` (a closeable slug)** → offer the **full close**: *"This session shipped &lt;slug&gt; — run `/close-out &lt;slug&gt;` to reconcile its spec, file the plan, and log the ship line in one pass? (y/N)"*. On `y`, invoke [`skills/close-out/SKILL.md`](../close-out/SKILL.md) — it *contains* the changelog write, so it is the superset, not a second offer.
  - **A shipped unit with no spec/plan to reconcile** (a doc change, a one-off) → offer just the **changelog line**: *"This session shipped &lt;unit&gt; — log it to CHANGELOG? (y/N)"*. On `y`, invoke [`skills/update-changelog/SKILL.md`](../update-changelog/SKILL.md).
 
@@ -156,5 +157,6 @@ This closes the loop: capture guards entry (§6b), the scoreboard makes growth v
 - **git log** — complementary, not duplicative. Git is authoritative for commits; recaps add the *why* and *what was learned* that commit messages don't capture.
 - **update-changelog** — recap *offers* a changelog ship line for a session's shipped unit (§7.4); update-changelog is the writer. recap = per-session episodic record; changelog = the canonical chronological ship index.
 - **close-out** — when a session shipped a *feature* (a slug with a spec/plan), recap §7.4 offers `/close-out <slug>` (the superset that reconciles the spec + files the plan + logs the ship line) instead of the bare changelog offer. recap is about the **session**; close-out is about the **feature** — distinct subjects, so recap is a doorway, not the closer.
+- **wrap** — the session-terminus driver invokes recap (with `--under-wrap`, Inputs §4) as one step of the closing ceremony. Under that signal recap **suppresses its §7.4 offers** — `/wrap` owns the close/changelog doorways, so recap doesn't double-offer. Standalone `/recap` keeps §7.4 firing. recap is a step of `/wrap`, not the other way round.
 
 See [`docs/recap-organ.md`](../../docs/recap-organ.md) for the two-tier memory model and retention policy.

@@ -20,7 +20,7 @@ Skills are standalone scripts run directly with `node`; MCP servers are TypeScri
 
 - **Install / wire up:** `node bootstrap/bootstrap.js` — symlinks the corpus (skills, rules, commands, agents, hooks) and MCP servers into the agent home dir. `--exclude=<list>` skips parts (excludable: `claude-md, architectural-rules, skills, commands, agents, hooks, ccline, mcps`). MCP *source* still has to be built separately (below).
 - **Verify install / drift:** `node bootstrap/bootstrap.js --verify` — read-only audit; exits 1 on drift. Also runs an advisory share-readiness leak scan.
-- **Codemap (read before exploring a large area):** `node skills/update-codemap/codemap.mjs` writes `.claude/codemap.md`. Diagrams: `node skills/codemap-visualize/codemap-visualize.mjs`.
+- **Codemap (read before exploring a large area):** `node skills/update-codemap/codemap.mjs` writes `.claude/codemap.md`. Diagrams: `node skills/visualise-codemap/visualise-codemap.mjs`.
 - **Primary test — the codemap language sweep (regression gate):** `node skills/update-codemap/test/language-sweep.mjs` — runs the real extract→visualize pipeline per language against `test/baseline.json`; exits non-zero on regression. `--update-baseline` re-records.
 - **MCP build + test:** in `mcps/<name>/` (the ones with a `package.json`), `npm run build` (`tsc`), then `npm test` where defined (e.g. `mcps/project-memory` runs `tsc -p tsconfig.test.json && node --test`). Some MCPs expose `npm run smoke` instead.
 - **Post-edit order:** run the test that covers what you touched (the sweep for codemap changes; the affected MCP's `npm test`/build for MCP changes) before considering the change done.
@@ -29,7 +29,7 @@ Skills are standalone scripts run directly with `node`; MCP servers are TypeScri
 
 Top-level layout (see `.claude/codemap.md` for the file-by-file map with purposes and exports):
 
-- `skills/` — reusable agent skills, one folder each; the logic-bearing ones are standalone `.mjs` (e.g. `update-codemap/`, `codemap-visualize/`). The discipline loop lives here.
+- `skills/` — reusable agent skills, one folder each; the logic-bearing ones are standalone `.mjs` (e.g. `update-codemap/`, `visualise-codemap/`). The discipline loop lives here.
 - `architectural-rules/` — the on-demand rule corpus. `universal/` always applies; `<language>/` (e.g. `csharp/`, `typescript/`, `cpp/`) applies when editing that language; config-authoring scopes apply when editing skills/agents/rules/hooks. Read the ones matching what you touch.
 - `mcps/` — MCP servers (TypeScript: `project-memory`, `unity`, `godot`, …). Each is its own buildable package.
 - `bootstrap/` — the installer that links the corpus + MCPs into the agent home dir.

@@ -154,7 +154,7 @@ function buildAgentsMd(root, rulesDir) {
   parts.push('## Commands');
   parts.push('');
   parts.push('- Codemap (read before exploring): `node skills/update-codemap/codemap.mjs` writes `.claude/codemap.md`');
-  parts.push('- Codemap diagrams: `node skills/codemap-visualize/codemap-visualize.mjs`');
+  parts.push('- Codemap diagrams: `node skills/visualise-codemap/visualise-codemap.mjs`');
   parts.push('- Verify install / drift: `node bootstrap/bootstrap.js --verify`');
   parts.push('- (Project-specific test/lint/build commands: see the repo README or ask — fill these in per repo.)');
   parts.push('');

@@ -5,7 +5,7 @@ description: Regenerate the project codemap at.claude/codemap.md — produce an 
 
 # update-codemap
 
-Generates an LLM-facing architecture document for the current project: a prose Overview, per-module roles (Role / Purpose / Entry / Public surface / Depends on / Imported by / Internals), evidence-based detected conventions, hub files ranked by importer count, and structured file-level + class-level graphs that downstream tools (notably `codemap-visualize`) consume to render diagrams and UML. Full-rewrite each run. Per-project, lives in the project's own git repo at `.claude/codemap.md`. The audience is LLMs and agents (consumed by `/prep`, `/discover`, and any agent that needs architectural context) — prose-heavy at the top, structured sections below.
+Generates an LLM-facing architecture document for the current project: a prose Overview, per-module roles (Role / Purpose / Entry / Public surface / Depends on / Imported by / Internals), evidence-based detected conventions, hub files ranked by importer count, and structured file-level + class-level graphs that downstream tools (notably `visualise-codemap`) consume to render diagrams and UML. Full-rewrite each run. Per-project, lives in the project's own git repo at `.claude/codemap.md`. The audience is LLMs and agents (consumed by `/prep`, `/discover`, and any agent that needs architectural context) — prose-heavy at the top, structured sections below.
 
 ## How to run (for Claude Code)
 
@@ -305,7 +305,7 @@ Start here — the most-depended-on files, ranked by importers:
 - Every resolved import that maps to an in-tree file produces one entry.
 - Format: `` - `<source-rel>` → `<target-rel>`, `<target-rel>` ``.
 - Source-relative paths, alphabetical by source. Targets alphabetical within each source.
-- Used by `codemap-visualize` to draw L2 file→file edges. Without this section, L2 graphs are nodes-only.
+- Used by `visualise-codemap` to draw L2 file→file edges. Without this section, L2 graphs are nodes-only.
 - Omit if no file-level edges resolve.
 
 **Class graph section** — class-level data extracted from TS/JS, C#, and C++ headers. One block per class, in (file, name) alphabetical order:
@@ -316,9 +316,9 @@ Start here — the most-depended-on files, ranked by importers:
  - `implements: <Iface>; <Iface>` — interface list (TS, C#).
  - `attributes: <Attr>; <Attr>` — attribute identifiers preceding the type declaration (C#).
  - `fields: <name>: <Type>; <name>: <Type>` — public fields / auto-properties. Type references are normalized (`Func<Task<T>>` → `Func`).
-- Separator inside multi-value lines is `; ` (space-semicolon-space), because parameter / generic / tuple syntax contains commas. `codemap-visualize` splits on the same token to render UML class diagrams.
+- Separator inside multi-value lines is `; ` (space-semicolon-space), because parameter / generic / tuple syntax contains commas. `visualise-codemap` splits on the same token to render UML class diagrams.
 - Omit the section when no classes are extracted.
-- Drives both `## Conventions detected` (same run) and `codemap-visualize`'s UML output (downstream).
+- Drives both `## Conventions detected` (same run) and `visualise-codemap`'s UML output (downstream).
 
 **Ordering rules (mandatory):**
 - Section order in the file: `# Architecture` header, then `## Overview`, `## Map`, `## Modules`, `## Conventions detected`, `## Hubs`, `## Symbol index`, `## Entry points`, `## Layers`, `## Dependencies`, `## File deps`, `## Class graph`, then the per-module `## <top-level-dir>/` groups. Sections with no content are omitted (except Overview and Modules, which are always emitted when any file exists).
@@ -371,7 +371,7 @@ Do not dump the full diff — just the counts and a pointer to `git diff.claude/
 
 - Does not delete `.claude/codemap.md` when the project is empty (reports an empty codemap and stops).
 - Does not modify any file other than `.claude/codemap.md` and `.claude/codemap.dirty` (the latter is cleared after a successful write; `.claude/codemap.config.md` is read-only input).
-- Does not render diagrams. Diagrams come from `codemap-visualize`, which consumes this skill's output.
+- Does not render diagrams. Diagrams come from `visualise-codemap`, which consumes this skill's output.
 - Does not commit to git. User owns the commit.
 - Does not inspect or modify `.gitignore`. Users choose their sync mode (local-only / git-tracked / external); the skill is indifferent.
 - Does not cross project boundaries (no traversing into sibling projects, no following symlinks out of the tree).
@@ -415,7 +415,7 @@ Full example:
 
 - `## Skip` — additive to defaults. Bullet list of backtick-quoted gitignore-style globs. See §2 parsing rules.
 - `## Vendored` — bullet list of backtick-quoted gitignore-style globs. Files under these patterns are scanned for tree structure but get `<vendored>` as their purpose line and no `exports:` entry. Imports out of vendored files are not emitted into `## Dependencies` / `## File deps`. Use this for in-tree third-party SDKs (e.g. bundled OpenXR headers) that you want represented in the tree but not as part of the project's surface area. Imports *into* vendored files (e.g. project code that `#include`s a bundled header) still produce edges — vendored is about ownership of the file, not visibility.
-- `## Layers` — `<LayerName>: <module>, <module>,...` per bullet. Module names match top-level directories. Surfaces in the codemap's `## Layers` section and is consumed by `codemap-visualize` to cluster L1 nodes.
+- `## Layers` — `<LayerName>: <module>, <module>,...` per bullet. Module names match top-level directories. Surfaces in the codemap's `## Layers` section and is consumed by `visualise-codemap` to cluster L1 nodes.
 - `## Auto-update` — `enabled: true` (or `- enabled: true`) opts the project into the codemap-dirty hook. The hook touches `.claude/codemap.dirty` on any project-tree write so the next `/update-codemap` run knows the codemap is stale. Anything other than `enabled: true` (missing line, `enabled: false`, missing section) keeps the project opt-out — no sentinel is ever written. The hook is registered globally; this section is the per-project gate.
 
 **Glob semantics (Skip and Vendored):**

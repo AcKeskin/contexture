@@ -54,6 +54,26 @@
         }
       ]
     },
+    "wrapTerminus": {
+      "SessionStart": [
+        {
+          "matcher": "clear|compact",
+          "hooks": [
+            { "type": "command", "command": "node __HOME__/.claude/hooks/wrap-terminus-recovery.js", "timeout": 10 }
+          ]
+        }
+      ]
+    },
+    "coordinateAuto": {
+      "SessionStart": [
+        {
+          "matcher": "startup|clear|compact|resume",
+          "hooks": [
+            { "type": "command", "command": "node __HOME__/.claude/hooks/coordinate-autoregister.js", "timeout": 10 }
+          ]
+        }
+      ]
+    },
     "agentOutputContracts": {
       "PostToolUse": [
         {

@@ -8,7 +8,7 @@
 //
 // The sentinel is a freshness flag, not a rebuild trigger — /update-codemap
 // reads it on next manual run to tell the user the codemap is out of date.
-// Skill `codemap-visualize` also surfaces the flag.
+// Skill `visualise-codemap` also surfaces the flag.
 //
 // Fails open: any error path allows the tool call to proceed.
 

@@ -30,4 +30,4 @@ Rendered inline by default; `/human-view … --vault` also writes a human copy (
 
 ## Relationship to other organs
 
-- **draft-plan / blueprint** — the primary callers ( gate + this projection). **deliver** — sibling projector, opposite audience (deliver renders *for the LLM*; human-view renders *for the human*). **AGENTS.md projector / two-doc-tracks** — same humans-vs-agents split, applied to working artefacts. **codemap-visualize** — shares the vault conventions for `--vault`.
+- **draft-plan / blueprint** — the primary callers ( gate + this projection). **deliver** — sibling projector, opposite audience (deliver renders *for the LLM*; human-view renders *for the human*). **AGENTS.md projector / two-doc-tracks** — same humans-vs-agents split, applied to working artefacts. **visualise-codemap** — shares the vault conventions for `--vault`.

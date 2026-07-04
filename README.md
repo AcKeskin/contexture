@@ -106,7 +106,7 @@ The pieces group into five harness subsystems — *how the agent is governed* �
 flowchart TB
     subgraph SL["🔄 Session lifecycle"]
       direction LR
-      primehook["rule-prime hook"] --> prep["/prep"] --> review["/review"] --> capture["/capture"] --> recap["/recap"]
+      primehook["rule-prime hook"] --> prep["/prep"] --> review["/review"] --> capture["/capture"] --> recap["/recap"] --> wrap["/wrap<br/>(sequences the close)"]
       discover["/discover"]
     end
     subgraph SC["📐 Scope (heavyweight track)"]
@@ -167,7 +167,7 @@ Full tool surfaces in [docs/reference.md](docs/reference.md).
 
 Two loops at different timescales, plus a separate mode for when something's already broken.
 
-**Loop A — the discipline loop (per-session).** The one diagrammed above. Every time I open Claude on any project: `/prep` primes rules, I write code, `/review` audits, `/capture` grows the corpus, `/recap` closes out. For a one-line fix, naked Claude conversation is fine — the loop is overhead for trivial work.
+**Loop A — the discipline loop (per-session).** The one diagrammed above. Every time I open Claude on any project: `/prep` primes rules, I write code, `/review` audits, `/capture` grows the corpus, and `/wrap` closes the session — one command that sequences the whole closing ceremony (recap → close-out if a slug shipped → changelog → backlog sweep), driving the individual organs so I don't run each by hand. For a one-line fix, naked Claude conversation is fine — the loop is overhead for trivial work.
 
 **Loop B — the project-lifecycle scaffold (per-feature).** The heavyweight track for anything bigger than a one-sentence diff. Each phase writes a versioned markdown artefact the next phase reads:
 
@@ -194,7 +194,7 @@ The chain is opt-in and versioned — specs evolve `v1 → v2`, plans rebuild ag
 | Something's broken / a test is failing | `/systematic-debugging` (reproduce → root-cause first) |
 | Picking up after a break | `/discover <topic>`, or `/work-state <slug>` for where a feature stands |
 | A feature has shipped | `/close-out <slug>` — reconcile the spec, file the plan, log the ship |
-| End of a session that produced anything | `/recap` |
+| End of a session that produced anything | `/wrap` — sequences the close (recap → close-out → changelog → backlog sweep); or `/recap` alone for just the session note |
 
 ## Other agents (cross-tool)
 
@@ -210,7 +210,7 @@ What ports cross-tool: the **instructions** and (for tools that scan them) the *
 
 ## A note on Obsidian
 
-Several pieces — codemap diagrams (`/codemap-visualize`), `/pr-review` artefacts, and vault exports — write to an **Obsidian vault**, because I keep my notes in Obsidian and wanted the graph view, backlinks, and reflection in one place. That's a personal choice baked in, pointed by a `vaultRoot` config value; if you don't use Obsidian, those features are simply inert — nothing else depends on them.
+Several pieces — codemap diagrams (`/visualise-codemap`), `/pr-review` artefacts, and vault exports — write to an **Obsidian vault**, because I keep my notes in Obsidian and wanted the graph view, backlinks, and reflection in one place. That's a personal choice baked in, pointed by a `vaultRoot` config value; if you don't use Obsidian, those features are simply inert — nothing else depends on them.
 
 ## Customising
 

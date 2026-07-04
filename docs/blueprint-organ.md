@@ -35,9 +35,9 @@ envision → spec → draft-plan → [ blueprint ] → execute (blueprint option
 
 - Not a step-by-step plan (`/draft-plan`), and does **not** merge with it.
 - Not a process log — intent + mature shape only.
-- Not `codemap-visualize` (which renders structure from finished code, post-hoc). Mode 2 overlaps its input but authors an *intent + shape + alignment* blueprint, not a raw index.
+- Not `visualise-codemap` (which renders structure from finished code, post-hoc). Mode 2 overlaps its input but authors an *intent + shape + alignment* blueprint, not a raw index.
 - Mermaid only; never auto-fires; never edits `hook-config.json`.
 
 ## Relationship to other organs
 
-- **draft-plan** — upstream, no merge. **spec / vision** — the intent sources. **codemap-visualize** — opposite-direction sibling (renders finished code). **capture / decisions** — a key-decision note may wikilink a captured decision.
+- **draft-plan** — upstream, no merge. **spec / vision** — the intent sources. **visualise-codemap** — opposite-direction sibling (renders finished code). **capture / decisions** — a key-decision note may wikilink a captured decision.

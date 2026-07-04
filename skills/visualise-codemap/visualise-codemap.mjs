@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// codemap-visualize.mjs — standalone implementation of the codemap-visualize skill.
-// Spec source-of-truth: skills/codemap-visualize/SKILL.md.
+// visualise-codemap.mjs — standalone implementation of the visualise-codemap skill.
+// Spec source-of-truth: skills/visualise-codemap/SKILL.md.
 // Reads .claude/codemap.md (does not rescan) and emits a human-facing UML-heavy
 // technical document with topologically auto-layered module map, per-module
 // class diagrams + subfolder-clustered file graphs, and a cross-module class
@@ -33,7 +33,7 @@ function parseArgs(argv) {
     else if (a === '--vault') args.vault = argv[++i];
     else if (a === '--project-folder') args.projectFolder = argv[++i];
     else if (a === '--help' || a === '-h') {
-      console.log('usage: node skills/codemap-visualize/codemap-visualize.mjs [--root <dir>] [--vault <path>] [--project-folder <name>] [--dry-run] [--quiet]');
+      console.log('usage: node skills/visualise-codemap/visualise-codemap.mjs [--root <dir>] [--vault <path>] [--project-folder <name>] [--dry-run] [--quiet]');
       process.exit(0);
     } else if (!args.root) args.root = a;
   }

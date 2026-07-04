@@ -52,7 +52,7 @@ const SIGNATURE_MAX = 120;
 // Per-module cap on rendered call edges (always-on document budget). The full
 // edge set lives in the cache / visualizer-parseable section; the prose `.md` caps each
 // module's subgraph and summarizes the overflow as `(+K more)` — never a silent drop.
-// NOTE: codemap-visualize.mjs has an independent `callEdgeCap` (default 60) that caps again
+// NOTE: visualise-codemap.mjs has an independent `callEdgeCap` (default 60) that caps again
 // at render time and sums BOTH overflow counts into its note — keep the two in mind when
 // changing either; raising one without the other re-truncates an already-capped section.
 const CALL_EDGE_CAP_PER_MODULE = 60;
@@ -497,7 +497,7 @@ function extractExportsCppHeader(text) {
 
 // ----- Class graph extraction (phase 1a/1b) -----
 // Returns [{ name, kind, extends, implements, fields, namespace, attributes }]
-// Used by `## Class graph` consumers (codemap-visualize UML + update-codemap convention detector).
+// Used by `## Class graph` consumers (visualise-codemap UML + update-codemap convention detector).
 
 function extractClassesTs(text) {
   const out = [];
@@ -944,7 +944,7 @@ function diffSummary(prev, current) {
 
 // ----- LLM-facing prose section helpers -----
 // These build the # Architecture header (Overview, Modules, Conventions, Hubs)
-// that ships above the structured sections consumed by codemap-visualize.
+// that ships above the structured sections consumed by visualise-codemap.
 
 function readReadmeH1(root) {
   try {
@@ -1543,7 +1543,7 @@ async function main() {
 
   // ----- LLM-facing prose header (Overview, Modules, Conventions, Hubs).
   // Section ordering is load-bearing: prose first, then the structured sections
-  // consumed by codemap-visualize. The visualize parser keys on `## <name>/`
+  // consumed by visualise-codemap. The visualize parser keys on `## <name>/`
   // for groups and on a fixed set of named sections (Entry points, Layers,
   // Dependencies, File deps, Class graph) — anything else is benign noise.
   const inboundCounts = computeInboundCounts(fileEdges);
@@ -1927,7 +1927,7 @@ async function main() {
   }
 
   // --map-tokens budget (document-size budget). Truncate ONLY the agent-facing index
-  // sections (Symbol index, then Map) — never the structured sections codemap-visualize
+  // sections (Symbol index, then Map) — never the structured sections visualise-codemap
   // parses (Class graph / File deps / Dependencies / per-module listings). Drop the
   // lowest-ranked tail rows first (both sections are pre-sorted by importance) and log
   // what was dropped — no silent caps (lessons/looks-bad-but-fine + no-silent-caps).

@@ -1,6 +1,6 @@
 ---
 name: update-changelog
-description: Append a dated line to the project's canonical CHANGELOG.md — the "what shipped, newest first" ship-record — via propose-confirm. Use when the user types /update-changelog, says "log this ship" / "record what shipped" / "add to the changelog", or when a caller skill (recap, checkpoint, execute, spec, draft-plan) offers it on a shipped unit of work or a significant planning-artifact change. One line per shipped unit, not per commit. Mode A — never auto-fires, never auto-writes; every line goes through accept/edit/reject. Zero always-on cost (loaded only when invoked).
+description: Append a dated line to the project's canonical CHANGELOG.md — the "what shipped, newest first" ship-record — via propose-confirm. Use when the user types /update-changelog, says "log this ship" / "record what shipped" / "add to the changelog", or when a caller skill (recap, checkpoint, execute, spec, draft-plan) offers it on a shipped unit of work or a significant planning-artifact change. One line per shipped unit, not per commit. Mode A — never auto-fires, never auto-writes; every line goes through accept/edit/reject.
 ---
 
 # update-changelog

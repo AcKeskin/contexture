@@ -1,9 +1,9 @@
 ---
-name: codemap-visualize
-description: Generate a UML-heavy technical document from `.claude/codemap.md` — module Structure tree, a topologically layered top-down Module map (labeled edges, hub + cycle highlighting, legend), per-module class diagrams + subfolder-clustered file graphs, a cross-module class relations diagram, per-module call-graph diagrams (TS/C# call edges shown type-resolved as `Type.method` where available), and Mermaid sequence diagrams for high-signal entry points. Writes to both `.claude/codemap.diagrams.md` and the Obsidian vault. Use when the user types `/codemap-visualize` or asks to render / draw / diagram the codemap. Does not rescan the tree — consumes the existing codemap. Mode A only — never auto-fires.
+name: visualise-codemap
+description: Generate a UML-heavy technical document from `.claude/codemap.md` — module Structure tree, a topologically layered top-down Module map (labeled edges, hub + cycle highlighting, legend), per-module class diagrams + subfolder-clustered file graphs, a cross-module class relations diagram, per-module call-graph diagrams (TS/C# call edges shown type-resolved as `Type.method` where available), and Mermaid sequence diagrams for high-signal entry points. Writes to both `.claude/codemap.diagrams.md` and the Obsidian vault. Use when the user types `/visualise-codemap` or asks to render / draw / diagram the codemap. Does not rescan the tree — consumes the existing codemap. Mode A only — never auto-fires.
 ---
 
-# codemap-visualize
+# visualise-codemap
 
 Reads `.claude/codemap.md` and emits a UML-heavy technical document: an ASCII Structure tree, a topologically layered **top-down Module map** (edges labeled with relation weight, most-depended-on modules highlighted as hubs, dependency cycles flagged, plus a legend), per-module sections (short paragraph + subfolder-clustered file graph + classDiagram + files list), a cross-module class relations diagram when relevant, per-module **call-graph** diagrams (TS/C# edges rendered type-resolved as `Type.method` where the codemap resolved them, bare-name syntactic fallback otherwise), and Mermaid **sequence diagrams** for a few high-signal entry points (static call-structure order, explicitly *not* a runtime trace). Writes one in-repo artifact (`.claude/codemap.diagrams.md`) for AI consumption and GitHub rendering, plus one Obsidian vault artifact for human reading.
 
@@ -11,16 +11,16 @@ The text codemap stays the source of truth. This skill produces a derived view; 
 
 ## How to run (for Claude Code)
 
-Implemented as a standalone Node script — [`codemap-visualize.mjs`](./codemap-visualize.mjs), co-located in this skill folder — shared with Copilot ([.github/prompts/codemap-visualize.prompt.md](../../.github/prompts/codemap-visualize.prompt.md)). The procedure below is the contract the script implements.
+Implemented as a standalone Node script — [`visualise-codemap.mjs`](./visualise-codemap.mjs), co-located in this skill folder — shared with Copilot ([.github/prompts/visualise-codemap.prompt.md](../../.github/prompts/visualise-codemap.prompt.md)). The procedure below is the contract the script implements.
 
 Resolve the script **relative to this SKILL.md's real location**, never relative to CWD and never via a hardcoded path — the skill is symlinked into `~/.claude/skills/` on each machine, so CWD-relative and home-relative paths break. Follow the symlink with `realpath`, then run the co-located script:
 
 ```sh
 SKILL_DIR="$(dirname "$(realpath "$0")")" # $0 = this SKILL.md's path as invoked
-node "$SKILL_DIR/codemap-visualize.mjs" # writes.claude/codemap.diagrams.md
-node "$SKILL_DIR/codemap-visualize.mjs" --dry-run # preview to stdout
-node "$SKILL_DIR/codemap-visualize.mjs" --vault "<vault-root>" # also write to Obsidian vault (per-module split by default)
-node "$SKILL_DIR/codemap-visualize.mjs" --project-folder Stream # override inferred ProjectFolder
+node "$SKILL_DIR/visualise-codemap.mjs" # writes.claude/codemap.diagrams.md
+node "$SKILL_DIR/visualise-codemap.mjs" --dry-run # preview to stdout
+node "$SKILL_DIR/visualise-codemap.mjs" --vault "<vault-root>" # also write to Obsidian vault (per-module split by default)
+node "$SKILL_DIR/visualise-codemap.mjs" --project-folder Stream # override inferred ProjectFolder
 ```
 
 Vault root (`<Vault>`) is read from machine-local config — `vaultRoot` in `~/.claude/hook-config.json` — **never hardcoded** (per `universal/no-hardcoded-machine-paths.md`; the user has two PCs, other users have their own). Pass it as `--vault "<vaultRoot>"`. If `vaultRoot` is unset, write only the in-repo artifact and surface *"Set `vaultRoot` in `~/.claude/hook-config.json` to also write the vault copy."* The script infers `<ProjectFolder>` from repo name (`*isar*` / `stream-*` → `Stream`, else the project name). Override with `--project-folder` when needed. On vault-write failure, the script prints the exact `outsideProjectWriteBlocker.allow` line to add.
@@ -29,7 +29,7 @@ Per-project tuning (caps, skip patterns, renderer, vault layout) lives under the
 
 ## When to run
 
-- User types `/codemap-visualize`.
+- User types `/visualise-codemap`.
 - User asks to render / draw / diagram / visualize the codemap.
 - Do **not** auto-fire.
 - Do **not** chain after `update-codemap` — they compose by user invocation, not by call.
@@ -290,7 +290,7 @@ If `.claude/codemap.dirty` exists, append:
 Source codemap is marked dirty (auto-update flag). Run /update-codemap first.
 ```
 
-## What codemap-visualize does NOT do
+## What visualise-codemap does NOT do
 
 - Does not scan the filesystem. Source-of-truth is `.claude/codemap.md`.
 - Does not run `update-codemap`. User invokes them separately.
@@ -335,11 +335,11 @@ Glob semantics match the `## Skip` and `## Vendored` sections in `update-codemap
 - Module-map edges come from the codemap's `## Dependencies` section, falling back to synthesis from `## File deps`. File-graph edges come from `## File deps`. Quality is bounded by `update-codemap`'s extraction (tree-sitter AST across ~18 languages; basename-index resolution for bare-name C++ includes; regex only as a no-deps fallback). Cross-language imports may be missed.
 - Class-diagram quality is bounded by `update-codemap`'s `## Class graph` extraction — extends/implements/fields are parsed from source-language declarations (per-language extractor). Generics are stripped to the head identifier for relation matching. Methods are pulled from `exports:` only when a file contains exactly one class, so multi-class files render bodies without methods.
 - Vault output: one index note + N module notes per project when `split-per-module: true`; one file when `false`. In-repo artifact is always single-file.
-- Fan-out caps (`l2-file-cap`, `l2-edge-cap`, `class-method-cap`) are guards. If a module routinely exceeds them, the module is probably too large — that is a finding for `/review`, not a `codemap-visualize` bug.
+- Fan-out caps (`l2-file-cap`, `l2-edge-cap`, `class-method-cap`) are guards. If a module routinely exceeds them, the module is probably too large — that is a finding for `/review`, not a `visualise-codemap` bug.
 - No incremental render. Always full rewrite of both artifacts.
 
 ## Relationship to other skills
 
 - **update-codemap** — produces the source `.claude/codemap.md` this skill consumes. Run first.
-- **review / pr-review** — both skills already use Mermaid diagrams; the vault layout (`Projects/<ProjectFolder>/...`) and `<ProjectFolder>` inference rule are shared. `codemap-visualize` mirrors that convention exactly.
+- **review / pr-review** — both skills already use Mermaid diagrams; the vault layout (`Projects/<ProjectFolder>/...`) and `<ProjectFolder>` inference rule are shared. `visualise-codemap` mirrors that convention exactly.
 - **prep** — does not consume codemap diagrams. Prep primes from architectural rules, not from rendered visuals.

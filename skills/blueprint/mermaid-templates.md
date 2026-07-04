@@ -135,6 +135,6 @@ flowchart TD
 
 ## Conventions
 
-- Use `%%{init: {"flowchart": {"defaultRenderer": "elk"}}}%%` on dense flowcharts (codemap-visualize precedent) so layout stays readable.
+- Use `%%{init: {"flowchart": {"defaultRenderer": "elk"}}}%%` on dense flowcharts (visualise-codemap precedent) so layout stays readable.
 - One Mermaid block per logical diagram. In per-section vault split, each section note carries its own blocks (Obsidian renders faster one-per-note).
 - Mode 2: every behavioral diagram (`sequence`, `state`) starts with the `%% inferred — verify against runtime` comment.

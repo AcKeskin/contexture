@@ -16,9 +16,19 @@ It is **not** `orchestrate` (which dispatches fire-and-forget *subagents* within
 
 - **register** — write/update this session's row, after a **collision check** (overlapping slug/file-scope with another active row → surfaced for the user to resolve, never auto-resolved).
 - **check** — read the board: others' status, **hand-offs/assignments addressed to this session**, collisions, and **orphan rows** (stale `Updated` / never torn down — flagged, not silently deleted).
+- **update** — on a meaningful change (step done, a decision, a contract change others depend on), refresh this session's `Status` + `Updated` and leave a hand-off when the change affects another session.
 - **handoff `<session> <note>`** — leave a note for another session.
 - **coordinator** — claim/release the coordinator role; a coordinator may write **assignment** rows others pick up on `check`. Advisory — it cannot *force* a peer (no parent authority).
-- **done** — tear down this session's row on close (pairs with `/recap`).
+- **done** — tear down this session's row on close (pairs with `/recap`, and runs as the first step of `/wrap`).
+
+## Auto mode (opt-in, off by default)
+
+The board is gitignored/ephemeral, so every board write falls *outside* the never-silent-write set — confirming each `register`/`check`/`update`/`done` is pure ceremony with no canonical-write risk behind it. Auto mode dials those board ops up, gated two ways:
+
+- **The autonomy contract's `ask` field.** Under `forks-only` (or `until-blocked`), the board ops run auto — no per-action confirm. Under `every-step`, they revert to today's invoked-action behavior.
+- **The `coordinateAuto` hook bundle**, shipped **off** in `~/.claude/hook-config.json` (set it `true` to opt in).
+
+When on: **auto-register** writes this session's row at session start (via the `coordinate-autoregister` SessionStart hook, which surfaces the nudge — the board write is coordinate's action); **auto-check** fires at exactly three boundaries — post-register, right before this session claims a new scope (the load-bearing collision catch), and at `/wrap` — never mid-turn or on a timer, since no hook channel exists mid-session. **Per-session row ownership** keeps concurrent writes race-safe (each session writes only its own row). Two carve-outs stay human even in auto mode: **collision resolution** (detection is auto, the decision is always asked) and **coordinator assignment** writes (assigning another session's work is a decision, not a self-status update).
 
 ## What coordinate is not
 

@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// Language sweep — end-to-end verification that update-codemap + codemap-visualize
+// Language sweep — end-to-end verification that update-codemap + visualise-codemap
 // actually extract and render structure for every language fixture.
 //
 // For each fixture in fixtures.mjs it:
 //   1. Materialises the fixture project under a temp dir.
 //   2. Runs the REAL codemap.mjs against it (--root <tmp>) and reads the generated
 //      .claude/codemap.md (source of truth).
-//   3. Runs the REAL codemap-visualize.mjs against that codemap (--dry-run) to get
+//   3. Runs the REAL visualise-codemap.mjs against that codemap (--dry-run) to get
 //      the rendered diagrams document.
 //   4. Asserts, per language, the four content claims the fixture declares:
 //        [class]    derived class present in `## Class graph`
@@ -32,7 +32,7 @@ import { FIXTURES } from './fixtures.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const CODEMAP = path.join(HERE, '..', 'codemap.mjs');
-const VISUALIZE = path.join(HERE, '..', '..', 'codemap-visualize', 'codemap-visualize.mjs');
+const VISUALIZE = path.join(HERE, '..', '..', 'visualise-codemap', 'visualise-codemap.mjs');
 const BASELINE = path.join(HERE, 'baseline.json');
 
 const UPDATE_BASELINE = process.argv.includes('--update-baseline');

@@ -1,6 +1,6 @@
 ---
 name: glossary
-description: Extract a project's ubiquitous language — domain term → one-line definition → code symbol(s) → collision note — into a project-tier.claude/rules/glossary.md the 077 rule-prime hook primes and 078 cites as a vocabulary-drift reference. The missing meaning leg beside codemap's structure and extract-conventions' style. Frequency-ranked candidates (mechanical) with confidence-flagged definitions (model judgment); per-group propose-confirm-commit gate. Use when the user types /glossary, or asks to capture / define / write down the project's domain terms / vocabulary / ubiquitous language. Mode A only — never auto-fires, never auto-writes.
+description: Extract a project's ubiquitous language — domain term → one-line definition → code symbol(s) → collision note — into a project-tier.claude/rules/glossary.md the 077 rule-prime hook primes and 078 cites as a vocabulary-drift reference. Frequency-ranked candidates (mechanical) with confidence-flagged definitions (model judgment); per-group propose-confirm-commit gate. Use when the user types /glossary, or asks to capture / define / write down the project's domain terms / vocabulary / ubiquitous language. Mode A only — never auto-fires, never auto-writes.
 ---
 
 # glossary
