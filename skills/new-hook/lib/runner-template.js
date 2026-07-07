@@ -6,8 +6,9 @@
 //
 // mode: 'blocker' — assert block fixture exits 2, allow fixture exits 0.
 // mode: 'context-injector' — assert matching event exits 0 with non-empty
-//   JSON stdout containing a non-empty `context` field; non-matching event
-//   exits 0 with empty stdout.
+//   JSON stdout carrying a non-empty `hookSpecificOutput.additionalContext`
+//   (the documented context channel); non-matching event exits 0 with empty
+//   stdout.
 
 function generateRunner({ hookPath, fixturesDir, hookName, mode = 'blocker' }) {
   const hookForward = forwardSlash(hookPath);
@@ -53,7 +54,8 @@ function generateRunner({ hookPath, fixturesDir, hookName, mode = 'blocker' }) {
     `  let parsed = null;`,
     `  try { parsed = JSON.parse(matchResult.stdout); } catch {}`,
     `  assert('matching event stdout parses as JSON', parsed !== null, 'stdout: ' + matchResult.stdout);`,
-    `  assert('matching event injects non-empty context', parsed && typeof parsed.context === 'string' && parsed.context.length > 0, 'context: ' + (parsed && parsed.context));`,
+    `  const hso = parsed && parsed.hookSpecificOutput;`,
+    `  assert('matching event injects non-empty additionalContext', hso && typeof hso.additionalContext === 'string' && hso.additionalContext.length > 0, 'hookSpecificOutput: ' + JSON.stringify(hso));`,
     ``,
     `  const nonMatchResult = run(${JSON.stringify(`${hookName}.allow.json`)});`,
     `  assert('non-matching event exits 0', nonMatchResult.exit === 0, 'got exit ' + nonMatchResult.exit);`,

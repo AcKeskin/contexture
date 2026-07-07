@@ -68,7 +68,7 @@ Each finding is its own decision. Nothing changes silently. When the run ends, `
 
 ## Quick start
 
-The full experience is on Claude Code. Three commands, a one-line edit, restart.
+The full experience is on Claude Code. Clone, bootstrap, restart.
 
 ```sh
 # 1. Clone
@@ -81,11 +81,8 @@ git clone https://github.com/AcKeskin/contexture.git contexture
 cd contexture
 node bootstrap/bootstrap.js
 
-# 3. Add the one @import line to ~/.claude/CLAUDE.md (bootstrap deliberately
-#    does not mutate your user-owned CLAUDE.md):
-#    @claude-md/memory-capture.md
-
-# 4. Restart Claude Code. Effective next session.
+# 3. Restart Claude Code. Effective next session.
+#    (No @import to add — capture-time guidance loads on demand, not always-on.)
 ```
 
 ```sh

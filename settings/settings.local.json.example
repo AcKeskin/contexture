@@ -1,1 +1,27 @@
-{}
+{
+  "_comment": "Per-machine overrides merged OVER settings.template.json by bootstrap. Copy to settings.local.json (gitignored) and edit. Top-level keys replace the template's; `hooks` deep-merges so machine-specific hooks coexist with the defaults. Hook BUNDLES are toggled separately in hook-config.json (`enabled.hookBundles`), not here. Remove the _comment keys — they are documentation, not settings.",
+
+  "_comment_statusLine": "Override the status line for this machine.",
+  "statusLine": {
+    "type": "command",
+    "command": "my-custom-statusline",
+    "padding": 0
+  },
+
+  "_comment_hooks": "Add a machine-local hook without touching the shared template. This is deep-merged into the resolved `hooks`, so it runs alongside the bundled defaults.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          { "type": "command", "command": "node /abs/path/to/my-local-hook.js", "timeout": 10 }
+        ]
+      }
+    ]
+  },
+
+  "_comment_enabledPlugins": "Toggle marketplace plugins on this machine. false disables one the template enables.",
+  "enabledPlugins": {
+    "some-plugin@some-marketplace": false
+  }
+}

@@ -1,19 +1,18 @@
 #!/usr/bin/env node
 'use strict';
 
-// SessionStart hook (matcher: clear | compact): when the previous session was
-// cleared or compacted, scan its transcript for decisions that may never have
-// been persisted, and — if none were recapped — inject a one-line nudge into
-// the new session's context advising a /recap.
+// SessionStart hook (settings matcher: clear | compact): when the previous
+// session was cleared or compacted, scan its transcript for decisions that may
+// never have been persisted, and — if none were recapped — inject a one-line
+// nudge into the new session's context advising a /recap.
 //
-// The clear-context decision guard, v2 design. The v1
-// "advise at PreCompact" approach is not buildable: at PreCompact/SessionEnd,
-// plain stdout on exit 0 goes to the debug log (model never sees it) and exit 2
-// blocks (which a non-blocking guard must not do). SessionStart is the one
-// lifecycle event whose stdout `{ context }` reaches the model on exit 0, so the
-// guard recovers at the NEXT session start rather than preventing before the
-// clear. The prior transcript persists on disk, so nothing is truly lost — it is
-// recovered one turn late.
+// Why SessionStart and not PreCompact/SessionEnd: at those events, plain stdout
+// on exit 0 goes to the debug log (model never sees it) and exit 2 blocks
+// (which a non-blocking guard must not do). SessionStart context injection —
+// `hookSpecificOutput.additionalContext` on exit 0 — does reach the model, so
+// the guard recovers at the NEXT session start rather than preventing before
+// the clear. The prior transcript persists on disk, so nothing is truly lost —
+// it is recovered one turn late.
 //
 // Deliberately dumb: string/structure matching only, no model call, no
 // embeddings. False positives are cheap (one extra recap prompt); false
@@ -23,10 +22,6 @@
 const fs = require('fs');
 const path = require('path');
 const io = require('./lib/hook-io');
-
-// Only fire when the previous session was discarded via clear or compact.
-// `startup` / `resume` are normal session begins with nothing to recover.
-const MATCHER_TARGETS = new Set(['clear', 'compact']);
 
 // Decision-signal markers in assistant-authored text. Any one marks "a decision
 // may be unpersisted". Lowercased before matching.
@@ -49,8 +44,10 @@ const ARTEFACT_PATH_RE = /\.claude[\\/](specs|plans|docs)[\\/]|[\\/]proposals[\\
 
 async function main() {
   const payload = await io.readPayload();
-  const matcher = payload.matcher || '';
-  if (!MATCHER_TARGETS.has(matcher)) return io.allow();
+  // The settings matcher (clear|compact) decides when this hook fires;
+  // `source` is the documented SessionStart payload field, read only to
+  // phrase the nudge.
+  const source = payload.source || '';
 
   const transcriptPath = payload.transcript_path;
   if (!transcriptPath) return io.allow();
@@ -63,14 +60,13 @@ async function main() {
 
   const preview = scan.signals.slice(0, 4).join('; ');
   const suffix = scan.signals.length > 4 ? `; +${scan.signals.length - 4} more` : '';
-  const verb = matcher === 'clear' ? 'cleared' : 'compacted';
+  const verb = source === 'clear' ? 'cleared' : 'compacted';
   const message =
     `Previous session was ${verb} and made decisions that may not be on disk: ${preview}${suffix}. ` +
     `Consider proposing /recap (and /capture for rule-tier items) before continuing — ` +
     `the prior transcript is still on disk to reconstruct from.`;
 
-  process.stdout.write(JSON.stringify({ context: message }) + '\n');
-  io.allow();
+  io.addContext('SessionStart', message);
 }
 
 // Read a Claude Code transcript .jsonl into an array of parsed event objects.

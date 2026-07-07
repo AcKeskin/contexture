@@ -4,7 +4,16 @@ Companion to the authoritative instructions in [`claude-md/memory-capture.md`](.
 
 ## Frontmatter schema
 
-| Field | Required | Values | Notes | | --- | --- | --- | --- | | `name` | yes | short name | existing field | | `description` | yes | one-line | existing field, should be specific enough for discovery to judge relevance | | `type` | yes | `user` \| `feedback` \| `project` \| `reference` \| `session-recap` | existing field; `session-recap` added in | | `kind` | no | `architectural-rule` \| `decision` \| `lesson` \| `preference` | default `lesson`, omit when default | | `scope` | yes | list of tags, e.g. `[auth, billing]` or `[global]` | freeform, short, lowercase-hyphenated, `[global]` = always potentially relevant | | `relevance` | yes | `always` \| `when-touching-X` \| `during-planning` \| `during-review` \| `during-debug` | multiple allowed comma-separated, e.g. `when-touching-auth, during-review` | No controlled vocabulary for `scope`. Tags emerge from usage. Discovery surfaces inconsistencies over time.
+| Field | Required | Values | Notes |
+| --- | --- | --- | --- |
+| `name` | yes | short name | existing field |
+| `description` | yes | one-line | existing field, should be specific enough for discovery to judge relevance |
+| `type` | yes | `user` \| `feedback` \| `project` \| `reference` \| `session-recap` | existing field; `session-recap` added with session recaps |
+| `kind` | no | `architectural-rule` \| `decision` \| `lesson` \| `preference` | default `lesson`, omit when default |
+| `scope` | yes | list of tags, e.g. `[auth, billing]` or `[global]` | freeform, short, lowercase-hyphenated, `[global]` = always potentially relevant |
+| `relevance` | yes | `always` \| `when-touching-X` \| `during-planning` \| `during-review` \| `during-debug` | multiple allowed comma-separated, e.g. `when-touching-auth, during-review` |
+
+No controlled vocabulary for `scope`. Tags emerge from usage. Discovery surfaces inconsistencies over time.
 
 ## Folder layout
 
@@ -13,16 +22,16 @@ Under each project's memory root (`~/.claude/projects/<slug>/memory/`):
 ```
 memory/
 ├── MEMORY.md
-├── feedback/ (type: feedback)
-├── project/ (type: project)
-├── sessions/ (type: session-recap; YYYY-MM-DD-<slug>.md)
+├── feedback/                (type: feedback)
+├── project/                 (type: project)
+├── sessions/                (type: session-recap; YYYY-MM-DD-<slug>.md)
 ├── architectural-rules/
-│ ├── universal/ (scope = universal)
-│ ├── cpp/ (scope = cpp)
-│ └──... (one folder per language/domain scope)
-├── decisions/ (kind: decision)
-├── lessons/ (kind: lesson — default)
-└── preferences/ (kind: preference)
+│   ├── universal/           (scope = universal)
+│   ├── cpp/                 (scope = cpp)
+│   └── ...                  (one folder per language/domain scope)
+├── decisions/               (kind: decision)
+├── lessons/                 (kind: lesson — default)
+└── preferences/             (kind: preference)
 ```
 
 One level of nesting everywhere except `architectural-rules/`, which gets a second level keyed on scope. Folders are created lazily when the first memory of that kind arrives. `feedback/`, `project/`, and `sessions/` are keyed on `type`; the rest are keyed on `kind`. Recaps live in `sessions/` and are discovered by folder scan, not via `MEMORY.md`.
@@ -67,9 +76,9 @@ Bootstrap links `claude-md/` into `~/.claude/claude-md/` automatically. The `@im
 
 1. Open `~/.claude/CLAUDE.md`.
 2. Add:
- ```
- @claude-md/memory-capture.md
- ```
+   ```
+   @claude-md/memory-capture.md
+   ```
 3. Save. Effective next session.
 
 Bootstrap does not auto-append because `~/.claude/CLAUDE.md` is user-owned content. See [`claude-md/_imports.md`](../claude-md/_imports.md) for the canonical import list.

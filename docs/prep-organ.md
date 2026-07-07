@@ -2,22 +2,36 @@
 
 Authoritative procedure lives in [`skills/prep/SKILL.md`](../skills/prep/SKILL.md); this doc is the Claude-facing reference.
 
-(Naming note: the proposal and earlier docs used "grounding" for this organ. Renamed to "prep" — the command is `/prep`, the skill is `skills/prep/`, the folder naming throughout.'s filename is unchanged for git history continuity.)
+(Naming note: an earlier design used "grounding" for this organ. Renamed to "prep" — the command is `/prep`, the skill is `skills/prep/`, the folder naming throughout.)
 
-Prep **prevents drift** by surfacing architectural rules before code is written. It is the first payoff proposal — every read-side organ (002 discover, 012 deliver, 006 architectural-rules tree, 011 capture, 013 session recaps) exists to feed prep or a sibling of it.
+Prep **prevents drift** by surfacing architectural rules before code is written. It is the first payoff organ — every read-side organ (discover, deliver, the architectural-rules tree, capture, session recaps) exists to feed prep or a sibling of it.
+
+**Division of labour with the rule-prime hook.** The rule-prime hook owns the **mechanical floor**: at session start it primes the always-relevant, project, and single-language tiers automatically, and drops a watermark recording what it loaded. `/prep` is the **deeper on-demand pass on top** — a higher top-N and the task-specific domain tier. When the hook's watermark is present, prep does not re-prime the floor; it adds the deep pass the hook deliberately leaves out.
 
 ## What prep owns
 
-- **Pre-work priming.** Load the architectural rules that apply to the current task into working context before code is written.
+- **Deep pre-work priming.** On top of the hook's floor, load the task-specific domain-tier rules and a higher top-N of the architectural rules that apply to the current task. Skip re-priming the floor tiers when the hook watermark is present.
 - **Scope identification.** Given a task, identify which language(s), domain(s), project, and task type matter.
 - **Task-shift observation.** During subsequent work, notice when the current request drifts from the primed scope and ask the user before proceeding.
 - **Push-back routing.** When the user corrects Claude with reference to a rule, route that correction through the capture organ rather than acting silently.
 
 ## What prep inherits / does not own
 
-| Concern | Source | What prep does | | --- | --- | --- | | Rule storage + tagging | [storage tagging](storage-tagging.md) + [architectural-rules](architectural-rules.md) | Reads; never writes | | Retrieval and scoring | [discover](discover.md) | Consumes as a caller with structured filters | | Body rendering / cap / ordering | [deliver](delivery-organ.md) | Passes `render_bodies: true`; deliver owns the contract | | Rule capture | [capture organ](capture-organ.md) | Proposes capture on push-back; capture owns the flow | | Project architecture file format | [project-architecture](project-architecture.md) | Reads `.claude/architecture.md` directly (not via discover) | | Episodic recall | [session recaps](recap-organ.md) | Explicitly excluded — `include_recaps: false` | | Rule-violation detection | [review](review-organ.md) | Complementary — review audits, prep primes | Prep coordinates. It does not invent retrieval, storage, or presentation.
+| Concern | Source | What prep does |
+| --- | --- | --- |
+| Rule storage + tagging | [storage tagging](storage-tagging.md) + [architectural-rules](architectural-rules.md) | Reads; never writes |
+| Retrieval and scoring | [discover](discover.md) | Consumes as a caller with structured filters |
+| Body rendering / cap / ordering | [deliver](delivery-organ.md) | Passes `render_bodies: true`; deliver owns the contract |
+| Rule capture | [capture organ](capture-organ.md) | Proposes capture on push-back; capture owns the flow |
+| Project architecture file format | [project-architecture](project-architecture.md) | Reads `.claude/architecture.md` directly (not via discover) |
+| Episodic recall | [session recaps](recap-organ.md) | Explicitly excluded — `include_recaps: false` |
+| Rule-violation detection | [review](review-organ.md) | Complementary — review audits, prep primes |
+
+Prep coordinates. It does not invent retrieval, storage, or presentation.
 
 ## Triggers
+
+The rule-prime hook has already fired the mechanical floor at session start; the triggers below are for prep's deeper pass on top of it.
 
 **Auto-fire** (Claude reads the skill's description and self-fires):
 
@@ -36,29 +50,33 @@ Prep **prevents drift** by surfacing architectural rules before code is written.
 
 ```
 Trigger fires
- │
- ▼
+    │
+    ▼
+0. Check the rule-prime hook watermark — if present, skip re-priming the floor
+   tiers (always / project / single-language) it already loaded
+    │
+    ▼
 1. Identify task scope (type, language, domain, project)
- │
- ▼
+    │
+    ▼
 2. Call discover with kind:"architectural-rule", render_bodies:true, include_recaps:false
- │
- ▼
-3. Read.claude/architecture.md if present
- │
- ▼
+    │
+    ▼
+3. Read .claude/architecture.md if present
+    │
+    ▼
 4. Merge, prioritise (project > domain > language > universal), cap (20 rules / <500 tokens)
- │
- ▼
+    │
+    ▼
 5. Surface priming block — user sees what was loaded
- │
- ▼
+    │
+    ▼
 6. Record primed scope (in-context note, ephemeral)
- │
- ▼
+    │
+    ▼
 7. Observe drift throughout subsequent work — ask before proceeding outside scope
- │
- ▼
+    │
+    ▼
 8. Route push-back through capture (propose, never silent)
 ```
 
@@ -70,10 +88,10 @@ See [`skills/prep/SKILL.md`](../skills/prep/SKILL.md) for the procedural detail,
 Prepped for: <language(s)> / <domain(s)> / project: <name>
 
 Loaded N rules:
- Universal: <terse rule list>
- Language: <terse rule list>
- Domain: <terse rule list>
- Project: <terse rule list>
+  Universal: <terse rule list>
+  Language: <terse rule list>
+  Domain: <terse rule list>
+  Project: <terse rule list>
 
 Codemap age: X days. Architecture file: present | absent.
 ```
@@ -115,9 +133,9 @@ When the user references a rule while correcting Claude ("you violated SoC", "im
 
 1. Acknowledge the correction; adjust the code.
 2. Classify the rule:
- - **Already in the primed set** → Claude missed it. No capture needed; the rule exists.
- - **Captured but not primed** → scope detection missed it. Offer to re-`/prep` with broader scope.
- - **Not captured** → propose a capture via `/capture`. Capture's own flow handles the rest.
+   - **Already in the primed set** → Claude missed it. No capture needed; the rule exists.
+   - **Captured but not primed** → scope detection missed it. Offer to re-`/prep` with broader scope.
+   - **Not captured** → propose a capture via `/capture`. Capture's own flow handles the rest.
 3. Never auto-capture. The collaborator principle extends here.
 
 ## Caps
@@ -134,11 +152,11 @@ Pros: lighter per-task context, more reliable (the specialist *is* the disciplin
 
 Cons: subagents are heavier than skills; multiplying them risks fragmentation; the composition pattern is unproven here.
 
-**Verdict: park for v2.** Revisit when v1's rule-loading approach reveals its limits. Details in §"Per-concern specialist agents".
+**Verdict: park for v2.** Revisit when v1's rule-loading approach reveals its limits.
 
 ## Debug
 
-- Prep didn't auto-fire on a code-writing task. Two likely causes: (a) the task description didn't read as substantive (too short / too vague / phrased as a question); (b) the skill matcher didn't pick up the description. Invoke `/prep` manually and, if this recurs, file a 004 amendment.
+- Prep didn't auto-fire on a code-writing task. Two likely causes: (a) the task description didn't read as substantive (too short / too vague / phrased as a question); (b) the skill matcher didn't pick up the description. Invoke `/prep` manually and, if this recurs, sharpen the skill's auto-fire description.
 - Priming block is empty but architectural-rules tree has rules. Likely scope detection fell back to `[global]` only and none of those rules are tagged for the task type. Surface the scope in the priming block output and re-run with an explicit hint: `/prep <language> <domain>`.
 - Drift prompt fires too often. Budget is 1-per-3 file operations — if hitting more, the primed scope is probably too narrow. Re-prep with broader scope, or propose a budget adjustment.
 - Drift prompt never fires despite visible scope changes. Claude's own judgement failed — use `/prep` manually to re-prime. Flag if systemic.

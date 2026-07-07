@@ -23,7 +23,7 @@ Slug derives from the finding's most distinctive feature — file path, pattern 
 ```markdown
 ---
 date: YYYY-MM-DD
-finding-category: dead-code | monolithic-files | soc | missing-pattern | principle | comment-drift
+finding-category: dead-code | monolithic-files | soc | missing-pattern | principle | comment-drift | naming-quality
 scope: <file path or pattern>
 ---
 

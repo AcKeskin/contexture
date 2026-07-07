@@ -1,6 +1,6 @@
 # AI-texture catalogue — v1 (2026-06)
 
-Source-of-truth for the `/humanize` skill and the `universal/prose-authenticity` rule. **Both import this; neither inlines it.** Grounded in deep-research wf_1a39f292 (21 verified claims: Wikipedia WikiProject AI Cleanup primary + peer-reviewed detection literature).
+Source-of-truth for the `/humanize` skill and the `universal/prose-authenticity` rule. **Both import this; neither inlines it.** Grounded in a verified research base (Wikipedia WikiProject AI Cleanup primary + peer-reviewed detection literature).
 
 > **Load-bearing framing — read first.** These are *potential signs, not proof*. LLMs train on human writing, so every marker here also appears in genuine human prose. **Discriminative power is DENSITY in aggregate, never a single instance.** One "delve", one rule-of-three, one em-dash means nothing. Score frequency-per-N-words and cluster, never presence. The skill reports advisory likelihood; it never emits a binary AI/human verdict.
 

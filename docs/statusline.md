@@ -18,11 +18,11 @@ Add to `~/.claude/settings.json`:
 
 ```json
 {
- "statusLine": {
- "type": "command",
- "command": "<absolute path to ccline binary>",
- "padding": 0
- }
+  "statusLine": {
+    "type": "command",
+    "command": "<absolute path to ccline binary>",
+    "padding": 0
+  }
 }
 ```
 

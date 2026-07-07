@@ -4,30 +4,37 @@ Companion to [`claude-md/memory-capture.md`](../claude-md/memory-capture.md) (fr
 
 ## The four scopes
 
-| Scope | Applies when | Examples | Where stored | | --- | --- | --- | --- | | **Universal** | Always (most) — a few are phase-gated | SOLID, SoC, RAII, composition > inheritance, no dead code; `naming-and-comments` and `test-quality` are gated to `during-review` / `when-writing-tests` (zero always-on cost) | `~/.claude/architectural-rules/universal/` | | **Language** | Working in that language | C++ headers minimal, C# `IDisposable`, TS discriminated unions | `~/.claude/architectural-rules/<lang>/` | | **Domain** | Working in that domain | Rendering = strategy, API clients = adapter, Unity = component-based | `~/.claude/architectural-rules/<domain>/` | | **Project** | Inside that project's working directory | "`/ui` must not import `/api`"; "entities live in `/domain`" | Per-project memory (tagged `scope: [project-<name>]`) **or** `.claude/architecture.md` in the project | Universal / language / domain rules are **global** — they sync across PCs via the `architectural-rules/` subtree. Project rules are **local to the project** — either as tagged memory or as a version-controlled `.claude/architecture.md`. See [`project-architecture.md`](project-architecture.md) for when a project warrants its own file.
+| Scope | Applies when | Examples | Where stored |
+| --- | --- | --- | --- |
+| **Universal** | Always (most) — a few are phase-gated | SOLID, SoC, RAII, composition > inheritance, no dead code; `naming-and-comments` and `test-quality` are gated to `during-review` / `when-writing-tests` (zero always-on cost) | `~/.claude/architectural-rules/universal/` |
+| **Language** | Working in that language | C++ headers minimal, C# `IDisposable`, TS discriminated unions | `~/.claude/architectural-rules/<lang>/` |
+| **Domain** | Working in that domain | Rendering = strategy, API clients = adapter, Unity = component-based | `~/.claude/architectural-rules/<domain>/` |
+| **Project** | Inside that project's working directory | "`/ui` must not import `/api`"; "entities live in `/domain`" | Per-project memory (tagged `scope: [project-<name>]`) **or** `.claude/architecture.md` in the project |
+
+Universal / language / domain rules are **global** — they sync across PCs via the `architectural-rules/` subtree. Project rules are **local to the project** — either as tagged memory or as a version-controlled `.claude/architecture.md`. See [`project-architecture.md`](project-architecture.md) for when a project warrants its own file.
 
 ## File layout
 
 ```
-~/.claude/architectural-rules/ ← symlink into contexture/architectural-rules/
-├── universal/ scope: [universal]
-├── config-authoring/ scope: [config-authoring] (meta — governs authoring the harness, not user code)
-├── bash/ scope: [bash]
-├── cpp/ scope: [cpp]
-├── csharp/ scope: [csharp]
-├── python/ scope: [python]
-├── rust/ scope: [rust]
-├── sql/ scope: [sql]
-├── typescript/ scope: [typescript]
-├── web/ scope: [web]
-├── unity/ scope: [unity] (engine — when-domain-unity, historical)
-├── godot/ scope: [godot] (engine — when-engine-godot)
-├── android/ scope: [android] (platform — when-platform-android)
-├── linux/ scope: [linux] (platform — when-platform-linux)
-├── openxr/ scope: [openxr] (domain — when-domain-openxr)
-├── rendering/ scope: [rendering] (domain — when-domain-rendering)
-├── webrtc/ scope: [webrtc] (domain — when-domain-webrtc)
-└── codecs/ scope: [codecs] (domain — when-domain-codecs)
+~/.claude/architectural-rules/       ← symlink into contexture/architectural-rules/
+├── universal/                       scope: [universal]
+├── config-authoring/                scope: [config-authoring]   (meta — governs authoring the harness, not user code)
+├── bash/                            scope: [bash]
+├── cpp/                             scope: [cpp]
+├── csharp/                          scope: [csharp]
+├── python/                          scope: [python]
+├── rust/                            scope: [rust]
+├── sql/                             scope: [sql]
+├── typescript/                      scope: [typescript]
+├── web/                             scope: [web]
+├── unity/                           scope: [unity]           (engine — when-domain-unity, historical)
+├── godot/                           scope: [godot]           (engine — when-engine-godot)
+├── android/                         scope: [android]         (platform — when-platform-android)
+├── linux/                           scope: [linux]           (platform — when-platform-linux)
+├── openxr/                          scope: [openxr]          (domain  — when-domain-openxr)
+├── rendering/                       scope: [rendering]       (domain  — when-domain-rendering)
+├── webrtc/                          scope: [webrtc]          (domain  — when-domain-webrtc)
+└── codecs/                          scope: [codecs]          (domain  — when-domain-codecs)
 ```
 
 One sub-folder per scope. Flat within each sub-folder — one file per coherent rule cluster, not one file per rule, not one giant file per language.
@@ -46,7 +53,7 @@ name: <short>
 description: <one-line — specific enough for discovery to rank relevance>
 type: user
 kind: architectural-rule
-scope: [<cluster-tag>, <universal | bash | cpp | csharp | python | rust | sql | typescript | web | unity | godot | android | linux | openxr | rendering | webrtc | codecs |...>]
+scope: [<cluster-tag>, <universal | bash | cpp | csharp | python | rust | sql | typescript | web | unity | godot | android | linux | openxr | rendering | webrtc | codecs | ...>]
 relevance: <always | when-language-X | when-engine-X | when-platform-X | when-domain-X | during-PHASE | when-touching-X | when-invoking-tools>
 # during-PHASE examples: during-planning | during-review | during-execution | during-session | during-session-close
 ---
@@ -54,8 +61,8 @@ relevance: <always | when-language-X | when-engine-X | when-platform-X | when-do
 
 - `scope` is a flat list. First tag is typically a topical cluster (`raii`, `naming`, `headers`); last tag is the folder's scope for discovery filter.
 - `relevance` is the query gate. Two families, both composable:
- - **Scope-axis** (what the project *is*): `always` (universal); `when-language-<lang>`; `when-engine-<engine>` (e.g. godot); `when-platform-<os>` (e.g. android/linux); `when-domain-<domain>` (e.g. openxr/rendering/webrtc/codecs). Orthogonal — an OpenXR app on Android pulls `openxr/` + `android/`. (`unity/` predates the split and stays `when-domain-unity`.)
- - **Action-axis** (what the agent is *doing*): `during-<phase>` (`during-planning` / `during-review` / `during-execution` / `during-session` / `during-session-close`); `when-touching-<surface>` (e.g. `when-touching-skills`); `when-invoking-tools` (about to run a CLI/MCP verb — gates the canonical-command pins off the always-on floor). Used so a rule loads at the right *moment* rather than always. (`during-session` fires mid-session once history has accumulated — the scope-boundary guard's pivot watch; distinct from `during-session-close`, which fires at the clear/compact boundary.)
+  - **Scope-axis** (what the project *is*): `always` (universal); `when-language-<lang>`; `when-engine-<engine>` (e.g. godot); `when-platform-<os>` (e.g. android/linux); `when-domain-<domain>` (e.g. openxr/rendering/webrtc/codecs). Orthogonal — an OpenXR app on Android pulls `openxr/` + `android/`. (`unity/` predates the split and stays `when-domain-unity`.)
+  - **Action-axis** (what the agent is *doing*): `during-<phase>` (`during-planning` / `during-review` / `during-execution` / `during-session` / `during-session-close`); `when-touching-<surface>` (e.g. `when-touching-skills`); `when-invoking-tools` (about to run a CLI/MCP verb — gates the canonical-command pins off the always-on floor). Used so a rule loads at the right *moment* rather than always. (`during-session` fires mid-session once history has accumulated — the scope-boundary guard's pivot watch; distinct from `during-session-close`, which fires at the clear/compact boundary.)
 
 ## Body
 
@@ -71,7 +78,7 @@ No restating context. No ceremony. Reader is Claude reading at runtime, not a hu
 
 - **Discovery** — scans this tree as one of its sources. Filters by `relevance` against the detected task scope. Loaded rules inform every subsequent response.
 - **Prep** — loads universal + applicable language + applicable domain rules at the start of a non-trivial task.
-- **Review (pending)** — will match changed code against rules to flag drift.
+- **Review** (pending) — will match changed code against rules to flag drift.
 
 No `@import` line is needed in `~/.claude/CLAUDE.md` — discovery and prep read this tree directly, not via the CLAUDE.md context load.
 
@@ -102,7 +109,7 @@ Collaborator principle: Claude proposes, user confirms. Triggers:
 
 Claude writes: *"Capture as a rule? Proposed: [exact text, scope, relevance]"*. User accepts / edits / rejects. On accept → file written, MEMORY.md (when applicable) updated.
 
-Never auto-captured silently. Mode A only; Mode B episodic auto-capture stays parked (see).
+Never auto-captured silently. Mode A only; Mode B episodic auto-capture stays parked.
 
 ## Debug
 

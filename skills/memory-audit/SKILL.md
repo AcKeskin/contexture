@@ -1,11 +1,11 @@
 ---
 name: memory-audit
-description: Audit the project's memory tree for integrity drift + bloat — orphans, duplicates, broken relations, stale references, schema gaps, staleness/value, uncompressed bodies. Ten dimensions, propose-confirm-commit per finding, read-only by default. Use when the user types /memory-audit. Mode A only — never auto-fires.
+description: Audit the project's memory tree for integrity drift + bloat — orphans, duplicates, broken relations, stale references, schema gaps, uncompressed bodies. Ten dimensions, propose-confirm-commit per finding, read-only by default. Use when the user types /memory-audit. Mode A only — never auto-fires.
 ---
 
 # memory-audit
 
-Sibling of [review](../review/SKILL.md) — same propose-confirm-commit shape, same flow, but scoped to the memory tree (`~/.claude/projects/<slug>/memory/`) instead of code. Depends on for the typed-relations check; legacy memories without `relations:` are tolerated as a no-op for that dimension.
+Sibling of [review](../review/SKILL.md) — same flow, but scoped to the memory tree (`~/.claude/projects/<slug>/memory/`) instead of code.
 
 ## When to run
 
@@ -17,9 +17,9 @@ Sibling of [review](../review/SKILL.md) — same propose-confirm-commit shape, s
 ## Inputs
 
 1. **Audit scope.**
- - Default: `~/.claude/projects/<current-project-slug>/memory/`. Resolve the slug the same way [discover](../discover/SKILL.md) does (Glob `~/.claude/projects/*/memory/MEMORY.md`, pick by project-root match).
- - `--project <slug>` → audit a specific other project's memory tree. Useful for cross-project hygiene.
- - `--check <dimension>` → run only one dimension (skip the others). Dimensions named below.
+   - Default: `~/.claude/projects/<current-project-slug>/memory/`. Resolve the slug the same way [discover](../discover/SKILL.md) does (Glob `~/.claude/projects/*/memory/MEMORY.md`, pick by project-root match).
+   - `--project <slug>` → audit a specific other project's memory tree. Useful for cross-project hygiene.
+   - `--check <dimension>` → run only one dimension (skip the others). Dimensions named below.
 2. **No content arguments** — audit consumes the existing memory tree, not new content.
 
 ## Procedure
@@ -30,7 +30,7 @@ Build the working set:
 
 - Glob `<memory-root>/**/*.md` — every memory file plus session-recaps.
 - Read `<memory-root>/MEMORY.md` — the index.
-- For each memory file: parse frontmatter (`name`, `description`, `type`, `kind`, `scope`, `relevance`, `relations`, `superseded_by`); capture the body's first paragraph for duplicate detection.
+- For each memory file: parse frontmatter (`name`, `description`, `type`, `kind`, `scope`, `relevance`, `relations`, `superseded_by`); capture the body's first paragraph for duplicate detection. Batch the Reads — independent files in one message, not one call per file.
 - For session-recap files (under `sessions/<date>-<slug>.md`): parse filename and frontmatter only; bodies are not scanned for content checks.
 
 Build maps:
@@ -48,8 +48,6 @@ Ten dimensions, run in parallel where possible. Each dimension produces zero or 
 - Description (one-line, specific).
 - Suggested fix (concrete, not "consider X"). When no obvious fix exists, mark "user judgment required" rather than inventing one.
 
-If `--check <dimension>` was passed, run only that dimension; skip the others entirely. Otherwise, run all ten.
-
 #### Dimension 1 — MEMORY.md index drift
 
 - Files in the inventory not referenced from MEMORY.md → flag as "missing index entry" (suggest: add an index line). Exception: `sessions/` files are folder-discovered and exempt.
@@ -64,11 +62,9 @@ If `--check <dimension>` was passed, run only that dimension; skip the others en
 - `scope` empty AND body is clearly domain-specific (heuristic: body mentions a specific module, language, or domain in the first paragraph) → flag for user judgment, suggest a more specific scope. Don't auto-fix — scope is judgment-laden.
 - `relevance` missing or empty → flag.
 
-Frontmatter parse errors from step 1 surface here as the first findings.
-
 #### Dimension 3 — Broken `relations:` links
 
-Skip silently when no memory file in the inventory has `relations:` populated (legacy mode — not yet adopted in this tree).
+Skip silently when no memory file in the inventory has `relations:` populated (legacy mode — typed relations not yet adopted in this tree).
 
 For every `relations:` entry across all files:
 - Target file does not exist → flag "broken relation link" (suggest: remove the relation, or confirm the target was moved and update the path).
@@ -90,9 +86,9 @@ This is a heuristic — high false-positive rate is acceptable since the user ma
 Scan each memory file's body for:
 - Repo-relative paths that look like real file references (`contexture/skills/X/`, `another-repo/research/Y.md`, `~/.claude/something`). For each, check existence on disk. Missing → flag "reference to missing file" (suggest: update the reference, or remove if no longer relevant).
 - Git commit hashes (7-40 hex chars in a context that looks like a hash reference — preceded by "commit", "in `", "(`hash`)"). For each, run `git rev-parse --verify <hash>` against the relevant repo (memory body usually names the repo). If unresolvable, flag "stale commit reference."
-- Design-doc / slot numbers a memory cites by id. Cross-reference against the project's planning docs to see if the slot still exists with the same shape (still queued / drafted / shipped per its coverage map). If the slot was renumbered or its status changed materially, flag "outdated reference."
+- Design-doc / slot numbers a memory cites by id — cross-reference against the project's planning docs; if renumbered or materially changed, flag "outdated reference."
 
-The git and proposal checks require knowing which repo / project to query; use the memory's `scope` tags as hints. Skip checks where the target repo can't be located rather than asserting failures.
+The git and proposal checks require knowing which repo / project to query; use the memory's `scope` tags as hints. Skip checks where the repo can't be located rather than asserting failures. Note in the report: "git checks skipped — repo not located."
 
 #### Dimension 6 — Orphan files
 
@@ -110,7 +106,7 @@ A file orphaned in MEMORY.md but reachable via a relation is *not* an orphan —
 For each MEMORY.md entry whose target file has `superseded_by:` set in its frontmatter →
 - Flag "superseded entry in index" (suggest: remove the index line; the entry remains readable in the file but should not be in the active index).
 
-This catches the case where supersession was recorded in frontmatter but MEMORY.md wasn't updated in the same step., discovery already excludes superseded entries from the normal pool, but the index drift confuses readers and inflates the index.
+This catches the case where supersession was recorded in frontmatter but MEMORY.md wasn't updated in the same step. Discovery already excludes superseded entries from the normal pool, but the index drift confuses readers and inflates the index.
 
 #### Dimension 8 — Session-recap schema
 
@@ -121,7 +117,9 @@ For every file under `<memory-root>/sessions/`:
 
 These are the only checks against session-recap files. Their bodies are episodic and don't get the duplicate / stale-reference checks (recaps are stale by nature; that's their job).
 
-#### Dimension 9 — Possible secrets in existing memory bodies interaction. Capture's step 7a runs the secret-pattern set at write time on new memories; this dimension is the retrospective sweep of memories already on disk (which were written before 025 shipped, or written when the pattern set was smaller, or pasted directly into files outside the capture flow).
+#### Dimension 9 — Possible secrets in existing memory bodies
+
+Capture's step 7a runs the secret-pattern set at write time on new memories; this dimension is the retrospective sweep of memories already on disk (which predate the write-time scan, were written when the pattern set was smaller, or were pasted directly into files outside the capture flow).
 
 Read the canonical pattern file: [`../capture/secret-patterns.md`](../capture/secret-patterns.md). Parse its JSON code-block to recover the pattern array.
 
@@ -135,16 +133,9 @@ Each match is a finding:
 
 Truncate `matched_text` to ≤40 chars when displaying (don't echo a full secret into the audit report). Use `<head>...<tail>` format for longer matches.
 
-Resolution flow per finding (propose-confirm-commit):
+Resolution per §5, with two dimension-specific actions: Apply = in-place `<REDACTED:<pattern_name>>` rewrite; Ignore = also append to secret-patterns.md's false-positive table (shared log with capture §7a).
 
-- **Apply (redact)** — replace the matched text in the file with `<REDACTED:<pattern_name>>`. Same format as capture's step 7a. The file is rewritten in place.
-- **Skip** — leave the file unchanged. The match stays. (Useful for triage runs where the user wants to see all candidates first before deciding.)
-- **Ignore (false positive)** — leave the file unchanged AND append a row to `secret-patterns.md`'s false-positive table with the pattern name, sanitized match, and reason. Same log as capture's step 7a — keeps the false-positive corpus consolidated.
-- **View detail** — show the file's surrounding lines, then re-prompt.
-
-Never bulk-redact. Never silent-fix. Each finding is its own confirmation.
-
-If `secret-patterns.md` is missing ( hasn't shipped yet), skip dimension 9 silently. The audit's other dimensions stand on their own.
+If `secret-patterns.md` is missing, skip dimension 9 silently. The audit's other dimensions stand on their own.
 
 #### Dimension 10 — Bloat: staleness/value + uncompressed bodies
 
@@ -158,14 +149,14 @@ The corpus grows unbounded; dimensions 4/6 catch duplicates/orphans but not *dea
 
 Resolution per finding: **demote** (drop `relevance: always`, or set `superseded_by` to archive it from discovery — file stays on disk), **trim** (cut the finished-work history, keep the live frontier), **delete** (only on explicit user confirm), or **skip**.
 
-**10b — Uncompressed bodies.** Per [`../../docs/memory-compression-spec.md`](../../docs/memory-compression-spec.md), flag bodies still in human-prose form:
+**10b — Uncompressed bodies.** Per [`../../docs/memory-compression-spec.md`](../../docs/memory-compression-spec.md), flag:
 - Body > ~400 B with narrative markers ("this session", "it turned out", "we found", long subordinate clauses).
 - A `**Why:**` line that fails the misapplication test (the why merely restates the rule / is self-evident → suggest dropping it).
 - `description` or MEMORY.md hook that has been over-compressed into shorthand (the *inverse* — discovery surfaces must stay human-legible; flag if they went terse).
 
-Resolution: **recompress** (apply the spec, show before/after, write on confirm) or **skip**. Never bulk-recompress silently — each is its own confirmation, same as every other dimension.
+Resolution: **recompress** (apply the spec, show before/after, write on confirm) or **skip**.
 
-This dimension is judgment-heavy; lean toward flagging-for-review over auto-action. When unsure whether a memory is stale, surface it as "user judgment required" per §4's resolution flow rather than asserting it's dead.
+This dimension is judgment-heavy; lean toward flagging-for-review over auto-action. When unsure whether a memory is stale, surface it as "user judgment required" per §5's resolution flow rather than asserting it's dead.
 
 ### 3. Aggregate and prioritize
 
@@ -186,37 +177,15 @@ Findings: T total
 
 ## MEMORY.md index drift (X)
 - MEMORY.md:14 — link target `feedback/old_thing.md` doesn't exist. Suggest: remove the entry.
-- feedback/new_thing.md — exists on disk, not referenced from MEMORY.md. Suggest: add an index line.
-
-## Frontmatter validity (X)
-- lessons/foo.md — `relevance` missing. Suggest: add a relevance clause.
--...
 
 ## Broken relations (X)
-- decisions/bar.md:8 — `relations.target` points at `lessons/missing.md` which doesn't exist. Suggest: remove the relation.
 - feedback/baz.md ↔ lessons/qux.md — supersedes declared on baz.md but qux.md has no superseded_by back-pointer. Suggest: add back-pointer to qux.md.
-
-## Duplicates (X)
-- feedback/parallel_tool_calls.md ↔ feedback_engineering_discipline.md — first-paragraph token overlap 82%, scope overlap on [global]. Likely intentional (one general, one specific) — flagged for user judgment.
-
-## Stale references (X)
-- project/build_progress.md:14 — references commit `abc1234` (contexture) which no longer resolves. Suggest: verify the hash or update the reference.
--...
-
-## Orphans (X)
-- lessons/very-old-thing.md — not in MEMORY.md, no incoming relations, not under sessions/. Suggest: archive, link, or add to index.
-
-## Superseded entries in index (X)
-- MEMORY.md:22 — entry points at `decisions/old_decision.md` which has `superseded_by: decisions/new_decision.md`. Suggest: remove the index line.
-
-## Session-recap schema (X)
-- sessions/wrong-shape-name.md — filename doesn't match YYYY-MM-DD-<slug>.md. Suggest: rename to follow convention.
 
 ## All other dimensions: Nothing material.
 
 ----
 Apply proposed fixes? Choose per finding:
- 1. Apply 2. Skip 3. Edit 4. View detail
+  1. Apply  2. Skip  3. Edit  4. View detail
 ```
 
 ### 5. Propose-confirm-commit per finding
@@ -248,10 +217,8 @@ User declines → record "weekly schedule offered, declined" so the offer doesn'
 ## What memory-audit does NOT do
 
 - **Does not auto-fire.** Mode A only.
-- **Does not judge decision *validity*.** memory-audit owns **mechanical integrity** — is the `superseded_by` back-link present, is the relation target real, is the schema valid. It does **not** ask "*should* this decision be superseded — is it still true?" That validity judgment is [retrospect](../retrospect/SKILL.md)'s. retrospect makes the call, then routes the resulting mechanical fix (the missing back-link, the broken reference) *back here*. Integrity vs validity: this organ owns the former, retrospect the latter.
-- **Does not auto-fix.** Every finding is propose-confirm-commit.
-- **Does not delete files silently.** Orphan removal is a user decision, never automatic.
-- **Does not bulk-apply.** Each finding is its own confirmation.
+- **Does not judge decision *validity*.** memory-audit owns **mechanical integrity** — is the `superseded_by` back-link present, is the relation target real, is the schema valid. It does **not** ask "*should* this decision be superseded — is it still true?" That validity judgment belongs to the corpus checkpoint (`/checkpoint --scope corpus`, which absorbs the deprecated [retrospect](../retrospect/SKILL.md)); it makes the call, then routes the resulting mechanical fix back here.
+- **Never auto-fixes, bulk-applies, or deletes silently** — every finding is its own propose-confirm decision, per §5.
 - **Does not back up before changes.** The user's git commit habits are the rollback mechanism for memory tree files; if the memory tree is not git-tracked (the default per `feedback/sync_is_user_choice.md`), the user's chosen sync layer (or lack thereof) is the rollback.
 - **Does not use embeddings.** Duplicate detection is text-overlap on the first paragraph. For ~50 memory files, regex + tokenization is sufficient. Vector search is overkill for our scale (deliberately not adopted).
 - **Does not span multiple projects per invocation.** `--project <slug>` switches to a different project; it does not audit all projects in one pass. Cross-project audits would need a separate invocation per project.
@@ -262,12 +229,10 @@ User declines → record "weekly schedule offered, declined" so the offer doesn'
 
 - **Memory tree missing entirely** — report "no memory tree found at <path>" and stop. Don't create one.
 - **MEMORY.md missing** — flag as the first finding ("MEMORY.md is missing — index cannot be checked"), continue with the file inventory's other dimensions.
-- **A memory file's frontmatter is unparseable** — surface in dimension 2 as the first finding, continue with other files.
-- **`git rev-parse` fails for a hash check** (no git available, or repo not located) — skip the check silently for that finding rather than asserting a stale reference. Note in the report: "git checks skipped — repo not located."
 - **The user has another session writing to MEMORY.md mid-audit** — re-read MEMORY.md before each MEMORY.md-related fix to avoid clobbering. If the file changed mid-audit, re-run the affected findings.
 
 ## Limits (v1)
 
-- Ten dimensions are deliberately scoped (eight original + dim 9 secret retro-scan + dim 10 bloat: staleness/value + uncompressed-body, from the memory-compression spec). Adding an eleventh is a v2 conversation; surface the case to `/capture` before extending.
+- Adding an eleventh dimension is a v2 conversation; surface the case to `/capture` before extending.
 - Heuristics (duplicate threshold at 80%, dimension ordering, severity ranking) are deliberately simple. Tune in v2 with usage data, not speculatively.
 - No persistent state between runs. If the user wants "remember I dismissed this finding," that's a v2 feature (similar to review's out-of-scope index).

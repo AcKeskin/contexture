@@ -65,10 +65,10 @@ Ready to open. Run this yourself when you're happy with the draft:
 
 ```
 gh pr create \
- --base <base> \
- --head <branch> \
- --title "<title>" \
- --body-file <path-to-tmp-body-file>
+  --base <base> \
+  --head <branch> \
+  --title "<title>" \
+  --body-file <path-to-tmp-body-file>
 ```
 
 (Add `--draft` for a draft PR. I've written the body to <path> so quotes/markdown survive.)

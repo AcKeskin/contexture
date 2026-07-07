@@ -8,25 +8,32 @@ The **presentation shape of findings**: grouping order, when diagrams are requir
 
 Three skills produced three slightly-different shapes and the same two affordances (diagrams, suggestion blocks) were missing across all of them. Inlining the same augmentation three times is the smell. This contract is that augmentation, written once.
 
-| Concern | Source | What the contract does | | --- | --- | --- | | What is a finding | each skill's review categories | Assumes findings already collected | | Whether to apply a fix | each skill's propose-confirm loop | Untouched — contract is presentation only | | Where the artefact lives | each skill's persistence section | Untouched — contract shapes the body, not the path | | `file:line` citation rule | 005 v2 aug B / 030 §6 | Reaffirms it; a finding without `file:line` is not a finding | ## 1. File-then-severity grouping (primary)
+| Concern | Source | What the contract does |
+| --- | --- | --- |
+| What is a finding | each skill's review categories | Assumes findings already collected |
+| Whether to apply a fix | each skill's propose-confirm loop | Untouched — contract is presentation only |
+| Where the artefact lives | each skill's persistence section | Untouched — contract shapes the body, not the path |
+| `file:line` citation rule | review + pr-review | Reaffirms it; a finding without `file:line` is not a finding |
+
+## 1. File-then-severity grouping (primary)
 
 Findings render **file-grouped, severity-ordered within each file**. This is the natural reviewer reading order — a reviewer works file by file, and within a file the highest-severity issue dictates whether the file is acceptable.
 
 ```
 ## <file/path/here.ext>
 
- [Critical / S] <Category> — <one-line gist>
- Lines: <line range>
- <Description>
- Recommendation:
- <prose, OR a suggestion block when §3 applies>
+  [Critical / S]  <Category> — <one-line gist>
+    Lines: <line range>
+    <Description>
+    Recommendation:
+      <prose, OR a suggestion block when §3 applies>
 
- [High / M] <Category> — <one-line gist>
- Lines: <line range>
-...
+  [High / M]      <Category> — <one-line gist>
+    Lines: <line range>
+    ...
 
 ## <next file>
-...
+  ...
 ```
 
 - Severity sort key within a file: **Critical → High → Medium → Low**. Effort suffix (`S`/`M`/`L`) is informational, not a sort key.
@@ -49,7 +56,13 @@ A diagram is **part of a finding's content**, not decoration. A structural findi
 
 Heuristic for "is this structural?":
 
-| Finding mentions… | Diagram | | --- | --- | | module / layer / boundary / imports / depends on | **required** | | split / extract / refactor structure / decompose | **required** | | rename / remove / value / literal / guard / null-check | optional | **Formats — preference order: mermaid > ASCII box-drawing > ASCII bar chart > N/A justification.**
+| Finding mentions… | Diagram |
+| --- | --- |
+| module / layer / boundary / imports / depends on | **required** |
+| split / extract / refactor structure / decompose | **required** |
+| rename / remove / value / literal / guard / null-check | optional |
+
+**Formats — preference order: mermaid > ASCII box-drawing > ASCII bar chart > N/A justification.**
 
 - **Mermaid** — preferred for graph-shaped or larger structures; renders natively on GitHub. Wrap in a ` ```mermaid ` fence.
 - **ASCII box-drawing** — preferred when the diagram is small (≤10 nodes, ≤15 edges) and inline scannability matters; copies cleanly into any terminal or PR comment.
@@ -58,16 +71,16 @@ Heuristic for "is this structural?":
 When mermaid is used, precede it with a **one-line ASCII fallback** so the terminal reader (who sees the output before GitHub renders it) still gets the gist:
 
 ````
- Current shape:
- [components] ──► [/api] (violation)
+  Current shape:
+  [components] ──► [/api]   (violation)
 
- ```mermaid
- flowchart LR
- components -- direct fetch --> api[/api/orders]
- services -.-> api
- classDef bad fill:#fdd,stroke:#900;
- class components,api bad
- ```
+  ```mermaid
+  flowchart LR
+    components -- direct fetch --> api[/api/orders]
+    services -.-> api
+    classDef bad fill:#fdd,stroke:#900;
+    class components,api bad
+  ```
 ````
 
 ## 3. Suggestion blocks — required when the fix fits
@@ -82,10 +95,10 @@ When a recommendation is a concrete code change, express it as a GitHub ` ```sug
 All four hold → the recommendation **must** be a suggestion block:
 
 ````
- Recommendation:
- ```suggestion
- const expiry = parseExpiry(token.exp);
- ```
+  Recommendation:
+  ```suggestion
+  const expiry = parseExpiry(token.exp);
+  ```
 ````
 
 Any condition fails (bigger than 10 lines, spans files, has caveats, or is a judgment-call structural change) → **prose recommendation is correct**. The contract does not force suggestion blocks onto findings that don't fit; forcing them produces unappliable garbage.
@@ -127,4 +140,10 @@ Low effort × Medium+ severity findings, rendered as a checklist after the table
 
 ## Consumers
 
-| Skill | How it consumes | | --- | --- | | [`review`](../skills/review/SKILL.md) | File-primary grouping (already), diagrams (already, §5b), findings table + quick wins + looks-bad-but-fine (already). **New from this contract:** suggestion blocks per §3 in the propose-fix recommendations. | | [`pr-review`](../skills/pr-review/SKILL.md) | File-grouped + severity-sorted (already), mandatory diagram (already, §10), file:line gate (already), summary matrix + key-findings table + checklist (already). **New from this contract:** suggestion blocks per §3, replacing freeform `Suggestion:` prose where the four conditions hold. | | future `security-review` | Hard input from day one — security fixes are overwhelmingly ≤10-line localised changes, so suggestion blocks apply heavily. | The two skills already implemented ~80% of this shape independently. The contract's job is to (a) stop the shape being re-derived per skill, and (b) add the one affordance neither had — suggestion blocks — which is what makes the 041 round-trip pay off.
+| Skill | How it consumes |
+| --- | --- |
+| [`review`](../skills/review/SKILL.md) | File-primary grouping (already), diagrams (already, §5b), findings table + quick wins + looks-bad-but-fine (already). **New from this contract:** suggestion blocks per §3 in the propose-fix recommendations. |
+| [`pr-review`](../skills/pr-review/SKILL.md) | File-grouped + severity-sorted (already), mandatory diagram (already, §10), file:line gate (already), summary matrix + key-findings table + checklist (already). **New from this contract:** suggestion blocks per §3, replacing freeform `Suggestion:` prose where the four conditions hold. |
+| future `security-review` | Hard input from day one — security fixes are overwhelmingly ≤10-line localised changes, so suggestion blocks apply heavily. |
+
+The two skills already implemented ~80% of this shape independently. The contract's job is to (a) stop the shape being re-derived per skill, and (b) add the one affordance neither had — suggestion blocks — which is what makes the one-click apply round-trip pay off.

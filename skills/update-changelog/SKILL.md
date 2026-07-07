@@ -21,7 +21,7 @@ Before composing or writing anything, **Read [`docs/changelog-contract.md`](../.
 ## Inputs
 
 1. **The unit.** Text after `/update-changelog` describes the shipped unit / significant change. No argument → infer from the recent turns (what was just shipped or decided); ask one clarifying question if multiple candidates.
-2. **Line-type signal.** From the trigger: a ship moment (execute-done / checkpoint / recap / 092) → **ship line** (`✓`); a significant planning-artifact change (spec / envision / draft-plan) → **decision line** (`◆`). When invoked directly, infer from the unit; when ambiguous, ask.
+2. **Line-type signal.** From the trigger: a ship moment (execute-done / checkpoint / recap / close-out) → **ship line** (`✓`); a significant planning-artifact change (spec / envision / draft-plan) → **decision line** (`◆`). When invoked directly, infer from the unit; when ambiguous, ask.
 3. **Target project.** `$CLAUDE_PROJECT_DIR` if set, else cwd.
 
 ## Procedure
@@ -88,10 +88,10 @@ Do not commit (the user's call). Do not touch build_progress or the CLAUDE.md co
 ## Relationship to other organs
 
 - **[changelog-contract](../../docs/changelog-contract.md)** — the format authority this skill applies (location / ordering / line-types / significant-change rule / voice).
-- **recap (013/062)** — offers a ship line on a session's completed units; this skill writes it.
+- **recap** — offers a ship line on a session's completed units; this skill writes it.
 - **checkpoint** — offers a ship line at a post-build module checkpoint.
 - **execute** — offers a ship line when a plan completes with done-criteria met.
 - **spec / draft-plan / envision** — offer a *decision* line on a significant planning-artifact change (significant-change-gated).
-- **[close-out](../close-out/SKILL.md)** — the scope chain's terminus; its *record* step calls this writer as the chain's single ledger write (the named 092→095 seam). close-out is a doorway, update-changelog is the writer.
+- **[close-out](../close-out/SKILL.md)** — the scope chain's terminus; its *record* step calls this writer as the chain's single ledger write (the close-out→changelog seam). close-out is a doorway, update-changelog is the writer.
 - **BACKLOG.md** — the forward queue (unchanged); its "Recently shipped" section is replaced by a pointer to the changelog, and §5 offers to retire a shipped row.
 - **build_progress memory** — the narrative ship-record (hashes/deviations/lessons), untouched; the changelog is the index, build_progress is the story.

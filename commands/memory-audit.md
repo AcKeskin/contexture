@@ -8,9 +8,9 @@ Forms:
 
 - `/memory-audit` — audit the current project's memory tree at `~/.claude/projects/<slug>/memory/`.
 - `/memory-audit --project <slug>` — audit a specific project's memory tree (other than the current one).
-- `/memory-audit --check <dimension>` — run only one of the eight dimensions (faster iteration when the user knows what they're looking for).
+- `/memory-audit --check <dimension>` — run only one of the ten dimensions (faster iteration when the user knows what they're looking for).
 
-The skill scans the memory tree and reports drift findings across eight integrity dimensions: MEMORY.md index drift, frontmatter validity, broken `relations:` links, duplicate detection, stale references (paths / commit hashes / proposal IDs that no longer resolve), orphan files, superseded memories still surfacing, and session-recap schema. Each concrete finding cites a file path and (where applicable) a line number.
+The skill scans the memory tree and reports drift findings across ten dimensions: MEMORY.md index drift, frontmatter validity, broken `relations:` links, duplicate detection, stale references (paths / commit hashes / doc IDs that no longer resolve), orphan files, superseded memories still surfacing, session-recap schema, a pre-write secret retro-scan, and bloat (staleness + uncompressed bodies). Each concrete finding cites a file path and (where applicable) a line number.
 
 Fixes flow through propose-confirm-commit per finding (apply / skip / edit / view-detail) — no silent writes. Read-only by default; user always makes the call.
 

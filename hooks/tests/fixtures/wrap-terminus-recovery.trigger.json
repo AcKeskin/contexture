@@ -1,0 +1,7 @@
+{
+  "session_id": "test-session-a",
+  "hook_event_name": "SessionStart",
+  "source": "compact",
+  "cwd": "__FIXTURES__",
+  "transcript_path": "__FIXTURES__/transcript.ship-unclosed.jsonl"
+}

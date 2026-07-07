@@ -44,17 +44,17 @@ A line is terse, dated-by-section, and in **repo-reader changelog voice**: what 
 
 A changelog line is one of two types, visually marked so a reader can scan ships vs decisions:
 
-- **Ship line** (default, marker `✓`) — a unit of work shipped. From the ship moments: a completed `/execute`, a post-build `/checkpoint`, a `/recap`'s completed items, the `092` archive terminus.
+- **Ship line** (default, marker `✓`) — a unit of work shipped. From the ship moments: a completed `/execute`, a post-build `/checkpoint`, a `/recap`'s completed items, the close-out archive terminus.
 
- ```
- - ✓ changelog-ledger — /update-changelog writer + CHANGELOG contract + a seed CHANGELOG; replaces the prose "Recently shipped" list
- ```
+  ```
+  - ✓ changelog-ledger — /update-changelog writer + CHANGELOG contract + a seed CHANGELOG; replaces the prose "Recently shipped" list
+  ```
 
 - **Decision line** (marker `◆`) — a *significant* planning-artifact change. From `/spec`, `/envision`, `/draft-plan` — but **only on a significant change**, never routine authoring churn (see §5).
 
- ```
- - ◆ Spec'd changelog-ledger — canonical CHANGELOG replacing BACKLOG "Recently shipped"; recap/checkpoint/execute callers
- ```
+  ```
+  - ◆ Spec'd changelog-ledger — canonical CHANGELOG replacing BACKLOG "Recently shipped"; recap/checkpoint/execute callers
+  ```
 
 Both types are dated by section and follow the same voice. The marker is the only structural difference.
 
@@ -70,4 +70,12 @@ The significant-change rule is a *soft* heuristic with a hard backstop: every ch
 
 ## 6. Relationship to the other ship records
 
-| Surface | Role | After 095 | | --- | --- | --- | | `CHANGELOG.md` | the canonical "what shipped, newest first" index | **new — the single chronological record** | | `BACKLOG.md` "Recently shipped" | was a prose ship-list | **replaced by a pointer to `CHANGELOG.md`** | | `BACKLOG.md` priority queue | the ranked *forward* queue | unchanged (the changelog is backward-looking) | | `build_progress` memory | narrative ship-record (hashes, deviations, lessons) | unchanged (the story; changelog is the index) | | `recap` files | per-session episodic record | unchanged (recap *offers* a changelog line on a shipped unit) | The net effect is **−1 surface**: the prose ship-list moves from BACKLOG into the canonical CHANGELOG, and nothing new is left scattered.
+| Surface | Role | After this contract |
+| --- | --- | --- |
+| `CHANGELOG.md` | the canonical "what shipped, newest first" index | **new — the single chronological record** |
+| `BACKLOG.md` "Recently shipped" | was a prose ship-list | **replaced by a pointer to `CHANGELOG.md`** |
+| `BACKLOG.md` priority queue | the ranked *forward* queue | unchanged (the changelog is backward-looking) |
+| `build_progress` memory | narrative ship-record (hashes, deviations, lessons) | unchanged (the story; changelog is the index) |
+| `recap` files | per-session episodic record | unchanged (recap *offers* a changelog line on a shipped unit) |
+
+The net effect is **−1 surface**: the prose ship-list moves from BACKLOG into the canonical CHANGELOG, and nothing new is left scattered.

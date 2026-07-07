@@ -11,19 +11,19 @@ The text codemap stays the source of truth. This skill produces a derived view; 
 
 ## How to run (for Claude Code)
 
-Implemented as a standalone Node script — [`visualise-codemap.mjs`](./visualise-codemap.mjs), co-located in this skill folder — shared with Copilot ([.github/prompts/visualise-codemap.prompt.md](../../.github/prompts/visualise-codemap.prompt.md)). The procedure below is the contract the script implements.
+Implemented as a standalone Node script — [`visualise-codemap.mjs`](./visualise-codemap.mjs), co-located in this skill folder. The procedure below is the contract the script implements.
 
 Resolve the script **relative to this SKILL.md's real location**, never relative to CWD and never via a hardcoded path — the skill is symlinked into `~/.claude/skills/` on each machine, so CWD-relative and home-relative paths break. Follow the symlink with `realpath`, then run the co-located script:
 
 ```sh
-SKILL_DIR="$(dirname "$(realpath "$0")")" # $0 = this SKILL.md's path as invoked
-node "$SKILL_DIR/visualise-codemap.mjs" # writes.claude/codemap.diagrams.md
-node "$SKILL_DIR/visualise-codemap.mjs" --dry-run # preview to stdout
-node "$SKILL_DIR/visualise-codemap.mjs" --vault "<vault-root>" # also write to Obsidian vault (per-module split by default)
-node "$SKILL_DIR/visualise-codemap.mjs" --project-folder Stream # override inferred ProjectFolder
+SKILL_DIR="$(dirname "$(realpath "$0")")"   # $0 = this SKILL.md's path as invoked
+node "$SKILL_DIR/visualise-codemap.mjs"                           # writes .claude/codemap.diagrams.md
+node "$SKILL_DIR/visualise-codemap.mjs" --dry-run                 # preview to stdout
+node "$SKILL_DIR/visualise-codemap.mjs" --vault "<vault-root>"    # also write to Obsidian vault (per-module split by default)
+node "$SKILL_DIR/visualise-codemap.mjs" --project-folder MyProduct   # override inferred ProjectFolder
 ```
 
-Vault root (`<Vault>`) is read from machine-local config — `vaultRoot` in `~/.claude/hook-config.json` — **never hardcoded** (per `universal/no-hardcoded-machine-paths.md`; the user has two PCs, other users have their own). Pass it as `--vault "<vaultRoot>"`. If `vaultRoot` is unset, write only the in-repo artifact and surface *"Set `vaultRoot` in `~/.claude/hook-config.json` to also write the vault copy."* The script infers `<ProjectFolder>` from repo name (`*isar*` / `stream-*` → `Stream`, else the project name). Override with `--project-folder` when needed. On vault-write failure, the script prints the exact `outsideProjectWriteBlocker.allow` line to add.
+Vault root (`<Vault>`) is read from machine-local config — `vaultRoot` in `~/.claude/hook-config.json` — **never hardcoded** (per `universal/no-hardcoded-machine-paths.md`; the user has two PCs, other users have their own). Pass it as `--vault "<vaultRoot>"`. If `vaultRoot` is unset, write only the in-repo artifact and surface *"Set `vaultRoot` in `~/.claude/hook-config.json` to also write the vault copy."* The script infers `<ProjectFolder>` by matching an existing `Projects/<Name>/` subfolder, else the project name; ships no owner-specific repo mapping. To alias several repos onto one folder, pass `--project-folder <name>`. On vault-write failure, the script prints the exact `outsideProjectWriteBlocker.allow` line to add.
 
 Per-project tuning (caps, skip patterns, renderer, vault layout) lives under the `## Visualize` section of `.claude/codemap.config.md` — see the [Visualize config](#visualize-config) reference below.
 
@@ -40,9 +40,9 @@ Per-project tuning (caps, skip patterns, renderer, vault layout) lives under the
 2. **Source codemap.** `<root>/.claude/codemap.md`. Required. If missing, instruct the user to run `/update-codemap` first and stop.
 3. **Module-level dependency adjacency.** Parsed from `## Dependencies`. Accepts both weighted (`bar/ (12)`) and legacy bare (`bar/`) forms; legacy entries are treated as weight 1. If absent, module-edges are synthesised from `## File deps` (every file→file edge whose endpoints live in different top-level modules contributes weight 1). Notes line surfaces the synthesis fallback if the section is missing.
 4. **File-level dependency adjacency.** Parsed from `## File deps` (file→file edges, written by `update-codemap` from v2 onward). If absent, per-module file graphs render nodes only and a Notes line tells the user to re-run `/update-codemap` to enrich.
-5. **Class graph.** Parsed from `## Class graph` — block-per-class with `kind: Name in path`, plus indented `namespace`, `extends`, `implements`, `attributes`, and `fields: name: Type; name: Type` (using `; ` separator). Drives the per-module class diagrams and the cross-module class relations diagram. If absent, both class-diagram sections are omitted silently — no Notes line, since not every project has a meaningful OO surface.
+5. **Class graph.** Parsed from `## Class graph` — block-per-class with `kind: Name in path`, plus indented `namespace`, `extends`, `implements`, `attributes`, and `fields: name: Type ; name: Type` (using ` ; ` separator). Drives the per-module class diagrams and the cross-module class relations diagram. If absent, both class-diagram sections are omitted silently — no Notes line, since not every project has a meaningful OO surface.
 6. **Per-project visualize config.** Parsed from `<root>/.claude/codemap.config.md` → `## Visualize` section. See the [Visualize config](#visualize-config) reference below.
-7. **Obsidian vault path.** Inferred per the project-folder rule in global CLAUDE.md (`Code Reviews` convention) — `*isar*` / `stream-*` → `Stream`; otherwise match an existing `Projects/<Name>/` subfolder, else ask once.
+7. **Obsidian vault path.** `<ProjectFolder>` matches an existing `Projects/<Name>/` subfolder, else derives from the project name (alias several repos onto one folder via `--project-folder`), else ask once.
 
 ## Procedure
 
@@ -73,7 +73,7 @@ The output is a single technical document built from five composed parts, in thi
 
 **3a. Structure tree.** ASCII tree (in a plain code fence, not Mermaid) of top-level modules and their immediate subfolders. Each module line shows the file count; each subfolder line is annotated `— subfolder`. Modules and files matched by `## Visualize` `skip:` are excluded. The `./` and `.claude/` groups (if present) are dropped.
 
-**3b. Module map.** One Mermaid `graph TB` (top-down) diagram, scope = whole project — upstream/entry layers at the top, leaf utilities at the bottom. Renderer hint (ELK by default) is emitted as a `%%{init:...}%%` directive so Mermaid picks layered layout. A legend below the diagram explains the styling.
+**3b. Module map.** One Mermaid `graph TB` (top-down) diagram, scope = whole project — upstream/entry layers at the top, leaf utilities at the bottom. Renderer hint (ELK by default) is emitted as a `%%{init: ...}%%` directive so Mermaid picks layered layout. A legend below the diagram explains the styling.
 
 - Nodes: one per top-level directory, minus any matched by `## Visualize` `skip:`.
 - Entry points: render with `:::entry` class (distinct fill).
@@ -81,10 +81,10 @@ The output is a single technical document built from five composed parts, in thi
 - **Cycle nodes:** modules on a detected dependency cycle get a distinct red stroke, so a cycle reads visually, not only in the `### Cycles detected` text block.
 - **Layers — declared OR auto.** When `## Layers` is present in `.claude/codemap.config.md`, it wins: modules are clustered by `subgraph <LayerName>` and any module not assigned to a declared layer goes into a synthetic `Unlayered` bucket. When absent, layers are derived topologically — a cycle-tolerant DFS post-order assigns each module `layer = 1 + max(layer of its dependencies)`, settling over at-most-N passes so cycles stabilise. Sources land in `Layer 0`, sinks high.
 - Edges: from `## Dependencies`, weighted. If `## Dependencies` is missing, module-edges are synthesised by counting cross-module file→file edges from `## File deps`.
- - **Intra-layer edges are dropped.** They belong in the per-module File graphs.
- - **Bidirectional pairs (A→B and B→A) collapse to a single `A <--> B` edge.** Both halves are still flagged in a `### Cycles detected` block.
- - **Top-N filter per source:** the `l1-edge-cap` config (default 8) caps outgoing edges per node. Overflow renders as a single dashed `(+K more)` ghost node connected via a dotted edge.
- - **Weight labels:** every edge is labeled with its weight (`--> |<weight>|`) so the relation strength (number of cross-module import edges) reads directly, not as a bare arrow.
+  - **Intra-layer edges are dropped.** They belong in the per-module File graphs.
+  - **Bidirectional pairs (A→B and B→A) collapse to a single `A <--> B` edge.** Both halves are still flagged in a `### Cycles detected` block.
+  - **Top-N filter per source:** the `l1-edge-cap` config (default 8) caps outgoing edges per node. Overflow renders as a single dashed `(+K more)` ghost node connected via a dotted edge.
+  - **Weight labels:** every edge is labeled with its weight (`--> |<weight>|`) so the relation strength (number of cross-module import edges) reads directly, not as a bare arrow.
 
 **3c. Modules.** One `### <module>/` section per visible top-level module, alphabetical. Each section contains:
 
@@ -108,24 +108,24 @@ The output is a single technical document built from five composed parts, in thi
 ```mermaid
 %%{init: {"flowchart": {"defaultRenderer": "elk"}}}%%
 graph LR
- classDef entry fill:#fef3c7,stroke:#d97706,stroke-width:2px
- classDef overflow fill:#f3f4f6,stroke:#9ca3af,stroke-dasharray: 4 2
+  classDef entry fill:#fef3c7,stroke:#d97706,stroke-width:2px
+  classDef overflow fill:#f3f4f6,stroke:#9ca3af,stroke-dasharray: 4 2
 
- subgraph layer_0["Layer 0"]
- domain["domain/"]
- end
- subgraph layer_1["Layer 1"]
- services["services/"]
- end
- subgraph layer_2["Layer 2"]
- app["app/"]:::entry
- end
+  subgraph layer_0["Layer 0"]
+    domain["domain/"]
+  end
+  subgraph layer_1["Layer 1"]
+    services["services/"]
+  end
+  subgraph layer_2["Layer 2"]
+    app["app/"]:::entry
+  end
 
- app -->|7| services
- services --> domain
- services <--> domain_shared
- services_more["(+3 more)"]:::overflow
- services -.-> services_more
+  app -->|7| services
+  services --> domain
+  services <--> domain_shared
+  services_more["(+3 more)"]:::overflow
+  services -.-> services_more
 ```
 
 **File graph (3c):**
@@ -133,43 +133,43 @@ graph LR
 ```mermaid
 %%{init: {"flowchart": {"defaultRenderer": "elk"}}}%%
 graph LR
- classDef ghost fill:#f9fafb,stroke:#d1d5db,stroke-dasharray: 4 2,color:#6b7280
+  classDef ghost fill:#f9fafb,stroke:#d1d5db,stroke-dasharray: 4 2,color:#6b7280
 
- subgraph sub_routes["routes/"]
- app_routes_index_ts["index.ts"]
- app_routes_health_ts["health.ts"]
- end
- app_main_ts["main.ts"]
- app_bootstrap_ts["bootstrap.ts"]
- ghost_lib_logger_ts["lib/logger.ts"]:::ghost
+  subgraph sub_routes["routes/"]
+    app_routes_index_ts["index.ts"]
+    app_routes_health_ts["health.ts"]
+  end
+  app_main_ts["main.ts"]
+  app_bootstrap_ts["bootstrap.ts"]
+  ghost_lib_logger_ts["lib/logger.ts"]:::ghost
 
- app_main_ts --> app_bootstrap_ts
- app_main_ts --> app_routes_index_ts
- app_routes_index_ts --> app_routes_health_ts
- app_main_ts --> ghost_lib_logger_ts
+  app_main_ts --> app_bootstrap_ts
+  app_main_ts --> app_routes_index_ts
+  app_routes_index_ts --> app_routes_health_ts
+  app_main_ts --> ghost_lib_logger_ts
 ```
 
 **Class diagram (3c, 3d):**
 
 ```mermaid
 classDiagram
- class Repository {
- <<interface>>
- +find(id) Entity
- +save(e) void
- }
- class SqlRepository {
- +Db db
- +find(id) Entity
- +save(e) void
- }
- class CachedRepository {
- +Repository inner
- +Cache cache
- }
- Repository <|.. SqlRepository: implements
- Repository <|.. CachedRepository: implements
- CachedRepository o-- Repository
+  class Repository {
+    <<interface>>
+    +find(id) Entity
+    +save(e) void
+  }
+  class SqlRepository {
+    +Db db
+    +find(id) Entity
+    +save(e) void
+  }
+  class CachedRepository {
+    +Repository inner
+    +Cache cache
+  }
+  Repository <|.. SqlRepository : implements
+  Repository <|.. CachedRepository : implements
+  CachedRepository o-- Repository
 ```
 
 ### 5. Output file structure
@@ -200,16 +200,16 @@ Source: `.claude/codemap.md` (last updated: <date from source>)
 #### File graph
 <mermaid block>
 
-#### Class diagram (omitted when module has no classes)
+#### Class diagram        (omitted when module has no classes)
 <mermaid block>
 
 #### Files
 - `<rel>` — <purpose>
- - <export>
+  - <export>
 
 (repeats per module, alphabetical)
 
-## Cross-module class relations (omitted when no cross-module class edges)
+## Cross-module class relations    (omitted when no cross-module class edges)
 
 <mermaid block>
 
@@ -242,7 +242,7 @@ Frontmatter (both modes):
 ---
 project: <project-name>
 repo: <repo path>
-source:.claude/codemap.md
+source: .claude/codemap.md
 rendered: <YYYY-MM-DD>
 ---
 ```
@@ -251,7 +251,7 @@ rendered: <YYYY-MM-DD>
 
 ```
 Add to ~/.claude/hook-config.json → outsideProjectWriteBlocker.allow:
- "<vaultRoot>/Projects/*/Codemap/**"
+  "<vaultRoot>/Projects/*/Codemap/**"
 ```
 
 (Substitute the actual `vaultRoot` config value when surfacing the line to the user — e.g. `<vaultRoot>/Projects/*/Codemap/**` becomes the user's configured vault path.)
@@ -264,7 +264,7 @@ The `## Notes` section at the bottom of the rendered file is not just for caveat
 
 - Both `## Dependencies` and `## File deps` missing → `Module map has no edges — source codemap has no ## Dependencies and no ## File deps to synthesise from. Re-run update-codemap.`
 - All file-deps are intra-module → `Module map has no edges — all file-level dependencies are intra-module (no cross-module imports detected).`
-- No `## Layers` declared → `Module map auto-layered topologically — no ## Layers declared in.claude/codemap.config.md.`
+- No `## Layers` declared → `Module map auto-layered topologically — no ## Layers declared in .claude/codemap.config.md.`
 - Missing `## Entry points` → `Module map has no entry-point highlighting — no ## Entry points in source codemap.`
 - Modules hidden by `## Visualize` `skip:` → `L1: N module(s) hidden by ## Visualize skip: <list>.`
 
@@ -275,7 +275,7 @@ These hints surface the diagnostic information at the bottom of the rendered fil
 Print:
 
 ```
-Wrote.claude/codemap.diagrams.md
+Wrote .claude/codemap.diagrams.md
 Wrote <Vault>/Projects/<ProjectFolder>/Codemap/<project>-codemap.md (+ N module notes)
 Source codemap age: X days
 ```

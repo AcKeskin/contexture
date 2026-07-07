@@ -37,16 +37,16 @@ git rev-parse --abbrev-ref --symbolic-full-name @{u}
 ```
 
 - **Has upstream** → list the commits being sent and the size:
- ```
- git log @{u}..HEAD --oneline
- git diff --stat @{u}..HEAD
- ```
+  ```
+  git log @{u}..HEAD --oneline
+  git diff --stat @{u}..HEAD
+  ```
 - **No upstream yet** (first push) → surface that explicitly. First push is a different animal: it sets tracking and creates the remote ref. List the commits relative to the base branch instead:
- ```
- git log <base>..HEAD --oneline
- git diff --stat <base>..HEAD
- ```
- Resolve `<base>` per [pr-author's base detection](../pr-author/SKILL.md#1-resolve-pr-context) (`git symbolic-ref refs/remotes/origin/HEAD`, fall back to main/master/trunk).
+  ```
+  git log <base>..HEAD --oneline
+  git diff --stat <base>..HEAD
+  ```
+  Resolve `<base>` per [pr-author's base detection](../pr-author/SKILL.md#1-resolve-pr-context) (`git symbolic-ref refs/remotes/origin/HEAD`, fall back to main/master/trunk).
 
 Show the user a one-block summary: branch, upstream (or "first push — no upstream"), N commits, +A/-D lines.
 
@@ -65,11 +65,11 @@ Run the seven checks. Each is **tick** (pass, silent) or **flag** (surface). Opt
 ### 3. Decide
 
 - **All checks pass** → confirm with one line and proceed:
- > All checks pass. Push to `origin/<branch>`?
+  > All checks pass. Push to `origin/<branch>`?
 - **Any check flagged** → surface every flag with file:line where applicable, propose the fix for each, and **wait**. Do not push past a flag without explicit user say-so. The user can:
- - Fix the flagged item (skill helps), then re-run from step 2.
- - Override a specific flag ("that localhost URL is intentional, push anyway") — proceed, noting the override.
- - Cancel the push.
+  - Fix the flagged item (skill helps), then re-run from step 2.
+  - Override a specific flag ("that localhost URL is intentional, push anyway") — proceed, noting the override.
+  - Cancel the push.
 
 ### 4. Push
 

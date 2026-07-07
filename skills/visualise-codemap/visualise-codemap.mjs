@@ -1464,8 +1464,11 @@ function normalizeFolderKey(s) {
 // when nothing fits. Without this match step the skill spawns near-duplicate folders that
 // differ only by stripped punctuation (e.g. `Odds Ends  Errands` vs `Odds, Ends & Errands`).
 function inferProjectFolder(projectName, root, vault) {
-  const repoName = path.basename(root).toLowerCase();
-  if (/isar/.test(repoName) || /^stream-/.test(repoName)) return 'Stream';
+  // Repo-name → vault-folder aliases (e.g. several repos of one product filing
+  // under a shared folder) are machine-local: pass them via --project-folder, or
+  // a projectFolderMap in ~/.claude/hook-config.json the caller resolves. This
+  // function ships no owner-specific mapping — it matches an existing folder,
+  // else derives one from the project name.
 
   // Collapse internal whitespace runs (a stripped `&`/`,` leaves doubled spaces otherwise).
   const cleaned = projectName.replace(/[^A-Za-z0-9 \-_]/g, ' ').replace(/\s+/g, ' ').trim();

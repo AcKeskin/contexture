@@ -1,5 +1,6 @@
 {
+  "session_id": "fixture-session-1",
   "hook_event_name": "SessionStart",
-  "matcher": "startup",
+  "source": "startup",
   "cwd": "__REPO_ROOT__"
 }

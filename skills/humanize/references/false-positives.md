@@ -1,6 +1,6 @@
 # False positives — DO NOT flag (research-refuted)
 
-The de-dogmatize guard. Each entry below is either **adversarially refuted** in deep-research wf_1a39f292 (lost its verification vote) or is a **register convention** mistaken for a tell. The skill must NOT flag these standalone, and the rule must carry the carve-out. Flagging them is the failure mode of the surveyed humanizers (the-humanizer, the em-dash folklore).
+The de-dogmatize guard. Each entry below is either **adversarially refuted** in the underlying research (lost its verification vote) or is a **register convention** mistaken for a tell. The skill must NOT flag these standalone, and the rule must carry the carve-out. Flagging them is the failure mode of the surveyed humanizers (the-humanizer, the em-dash folklore).
 
 ## Refuted statistical markers (lost verification votes)
 

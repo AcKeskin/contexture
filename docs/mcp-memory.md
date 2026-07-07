@@ -8,38 +8,67 @@ Exposes the project memory tree (`~/.claude/projects/<slug>/memory/`) and the se
 
 ## Tools
 
-| Tool | Job | Composes with | |---|---|---| | `discover` | Ranked retrieval over the full memory tree, mirrors the `/discover` skill's query contract |, 012 | | `recent_sessions` | Last N session rollups for the calling project, newest first | | | `get_memory` | Fetch a single memory by frontmatter `name` slug, full body | — | ### `discover` parameters
+| Tool | Job | Composes with |
+|---|---|---|
+| `discover` | Ranked retrieval over the full memory tree, mirrors the `/discover` skill's query contract | the discover + deliver skills |
+| `recent_sessions` | Last N session rollups for the calling project, newest first | the session-rollup mechanism |
+| `get_memory` | Fetch a single memory by frontmatter `name` slug, full body | — |
 
-| Name | Type | Required | Notes | |---|---|---|---| | `task_keywords` | string | no | Comma-separated. Light-weight match against name/description/body. | | `scopes` | string | no | Comma-separated scope tags. Highest-weight match signal. | | `relevance_phases` | string | no | Comma-separated (`always`, `during-debug`, `when-touching-X`, etc.). | | `kind` | string | no | Hard filter to a single kind (`lesson`, `decision`, `architectural-rule`, `preference`, `warning`). | | `top_n` | number | no | Result cap. Default 10. | | `render_bodies` | boolean | no | Include full body. Default false (name + description + metadata only). | | `include_recaps` | boolean | no | Include `sessions/` files. Default false. | | `cwd` | string | no | Override working directory used for project resolution. | Array-shaped fields are CSV here because MCP tool parameters are scalar-only; the server splits internally.
+### `discover` parameters
+
+| Name | Type | Required | Notes |
+|---|---|---|---|
+| `task_keywords` | string | no | Comma-separated. Light-weight match against name/description/body. |
+| `scopes` | string | no | Comma-separated scope tags. Highest-weight match signal. |
+| `relevance_phases` | string | no | Comma-separated (`always`, `during-debug`, `when-touching-X`, etc.). |
+| `kind` | string | no | Hard filter to a single kind (`lesson`, `decision`, `architectural-rule`, `preference`, `warning`). |
+| `top_n` | number | no | Result cap. Default 10. |
+| `render_bodies` | boolean | no | Include full body. Default false (name + description + metadata only). |
+| `include_recaps` | boolean | no | Include `sessions/` files. Default false. |
+| `cwd` | string | no | Override working directory used for project resolution. |
+
+Array-shaped fields are CSV here because MCP tool parameters are scalar-only; the server splits internally.
 
 ### `recent_sessions` parameters
 
-| Name | Type | Required | Notes | |---|---|---|---| | `top_n` | number | no | Default 5. | | `since_days` | number | no | Cutoff in days. Default 30 (matches discover's auto-surface cutoff). | | `render_bodies` | boolean | no | Default true for sessions. | | `cwd` | string | no | Override working directory. | ### `get_memory` parameters
+| Name | Type | Required | Notes |
+|---|---|---|---|
+| `top_n` | number | no | Default 5. |
+| `since_days` | number | no | Cutoff in days. Default 30 (matches discover's auto-surface cutoff). |
+| `render_bodies` | boolean | no | Default true for sessions. |
+| `cwd` | string | no | Override working directory. |
 
-| Name | Type | Required | Notes | |---|---|---|---| | `name` | string | **yes** | The memory's `name:` frontmatter slug. | | `cwd` | string | no | Override working directory. | ## When to invoke
+### `get_memory` parameters
+
+| Name | Type | Required | Notes |
+|---|---|---|---|
+| `name` | string | **yes** | The memory's `name:` frontmatter slug. |
+| `cwd` | string | no | Override working directory. |
+
+## When to invoke
 
 - Programmatically, from any agent that can speak MCP and needs project memory — most often Claude Code itself when the user invokes a skill that internally needs retrieval.
-- The slash command `/discover` and the MCP `discover` tool are *parallel* surfaces today. One may collapse into the other later ( open question 5).
+- The slash command `/discover` and the MCP `discover` tool are *parallel* surfaces today. One may collapse into the other later.
 
 ## How it composes
 
 ```
 ┌─ memory/ tree ──────────────────────────────┐
-│ lessons/, decisions/, warnings/,... │
-│ sessions/YYYY-MM-DD-<slug>.md │
-│ MEMORY.md (index, not a memory) │
+│  lessons/, decisions/, warnings/, ...       │
+│  sessions/YYYY-MM-DD-<slug>.md              │
+│  MEMORY.md (index, not a memory)            │
 └─────────────────────────────────────────────┘
- ▲
- │ reads (no writes)
- │
- ┌────────┴──────────┐
- │ project-memory MCP│ ← this doc
- └────────┬──────────┘
- │ stdio
- ▼
- ┌─────────────────────┐
- │ Claude Code host │
- └─────────────────────┘
+                   ▲
+                   │ reads (no writes)
+                   │
+          ┌────────┴──────────┐
+          │ project-memory MCP│  ← this doc
+          └────────┬──────────┘
+                   │ stdio
+                   ▼
+       ┌─────────────────────┐
+       │  Claude Code host   │
+       └─────────────────────┘
 ```
 
 Capture (writes) stays in the slash commands — `/capture`, `/recap`, `/memory-audit`. The MCP is **retrieval-only by design**. Anything that wants to *write* memory goes through capture's propose-confirm-commit flow.

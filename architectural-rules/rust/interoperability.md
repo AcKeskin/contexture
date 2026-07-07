@@ -1,6 +1,6 @@
 ---
 name: Rust interoperability
-description: Eagerly implement common traits. Use From/AsRef/AsMut for conversions. Send+Sync where possible. Generic R: Read / W: Write by value.
+description: "Eagerly implement common traits. Use From/AsRef/AsMut for conversions. Send+Sync where possible. Generic R: Read / W: Write by value."
 type: user
 kind: architectural-rule
 scope: [rust, interop, traits]

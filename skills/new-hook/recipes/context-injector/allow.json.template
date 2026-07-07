@@ -1,3 +1,5 @@
 {
-  "matcher": "non-matching-event-fixture"
+  "session_id": "fixture-session-1",
+  "hook_event_name": "SessionStart",
+  "source": "non-matching-source-fixture"
 }

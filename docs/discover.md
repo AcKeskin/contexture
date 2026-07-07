@@ -10,13 +10,20 @@ Reads stored memory + the project codemap, filters to what's relevant for the cu
 
 - Task start, before writing code — type `/discover` or ask Claude to "load context."
 - Mid-task, when Claude's responses feel ungrounded — re-invoke.
-- Automatically, by other skills (prep 004, review 005) that need stored context to do their jobs. Those skills will call `discover` as a query rather than as a slash command.
+- Automatically, by other skills (prep, review) that need stored context to do their jobs. Those skills will call `discover` as a query rather than as a slash command.
 
 Not auto-fired at session start. User controls when it runs.
 
 ## Invocation shapes
 
-| Form | Who invokes | What happens | | --- | --- | --- | | `/discover` | User | Run on the last user message as task text. | | `/discover <keywords>` | User | Treat keywords as additional task hints. | | Natural-language: "load context for X" | User | Description match triggers the skill. | | Programmatic (from another skill) | Prep, review | Pass structured filters (scopes, kind, relevance_phases). | ## How matching works (summary)
+| Form | Who invokes | What happens |
+| --- | --- | --- |
+| `/discover` | User | Run on the last user message as task text. |
+| `/discover <keywords>` | User | Treat keywords as additional task hints. |
+| Natural-language: "load context for X" | User | Description match triggers the skill. |
+| Programmatic (from another skill) | Prep, review | Pass structured filters (scopes, kind, relevance_phases). |
+
+## How matching works (summary)
 
 Two-stage:
 1. **Index scan.** Read `MEMORY.md`, score entries by keyword hits in title + hook.
@@ -32,12 +39,12 @@ See `skills/discover/SKILL.md` for the exact scoring rules.
 
 ```
 Loaded N memories + M codemap entries (codemap age: X days):
- Memories (high confidence):
- - [Title] (scope: <tags>, relevance: <phase>)
- Memories (possibly relevant):
- - [Title] (scope: <tags>, relevance: <phase>)
- Codemap:
- - path — summary
+  Memories (high confidence):
+    - [Title] (scope: <tags>, relevance: <phase>)
+  Memories (possibly relevant):
+    - [Title] (scope: <tags>, relevance: <phase>)
+  Codemap:
+    - path — summary
 
 No stored context found for: [aspects].
 Want to provide context, or should I proceed with what I have?
@@ -59,4 +66,4 @@ When coverage is thin (zero high-confidence + zero codemap, or an unaddressed ta
 - Skill doesn't fire on `/discover`: confirm `~/.claude/commands/discover.md` exists (bootstrap should have linked it). Restart Claude Code session after first install.
 - "No project memory found" when memory exists: the Glob-based resolver couldn't match the project root to a memory directory. Check that `~/.claude/projects/<slug>/memory/MEMORY.md` exists and the `<slug>` contains the project dir name in some form.
 - Too many irrelevant hits: expected at v1. Either tighten task phrasing or add scope tags to noisy memory entries. Do not change the matching algorithm yet — revisit at the ~30-file milestone.
-- Too few hits: check that recent memories have `scope` and `relevance` populated. Entries missing those fields are treated permissively (all-match) but may not score well against specific task scopes.
+- Too few hits: check that recent memories have `scope` and `relevance` populated per the storage-tagging schema. Entries missing those fields are treated permissively (all-match) but may not score well against specific task scopes.

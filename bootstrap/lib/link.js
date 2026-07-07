@@ -2,7 +2,10 @@
 
 // Linking primitives. Prefer symlink; fall back to recursive copy on Windows
 // when symlink permission is denied. All operations idempotent; none clobber
-// destinations that contain divergent user content.
+// destinations that contain divergent user content. Copies are recorded in a
+// provenance manifest (copy-manifest.js) when one is supplied: a copy still
+// matching its recorded hash is bootstrap-owned and refreshed from source on
+// later runs; unknown provenance always conflicts.
 //
 // Two modes:
 //   linkDir(src, dst)      — whole-directory link. Use for subtrees owned
@@ -10,14 +13,21 @@
 //   linkItems(srcDir, dst) — per-item link. Use for shared namespaces where
 //                            the user or third-party tools also populate the
 //                            destination (e.g. ~/.claude/skills/).
+//
+// Options (both modes): `manifest` — a copy-manifest to record/consult copy
+// provenance; `forceCopy` — skip the symlink attempt and copy directly (for
+// exercising the Windows fallback where symlinks are available).
 
 const fs = require('fs');
 const path = require('path');
 
+const { filesEqual, directoriesEqual } = require('./compare');
+const { recordCopy, clearEntries, matchesRecorded } = require('./copy-manifest');
+
 const SYMLINK_PERM_ERRORS = new Set(['EPERM', 'EACCES']);
 
-function linkDir(src, dst) {
-  return linkEntry(src, dst, { kind: 'dir' });
+function linkDir(src, dst, opts = {}) {
+  return linkEntry(src, dst, { kind: 'dir', manifest: opts.manifest, forceCopy: opts.forceCopy });
 }
 
 function linkItems(srcDir, dstDir, opts = {}) {
@@ -41,12 +51,12 @@ function linkItems(srcDir, dstDir, opts = {}) {
       results.push({ action: 'skipped', reason: 'unsupported-type', src: itemSrc, dst: itemDst });
       continue;
     }
-    results.push(linkEntry(itemSrc, itemDst, { kind }));
+    results.push(linkEntry(itemSrc, itemDst, { kind, manifest: opts.manifest, forceCopy: opts.forceCopy }));
   }
   return results;
 }
 
-function linkEntry(src, dst, { kind }) {
+function linkEntry(src, dst, { kind, manifest, forceCopy }) {
   const absSrc = path.resolve(src);
 
   if (!fs.existsSync(absSrc)) {
@@ -65,7 +75,18 @@ function linkEntry(src, dst, { kind }) {
       fs.unlinkSync(dst);
     } else if (kind === 'dir' && existing.isDirectory()) {
       if (directoriesEqual(absSrc, dst)) {
+        // Identical content — adopting it into the manifest is safe because a
+        // refresh of an identical copy is a no-op.
+        if (manifest) recordCopy(manifest, dst, 'dir');
         return { action: 'up-to-date', mode: 'copy', src: absSrc, dst };
+      }
+      if (manifest && matchesRecorded(manifest, dst, 'dir')) {
+        // Matches its recorded hashes → bootstrap-owned and unmodified; the
+        // divergence is an upstream change, so refresh from source.
+        fs.rmSync(dst, { recursive: true, force: true });
+        copyDir(absSrc, dst);
+        recordCopy(manifest, dst, 'dir');
+        return { action: 'refreshed', mode: 'copy', src: absSrc, dst };
       }
       return {
         action: 'conflict',
@@ -75,7 +96,13 @@ function linkEntry(src, dst, { kind }) {
       };
     } else if (kind === 'file' && existing.isFile()) {
       if (filesEqual(absSrc, dst)) {
+        if (manifest) recordCopy(manifest, dst, 'file');
         return { action: 'up-to-date', mode: 'copy', src: absSrc, dst };
+      }
+      if (manifest && matchesRecorded(manifest, dst, 'file')) {
+        fs.copyFileSync(absSrc, dst);
+        recordCopy(manifest, dst, 'file');
+        return { action: 'refreshed', mode: 'copy', src: absSrc, dst };
       }
       return {
         action: 'conflict',
@@ -93,22 +120,28 @@ function linkEntry(src, dst, { kind }) {
     }
   }
 
-  const symlinkType = kind === 'dir' ? 'dir' : 'file';
-  try {
-    fs.symlinkSync(absSrc, dst, symlinkType);
-    return { action: 'created', mode: 'symlink', src: absSrc, dst };
-  } catch (err) {
-    if (!SYMLINK_PERM_ERRORS.has(err.code)) throw err;
-    if (kind === 'dir') copyDir(absSrc, dst);
-    else fs.copyFileSync(absSrc, dst);
-    return {
-      action: 'created',
-      mode: 'copy',
-      reason: 'symlink-denied',
-      src: absSrc,
-      dst,
-    };
+  if (!forceCopy) {
+    const symlinkType = kind === 'dir' ? 'dir' : 'file';
+    try {
+      fs.symlinkSync(absSrc, dst, symlinkType);
+      // The destination is a live link now, not a copy — drop any provenance
+      // entries left over from an earlier copy-mode install.
+      if (manifest) clearEntries(manifest, dst);
+      return { action: 'created', mode: 'symlink', src: absSrc, dst };
+    } catch (err) {
+      if (!SYMLINK_PERM_ERRORS.has(err.code)) throw err;
+    }
   }
+  if (kind === 'dir') copyDir(absSrc, dst);
+  else fs.copyFileSync(absSrc, dst);
+  if (manifest) recordCopy(manifest, dst, kind);
+  return {
+    action: 'created',
+    mode: 'copy',
+    reason: forceCopy ? 'copy-forced' : 'symlink-denied',
+    src: absSrc,
+    dst,
+  };
 }
 
 function ensureParent(target) {
@@ -141,31 +174,6 @@ function copyDir(src, dst) {
     if (entry.isDirectory()) copyDir(s, d);
     else if (entry.isFile()) fs.copyFileSync(s, d);
   }
-}
-
-function directoriesEqual(a, b) {
-  const listA = fs.readdirSync(a).sort();
-  const listB = fs.readdirSync(b).sort();
-  if (listA.length !== listB.length) return false;
-  for (let i = 0; i < listA.length; i++) {
-    if (listA[i] !== listB[i]) return false;
-    const sa = fs.statSync(path.join(a, listA[i]));
-    const sb = fs.statSync(path.join(b, listB[i]));
-    if (sa.isDirectory() !== sb.isDirectory()) return false;
-    if (sa.isDirectory()) {
-      if (!directoriesEqual(path.join(a, listA[i]), path.join(b, listB[i]))) return false;
-    } else if (sa.size !== sb.size) {
-      return false;
-    }
-  }
-  return true;
-}
-
-function filesEqual(a, b) {
-  const sa = fs.statSync(a);
-  const sb = fs.statSync(b);
-  if (sa.size !== sb.size) return false;
-  return fs.readFileSync(a).equals(fs.readFileSync(b));
 }
 
 // Remove orphaned links left by a rename/delete. An orphan is a

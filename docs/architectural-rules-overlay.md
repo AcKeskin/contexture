@@ -10,9 +10,16 @@ The shipped tree (`contexture/architectural-rules/`) is synced + symlinked. Hand
 
 Precedence low → high. Higher tiers win.
 
-| Tier | Directory | Owner | Update-safe | | --- | --- | --- | --- | | **shipped** | `~/.claude/architectural-rules/` (symlink into contexture) | the corpus (006/046) | it *is* the update | | **company** | `~/.claude/architectural-rules-company/` (clone of a team repo) | the team | yes — separate repo | | **user** | `~/.claude/architectural-rules-local/` | the individual | yes — never written by sync | | **project** | `<project>/.claude/rules/` | the individual, per project | yes — lives with the repo | Effective precedence, highest first: **project-user > project-committed > user-local > company > shipped.**
+| Tier | Directory | Owner | Update-safe |
+| --- | --- | --- | --- |
+| **shipped** | `~/.claude/architectural-rules/` (symlink into contexture) | the corpus | it *is* the update |
+| **company** | `~/.claude/architectural-rules-company/` (clone of a team repo) | the team | yes — separate repo |
+| **user** | `~/.claude/architectural-rules-local/` | the individual | yes — never written by sync |
+| **project** | `<project>/.claude/rules/` | the individual, per project | yes — lives with the repo |
 
-Each tier mirrors the shipped layout exactly — `<scope>/<name>.md` with the 006 frontmatter. A tier file is a drop-in.
+Effective precedence, highest first: **project-user > project-committed > user-local > company > shipped.**
+
+Each tier mirrors the shipped layout exactly — `<scope>/<name>.md` with the architectural-rules frontmatter. A tier file is a drop-in.
 
 ## Override model — two granularities
 
@@ -32,11 +39,11 @@ mode: patch
 ---
 
 ## remove
-- task-returning # by bullet id (preferred) or exact text
+- task-returning            # by bullet id (preferred) or exact text
 
 ## replace
 - id: private-fields
- with: Private fields use `m_camelCase` (house style).
+  with: Private fields use `m_camelCase` (house style).
 
 ## add
 - Async methods end in `Async`.
@@ -48,7 +55,13 @@ Bullets in shipped/company files are anchored with `<!-- id: <slug> -->` prefixe
 
 ## Disable — three scopes
 
-| Scope | How | Lasts | | --- | --- | --- | | global | `/rules disable <key>` → user manifest `disabled:` | until re-enabled | | project | `/rules disable <key> --project` → project manifest `disabled:` | committed | | session | `/rules disable <key> --session` → in-context only | until `/clear` / session end | Disable = "use nothing"; override = "use mine instead."
+| Scope | How | Lasts |
+| --- | --- | --- |
+| global | `/rules disable <key>` → user manifest `disabled:` | until re-enabled |
+| project | `/rules disable <key> --project` → project manifest `disabled:` | committed |
+| session | `/rules disable <key> --session` → in-context only | until `/clear` / session end |
+
+Disable = "use nothing"; override = "use mine instead."
 
 ## The manifest
 
@@ -57,13 +70,13 @@ Bullets in shipped/company files are anchored with `<!-- id: <slug> -->` prefixe
 ```yaml
 version: 1
 company:
- repo: git@github.com:acme/claude-rules.git # share-readiness: WONT_FIX — generic example remote (acme placeholder), not an owner identity
- ref: main
+  repo: git@github.com:acme/claude-rules.git  # share-readiness: WONT_FIX — generic example remote (acme placeholder), not an owner identity
+  ref: main
 disabled:
- - cpp/templates
+  - cpp/templates
 tiers:
- company: true
- user: true
+  company: true
+  user: true
 ```
 
 Project manifest has the same shape; its `disabled:` merges over the user manifest. The project manifest also accumulates a `divergences:` block when a locked rule is overridden (see below).
@@ -76,11 +89,11 @@ Runs *before* discover's existing frontmatter scan:
 1. Read manifests: user, then project, then session disables (most-local wins).
 2. Enumerate candidates across enabled tiers: shipped + company + user-local + project/.claude/rules.
 3. Resolve each <scope>/<name> key, highest tier down:
- mode: replace / no override: → keep the highest-tier file.
- mode: patch → load lower body, apply remove/replace/add by id;
- orphaned anchor → load base un-patched + flag.
+     mode: replace / no override:  → keep the highest-tier file.
+     mode: patch                   → load lower body, apply remove/replace/add by id;
+                                      orphaned anchor → load base un-patched + flag.
 4. Drop keys disabled at any scope.
-5. Strip <!-- id:... --> anchors from every resolved body.
+5. Strip <!-- id: ... --> anchors from every resolved body.
 6. Hand the stripped/resolved/patched set to discover's frontmatter scan (scope + relevance).
 7. Annotate ONLY non-default rules (overridden / patched / disabled / locked-diverged).
 ```
@@ -95,8 +108,8 @@ The algorithm above is implemented as a hook-callable Node module at [`hooks/lib
 const { resolveRules } = require('./lib/resolve-rules');
 const { rules, warnings } = resolveRules({ cwd, scopes, relevancePhases });
 // rules[]: { key, name, scope, relevance, kind, body, tier, nonDefault, annotation, orphans }
-// body is anchor-stripped + patched; annotation is '' for plain shipped rules
-// (exception-only), set only for overridden / patched / orphaned entries.
+//   body is anchor-stripped + patched; annotation is '' for plain shipped rules
+//   (exception-only), set only for overridden / patched / orphaned entries.
 ```
 
 Contract: **fail-open** like every hook lib — any I/O or parse error degrades to fewer rules (or shipped-only / empty), never throws to the caller. A crashing resolver must never break a turn. `scopes` / `relevancePhases` are optional hard filters; omit them to resolve the whole enabled corpus. This is a *trigger over the existing path*, not a second resolver — the same precedence, patch, disable, and anchor-strip semantics specified above, in code.

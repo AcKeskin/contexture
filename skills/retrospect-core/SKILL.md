@@ -1,11 +1,11 @@
 ---
 name: retrospect-core
-description: Shared engine for the meta-review organs — orientation pass, NEW/CARRIED/RESOLVED baseline diffing, propose-confirm-commit-with-routing, and 042-contract report rendering. Library-only — callable by retrospect and system-review (and any future meta-review skill), not user-invoked. There is no /retrospect-core command. Stateless per call except for the report artefacts it persists.
+description: Shared engine for the meta-review organs — orientation pass, NEW/CARRIED/RESOLVED baseline diffing, propose-confirm-commit-with-routing, and review-output-contract report rendering. Library-only — callable by retrospect and system-review (and any future meta-review skill), not user-invoked. There is no /retrospect-core command. Stateless per call except for the report artefacts it persists.
 ---
 
 # retrospect-core
 
-The meta-review engine. Implements the shared spine. It is to [retrospect](../retrospect/SKILL.md) and [system-review](../system-review/SKILL.md) what [deliver](../deliver/SKILL.md) is to discover/prep/review: one mechanism, many consumers, so the meta-review skills stay single-responsibility without duplicating the engine.
+The meta-review engine. It is to [retrospect](../retrospect/SKILL.md) and [system-review](../system-review/SKILL.md) what [deliver](../deliver/SKILL.md) is to discover/prep/review: one mechanism, many consumers, so the meta-review skills stay single-responsibility without duplicating the engine.
 
 It does **not** know how to find decision drift or organ overlap — that domain logic lives in the calling skill's *passes*. retrospect-core owns the four things every meta-review run shares: orient, diff against the prior run, render per the [review output contract](../../docs/review-output-contract.md), and route each confirmed finding to the organ that actually fixes it.
 
@@ -24,7 +24,7 @@ The caller (retrospect / system-review) owns:
 retrospect-core owns:
 - `orient(target)` — inventory + since-last-run delta.
 - `diff(findings, baselinePath)` — NEW/CARRIED/RESOLVED/WONT_FIX tagging.
-- `render(report)` — the 042-contract report body.
+- `render(report)` — the review-output-contract report body.
 - `route(finding)` — propose-confirm-commit, then hand off to capture / memory-audit / a proposals stub.
 - `persist(report, scope)` — write `latest.md` + `v<N>.md` for the next run's baseline.
 
@@ -32,15 +32,15 @@ A **finding** passed between caller and engine has this shape:
 
 ```
 Finding = {
- id: "R<NNN>", // assigned by diff; provisional in scan order before that
- pass: string, // caller's pass label — e.g. "decision-integrity", "responsibility-overlap"
- locator: string, // the thing the finding is about: a proposal id, memory path, skill name, file:line
- verdict: string, // pass-specific tag — e.g. HOLDS / SUPERSEDED-unmarked / DEAD / OVERLAP
- severity: "Critical"|"High"|"Medium"|"Low",
- what: string, // one-line, specific
- route: "capture"|"memory-audit"|"proposal"|"direct-fix"|"none",
- proposed_action: string, // concrete — the capture content, the back-link edit, the proposal stub title
- status?: string, // open | applied | skipped | wont_fix:<reason> (set during route)
+  id: "R<NNN>",                 // assigned by diff(); provisional in scan order before that
+  pass: string,                 // caller's pass label — e.g. "decision-integrity", "responsibility-overlap"
+  locator: string,              // the thing the finding is about: a proposal id, memory path, skill name, file:line
+  verdict: string,              // pass-specific tag — e.g. HOLDS / SUPERSEDED-unmarked / DEAD / OVERLAP
+  severity: "Critical"|"High"|"Medium"|"Low",
+  what: string,                 // one-line, specific
+  route: "capture"|"memory-audit"|"proposal"|"direct-fix"|"none",
+  proposed_action: string,      // concrete — the capture content, the back-link edit, the proposal stub title
+  status?: string,              // open | applied | skipped | wont_fix:<reason>  (set during route())
 }
 ```
 
@@ -60,15 +60,15 @@ Mirrors review's Phase-1 orientation (§2c), generalised off code and onto whate
 **Steps:**
 1. **Inventory.** Glob `roots`, count by type, note the largest/most-linked nodes. Cheap structural census — *not* a content read of every file (the passes read content).
 2. **Since-last-run delta.** Read `<report_dir>/<scope>/latest.md` frontmatter if it exists; take its `date`. Compute what changed since:
- - git: `git log --oneline --since=<date>` over the relevant repo(s) → commits/ships in the window.
- - non-git or no baseline: fall back to file mtimes newer than the baseline date, or "first run — full corpus" when no baseline.
+   - git: `git log --oneline --since=<date>` over the relevant repo(s) → commits/ships in the window.
+   - non-git or no baseline: fall back to file mtimes newer than the baseline date, or "first run — full corpus" when no baseline.
 3. **Emit the orientation block** (goes in the report header, before findings):
 
 ```
 ## Orientation
 Corpus: <kind> — <one-line census, e.g. "59 proposals, 38 memory files, 31 skills">
 Since last run (<baseline date or "first run">): <N ships / M recaps / K skill changes in window>
-Focus hint: <the nodes most likely to harbour drift — e.g. "supersedes chains touching 020/029/038; skills added since baseline">
+Focus hint: <the nodes most likely to harbour drift — e.g. "the longest supersedes chains; skills added since baseline">
 ```
 
 The focus hint is the meta-review analogue of review's large×high-churn intersection: it points the caller's passes at where drift concentrates (recently-shipped proposals, recently-touched organs, the longest supersedes chains). When the corpus is too small or too new for a meaningful hint, say so explicitly rather than omitting the line.
@@ -83,10 +83,10 @@ Identical model to review §4b, retargeted at meta-review findings.
 2. Parse the baseline's findings table to `{id, pass, locator, what, status}`.
 3. **Match** a new finding to a baseline finding when `pass` is identical **and** either: `locator` is the same node (same proposal id / memory path / skill name), or the `what` strings are near-identical (concept-level match for a finding whose locator moved).
 4. **Tag:**
- - `CARRIED` — in baseline (open) and in this run; reuse the baseline id.
- - `NEW` — no baseline match; assign a fresh id continuing above the baseline max.
- - `WONT_FIX` — baseline-tagged `wont_fix` and still present; reuse id; suppress from Quick wins; list under "Carried as won't-fix" with the prior reason quoted.
- - `RESOLVED` — in baseline (open) with no match this run; list under "Resolved since last run" — never silently dropped (surfacing what closed is half the point).
+   - `CARRIED` — in baseline (open) and in this run; reuse the baseline id.
+   - `NEW` — no baseline match; assign a fresh id continuing above the baseline max.
+   - `WONT_FIX` — baseline-tagged `wont_fix` and still present; reuse id; suppress from Quick wins; list under "Carried as won't-fix" with the prior reason quoted.
+   - `RESOLVED` — in baseline (open) with no match this run; list under "Resolved since last run" — never silently dropped (surfacing what closed is half the point).
 5. Malformed baseline → log a one-line header warning, treat as fresh, leave the prior file untouched.
 
 ### `render(report)`
@@ -109,10 +109,10 @@ When a finding needs a memory/proposal **body** shown inline, call [deliver](../
 Iterate findings in report order. For each, present it and offer:
 
 - **Apply** → execute by `route`:
- - `capture` → invoke [capture](../capture/SKILL.md) with `proposed_action` as candidate content. Capture classifies kind/scope/relevance and runs its own confirm. (Used for: uncaptured lessons, sharpened/added rules.)
- - `memory-audit` → the fix is a *mechanical* memory edit (e.g. add a missing `superseded_by` back-link, fix a broken relation). Apply it as a direct Edit framed as the memory-audit fix, or hand off to [memory-audit](../memory-audit/SKILL.md) `--check` for the relevant dimension when the run surfaced several. retrospect-core never decides memory *validity* itself beyond the caller's verdict — it routes the integrity fix.
- - `proposal` → write a stub under the project's `proposals/` directory (next free slot or a `BACKLOG.md` row), titled from `proposed_action`, body = the finding + why. Never auto-fills a full proposal; it captures the candidate so it isn't lost. Confirm the slot number with the user first.
- - `direct-fix` → a self-evident edit the organ owns outright (e.g. an index line, a stale path in a coverage map). Edit, confirm.
+  - `capture` → invoke [capture](../capture/SKILL.md) with `proposed_action` as candidate content. Capture classifies kind/scope/relevance and runs its own confirm. (Used for: uncaptured lessons, sharpened/added rules.)
+  - `memory-audit` → the fix is a *mechanical* memory edit (e.g. add a missing `superseded_by` back-link, fix a broken relation). Apply it as a direct Edit framed as the memory-audit fix, or hand off to [memory-audit](../memory-audit/SKILL.md) `--check` for the relevant dimension when the run surfaced several. retrospect-core never decides memory *validity* itself beyond the caller's verdict — it routes the integrity fix.
+  - `proposal` → write a stub under the project's `proposals/` directory (next free slot or a `BACKLOG.md` row), titled from `proposed_action`, body = the finding + why. Never auto-fills a full proposal; it captures the candidate so it isn't lost. Confirm the slot number with the user first.
+  - `direct-fix` → a self-evident edit the organ owns outright (e.g. an index line, a stale path in a coverage map). Edit, confirm.
 - **Skip** → discard for this run (ephemeral; does not become next run's `wont_fix`).
 - **Edit** → take the user's revised action; apply; loop.
 - **View detail** → show the underlying node (proposal/memory/skill) via deliver or a direct read; re-prompt.
@@ -140,14 +140,12 @@ The artefact is committable — diffing `v3.md`↔`v4.md` shows which decisions 
 - **Does not fix anything itself beyond `direct-fix` index/path edits.** Lessons → capture; integrity fixes → memory-audit; system changes → proposals. It routes; siblings fix.
 - **Does not auto-fire and has no command.** Library-only, like deliver.
 - **Does not re-read or re-filter** what the caller passed — findings are taken as the caller produced them (the engine only tags them via `diff`).
-- **Does not redefine the output contract.** It consumes [042](../../docs/review-output-contract.md); on divergence the contract wins.
+- **Does not redefine the output contract.** It consumes the [review output contract](../../docs/review-output-contract.md); on divergence the contract wins.
 - **Does not span projects in one call.** One corpus, one report dir, per invocation.
 
 ## Relationship to other organs
 
 - **deliver** — called to render memory/proposal bodies inside reports. Same library-only posture.
-- **review** — the donor of the orient/diff/persist machinery; this is that machinery extracted and generalised off code. review keeps its own copy inlined (it predates this) — a future refactor could point review here too, but that is not in 060's scope.
+- **review** — same orient/diff/persist machinery, here generalised off code; review keeps its own copy inlined.
 - **capture / memory-audit** — the two routing targets for lessons and memory-integrity fixes respectively.
 - **retrospect / system-review** — the two consumers. They own corpus + passes; they delegate the spine here.
-
-See the design notes for the charter boundaries this engine enforces.

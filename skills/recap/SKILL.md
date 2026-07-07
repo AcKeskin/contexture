@@ -5,7 +5,7 @@ description: Write a session recap — an episodic record of what a work session
 
 # recap
 
-Session recaps (previously "rollups") are the second memory tier — episodic, per-session, structured. Rules (existing tier) answer *how should I work*; recaps answer *what happened and where did I leave off*. Format follows [`claude-md/memory-capture.md`](../../claude-md/memory-capture.md) §"Folder layout" — `type: session-recap`, lands under `memory/sessions/`.
+Session recaps are the second memory tier — episodic, per-session, structured. Rules (existing tier) answer *how should I work*; recaps answer *what happened and where did I leave off*. Format follows [`claude-md/memory-capture.md`](../../claude-md/memory-capture.md) §"Folder layout" — `type: session-recap`, lands under `memory/sessions/`.
 
 ## When to run
 
@@ -99,10 +99,10 @@ Ask: *accept / edit / reject*.
 2. Write the file (new) or append a dated section (if the user chose "append" in step 4).
 3. Report the written path.
 4. **Offer the close for any shipped unit.** **Skipped entirely when invoked with `--under-wrap`** (Inputs §4) — `/wrap` owns the close/changelog offers, so recap stays a silent doorway in that path to avoid a double-offer. Absent the signal (standalone `/recap`), offer as normal: if this session's `Completed` section records a *shipped unit of work* (a proposal landed, a feature/organ shipped — not mere in-progress edits), offer the close at the depth that fits the unit:
- - **A shipped feature that has a spec/plan under `.claude/` (a closeable slug)** → offer the **full close**: *"This session shipped &lt;slug&gt; — run `/close-out &lt;slug&gt;` to reconcile its spec, file the plan, and log the ship line in one pass? (y/N)"*. On `y`, invoke [`skills/close-out/SKILL.md`](../close-out/SKILL.md) — it *contains* the changelog write, so it is the superset, not a second offer.
- - **A shipped unit with no spec/plan to reconcile** (a doc change, a one-off) → offer just the **changelog line**: *"This session shipped &lt;unit&gt; — log it to CHANGELOG? (y/N)"*. On `y`, invoke [`skills/update-changelog/SKILL.md`](../update-changelog/SKILL.md).
+   - **A shipped feature that has a spec/plan under `.claude/` (a closeable slug)** → offer the **full close**: *"This session shipped &lt;slug&gt; — run `/close-out &lt;slug&gt;` to reconcile its spec, file the plan, and log the ship line in one pass? (y/N)"*. On `y`, invoke [`skills/close-out/SKILL.md`](../close-out/SKILL.md) — it *contains* the changelog write, so it is the superset, not a second offer.
+   - **A shipped unit with no spec/plan to reconcile** (a doc change, a one-off) → offer just the **changelog line**: *"This session shipped &lt;unit&gt; — log it to CHANGELOG? (y/N)"*. On `y`, invoke [`skills/update-changelog/SKILL.md`](../update-changelog/SKILL.md).
 
- recap is a *doorway*, not the writer — it never writes the changelog or reconciles a spec itself; both `/close-out` and `/update-changelog` run behind their own accept/edit/reject gates. Skip silently when nothing shipped (sessions that only investigated/planned produce no offer).
+   recap is a *doorway*, not the writer — it never writes the changelog or reconciles a spec itself; both `/close-out` and `/update-changelog` run behind their own accept/edit/reject gates. Skip silently when nothing shipped (sessions that only investigated/planned produce no offer).
 5. Proceed to step 8 (promotion pass).
 
 **On edit:** take the user's edit as the new draft; loop to step 6.
@@ -122,7 +122,7 @@ Promotion is opt-in per item. Do not batch without asking — the collaborator p
 
 ### 9. Bloat check (session-close forcing function)
 
-Recap is the one organ that runs at *every* deliberate session close, so it is the natural recurring guard against corpus bloat (no separate scheduler needed). After the promotion pass, do a cheap read of MEMORY.md's budget scoreboard (the `<!-- BUDGET:... -->` header — see `claude-md/memory-capture.md`):
+Recap is the one organ that runs at *every* deliberate session close, so it is the natural recurring guard against corpus bloat (no separate scheduler needed). After the promotion pass, do a cheap read of MEMORY.md's budget scoreboard (the `<!-- BUDGET: ... -->` header — see `claude-md/memory-capture.md`):
 
 - **If this session added memories**, recompute and update the scoreboard counts (`memories`, and `always-on` / `always-bytes` if any new entry is `relevance: always`) in the same recap commit. Keeping the scoreboard live is recap's job because recap is the reliable session-close hook; capture updates it per-write, recap reconciles it.
 - **If a soft ceiling is crossed** — `always-on > ~20 files` or `always-bytes > ~60 KB` or `memories` grew a lot since `last-audit` — surface a one-line nudge: *"Memory floor is at <A> always-on files / <B> KB (ceiling ~20/~60). Want to run `/memory-audit --check 10` to prune?"* Do not run it unprompted — just surface the signal at the moment the user is already wrapping up.
@@ -143,9 +143,9 @@ This closes the loop: capture guards entry (§6b), the scoreboard makes growth v
 - **Does not auto-fire.** Ever. Mode B parked.
 - **Does not do cross-session consolidation.** Recap is strictly **micro/episodic** — one session, what happened today, what's next tomorrow. Stepping back over the *body* of many sessions/ships to ask "what still coheres, what's drifted" is [retrospect](../retrospect/SKILL.md)'s job. Recap *feeds* retrospect (its recaps are an input corpus, swept by retrospect's uncaptured-lessons pass); it does not aggregate across sessions itself.
 - **Does not summarise each tool call.** That's claude-mem's granularity; recap rejects it as too noisy. Recap is session-level, not tool-level.
-- **Does not sync across machines.**, memory is local. Each PC has its own session log.
+- **Does not sync across machines.** Memory is local by design. Each PC has its own session log.
 - **Does not write directly to rule-tier memory.** Promotion flows through capture so classification is consistent.
-- **Does not update `MEMORY.md`'s index entries.** Recaps are discovered by folder scan ( §"Retrieval"), not via the index. (It DOES update the budget scoreboard header — §9 — but never the per-memory index lines.)
+- **Does not update `MEMORY.md`'s index entries.** Recaps are discovered by folder scan, not via the index. (It DOES update the budget scoreboard header — §9 — but never the per-memory index lines.)
 - **Does not manage recap retention.** Keep recaps indefinitely; discovery ages auto-surfacing at 30 days; manual pruning only. (It DOES run the corpus bloat check on rule-tier memory — §9 — but only surfaces a nudge, never prunes unprompted.)
 
 ## Relationship to other organs

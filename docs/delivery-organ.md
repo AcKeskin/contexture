@@ -10,7 +10,13 @@ No user-facing UX. No slash command. No auto-fire. Delivery runs only when a cal
 
 ## What delivery inherits / does not own
 
-| Concern | Source | What delivery does | | --- | --- | --- | | Which fragments to load | 002 discover | Assumes the caller has already selected | | Compression of fragment bodies | 001 storage tagging | Presents verbatim — never paraphrases at delivery time | | Writing memories | 011 capture | Unaffected — delivery is read-side only | Delivery is a presentation layer. Every other concern has a home elsewhere.
+| Concern | Source | What delivery does |
+| --- | --- | --- |
+| Which fragments to load | discover | Assumes the caller has already selected |
+| Compression of fragment bodies | storage tagging | Presents verbatim — never paraphrases at delivery time |
+| Writing memories | capture | Unaffected — delivery is read-side only |
+
+Delivery is a presentation layer. Every other concern has a home elsewhere.
 
 ## Format contract
 
@@ -22,12 +28,12 @@ Each fragment renders as:
 ```
 
 - `scope` is comma-joined; `[scope: -]` when empty.
-- `kind` defaults to `lesson` when the frontmatter omits it (matches 001 convention).
+- `kind` defaults to `lesson` when the frontmatter omits it (matches the storage-tagging convention).
 - `path` is the source-of-truth pointer — verbatim from the caller, no normalisation.
 - `body` is verbatim. No trimming, no reflow, no paraphrase.
 - One blank line between fragments.
 
-This header is a contract with downstream readers. Changing it touches every consumer. Amendments go through, not silent tweaks.
+This header is a contract with downstream readers. Changing it touches every consumer. Amendments go through a deliberate revision of this contract, not silent tweaks.
 
 ## Order
 
@@ -71,8 +77,8 @@ User-invoked `/discover` stays summary-only by default — less context noise, f
 ## Relationship to future consumers
 
 - **Prep** — at task start, calls discover with structured filters + `render_bodies: true`, receives the delivered block, reads it before writing code.
-- **Review (005, pending)** — during diff inspection, calls discover for matching architectural rules + `render_bodies: true`, evaluates the diff against them.
-- **Plan/execute (010, pending)** — at milestone boundaries, calls discover for relevant decisions + `render_bodies: true`.
+- **Review** — during diff inspection, calls discover for matching architectural rules + `render_bodies: true`, evaluates the diff against them.
+- **Plan/execute** — at milestone boundaries, calls discover for relevant decisions + `render_bodies: true`.
 
 All three follow the same contract: selection is their business, delivery's format is shared.
 
@@ -87,10 +93,10 @@ Rule of thumb:
 ## What delivery does NOT do
 
 - Does not select (discover's job).
-- Does not compress (storage-time, 001).
+- Does not compress (storage-time).
 - Does not re-read source files (operates on passed-in structs).
 - Does not deduplicate across fragments (cap forces pruning; dedup is parked).
-- Does not chase fragment references (a rule citing another rule does not auto-pull the cited rule — parked per 012 to avoid reintroducing the "load everything" problem).
+- Does not chase fragment references (a rule citing another rule does not auto-pull the cited rule — parked to avoid reintroducing the "load everything" problem).
 - Does not persist. Stateless per call.
 
 ## Debug

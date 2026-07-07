@@ -3,23 +3,27 @@
 
 // SessionStart recovery-advisory hook. Fires when the previous session ended via
 // clear or compact; reads that session's transcript and, if a configurable signal
-// is present and unresolved, injects a { context } nudge into the new session.
+// is present and unresolved, injects a context nudge into the new session via
+// hookSpecificOutput.additionalContext.
 //
 // Recovers across a context discard rather than blocking it: SessionStart's
-// { context } output on exit 0 is the only documented model-visible non-blocking
-// channel (PreCompact/SessionEnd stdout goes to the debug log; exit 2 blocks).
+// context injection on exit 0 is model-visible and non-blocking
+// (PreCompact/SessionEnd stdout goes to the debug log; exit 2 blocks).
 // Fails open — any error injects nothing rather than crashing session start.
 
 const fs = require('fs');
 const io = require('./lib/hook-io');
 
-const MATCHER_TARGETS = new Set(['clear', 'compact']);
+// `source` is the documented SessionStart payload field; `matcher` exists only
+// in the settings.json registration. clear|compact = "previous session was
+// discarded"; startup/resume have nothing to recover.
+const SOURCE_TARGETS = new Set(['clear', 'compact']);
 const ADVISORY_PREFIX = '__ADVISORY_PREFIX__';
 
 async function main() {
   const payload = await io.readPayload();
-  const matcher = payload.matcher || '';
-  if (!MATCHER_TARGETS.has(matcher)) return io.allow();
+  const source = payload.source || '';
+  if (!SOURCE_TARGETS.has(source)) return io.allow();
 
   const transcriptPath = payload.transcript_path;
   if (!transcriptPath) return io.allow();
@@ -34,8 +38,7 @@ async function main() {
   const suffix = signals.length > 4 ? `; +${signals.length - 4} more` : '';
   const message = `${ADVISORY_PREFIX} ${preview}${suffix}`;
 
-  process.stdout.write(JSON.stringify({ context: message }) + '\n');
-  io.allow();
+  io.addContext('SessionStart', message);
 }
 
 function readTranscript(p) {

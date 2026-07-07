@@ -1,8 +1,8 @@
 # review — Obsidian vault output (`--vault`)
 
-Procedure for `review`'s opt-in vault copy, split out of `SKILL.md`. The SKILL.md §7c keeps the trigger, the `vaultRoot`-from-config rule, and the skip condition; this file carries the write procedure, loaded only when `--vault` (or a vault request) fires. The in-repo `.claude/reviews/...` artefact (§7b) is unaffected and always writes.
+Procedure for `review`'s opt-in vault copy. The SKILL.md §7c keeps the trigger, the `vaultRoot`-from-config rule, and the skip condition; this file carries the write procedure, loaded only when `--vault` (or a vault request) fires. The in-repo `.claude/reviews/...` artefact (§7b) is unaffected and always writes.
 
-**Project folder inference:** mirror the rule in the global PR review convention — derive `<ProjectFolder>` from the repo name / working directory, **do not hard-code**. Repos containing `isar` or starting with `stream-` resolve to `Stream`. Otherwise, look under `Projects/` for a matching subfolder; create `Projects/<RepoOrProductName>/` only when nothing fits. When two candidates are plausible, ask once.
+**Project folder inference:** derive `<ProjectFolder>` from the repo name / working directory, **do not hard-code** an owner-specific mapping. Look under `Projects/` for a matching subfolder; create `Projects/<RepoOrProductName>/` only when nothing fits. To alias several repos onto one folder, keep the mapping in machine-local config, not here. When two candidates are plausible, ask once.
 
 **Filename (slug-first, em-dash separator):**
 
@@ -11,8 +11,8 @@ Procedure for `review`'s opt-in vault copy, split out of `SKILL.md`. The SKILL.m
 ```
 
 Examples:
-- `/review src/auth/` on the Stream repo, 2026-05-26 → `Projects\Stream\Reviews\src-auth — 2026-05-26.md`
-- `/review` (whole project) → `Projects\Stream\Reviews\project — 2026-05-26.md`
+- `/review src/auth/` on the `MyApp` repo, 2026-05-26 → `Projects\MyApp\Reviews\src-auth — 2026-05-26.md`
+- `/review` (whole project) → `Projects\MyApp\Reviews\project — 2026-05-26.md`
 
 Slug derivation follows §7b. Date is `YYYY-MM-DD` of the run.
 
@@ -35,15 +35,15 @@ On `y`:
 3. Write the new iteration as `iteration-2.md` (and so on).
 4. **Leave a stub redirect at the old flat path** so existing Obsidian links resolve:
 
- ```markdown
- ---
- redirect: <scope-slug> — <YYYY-MM-DD>/iteration-1.md
- ---
+   ```markdown
+   ---
+   redirect: <scope-slug> — <YYYY-MM-DD>/iteration-1.md
+   ---
 
- Moved to [<scope-slug> — <YYYY-MM-DD>/iteration-1.md](<scope-slug> — <YYYY-MM-DD>/iteration-1.md).
- ```
+   Moved to [<scope-slug> — <YYYY-MM-DD>/iteration-1.md](<scope-slug> — <YYYY-MM-DD>/iteration-1.md).
+   ```
 
- No dead links. The stub is one line of body plus frontmatter; Obsidian wikilinks `[[<scope-slug> — <YYYY-MM-DD>]]` continue to resolve to the stub which then points the reader at the folder.
+   No dead links. The stub is one line of body plus frontmatter; Obsidian wikilinks `[[<scope-slug> — <YYYY-MM-DD>]]` continue to resolve to the stub which then points the reader at the folder.
 
 5. Subsequent iterations append to the subfolder. Append-only — never rewrite prior iterations. `iteration-1.md`'s frontmatter is updated to extend the `iterations:` array and bump the latest verdict; the body of `iteration-1.md` is *not* touched after promotion.
 

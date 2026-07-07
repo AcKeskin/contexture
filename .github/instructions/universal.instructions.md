@@ -6,6 +6,85 @@ applyTo: "**"
 
 > Auto-loaded by Copilot when editing files matching `**`. Generated from `architectural-rules/universal/` — do not hand-edit.
 
+## Autonomy default
+
+The default autonomy posture for this project is **balanced effort / stop-at-criteria-met / ask-only-on-forks** (the typed values live in this file's `autonomy:` frontmatter). It is the lowest tier of the autonomy contract's precedence (`live > kickoff > inferred > default > implicit-default`): a per-task `/autonomize` kickoff or a live steer overrides it; absent both, this is what the workflow organs read. See [autonomize](../../skills/autonomize/SKILL.md).
+Override this default per project by placing an `autonomy-default.md` in the user or project overlay tier (`~/.claude/architectural-rules/universal/` or `<repo>/.claude/rules/universal/`) with a different `autonomy:` block — the standard overlay cascade (project > user > shipped) applies, no parallel config engine. `/autonomize`'s save-as-default flow writes the project-tier file for you.
+`/autonomize` and the organs read the **typed `autonomy:` frontmatter values** from the resolved file directly — not via the rule-body resolver (`resolve-rules.js`), which emits prose bodies for priming and does not carry custom frontmatter keys. This file is a rule (it lives in the overlay tree for cascade + override + disable) whose *payload* is its frontmatter, not its body. `relevance: on-demand` keeps it off the always-on floor — the values are read when the contract resolves, never paid every turn.
+
+## Canonical tool commands
+
+Pin the **command** next to the **verb**, not just the verb. The verb is the
+policy ("read PR comments"); the command is the implementation. Re-deriving the
+flags every session is a tax that pays nothing — the answer is the same each
+time, and a wrong improvisation (missing `--paginate`, truncated output) is a
+silent failure the agent won't notice.
+
+**Resolution order:** a project's `CLAUDE.md` `## Canonical commands` section (or
+`<repo>/.claude/canonical-commands.md`) wins; these universal pins fill in; if no
+pin exists, improvise as usual — no degradation.
+
+The `Why` line is mandatory. It's what lets the agent adapt when the situation is
+*almost* the canonical one (same way `Why:` lines work in feedback/decision
+memories). A pin without a rationale is the slop case.
+
+### git: read all PR comments
+
+```bash
+gh pr view <PR>
+gh api repos/<owner>/<repo>/pulls/<PR>/comments --paginate
+```
+
+**Why:** `gh pr view` truncates review threads at ~30 comments and gives no
+signal it did. `gh api .../comments --paginate` is the only reliable way to read
+every comment — without `--paginate` the agent silently misses page 2+.
+
+### git: active PR summary
+
+```bash
+gh pr view --json number,title,url --jq '"PR #\(.number): \(.title)\n\(.url)"'
+```
+
+**Why:** single-line summary for status messages. The JSON projection is stable
+across `gh`'s UI changes, which the human-readable default is not.
+
+### filesystem: reversible delete
+
+```bash
+# macOS / Linux (trash-cli):
+trash <path>
+# Windows: move to the Recycle Bin, e.g. via PowerShell:
+#   Add-Type -AssemblyName Microsoft.VisualBasic
+#   [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteDirectory($p,'OnlyErrorDialogs','SendToRecycleBin')
+```
+
+**Why:** reversible-by-default deletes, so a wrong path is recoverable. Encoded
+as policy so the agent reaches for the recycle path, not a hard `rm`/`Remove-Item`.
+Platform-forked because there is no single cross-OS trash command — pick the line
+matching the running platform.
+
+### library docs: look up current API / config
+
+```text
+# via MCP, not bash:
+mcp__context7__resolve-library-id  <library-name>
+mcp__context7__query-docs          <library-id> <question>
+```
+
+**Why:** avoids stale-training-data answers for libraries/frameworks/CLIs. Already
+the rule per `~/.claude/rules/context7.md`; restated here so it surfaces in
+canonical-command resolution alongside the other tool defaults.
+
+---
+
+**Not in this file:** verbs owned by a single skill (those stay in that skill's
+body), every flag of every command (`<tool> --help` still exists), or
+machine-specific binaries that aren't portable (e.g. an Apple-Silicon-only
+transcriber) — pinning an absent tool is the kind of owner/machine assumption
+[[architectural-rules/config-authoring/share-readiness.md]] forbids. A verb earns
+a pin here only when it shows up *across* skills or in raw agent reasoning, and
+needs canonical pinning a second time (promote-on-second-occurrence).
+
 ## Change discipline
 
 - Surface assumptions before coding. State them; if multiple interpretations exist, present them; if a simpler approach exists, say so. Do not silently pick.
@@ -108,15 +187,11 @@ A comment must answer "what non-obvious thing does this do?" or "why isn't the o
 
 **Why:** comments and docs share a failure mode — both rot silently when written by habit instead of need. The discipline is the same: trigger on non-obviousness, keep terse, delete when stale.
 
-## Git discipline
+## Git workflow mechanics
 
-- One logical change per commit.
-- Clean commit history — squash / rewrite noise before merge, not after.
-- Conventional commits when applicable (type(scope): summary).
-- **Never add Co-Authored-By lines or any AI attribution** to commits.
 - Build commit messages with simple, literal quoting — one `-m` per paragraph. Don't construct them with shell features that interpolate or wrap text (here-strings, expanding heredocs), especially when the tool's shell differs from your interactive shell: a mismatch injects stray characters (e.g. PowerShell here-string syntax used inside a Bash tool added a literal `@`).
 
-**Why:** commit history is a permanent interface. Each noise commit — or a corrupted message — costs every future reader.
+**Why:** a corrupted commit message is permanent; literal quoting removes the shell-interpolation failure mode.
 
 ## Branching — git-flow (strongly suggested default)
 
@@ -127,6 +202,16 @@ A comment must answer "what non-obvious thing does this do?" or "why isn't the o
 - Releases: cut `release/*` from `develop`, stabilize, merge to `main` (tag) and back to `develop`.
 
 **Why:** the `develop`/`main` split keeps released code isolated from in-flight work; `--no-ff` preserves the "this set of commits was one feature" boundary that a fast-forward erases.
+
+## Git discipline
+
+- One logical change per commit; squash noise before merge, not after.
+- Conventional commits when applicable (type(scope): summary).
+- **Never add Co-Authored-By lines or any AI attribution** to commits.
+
+**Why:** commit history is a permanent interface — noise costs every future reader.
+
+Branching model and command mechanics: see universal/git-workflow.
 
 ## Layering (universal)
 
@@ -141,11 +226,11 @@ A comment must answer "what non-obvious thing does this do?" or "why isn't the o
 
 The positive standard for how identifiers and comments should *read* — the quality axis review's `naming-quality` drift class audits against. This is distinct from `universal/naming.md` (file/type structure) and from review's *stale*-comment-drift class (comments out of sync with code): this rule governs names and comments that are technically correct but read **badly**.
 
-Names read in the **domain's vocabulary**, not the machine's. A reader fluent in the problem domain should recognize the term. Prefer `retryBudget` over `intValueForCount2`, `pendingInvoices` over `tmpList`, `settled` over `flagTrue`.
+Names read in the **domain's vocabulary**, not the machine's. A reader fluent in the problem domain should recognize the term. Prefer `retryBudget` over `intValueForCount2`, `pendingInvoices` over `tmpList`, `settled` over `flagTrue`. When a project-tier **glossary** (`.claude/rules/glossary.md`) defines the domain's canonical terms, a symbol whose name contradicts the glossary's term for that concept (the project calls it `Settlement` but the symbol is `Order`) is a **vocabulary-drift** finding — cite the glossary term as the standard.
 Comments explain **why / intent / non-obvious constraint**, not *what the code already says*. A comment that restates the next line is noise; a comment that captures the reason, the edge case, or the thing-you-can't-see-from-here earns its place.
 No **machine- or AI-flavored phrasing** in names or comments: numbered suffixes that carry no meaning (`processData2`, `handlerHandler`), `tmp`/`temp`/`data`/`obj`/`val` as the whole name, stilted comment prose ("This function is responsible for facilitating the processing of..."). Terse, direct, human.
 Abbreviate **only where idiomatic** to the surrounding code and domain (`ctx`, `req`, `i`, `db` where the codebase already uses them). Inventing a novel abbreviation is worse than spelling it out.
-**Consistency with the surrounding code beats any abstract ideal.** Precedence, highest first: a **079 project-tier convention** (`.claude/rules/<lang>/conventions.md`) for the scope > the **file's own established style** > this universal default. Match what's there before reaching for what's "right" — a lone correct-but-different name is itself a drift.
+**Consistency with the surrounding code beats any abstract ideal.** Precedence, highest first: a **project-tier extracted convention** (`.claude/rules/<lang>/conventions.md`) for the scope > the **file's own established style** > this universal default. Match what's there before reaching for what's "right" — a lone correct-but-different name is itself a drift.
 
 **When NOT to flag** (the false-positive guard — load-bearing; an over-eager naming reviewer is worse than none):
 - **Domain vocabulary** — a term that looks odd but is the field's real word (`luma`, `eigenvector`, `mipmap`, `koan`). Not a finding.
@@ -215,6 +300,16 @@ Commit messages are out of scope — they have their own hygiene rule.
 - Tells + lexicon: `skills/humanize/references/ai-vocabulary.v1.md`
 - The refuted/false-positive carve-out: `skills/humanize/references/false-positives.md`
 - Active organ: `/humanize` (detect → score → rewrite, voice-calibrated per run). When this rule catches a miss the catalogue lacks, route it through `/capture` — never self-edit.
+
+## Session scope-boundary guard
+
+A **scope pivot** is the current request crossing the same task-shift boundary `/prep`'s drift-watch and `/execute` §3a already use: a different subtree root, a different language, a different domain, or an unrelated proposal/slug than what the session has been working on. Reuse that one definition — do not invent a looser "any topic change" heuristic, which fires on normal tangents and becomes friction.
+Only treat a pivot as a boundary worth acting on when the session **also carries accumulated history worth dropping** — a real prefix that the new topic would otherwise pay to resend on every turn. A pivot on a fresh or short session (a handful of turns, no established prior topic) costs nothing to carry: stay silent. Both conditions must hold — a real pivot **and** a real prefix.
+At a qualified pivot, surface a **non-blocking two-branch fork**: name the old topic and the new one, state that the prior context is now dead weight on every turn, and offer *recap + clear so the new topic starts clean* **or** *keep going in this session*. Two named branches, not a one-line nudge. Route "recap + clear" to `/recap` (which writes the handoff) then the user's own `/clear`. Do not repeat the suggestion for the same pivot once the user has chosen.
+**Never auto-clear and never auto-recap.** A `/clear` is irreversible — the dropped context does not come back — so taking it is always the user's explicit decision. This guard proposes the boundary; the user decides whether to cross it.
+This rule shapes intent; the mechanical primer is the rule-prime hook, which loads `during-session` rules into context once a session is underway (past a small turn threshold — e.g. several user turns). Where that hook is not present the rule still resolves through `/prep` and `/discover` relevance matching — primed later, never worse than honor-system. Rule and primer must stay aligned; drift between them is itself a flag.
+
+**Why:** Claude is stateless — every turn resends the whole history, so a long session's cost is closer to quadratic than linear in its length. The fixable waste is not session *length* (a long, coherent session that ships a whole chain is correct) but **carrying context you are done with past a natural boundary** — the dead prefix you keep paying to resend after a topic pivot. Cutting it at the boundary with a `/clear` is the lever; this guard surfaces that choice at the right moment instead of relying on the user to notice the session has grown huge. It is the *timely/trigger* half of the clear boundary; [[persist-before-discard]] is the *safe/recovery* half — persist-before-discard makes a clear safe to take (decisions persisted), this makes it worth taking at the right moment. The two compose: a pivot suggestion here *is* the persistence event persist-before-discard wants, and the subsequent clear is the one it guards.
 
 ## Skill auto-fire via description, not SessionStart hooks
 

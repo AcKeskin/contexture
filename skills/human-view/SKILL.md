@@ -24,7 +24,7 @@ A plain-prose **approval view** of the artefact, structured for a human scanning
 3. **Alignment check** — "does this match what you asked for?" — surface where the artefact narrowed, expanded, or reinterpreted the original ask, so a misalignment is visible *before* approval.
 4. **Open questions / risks** — what's still unresolved or assumed, in plain terms.
 
-Rendered inline in the conversation by default (the approval moment is conversational). On `/human-view... --vault`, also write a human copy to the Obsidian vault (reusing visualise-codemap's vault conventions + the `vaultRoot`-from-config rule, never hardcoded).
+Rendered inline in the conversation by default (the approval moment is conversational). On `/human-view ... --vault`, also write a human copy to the Obsidian vault (reusing visualise-codemap's vault conventions + the `vaultRoot`-from-config rule, never hardcoded).
 
 ## Procedure
 
@@ -55,9 +55,7 @@ Read the artefact and render the four parts above. Rules:
 
 ## Relationship to other organs
 
-- **draft-plan / blueprint** — the primary callers; their review gates render this human view before asking accept/edit/reject ( gate + 067 projection).
+- **draft-plan / blueprint** — the primary callers; their review gates render this human view before asking accept/edit/reject.
 - **deliver** — the sibling projector, opposite audience: `deliver` renders fragments *for the LLM*; human-view renders artefacts *for the human*. Same faithful-source-of-truth discipline.
 - **the AGENTS.md projector / two-doc-tracks** — the same humans-vs-agents split, applied to working artefacts instead of the shipped corpus.
 - **visualise-codemap** — shares the vault conventions + `vaultRoot`-from-config rule for the `--vault` copy.
-
-See `.claude/specs/human-view/v1.md` for the design.

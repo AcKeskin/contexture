@@ -1,6 +1,6 @@
 ---
 name: pr-triage
-description: Triage a PR's unresolved review comments into a checklist, then walk each with you to one of three outcomes — Act (route the code change to /dispatch or /orchestrate), Skip/defer (leave it unhandled), or Note (capture your decision for the reply YOU will write). Never drafts or posts replies, never touches GitHub beyond the read-only comment fetch. Manual trigger only: /pr-triage [PR]. Skip on a single directed comment ("just fix #3").
+description: "Triage a PR's unresolved review comments into a checklist, then walk each with you to one of three outcomes — Act (route the code change to /dispatch or /orchestrate), Skip/defer (leave it unhandled), or Note (capture your decision for the reply YOU will write). Never drafts or posts replies, never touches GitHub beyond the read-only comment fetch. Manual trigger only: /pr-triage [PR]. Skip on a single directed comment (\"just fix #3\")."
 ---
 
 # pr-triage
@@ -40,7 +40,7 @@ gh pr view <PR> --json reviews,reviewRequests,url,headRefName
 gh api repos/<owner>/<repo>/pulls/<PR>/comments --paginate
 ```
 
-Per the canonical-command pin (`architectural-rules/universal/canonical-commands.md`, "read all PR comments"), **`gh pr view` truncates review threads at ~30 comments with no signal** — use `gh api.../comments --paginate` to read every comment, and reserve `gh pr view` for the non-comment metadata (reviews, branch, url). `gh api` also carries the richer per-thread fields (`in_reply_to_id`, `original_line`, `path`, `diff_hunk`) for context. Filter to:
+Per the canonical-command pin (`architectural-rules/universal/canonical-commands.md`, "read all PR comments"), **`gh pr view` truncates review threads at ~30 comments with no signal** — use `gh api .../comments --paginate` to read every comment, and reserve `gh pr view` for the non-comment metadata (reviews, branch, url). `gh api` also carries the richer per-thread fields (`in_reply_to_id`, `original_line`, `path`, `diff_hunk`) for context. Filter to:
 - Unresolved review threads.
 - Outstanding general comments since the user's last push.
 
@@ -60,7 +60,13 @@ Group by **theme, not chronology** — themes derived from comment content:
 Render as an **editable checklist** — one row per comment, every comment present so none is silently dropped. Each row starts with no outcome assigned:
 
 ```
-| # | Theme | File:Line | Comment gist | Outcome | Detail | |---|------------------|------------------------|-------------------------|---------|---------------------------------| | 1 | Behavior change | src/auth/login.ts:42 | "handle null token" | — | | | 2 | Architectural | src/api/client.ts:88 | "move this to services" | — | | | 3 | Test coverage | src/auth/login.ts:67 | "add a test for expiry" | — | | | 4 | Question | src/db/pool.ts:12 | "why 30s timeout?" | — | | ```
+| # | Theme            | File:Line              | Comment gist            | Outcome | Detail                          |
+|---|------------------|------------------------|-------------------------|---------|---------------------------------|
+| 1 | Behavior change  | src/auth/login.ts:42   | "handle null token"     | —       |                                 |
+| 2 | Architectural    | src/api/client.ts:88   | "move this to services" | —       |                                 |
+| 3 | Test coverage    | src/auth/login.ts:67   | "add a test for expiry" | —       |                                 |
+| 4 | Question         | src/db/pool.ts:12      | "why 30s timeout?"      | —       |                                 |
+```
 
 ### 3. Walk each comment with the user
 
@@ -73,7 +79,13 @@ Go through the checklist row by row. For each comment, the user picks **one of t
 Update the checklist live as outcomes are assigned:
 
 ```
-| # | Theme | File:Line | Comment gist | Outcome | Detail | |---|------------------|------------------------|-------------------------|--------------|------------------------------------------| | 1 | Behavior change | src/auth/login.ts:42 | "handle null token" | Act | add null guard before deref | | 2 | Architectural | src/api/client.ts:88 | "move this to services" | Note | "keeping here — see services boundary" | | 3 | Test coverage | src/auth/login.ts:67 | "add a test for expiry" | Act | new expiry test case | | 4 | Question | src/db/pool.ts:12 | "why 30s timeout?" | Skip/defer | answer on GitHub myself | ```
+| # | Theme            | File:Line              | Comment gist            | Outcome      | Detail                                   |
+|---|------------------|------------------------|-------------------------|--------------|------------------------------------------|
+| 1 | Behavior change  | src/auth/login.ts:42   | "handle null token"     | Act          | add null guard before deref              |
+| 2 | Architectural    | src/api/client.ts:88   | "move this to services" | Note         | "keeping here — see services boundary"   |
+| 3 | Test coverage    | src/auth/login.ts:67   | "add a test for expiry" | Act          | new expiry test case                     |
+| 4 | Question         | src/db/pool.ts:12      | "why 30s timeout?"      | Skip/defer   | answer on GitHub myself                  |
+```
 
 The user can revisit any row and change its outcome before execution.
 
@@ -90,8 +102,8 @@ Present the classification and **confirm before fan-out**:
 
 ```
 Routing the 2 Act rows:
- #1 add null guard (login.ts:42) → /dispatch (isolated)
- #3 add expiry test (login.ts:67) → /dispatch (isolated)
+  #1 add null guard (login.ts:42)      → /dispatch  (isolated)
+  #3 add expiry test (login.ts:67)     → /dispatch  (isolated)
 Proceed? (y / reclassify / hold)
 ```
 
@@ -114,8 +126,8 @@ Surface the still-open rows explicitly so nothing is lost:
 
 ```
 Still open (you respond on GitHub):
- #4 (db/pool.ts:12) — deferred: "why 30s timeout?"
- #2 (api/client.ts:88) — your note: "keeping here — see services boundary"
+  #4 (db/pool.ts:12) — deferred: "why 30s timeout?"
+  #2 (api/client.ts:88) — your note: "keeping here — see services boundary"
 ```
 
 Suggest re-running [pre-push](../pre-push/SKILL.md) when the acted-on changes are ready to push.

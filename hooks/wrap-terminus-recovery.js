@@ -1,17 +1,18 @@
 #!/usr/bin/env node
 'use strict';
 
-// SessionStart hook (matcher: clear | compact): when the previous session was
-// cleared or compacted, scan its transcript for a SHIP whose session-terminus
-// never ran, and — if found — inject a one-line nudge proposing /wrap.
+// SessionStart hook (settings matcher: clear | compact): when the previous
+// session was cleared or compacted, scan its transcript for a SHIP whose
+// session-terminus never ran, and — if found — inject a one-line nudge
+// proposing /wrap.
 //
 // Sibling of the clear-context-decision-guard: same lifecycle event, same
-// fail-open transcript scan, same SessionStart `{ context }` channel (the ONLY
-// channel whose stdout reaches the model — SessionEnd/PreCompact stdout is
-// debug-only and exit 2 blocks, which a non-blocking guard must not do). The
-// decision guard asks "were decisions left unpersisted → nudge /recap"; this
-// asks "did work SHIP whose terminus (close-out / changelog / recap) never ran
-// → propose /wrap".
+// fail-open transcript scan, same SessionStart context channel
+// (`hookSpecificOutput.additionalContext` on exit 0 — SessionEnd/PreCompact
+// stdout is debug-only and exit 2 blocks, which a non-blocking guard must not
+// do). The decision guard asks "were decisions left unpersisted → nudge
+// /recap"; this asks "did work SHIP whose terminus (close-out / changelog /
+// recap) never ran → propose /wrap".
 //
 // Off by default. Fires only when hook-config.json enables `wrapTerminus` —
 // opt-in, matching the enablement-config posture (auto behaviours default off).
@@ -22,8 +23,6 @@
 const fs = require('fs');
 const path = require('path');
 const io = require('./lib/hook-io');
-
-const MATCHER_TARGETS = new Set(['clear', 'compact']);
 
 // A design artefact landing = a ship-shaped signal (a slug/proposal advanced).
 const ARTEFACT_PATH_RE = /\.claude[\\/](specs|plans|docs)[\\/]|[\\/]proposals[\\/]\d{3}-/i;
@@ -51,8 +50,10 @@ async function main() {
   // Opt-in gate: silent unless hook-config enables wrapTerminus.
   if (io.hookConfig('wrapTerminus').enabled !== true) return io.allow();
 
-  const matcher = payload.matcher || '';
-  if (!MATCHER_TARGETS.has(matcher)) return io.allow();
+  // The settings matcher (clear|compact) decides when this hook fires;
+  // `source` is the documented SessionStart payload field, read only to
+  // phrase the nudge.
+  const source = payload.source || '';
 
   const transcriptPath = payload.transcript_path;
   if (!transcriptPath) return io.allow();
@@ -65,14 +66,13 @@ async function main() {
 
   const preview = scan.signals.slice(0, 4).join('; ');
   const suffix = scan.signals.length > 4 ? `; +${scan.signals.length - 4} more` : '';
-  const verb = matcher === 'clear' ? 'cleared' : 'compacted';
+  const verb = source === 'clear' ? 'cleared' : 'compacted';
   const message =
     `Previous session was ${verb} and shipped work whose closing terminus may not have run: ${preview}${suffix}. ` +
     `Consider proposing /wrap — it drives the closing ceremony (recap / close-out / changelog / BACKLOG sweep) ` +
     `behind accept/edit/reject gates. The prior transcript is still on disk to reconstruct from.`;
 
-  process.stdout.write(JSON.stringify({ context: message }) + '\n');
-  io.allow();
+  io.addContext('SessionStart', message);
 }
 
 // Read a Claude Code transcript .jsonl into parsed events; skip malformed lines;

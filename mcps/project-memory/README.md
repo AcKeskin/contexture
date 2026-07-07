@@ -7,7 +7,13 @@ First-party memory retrieval that backs `/discover`.
 
 Three tools, all read-only over `~/.claude/projects/<slug>/memory/`:
 
-| Tool | Job | |---|---| | `discover` | Ranked retrieval over the full memory tree (scope / relevance / keyword match). Mirrors the `/discover` skill's contract. | | `recent_sessions` | Last N session rollups for the calling project, newest first. | | `get_memory` | Fetch a single memory by its frontmatter `name` slug. | ## What it does not do
+| Tool | Job |
+|---|---|
+| `discover` | Ranked retrieval over the full memory tree (scope / relevance / keyword match). Mirrors the `/discover` skill's contract. |
+| `recent_sessions` | Last N session rollups for the calling project, newest first. |
+| `get_memory` | Fetch a single memory by its frontmatter `name` slug. |
+
+## What it does not do
 
 - **No capture.** Capture stays in slash commands (`/capture`, `/recap`). This MCP only reads.
 - **No daemon.** Stdio MCP, launched on demand.
@@ -28,7 +34,7 @@ npm run build
 
 ```
 claude mcp add --transport stdio --scope user project-memory -- \
- node <abs-path>/mcps/project-memory/build/index.js
+  node <abs-path>/mcps/project-memory/build/index.js
 ```
 
 Restart Claude Code, then `/mcp` should list `project-memory`.
@@ -37,22 +43,22 @@ Restart Claude Code, then `/mcp` should list `project-memory`.
 
 ```
 src/
-├── index.ts stdio entrypoint, registers the three tools
+├── index.ts                  stdio entrypoint, registers the three tools
 ├── tools/
-│ ├── discover.ts full retrieval contract
-│ ├── recent-sessions.ts last-N session rollups
-│ └── get-memory.ts fetch by name slug
+│   ├── discover.ts           full retrieval contract
+│   ├── recent-sessions.ts    last-N session rollups
+│   └── get-memory.ts         fetch by name slug
 ├── retrieval/
-│ ├── load.ts file-system scan over <memoryRoot>
-│ ├── score.ts scope / relevance / keyword ranking
-│ └── render.ts output formatting (per `/deliver` contract shape)
+│   ├── load.ts               file-system scan over <memoryRoot>
+│   ├── score.ts              scope / relevance / keyword ranking
+│   └── render.ts             output formatting (per `/deliver` contract shape)
 └── lib/
- ├── paths.ts cwd → memory root resolution
- └── frontmatter.ts gray-matter parse + normalisation
+    ├── paths.ts              cwd → memory root resolution
+    └── frontmatter.ts        gray-matter parse + normalisation
 ```
 
 Each layer has one job. `retrieval/` is pure functions over `ParsedMemory[]`; `tools/` glues retrieval to MCP I/O; `lib/` is platform utility.
 
 ## Open questions
 
-See §"Open questions" — index-or-scan at scale, cross-project recall, eventual write tools, external-consumer coupling, MCP-vs-skill direction.
+Open threads for the project-memory MCP: index-or-scan at scale, cross-project recall, eventual write tools, external-consumer coupling, MCP-vs-skill direction.

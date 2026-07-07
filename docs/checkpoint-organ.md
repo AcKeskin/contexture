@@ -12,7 +12,14 @@ It **absorbs** `retrospect` + `system-review` — now **deprecated** (kept and f
 
 Auto-detect from what it's pointed at, with `--scope` override; the resolved scope is surfaced in the report header so it's correctable.
 
-| Signal | Scope | |---|---| | a diff / PR / `--since` ref | **diff** | | a just-built / named module (the session's recently-edited subtrees) | **module** | | no specific target | **corpus** | | ambiguous | ask once / honor `--scope` | ## The lens at each scope
+| Signal | Scope |
+|---|---|
+| a diff / PR / `--since` ref | **diff** |
+| a just-built / named module (the session's recently-edited subtrees) | **module** |
+| no specific target | **corpus** |
+| ambiguous | ask once / honor `--scope` |
+
+## The lens at each scope
 
 - **diff** — composes: invokes `/code-review` (correctness) **and** adds a fit-pass ("does this change serve the intent + cohere with the whole"). One report, two sections. (Falls back to fit-only if code-review is unavailable.)
 - **module** — the post-build checkpoint over the just-built module(s): **drift** (vs intent), **integration-fit** (do the pieces cohere — the novel blade nothing else checks), **continue-or-kill**, **lessons**.
@@ -20,7 +27,7 @@ Auto-detect from what it's pointed at, with `--scope` override; the resolved sco
 
 ## Findings flow — batch, then apply selected
 
-Renders the whole batch (042 contract: Severity × Pass matrix, mandatory diagram, "looks bad but fine" section), then asks the user to **pick which findings to apply in one pass** (not a per-finding loop — the efficiency *conversations* axis). Selected findings route via `/capture` / `/memory-audit` / a `proposals/` stub / a direct edit. Unselected persist for next time. Baseline at `.claude/checkpoints/<scope-slug>/latest.md`.
+Renders the whole batch (per the review-output contract: Severity × Pass matrix, mandatory diagram, "looks bad but fine" section), then asks the user to **pick which findings to apply in one pass** (not a per-finding loop — the efficiency *conversations* axis). Selected findings route via `/capture` / `/memory-audit` / a `proposals/` stub / a direct edit. Unselected persist for next time. Baseline at `.claude/checkpoints/<scope-slug>/latest.md`.
 
 ## What checkpoint is not
 

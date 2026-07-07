@@ -1,0 +1,2 @@
+{"message":{"role":"assistant","content":[{"type":"text","text":"We decided to go with SQLite for the session store."}]}}
+{"message":{"role":"assistant","content":[{"type":"tool_use","name":"Write","input":{"file_path":"C:/Users/dev/.claude/projects/x/memory/sessions/2026-07-07-recap.md","content":"recap"}}]}}

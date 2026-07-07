@@ -22,7 +22,7 @@ Last updated: YYYY-MM-DD
 
 ## <top-level-dir>/
 - `<path>` — <purpose line>
- exports: <list separated by `; `>
+  exports: <list separated by ` ; `>
 ```
 
 - Top-level groups alphabetical; files within groups alphabetical.
@@ -41,7 +41,22 @@ When unsure → include. Over-inclusion costs tokens; under-inclusion silently r
 
 Two extraction backends. **AST** languages are parsed by tree-sitter (`treesitter.mjs`, via the optional `web-tree-sitter` + `tree-sitter-wasms` deps) — uniform class graph (name / kind / extends / implements / fields), exports, and import edges. **Regex** languages use the hand-written extractors. TS and C# stay on regex (mature, no AST needed); the rest moved to AST to cover languages regex never reached.
 
-| Language | Files scanned | Backend | Extracted | | --- | --- | --- | --- | | C++ | `.h`, `.hpp`, `.hxx`, `.hh`, `.cpp`, `.cc`, `.cxx` | AST (regex fallback, headers) | classes/structs, fields, base classes, includes | | C# | `.cs` | regex | `public` types + members, namespace, `using` → namespace file edges | | TS/JS | `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs` | regex | top-level `export`s, `default:` separately, import edges | | Python | `.py` | AST | classes, `self.` fields, base classes, `import`/`from` edges | | Java | `.java` | AST | classes/interfaces, extends/implements, fields, package imports | | Kotlin | `.kt`, `.kts` | AST | classes/interfaces, inheritance, properties, imports — *grammar best-effort* | | Swift | `.swift` | AST | classes/structs/protocols, conformance, properties (no file-level imports) | | Rust | `.rs` | AST | structs/traits/enums, `impl Trait for T` → implements, fields, `use` edges | | Go | `.go` | AST | structs/interfaces, embedding → implements, fields, package imports | | HTML/CSS | `.html`, `.css`, `.scss`, etc. | — | none — tree + purpose | | Markdown | `.md`, `.mdx` | — | none — tree + purpose | | Everything else | — | — | tree + purpose only | **Optional deps.** Without `web-tree-sitter` + `tree-sitter-wasms` installed (`npm install` in `skills/update-codemap/`), the engine **degrades gracefully**: TS/C#/C++ still extract via regex, AST languages index as files with no class graph or edges, and a log line points to the install. `web-tree-sitter` is pinned `~0.25` — 0.26+ dropped the grammar ABI `tree-sitter-wasms@0.1.13` ships, and 0.24− is CommonJS-only.
+| Language | Files scanned | Backend | Extracted |
+| --- | --- | --- | --- |
+| C++ | `.h`, `.hpp`, `.hxx`, `.hh`, `.cpp`, `.cc`, `.cxx` | AST (regex fallback, headers) | classes/structs, fields, base classes, includes |
+| C# | `.cs` | regex | `public` types + members, namespace, `using` → namespace file edges |
+| TS/JS | `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs` | regex | top-level `export`s, `default:` separately, import edges |
+| Python | `.py` | AST | classes, `self.` fields, base classes, `import`/`from` edges |
+| Java | `.java` | AST | classes/interfaces, extends/implements, fields, package imports |
+| Kotlin | `.kt`, `.kts` | AST | classes/interfaces, inheritance, properties, imports — *grammar best-effort* |
+| Swift | `.swift` | AST | classes/structs/protocols, conformance, properties (no file-level imports) |
+| Rust | `.rs` | AST | structs/traits/enums, `impl Trait for T` → implements, fields, `use` edges |
+| Go | `.go` | AST | structs/interfaces, embedding → implements, fields, package imports |
+| HTML/CSS | `.html`, `.css`, `.scss`, etc. | — | none — tree + purpose |
+| Markdown | `.md`, `.mdx` | — | none — tree + purpose |
+| Everything else | — | — | tree + purpose only |
+
+**Optional deps.** Without `web-tree-sitter` + `tree-sitter-wasms` installed (`npm install` in `skills/update-codemap/`), the engine **degrades gracefully**: TS/C#/C++ still extract via regex, AST languages index as files with no class graph or edges, and a log line points to the install. `web-tree-sitter` is pinned `~0.25` — 0.26+ dropped the grammar ABI `tree-sitter-wasms@0.1.13` ships, and 0.24− is CommonJS-only.
 
 **Verification.** `skills/update-codemap/test/language-sweep.mjs` runs the real `update-codemap → visualise-codemap` pipeline on a fixture per language and asserts class / relation / field / edge / valid-mermaid. Must stay 45/45 (Swift file-edge is `n/a` — no file-level import syntax). Baseline at `test/baseline.json`; non-zero exit on regression.
 
@@ -55,13 +70,13 @@ Codemap location is always `<project>/.claude/codemap.md`. Sync is the user's ch
 
 1. **Local-only (default).** Codemap stays on the machine that generated it. Each machine runs `/update-codemap` when it wants one. Matches the common convention of globally gitignoring `.claude/`. Drift across machines is expected and cheap to resolve with a fresh run.
 2. **Per-project git-tracked.** Opt in for a specific project by adding an un-ignore rule in that project's local `.gitignore`. Example:
- ```
- # un-ignore the Claude codemap
- !.claude/
-.claude/*
- !.claude/codemap.md
- ```
- Commits and diffs then become PR-visible.
+   ```
+   # un-ignore the Claude codemap
+   !.claude/
+   .claude/*
+   !.claude/codemap.md
+   ```
+   Commits and diffs then become PR-visible.
 3. **External sync.** An external tool handles syncing the file at the standard path. The skill is indifferent.
 
 The skill never inspects `.gitignore`, never commits, never nudges toward a mode. Users own ignore and sync policy.
@@ -72,7 +87,7 @@ After regeneration the skill reports:
 - `+ N files added / - M removed`
 - `~ K purpose lines changed / ~ L export lists changed`
 
-For the detailed diff: `git diff.claude/codemap.md` in the project.
+For the detailed diff: `git diff .claude/codemap.md` in the project.
 
 ## Consumed by
 

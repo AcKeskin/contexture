@@ -6,13 +6,15 @@ deprecated: true
 
 # system-review
 
-> **Deprecated.** Superseded by `/checkpoint --scope corpus`, which runs these coherence passes through the shared `retrospect-core` engine. Kept present and fully functional until `/checkpoint` is proven in real use, then retires — new work should reach for `/checkpoint`.
+> **Deprecated.** Superseded by `/checkpoint --scope corpus`, which runs these coherence passes through the shared `retrospect-core` engine. New work should reach for `/checkpoint`.
+>
+> **Retirement trigger.** This skill retires — moving its pass definitions into `retrospect-core` and deleting this file + its shim — once `/checkpoint --scope corpus` has run to completion on this repo at least three times with no need to fall back here. Until then it stays callable, because checkpoint's corpus scope still delegates to the passes defined below.
 
-The system / surface-coherence organ. Implements the Lens-B half. Runs the four coherence passes over the organ surface; delegates orientation, baseline-diff, rendering, routing, and persistence to [retrospect-core](../retrospect-core/SKILL.md).
+The system / surface-coherence organ. Runs the four coherence passes over the organ surface; delegates orientation, baseline-diff, rendering, routing, and persistence to [retrospect-core](../retrospect-core/SKILL.md).
 
 **Where it sits.** [retrospect](../retrospect/SKILL.md) audits the *decision & delivery history*; system-review audits the *system that history produced*. Same altitude (step back over the whole, not one file/session), same engine, different target: retrospect reads proposals/decisions/recaps; system-review reads `skills/`, `agents/`, `commands/`, `hooks/`, `settings/`, `architectural-rules/`, `mcps/`, and the vision. It is the automation of the manual coverage-map re-sort and "drop pass" the backlog does by hand — but pointed at the *organs*, not the *decisions*.
 
-**v1 scope ( OQ2): config-repo-scoped.** system-review audits the contexture harness surface — the organ system whose code *is* the thing under review. The name (`system-review`, not `organ-audit`) is deliberately general so the same skill can later review *any* codebase's architecture (modules/services/boundaries vs its design doc); that generalization is a non-breaking later step, parked until a second codebase needs it. Until then, "the system" = the harness.
+**v1 scope: config-repo-scoped.** system-review audits the contexture harness surface — the organ system whose code *is* the thing under review. The name (`system-review`, not `organ-audit`) is deliberately general so the same skill can later review *any* codebase's architecture (modules/services/boundaries vs its design doc); that generalization is a non-breaking later step, parked until a second codebase needs it. Until then, "the system" = the harness.
 
 ## When to run
 
@@ -24,12 +26,12 @@ The system / surface-coherence organ. Implements the Lens-B half. Runs the four 
 
 1. **Area argument** (optional) — narrows the passes to one surface (§1).
 2. **The organ surface** — the `contexture` repo root (resolve from `$CLAUDE_PROJECT_DIR`/cwd; if invoked elsewhere, locate the config repo via the `~/.claude` symlinks' targets):
- - `skills/*/SKILL.md` — the skill organs (each has frontmatter `name` + `description`).
- - `commands/*.md` — the command shims (each should map to a skill).
- - `agents/*` — the subagent roster.
- - `hooks/*` + `settings/*` — the hook wiring and settings bundles.
- - `architectural-rules/**` — the rule corpus (scopes + relevance gates).
- - `mcps/*` — the MCP servers.
+   - `skills/*/SKILL.md` — the skill organs (each has frontmatter `name` + `description`).
+   - `commands/*.md` — the command shims (each should map to a skill).
+   - `agents/*` — the subagent roster.
+   - `hooks/*` + `settings/*` — the hook wiring and settings bundles.
+   - `architectural-rules/**` — the rule corpus (scopes + relevance gates).
+   - `mcps/*` — the MCP servers.
 3. **The vision** — `.claude/visions/default/v1.md` (and any per-project vision) — the coherence-pass yardstick. Also the project's proposal/coverage map, if it keeps one, for the subsystem framing.
 4. **Usage signal (best-effort)** — git churn on each organ (`git log` recency/frequency) as a proxy for "is this used"; there is no runtime invocation log, so dead-config findings are *candidates*, never assertions (see Failure modes).
 
@@ -37,15 +39,21 @@ The system / surface-coherence organ. Implements the Lens-B half. Runs the four 
 
 ### 1. Resolve area
 
-| Form | Resolution | | --- | --- | | `/system-review` | All four passes over the whole organ surface. scope-slug = `system`. | | `/system-review skills` | Passes restricted to `skills/` + `commands/` (overlap + dead + gaps among skills). scope-slug = `system-skills`. | | `/system-review hooks` / `agents` / `rules` | Restricted to that surface. scope-slug = `system-<area>`. | ### 2. Orient (delegate)
+| Form | Resolution |
+| --- | --- |
+| `/system-review` | All four passes over the whole organ surface. scope-slug = `system`. |
+| `/system-review skills` | Passes restricted to `skills/` + `commands/` (overlap + dead + gaps among skills). scope-slug = `system-skills`. |
+| `/system-review hooks` / `agents` / `rules` | Restricted to that surface. scope-slug = `system-<area>`. |
+
+### 2. Orient (delegate)
 
 Call `retrospect-core.orient` with:
 
 ```
 { kind: "system",
- roots: [ "<config-root>/skills/", "<config-root>/commands/", "<config-root>/agents/",
- "<config-root>/hooks/", "<config-root>/architectural-rules/", "<config-root>/mcps/" ],
- report_dir: "<config-root>/.claude/system-reviews" }
+  roots: [ "<config-root>/skills/", "<config-root>/commands/", "<config-root>/agents/",
+           "<config-root>/hooks/", "<config-root>/architectural-rules/", "<config-root>/mcps/" ],
+  report_dir: "<config-root>/.claude/system-reviews" }
 ```
 
 The census counts organs by type (N skills, M commands, K agents, …) and the since-last-run delta surfaces organs added/changed since the baseline — the **focus hint** for where coherence is most likely to have slipped (newly-added skills are the prime overlap risk; a command without a skill is the prime dead-config risk).
@@ -59,7 +67,7 @@ Each pass emits `Finding` objects per the retrospect-core shape.
 Read each organ's `name` + `description` (and, where ambiguous, its "What X does NOT do" / "Relationship to other organs" sections). Flag pairs whose jobs have started to blur:
 - Two skills whose descriptions claim overlapping triggers or outputs (e.g. does `code-review` overlap `review`? does a new skill's "what happened" overlap `recap`?).
 - A skill and an agent that do the same job at different layers without a stated boundary.
-→ `verdict: OVERLAP`, severity Medium–High, `route: proposal` (a boundary-clarification or merge stub) or `route: direct-fix` (add the missing "Relationship to" / boundary line when the fix is a one-paragraph charter note). This pass is exactly the kind of drift 060 itself had to resolve for `recap`/`memory-audit` — the boundary it wrote down is the template for what a clean resolution looks like.
+→ `verdict: OVERLAP`, severity Medium–High, `route: proposal` (a boundary-clarification or merge stub) or `route: direct-fix` (add the missing "Relationship to" / boundary line when the fix is a one-paragraph charter note). The written `recap`/`memory-audit` boundary is the template for what a clean resolution looks like.
 
 #### Pass 2 — Dead / unused config
 
@@ -90,7 +98,7 @@ Read the vision (`visions/default/v1.md`) and the project's subsystem/coverage m
 
 ## Failure modes
 
-- **Dead-config is a candidate, not a verdict.** There is no runtime invocation log — "unused" is inferred from churn + cross-references, which is weak. A library-only skill has no command *by design*; a rule scope is relevance-gated and may correctly be cold for months (059's canonical pre-stage scopes are deliberately unused until their code lands). Pass 2's low-confidence findings are `route: none` (surface for judgment); never auto-remove an organ on churn alone.
+- **Dead-config is a candidate, not a verdict.** There is no runtime invocation log — "unused" is inferred from churn + cross-references, which is weak. A library-only skill has no command *by design*; a rule scope is relevance-gated and may correctly be cold for months (a canonical pre-stage scope is deliberately unused until its code lands). Pass 2's low-confidence findings are `route: none` (surface for judgment); never auto-remove an organ on churn alone.
 - **Overlap is often intentional.** Two organs covering adjacent ground with a *stated* boundary is correct (review/memory-audit, prep/review). Only flag overlap when the boundary is *absent or contradicted*, and put the legitimate adjacencies in the "looks bad but actually fine" section.
 - **Invoked outside the config repo.** Locate the config root via the `~/.claude/skills` symlink targets; if it can't be found, report and stop (don't audit an arbitrary cwd as if it were the harness).
 - **Vision absent.** Run passes 1–3; skip Pass 4 with a header note ("no vision found — coherence pass skipped").
@@ -102,7 +110,7 @@ Read the vision (`visions/default/v1.md`) and the project's subsystem/coverage m
 - **Does not remove anything on churn signal alone.** Dead-config low-confidence findings are surfaced for judgment, never auto-applied.
 - **Does not audit organ *correctness* or code quality.** That's `/review` on the config repo's own code. system-review audits the *system's shape* — overlap, gaps, coherence — not whether a given skill's logic is right.
 - **Does not duplicate retrospect.** retrospect audits decisions/delivery; system-review audits the organ surface. They share the engine, not the corpus.
-- **Does not generalize to arbitrary codebases yet.** v1 is the harness surface (OQ2). The general "review any system's architecture vs its design doc" mode is a deferred, non-breaking extension.
+- **Does not generalize to arbitrary codebases yet.** v1 is the harness surface. The general "review any system's architecture vs its design doc" mode is a deferred, non-breaking extension.
 
 ## Relationship to other organs
 
@@ -112,5 +120,3 @@ Read the vision (`visions/default/v1.md`) and the project's subsystem/coverage m
 - **capture** — the route for ratifying an untraced organ's rationale.
 - **the project's proposals / backlog** — the primary output route; organ changes become proposals.
 - **the vision** (`visions/default/v1.md`) — the Pass-4 yardstick.
-
-See the design notes for the v1-scope decision and the boundary rationale.

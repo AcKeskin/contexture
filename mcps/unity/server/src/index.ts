@@ -114,7 +114,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     // bridge as `response.error.details` (typed `z.unknown().optional()` in
     // envelope.ts). formatErrorText appends `\nDetails: {JSON}` when present
     // so callers can recover the structured payload via the documented regex
-    // path. See architectural-rules/unity-mcp/structured-error-details-via-envelope.
+    // path — structured error details travel in the envelope, not a separate field.
     const text = formatErrorText(
       response.error.code,
       response.error.message,

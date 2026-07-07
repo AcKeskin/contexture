@@ -8,7 +8,7 @@ Run the `wrap` skill.
 
 - `/wrap` — run the full ceremony: coordinate teardown → checkpoint (if a module/corpus change was built) → recap (with §7.4 doorways suppressed — /wrap owns them) → close-out (if a slug shipped) → update-changelog (if a non-slug ship and close-out didn't run) → BACKLOG-shipped-row sweep → build_progress offer. Each step is conditional and skipped silently when it doesn't apply.
 
-It reads the 091 autonomy contract **once** to set the interrupt posture (`forks-only` runs the reversible spine uninterrupted; `every-step` confirms each step). The reversible read/draft/detect spine auto-runs; **every canonical write** (recap file, capture, spec reconcile, artefact move, changelog line, BACKLOG-row removal, build_progress edit) passes its own accept/edit/reject gate. When close-out runs, the changelog step is suppressed (close-out contains the changelog write — no double-offer).
+It reads the autonomy contract **once** to set the interrupt posture (`forks-only` runs the reversible spine uninterrupted; `every-step` confirms each step). The reversible read/draft/detect spine auto-runs; **every canonical write** (recap file, capture, spec reconcile, artefact move, changelog line, BACKLOG-row removal, build_progress edit) passes its own accept/edit/reject gate. When close-out runs, the changelog step is suppressed (close-out contains the changelog write — no double-offer).
 
 The manual `/wrap` **never auto-fires**. An optional `SessionStart`-recovery hook (`enabled:false` by default) can *propose* `/wrap` at the next session start when the prior session shipped work whose terminus was never run.
 

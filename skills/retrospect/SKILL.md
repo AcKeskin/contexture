@@ -6,9 +6,11 @@ deprecated: true
 
 # retrospect
 
-> **Deprecated.** Superseded by `/checkpoint --scope corpus`, which runs these same passes through the shared `retrospect-core` engine. Kept present and fully functional until `/checkpoint` is proven in real use, then retires — new work should reach for `/checkpoint`.
+> **Deprecated.** Superseded by `/checkpoint --scope corpus`, which runs these same passes through the shared `retrospect-core` engine. New work should reach for `/checkpoint`.
+>
+> **Retirement trigger.** This skill retires — moving its pass definitions into `retrospect-core` and deleting this file + its shim — once `/checkpoint --scope corpus` has run to completion on this repo at least three times with no need to fall back here. Until then it stays callable, because checkpoint's corpus scope still delegates to the passes defined below.
 
-The decision & delivery retrospective organ. Implements the Lens-A half. Runs the four decision/delivery passes over the project's own record; delegates orientation, baseline-diff, rendering, routing, and persistence to [retrospect-core](../retrospect-core/SKILL.md).
+The decision & delivery retrospective organ. Runs the four decision/delivery passes over the project's own record; delegates orientation, baseline-diff, rendering, routing, and persistence to [retrospect-core](../retrospect-core/SKILL.md).
 
 **Where it sits.** Every other backward-looking organ points at a narrow target — `review` at code, `pr-review` at one diff, `memory-audit` at memory-file *integrity*, `recap` at *one session*. retrospect is the macro layer above them: it reviews the **body** of decisions and delivery for *validity drift* across many ships, and it routes the fixes it finds back into those narrower organs. It is the automation of the manual "drop pass" the backlog reaches for by hand.
 
@@ -20,22 +22,28 @@ The decision & delivery retrospective organ. Implements the Lens-A half. Runs th
 
 - User types `/retrospect`, `/retrospect <slug>`, or `/retrospect --since <ref>`.
 - Natural language: "let's revisit what we've shipped", "are our decisions still holding", "do a retrospective", "what's drifted in the proposals", "did we build what we specced for X".
-- **Do not auto-fire.** No session-end trigger, no hook, no schedule by default. Mode A, user-invoked. (A periodic "N ships since last retrospect" nudge is parked OQ3 until the natural cadence is observed.)
+- **Do not auto-fire.** No session-end trigger, no hook, no schedule by default. Mode A, user-invoked. (A periodic "N ships since last retrospect" nudge is parked until the natural cadence is observed.)
 
 ## Inputs
 
 1. **Scope / mode argument** (optional) — see §1.
 2. **The decision & delivery corpus:**
- - The project's **proposal / delivery-record corpus** — a `proposals/` directory (coverage map + `BACKLOG.md`) or equivalent, wherever the project tracks shipped work. The authoritative delivery record.
- - The **memory tree** `~/.claude/projects/<slug>/memory/` — specifically `decisions/`, plus `lessons/` and `warnings/` for the integrity cross-checks, and `sessions/` for the uncaptured-lessons sweep. Resolve the slug as [discover](../discover/SKILL.md) does (Glob `~/.claude/projects/*/memory/MEMORY.md`, match by project root).
- - **Ship records** — the `build_progress` project memory ("Recently shipped" / status lists) and `BACKLOG.md`'s "Recently shipped" section.
+   - The project's **proposal / delivery-record corpus** — a `proposals/` directory (coverage map + `BACKLOG.md`) or equivalent, wherever the project tracks shipped work. The authoritative delivery record.
+   - The **memory tree** `~/.claude/projects/<slug>/memory/` — specifically `decisions/`, plus `lessons/` and `warnings/` for the integrity cross-checks, and `sessions/` for the uncaptured-lessons sweep. Resolve the slug as [discover](../discover/SKILL.md) does (Glob `~/.claude/projects/*/memory/MEMORY.md`, match by project root).
+   - **Ship records** — the `build_progress` project memory ("Recently shipped" / status lists) and `BACKLOG.md`'s "Recently shipped" section.
 3. **Working directory / git** — anchors the corpus and enables `--since` + the since-last-run delta. Degrade gracefully without git.
 
 ## Procedure
 
 ### 1. Resolve scope / mode
 
-| Form | Mode | Resolution | | --- | --- | --- | | `/retrospect` | full | All four passes over the whole decision & delivery corpus. Report scope-slug = `decisions`. | | `/retrospect <slug>` | conformance | The per-feature sub-mode (§5). `<slug>` is a feature slug with a spec/plan/proposal. Report scope-slug = the feature slug. | | `/retrospect --since <ref>` | full, windowed | Restrict passes to proposals/decisions/recaps touched since `<ref>` (git). Ephemeral — skips the persistent artefact, like review's `--since`. | `<slug>` vs `--since` is unambiguous (a slug never starts with `--`). If a bare word doesn't resolve to a known feature slug (no spec/plan/proposal under that name), ask whether the user meant a full retrospect filtered to that keyword.
+| Form | Mode | Resolution |
+| --- | --- | --- |
+| `/retrospect` | full | All four passes over the whole decision & delivery corpus. Report scope-slug = `decisions`. |
+| `/retrospect <slug>` | conformance | The per-feature sub-mode (§5). `<slug>` is a feature slug with a spec/plan/proposal. Report scope-slug = the feature slug. |
+| `/retrospect --since <ref>` | full, windowed | Restrict passes to proposals/decisions/recaps touched since `<ref>` (git). Ephemeral — skips the persistent artefact, like review's `--since`. |
+
+`<slug>` vs `--since` is unambiguous (a slug never starts with `--`). If a bare word doesn't resolve to a known feature slug (no spec/plan/proposal under that name), ask whether the user meant a full retrospect filtered to that keyword.
 
 ### 2. Orient (delegate)
 
@@ -43,8 +51,8 @@ Call `retrospect-core.orient` with:
 
 ```
 { kind: "decisions",
- roots: [ "<proposals-dir>/", "<memory-root>/decisions/", "<memory-root>/sessions/", "<memory-root>/lessons/" ],
- report_dir: "<project-root>/.claude/retrospects" }
+  roots: [ "<proposals-dir>/", "<memory-root>/decisions/", "<memory-root>/sessions/", "<memory-root>/lessons/" ],
+  report_dir: "<project-root>/.claude/retrospects" }
 ```
 
 Use the returned **focus hint** to prioritise the passes — the longest `supersedes` chains, the proposals shipped since the baseline, the recaps written since the baseline. These are where validity drift concentrates.
@@ -58,7 +66,7 @@ Each pass emits `Finding` objects per the retrospect-core shape (`pass`, `locato
 For each `kind: decision` memory **and** each shipped proposal's load-bearing choice (the decisions recorded in its ship note / amendments), assign a verdict:
 
 - **`HOLDS`** — still true, still consistent with what shipped. (Not a finding; counted, not listed, unless the user asks for the full ledger.)
-- **`SUPERSEDED-unmarked`** — a later proposal/decision replaced it, but the supersession was never recorded: the memory lacks `superseded_by`, or the proposal index still presents it as live. → `route: memory-audit` (add the back-link) **or** `route: direct-fix` (update the coverage-map status line). Cross-check the `supersedes` / `superseded_by` chains in memory against what the proposals *actually did* — a decision that quietly replaced but whose memory never got the back-pointer is the canonical catch.
+- **`SUPERSEDED-unmarked`** — a later proposal/decision replaced it, but the supersession was never recorded: the memory lacks `superseded_by`, or the proposal index still presents it as live. → `route: memory-audit` (add the back-link) **or** `route: direct-fix` (update the coverage-map status line). Cross-check the `supersedes` / `superseded_by` chains in memory against what the proposals *actually did* — a decision a later proposal quietly replaced but whose memory never got the back-pointer is the canonical catch.
 - **`CONTRADICTED`** — two live decisions disagree and neither supersedes the other. → `route: capture` (record a `relations: contradicts` pair so the conflict is flagged for reconciliation), severity High.
 - **`STALE`** — the decision references an artefact (tool, path, proposal, plugin) that no longer exists or whose status changed materially. → `route: memory-audit` if it's a reference fix, `route: capture` if the decision itself needs re-statement.
 
@@ -69,7 +77,7 @@ This pass leans on memory-audit's dimension-3 (relations integrity) machinery bu
 For each proposal marked `[shipped]`:
 - Read its **ship note / amendments** and its original **done-criteria / "Ship criteria"** section.
 - Flag **`DRIFTED`** when the ship deviated from the original spec in a way that was never reconciled into the proposal body, or when stated done-criteria don't all show as met (a partially-shipped proposal still flagged shipped). → `route: proposal` (an amendment stub) or `route: capture` (a lesson, if the drift taught something), severity Medium.
-- The signal to look for: ship notes that say "redesigned at ship time", "reversed", "deferred to v2" without the coverage map / done-criteria reflecting it. These are real and frequent in this corpus (e.g. 049's PreCompact→SessionStart redesign, 020's v2→v3 reversal) — the pass confirms each was reconciled, and flags any that wasn't.
+- The signal to look for: ship notes that say "redesigned at ship time", "reversed", "deferred to v2" without the coverage map / done-criteria reflecting it. These are real and frequent — the pass confirms each was reconciled, and flags any that wasn't.
 
 #### Pass 3 — Uncaptured lessons
 
@@ -77,26 +85,26 @@ Sweep **every** `sessions/` recap since the last retrospect (the since-last-run 
 - For each `Learned` bullet, check whether an equivalent rule/lesson/warning memory exists (token-overlap against the memory tree, same heuristic as memory-audit dim-4).
 - No match → finding, `route: capture`, `proposed_action` = the lesson text. severity Low–Medium.
 
-This is recap's per-session promotion pass (§8) run *across all sessions at once* — it catches the lessons that slipped through because the user skipped promotion that day. retrospect does not promote silently; each routes through `route`'s confirm into capture.
+This is recap's per-session promotion pass (§8) run *across all sessions at once* — it catches the lessons that slipped through because the user skipped promotion that day. retrospect does not promote silently; each routes through `route()`'s confirm into capture.
 
 #### Pass 4 — Consolidation candidates
 
 Over the proposals + coverage map + backlog, flag what can now be retired, merged, or re-framed:
 - Drafted proposals overtaken by a later ship (e.g. a deferred item a newer proposal subsumed).
 - Coverage-map / backlog rows describing work that's actually done or moot.
-- Decisions/proposals whose framing the corpus has outgrown (the "029 is reframed by the vision" kind of move, done deliberately instead of incidentally).
+- Decisions/proposals whose framing the corpus has outgrown (re-framed deliberately against the vision instead of drifting incidentally).
 → `route: proposal` (a consolidation/drop stub) or `route: direct-fix` (a coverage-map / backlog edit), severity Low–Medium.
 
 ### 4. Diff, render, report, route, persist (delegate)
 
 1. `retrospect-core.diff(findings, "<project-root>/.claude/retrospects/decisions/latest.md")` → NEW/CARRIED/RESOLVED/WONT_FIX.
-2. `retrospect-core.render(report)` → the 042-contract body. The mandatory diagram defaults to a **`supersedes`-chain graph** (decisions as nodes, supersession as edges, unmarked-but-should-be-superseded edges highlighted) — the clearest visual for decision drift.
+2. `retrospect-core.render(report)` → the batched-output-contract body. The mandatory diagram defaults to a **`supersedes`-chain graph** (decisions as nodes, supersession as edges, unmarked-but-should-be-superseded edges highlighted) — the clearest visual for decision drift.
 3. Present the report. Then `retrospect-core.route` per finding (Apply routes to capture / memory-audit / proposal / direct-fix; Skip / Edit / View detail / Won't-fix as usual).
 4. `retrospect-core.persist(report, "decisions")` — unless `--since` (ephemeral). The artefact at `.claude/retrospects/decisions/latest.md` is the next run's baseline.
 
 ### 5. Conformance sub-mode — `/retrospect <slug>`
 
-The narrow per-feature check ('s altitude-#2, kept as a mode, not its own organ). Compares **vision → spec → plan → shipped** for one slug.
+The narrow per-feature check (kept as a mode, not its own organ). Compares **vision → spec → plan → shipped** for one slug.
 
 1. Locate the slug's artefacts: `.claude/visions/<slug>/`, `.claude/specs/<slug>/` (active version per `INDEX.md`), `.claude/plans/<slug>/`, the matching `proposals/NNN-*.md`, and the shipped code/commits.
 2. **Spec-clause conformance.** For each requirement / done-criterion in the active spec → `MET` / `PARTIAL` / `MISSING` / `EXTRA` (EXTRA = shipped but never specced — scope creep). Cite the spec clause and the shipping evidence (commit, file, or ship note).
@@ -128,7 +136,5 @@ The conformance report uses the same retrospect-core spine; the only difference 
 - **recap** — the feeder. recaps are an input corpus (Pass 3); retrospect is the cross-session aggregator recap can't be.
 - **memory-audit** — the integrity sibling; retrospect routes decision-integrity *fixes* to it and defers to it on all mechanical checks.
 - **capture** — the route for uncaptured lessons, contradiction pairs, and re-stated decisions.
-- **review** — the code counterpart; same propose-confirm-commit shape, same 042 output contract, different corpus.
+- **review** — the code counterpart; same propose-confirm-commit shape, same batched output contract, different corpus.
 - **the project's proposals / backlog** — both an input (the delivery record) and an output route (consolidation/amendment stubs).
-
-See the design notes for the boundary rationale and the open questions.

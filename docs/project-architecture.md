@@ -2,16 +2,22 @@
 
 When a project has architectural rules that don't generalize beyond that codebase, and there are enough of them to warrant explicit documentation, the rules live in `<project-root>/.claude/architecture.md`.
 
-This is Option B in. Option A — per-project tagged memory — is the alternative for smaller rule sets.
+This is the file-based home for project rules; per-project tagged memory is the alternative for smaller rule sets.
 
 ## When to use which
 
-| Rule set size | Home | Reason | | --- | --- | --- | | < ~10 project-specific rules | Per-project memory, `scope: [project-<name>]` | Cheaper; no file to maintain; still queryable via discovery | | Multi-module with clear boundaries, > ~10 rules | `.claude/architecture.md` | Single canonical file for the project. User choice whether to version-control. | | Both | `.claude/architecture.md` canonical + individual rules also tagged into memory | Same pattern as global CLAUDE.md + architectural-rules tree | Rule of thumb: if the rules outlive a single session and new contributors (human or AI) need to understand the project's shape, write the file.
+| Rule set size | Home | Reason |
+| --- | --- | --- |
+| < ~10 project-specific rules | Per-project memory, `scope: [project-<name>]` | Cheaper; no file to maintain; still queryable via discovery |
+| Multi-module with clear boundaries, > ~10 rules | `.claude/architecture.md` | Single canonical file for the project. User choice whether to version-control. |
+| Both | `.claude/architecture.md` canonical + individual rules also tagged into memory | Same pattern as global CLAUDE.md + architectural-rules tree |
+
+Rule of thumb: if the rules outlive a single session and new contributors (human or AI) need to understand the project's shape, write the file.
 
 ## File location
 
 - Path: `<project-root>/.claude/architecture.md`.
-- **Sync is the user's choice**. Default: local-only (most `.gitignore` setups — global or project-level — exclude `.claude/`). To version-control this file with the code, add an explicit `!` rule to the project's `.gitignore`.
+- **Sync is the user's choice.** Default: local-only (most `.gitignore` setups — global or project-level — exclude `.claude/`). To version-control this file with the code, add an explicit `!` rule to the project's `.gitignore`.
 - No symlink, no bootstrap wiring — it is native to the project.
 
 ## Template
@@ -57,7 +63,7 @@ Not a replacement for a human-facing architecture doc (e.g. `docs/architecture.m
 
 - **Discovery** — reads this file when the current working directory matches the project, surfaces it as project context.
 - **Prep** — loads this file at the start of a non-trivial task in the project.
-- **Review (pending)** — checks diffs against the `Boundaries` and `Patterns in use` sections.
+- **Review** (pending) — checks diffs against the `Boundaries` and `Patterns in use` sections.
 
 ## Maintenance
 

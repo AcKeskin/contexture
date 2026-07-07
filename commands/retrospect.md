@@ -1,6 +1,8 @@
 ---
-description: Step back over the body of shipped work — proposals, decision-tier memory, ship records, recaps — and surface what no longer coheres. Decision integrity, intent-vs-shipped drift, uncaptured lessons, consolidation candidates. Routes fixes to /capture and /memory-audit; never fixes in place. Macro sibling of /recap.
+description: "[DEPRECATED → use /checkpoint --scope corpus] Step back over the body of shipped work — proposals, decision-tier memory, ship records, recaps — and surface what no longer coheres. Decision integrity, intent-vs-shipped drift, uncaptured lessons, consolidation candidates. Routes fixes to /capture and /memory-audit; never fixes in place. Macro sibling of /recap."
 ---
+
+Deprecated: prefer /checkpoint --scope corpus; this command remains functional during the transition.
 
 Run the `retrospect` skill.
 
@@ -14,7 +16,7 @@ Examples:
 
 - `/retrospect` — "of everything we've decided and shipped, what still holds, what's silently superseded, what drifted, what can we retire."
 - `/retrospect mcp-primary-retrieval` — "did we build what we specced for the retrieval slug?"
-- `/retrospect --since v059-ship` — only what's changed since shipped.
+- `/retrospect --since v1.2.0` — only what's changed since that release shipped.
 
 The skill runs four passes over the project's own record: **decision integrity** (each decision → HOLDS / SUPERSEDED-unmarked / CONTRADICTED / STALE, cross-checking the `supersedes` chains against what proposals actually did), **intent-vs-shipped** (proposals flagged shipped that drifted from spec or whose done-criteria weren't all met), **uncaptured lessons** (a sweep of every recap since the last run for `Learned` items never promoted to a rule), and **consolidation candidates** (what can be retired/merged/re-framed — the manual "drop pass" automated).
 

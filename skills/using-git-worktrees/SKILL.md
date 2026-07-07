@@ -21,8 +21,8 @@ Follow this priority order:
 
 ```bash
 # Check in priority order
-ls -d.worktrees 2>/dev/null # Preferred (hidden)
-ls -d worktrees 2>/dev/null # Alternative
+ls -d .worktrees 2>/dev/null     # Preferred (hidden)
+ls -d worktrees 2>/dev/null      # Alternative
 ```
 
 **If found:** Use that directory. If both exist, `.worktrees` wins.
@@ -42,7 +42,7 @@ If no directory exists and no CLAUDE.md preference:
 ```
 No worktree directory found. Where should I create worktrees?
 
-1..worktrees/ (project-local, hidden)
+1. .worktrees/ (project-local, hidden)
 2. ~/.claude/worktrees/<project-name>/ (global location)
 
 Which would you prefer?
@@ -56,7 +56,7 @@ Which would you prefer?
 
 ```bash
 # Check if directory is ignored (respects local, global, and system gitignore)
-git check-ignore -q.worktrees 2>/dev/null || git check-ignore -q worktrees 2>/dev/null
+git check-ignore -q .worktrees 2>/dev/null || git check-ignore -q worktrees 2>/dev/null
 ```
 
 **If NOT ignored** (this means a real commit to the user's repo, so surface it and confirm before writing):
@@ -69,7 +69,7 @@ git check-ignore -q.worktrees 2>/dev/null || git check-ignore -q worktrees 2>/de
 
 ### For Global Directory (~/.claude/worktrees)
 
-No.gitignore verification needed - outside project entirely.
+No .gitignore verification needed - outside project entirely.
 
 ## Creation Steps
 
@@ -83,13 +83,16 @@ project=$(basename "$(git rev-parse --show-toplevel)")
 
 ```bash
 # Determine full path
-case $LOCATION in
-.worktrees|worktrees)
- path="$LOCATION/$BRANCH_NAME"
-;;
- ~/.claude/worktrees/*)
- path="~/.claude/worktrees/$project/$BRANCH_NAME"
-;;
+# Note: tilde is not expanded inside case patterns, so match the literal
+# and expand $HOME explicitly in the path (a literal ~ in the path would not
+# expand either — git worktree add would create a directory named "~").
+case "$LOCATION" in
+  .worktrees|worktrees)
+    path="$LOCATION/$BRANCH_NAME"
+    ;;
+  "$HOME"/.claude/worktrees/*|~/.claude/worktrees/*)
+    path="$HOME/.claude/worktrees/$project/$BRANCH_NAME"
+    ;;
 esac
 
 # Create worktree with new branch
@@ -125,7 +128,7 @@ Run tests to ensure worktree starts clean:
 npm test
 cargo test
 pytest
-go test./...
+go test ./...
 ```
 
 **If tests fail:** Report failures, ask whether to proceed or investigate.
@@ -142,7 +145,17 @@ Ready to implement <feature-name>
 
 ## Quick Reference
 
-| Situation | Action | |-----------|--------| | `.worktrees/` exists | Use it (verify ignored) | | `worktrees/` exists | Use it (verify ignored) | | Both exist | Use `.worktrees/` | | Neither exists | Check CLAUDE.md → Ask user | | Directory not ignored | Surface + confirm, then add to.gitignore + commit | | Tests fail during baseline | Report failures + ask | | No package.json/Cargo.toml | Skip dependency install | ## Common Mistakes
+| Situation | Action |
+|-----------|--------|
+| `.worktrees/` exists | Use it (verify ignored) |
+| `worktrees/` exists | Use it (verify ignored) |
+| Both exist | Use `.worktrees/` |
+| Neither exists | Check CLAUDE.md → Ask user |
+| Directory not ignored | Surface + confirm, then add to .gitignore + commit |
+| Tests fail during baseline | Report failures + ask |
+| No package.json/Cargo.toml | Skip dependency install |
+
+## Common Mistakes
 
 ### Skipping ignore verification
 
@@ -169,9 +182,9 @@ Ready to implement <feature-name>
 ```
 You: I'm using the using-git-worktrees skill to set up an isolated workspace.
 
-[Check.worktrees/ - exists]
-[Verify ignored - git check-ignore confirms.worktrees/ is ignored]
-[Create worktree: git worktree add.worktrees/auth -b feature/auth]
+[Check .worktrees/ - exists]
+[Verify ignored - git check-ignore confirms .worktrees/ is ignored]
+[Create worktree: git worktree add .worktrees/auth -b feature/auth]
 [Run npm install]
 [Run npm test - 47 passing]
 

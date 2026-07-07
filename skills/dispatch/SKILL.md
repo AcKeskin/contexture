@@ -19,19 +19,19 @@ When you have multiple unrelated failures (different test files, different subsy
 
 ```dot
 digraph when_to_use {
- "Multiple failures?" [shape=diamond];
- "Are they independent?" [shape=diamond];
- "Single agent investigates all" [shape=box];
- "One agent per problem domain" [shape=box];
- "Can they work in parallel?" [shape=diamond];
- "Sequential agents" [shape=box];
- "Parallel dispatch" [shape=box];
+    "Multiple failures?" [shape=diamond];
+    "Are they independent?" [shape=diamond];
+    "Single agent investigates all" [shape=box];
+    "One agent per problem domain" [shape=box];
+    "Can they work in parallel?" [shape=diamond];
+    "Sequential agents" [shape=box];
+    "Parallel dispatch" [shape=box];
 
- "Multiple failures?" -> "Are they independent?" [label="yes"];
- "Are they independent?" -> "Single agent investigates all" [label="no - related"];
- "Are they independent?" -> "Can they work in parallel?" [label="yes"];
- "Can they work in parallel?" -> "Parallel dispatch" [label="yes"];
- "Can they work in parallel?" -> "Sequential agents" [label="no - shared state"];
+    "Multiple failures?" -> "Are they independent?" [label="yes"];
+    "Are they independent?" -> "Single agent investigates all" [label="no - related"];
+    "Are they independent?" -> "Can they work in parallel?" [label="yes"];
+    "Can they work in parallel?" -> "Parallel dispatch" [label="yes"];
+    "Can they work in parallel?" -> "Sequential agents" [label="no - shared state"];
 }
 ```
 
@@ -115,9 +115,9 @@ These are timing/race condition issues. Your task:
 1. Read the test file and understand what each test verifies
 2. Identify root cause - timing issues or actual bugs?
 3. Fix by:
- - Replacing arbitrary timeouts with event-based waiting
- - Fixing bugs in abort implementation if found
- - Adjusting test expectations if testing changed behavior
+   - Replacing arbitrary timeouts with event-based waiting
+   - Fixing bugs in abort implementation if found
+   - Adjusting test expectations if testing changed behavior
 
 Do NOT just increase timeouts - find the real issue.
 
@@ -132,7 +132,7 @@ Some agents under `agents/` declare an `## Output contract` section specifying a
 
 **Opt-in is per-agent and detected automatically:** add `## Output contract` and `## Required reads` sections to the agent's `.md` and the hook starts checking on the next dispatch. There is no allow-list to maintain. Agents without those sections are unchanged in behaviour.
 
-**Pilot agents (v1):** `c-sharp-pro`, `unity-pro`. The advisory is informational — it never rejects the agent response, so an orchestrator that needs strict compliance must re-dispatch on its own initiative. The schema and design rationale live in `.claude/specs/agent-output-contracts/v1.md`.
+**Pilot agents (v1):** `c-sharp-pro`, `unity-pro`. The advisory is informational — it never rejects the agent response, so an orchestrator that needs strict compliance must re-dispatch on its own initiative.
 
 ## Harvesting subagent state
 
@@ -142,16 +142,16 @@ Any subagent **may** append an optional `harvest:` block when — and only when 
 
 ```yaml
 harvest:
- decisions:
- - what: "Chose longest-prefix walk over per-file lookup for scope resolution"
- why: "O(depth) not O(files); matches the submodule mental model"
- scope: [scope-resolution]
- lessons:
- - what: "ELK renderer needed for >40-node Mermaid graphs; dagre overflows"
- kind: warning
- scope: [codemap, visualization]
- open_questions:
- - "Does PreCompact expose the live transcript or only the on-disk lag?"
+  decisions:
+    - what: "Chose longest-prefix walk over per-file lookup for scope resolution"
+      why: "O(depth) not O(files); matches the submodule mental model"
+      scope: [scope-resolution]
+  lessons:
+    - what: "ELK renderer needed for >40-node Mermaid graphs; dagre overflows"
+      kind: warning
+      scope: [codemap, visualization]
+  open_questions:
+    - "Does PreCompact expose the live transcript or only the on-disk lag?"
 ```
 
 **What happens to it.** The `agent-output-contract-validator.js` hook (PostToolUse on Agent) scans every subagent response for a top-level `harvest:` block, independently of any `## Output contract` (the two coexist — a response may carry both; they're parsed separately). When the block is present and non-empty, the hook emits a **non-blocking advisory** in your next turn summarising the counts. You then route each item on the **user's** confirmation:
@@ -165,7 +165,7 @@ harvest:
 
 > If you reach a decision, lesson, or landmine worth remembering beyond this task, emit a `harvest:` block per the return contract (decisions / lessons / open_questions). Omit it entirely if there's nothing worth keeping.
 
-This is one line; it carries no obligation. It is the State-side complement to the depth annotation's Instructions-side discipline (027 = don't spawn badly; 050 = don't lose what a good spawn learned).
+This is one line; it carries no obligation. It is the State-side complement to the depth annotation's Instructions-side discipline (the depth caps stop bad spawns; the harvest block keeps what a good spawn learned).
 
 ## Common Mistakes
 
@@ -191,8 +191,6 @@ This is one line; it carries no obligation. It is the State-side complement to t
 ## Hard caps
 
 Three gates every dispatch must pass. These are **hard caps**, not heuristics — a failed gate aborts the dispatch. They exist because the failure mode they prevent (runaway recursion) is severe and silent: by the time the call tree is deep, the parent has already lost the ability to synthesize, and cost has compounded geometrically.
-
-Source rule: `~/.claude/projects/<slug>/memory/architectural-rules/universal/subagent-recursion-caps.md`. Drift between this skill and the rule is itself a failure to flag — they must stay aligned.
 
 ### Gate 1 — Tier check
 

@@ -1,11 +1,11 @@
 ---
 name: write-tests
-description: Author a quality test suite for EXISTING code to a standard. Detects the project's test framework + conventions (reusing 079's extracted test conventions where present), proposes a confirmable test plan (cases + rationale) before writing, delegates idiomatic authoring to the scope's language-pro agent, and defaults to a characterization-with-flags stance — pins current behavior but flags suspicious-as-bug rather than enshrining it. Optionally runs the suite; on failure surfaces the test-vs-code discrepancy rather than auto-adjusting, and reports covered AND deliberately-not-covered. Use when the user types /write-tests or asks to write / add / author tests for existing code. Mode A only — never auto-fire.
+description: Author a quality test suite for EXISTING code to a standard. Detects the project's test framework + conventions (reusing the project's extracted test conventions where present), proposes a confirmable test plan (cases + rationale) before writing, delegates idiomatic authoring to the scope's language-pro agent, and defaults to a characterization-with-flags stance — pins current behavior but flags suspicious-as-bug rather than enshrining it. Optionally runs the suite; on failure surfaces the test-vs-code discrepancy rather than auto-adjusting, and reports covered AND deliberately-not-covered. Use when the user types /write-tests or asks to write / add / author tests for existing code. Mode A only — never auto-fire.
 ---
 
 # write-tests
 
-The test-authoring organ. Fills the hole between [test-driven-development](../test-driven-development/SKILL.md) (the test-*first* workflow for *new* code) and the testability design rule (the code-side rule for making code testable): no organ today, pointed at *existing* code, authors a quality suite to a standard. `/write-tests` does. It writes to [`universal/test-quality.md`](../../architectural-rules/universal/test-quality.md) — the standard `/review` also audits against.
+The test-authoring organ. Fills the hole between [test-driven-development](../test-driven-development/SKILL.md) (the test-*first* workflow for *new* code) and the testability design rule (the code-side rule for making code testable): pointed at *existing* code, it authors a quality suite to a standard. It writes to [`universal/test-quality.md`](../../architectural-rules/universal/test-quality.md) — the standard `/review` also audits against.
 
 ## When to run
 
@@ -17,9 +17,9 @@ The test-authoring organ. Fills the hole between [test-driven-development](../te
 
 - **Target** — a function, class, module, file, or directory. With no arg, prompt:
 
- > What should I write tests for? A function, class, file, or module.
+  > What should I write tests for? A function, class, file, or module.
 
-- **Working directory** — `$CLAUDE_PROJECT_DIR` or `cwd`. Anchors framework detection, the 079 test-convention lookup, and where tests are written.
+- **Working directory** — `$CLAUDE_PROJECT_DIR` or `cwd`. Anchors framework detection, the extracted test-convention lookup, and where tests are written.
 - **Per-plan and per-flag confirmations** — collected at the plan gate (§4) and on flagged-as-suspicious behaviors (§5). Collaborator principle — never author blind, never enshrine a suspected bug silently.
 
 ## Procedure
@@ -32,11 +32,11 @@ Resolve the target argument to concrete code: a file, a symbol within a file (gr
 
 Determine **how this project tests**, in this precedence:
 
-1. **079 extracted test conventions** — if `<project>/.claude/rules/<lang>/conventions.md` exists and has a test-conventions section, use it. It is the project's own observed style; conform to it.
+1. **Extracted test conventions** — if `<project>/.claude/rules/<lang>/conventions.md` exists and has a test-conventions section, use it. It is the project's own observed style; conform to it.
 2. **Existing tests** — read the project's existing test files. Detect the **framework** (xUnit / NUnit / MSTest, Jest / vitest / mocha, pytest / unittest, cargo test, GoogleTest, …), the **layout** (where tests live, file naming), and the **conventions** (test naming pattern, fixture/setup style, assertion library).
 3. **Inference + confirm** — when neither is present, infer the most idiomatic framework + conventions for the language and surface them explicitly:
 
- > No existing tests or 079 conventions found. I'd use **<framework>** with **<naming/layout convention>** — confirm or correct before I plan?
+   > No existing tests or extracted conventions found. I'd use **<framework>** with **<naming/layout convention>** — confirm or correct before I plan?
 
 4. **Zero-tests repo** — propose a framework + minimal setup (the dependency + a test directory + one example) as part of the confirm, so the user opts into the testing foundation deliberately.
 
@@ -44,20 +44,20 @@ Determine **how this project tests**, in this precedence:
 
 ### 3. Analyze the target → propose a confirmable test plan
 
-Analyze the target for its **testable surface**: behaviors, inputs, output/effects, boundaries (empty / one / max / off-by-one edges), error paths, and branches. Then propose a **test plan** — the cases, each with a one-line rationale — for accept/edit/reject **before any test is written** (the 051/024 propose-confirm-commit gate):
+Analyze the target for its **testable surface**: behaviors, inputs, output/effects, boundaries (empty / one / max / off-by-one edges), error paths, and branches. Then propose a **test plan** — the cases, each with a one-line rationale — for accept/edit/reject **before any test is written** (the propose-confirm-commit gate):
 
 ```
 ## Test plan for <target> (framework: <fw>, conventions: <source>)
 
 Proposed cases:
- 1. <happy path> — <rationale: the nominal contract>
- 2. <boundary: empty input> — <rationale: edge the branch at L… guards>
- 3. <boundary: max / off-by-one> — <rationale>
- 4. <error path: invalid arg> — <rationale: the throw at L…>
- 5. <branch: the X==null path> — <rationale: uncovered branch>
+  1. <happy path> — <rationale: the nominal contract>
+  2. <boundary: empty input> — <rationale: edge the branch at L… guards>
+  3. <boundary: max / off-by-one> — <rationale>
+  4. <error path: invalid arg> — <rationale: the throw at L…>
+  5. <branch: the X==null path> — <rationale: uncovered branch>
 
 Deliberately NOT covering:
- - <thing> — <why: trivial getter / framework-guaranteed / out of scope>
+  - <thing> — <why: trivial getter / framework-guaranteed / out of scope>
 
 Accept / edit (add, drop, or reword cases) / reject?
 ```
@@ -71,10 +71,10 @@ For **existing, untested** code, the default stance is **characterization-with-f
 - **Pin current behavior** as the expected values — this is what makes the suite a safe-refactoring net: it captures what the code does *now* so a later change that alters behavior is caught.
 - **BUT flag anything that looks like a bug** for the user to confirm, rather than silently asserting it correct. When the current behavior is plausibly wrong (an off-by-one that happens to "work", a swallowed error, a boundary that returns the wrong edge), the plan marks it:
 
- > ⚠ `calculateRetryBudget(0)` currently returns `-1`. That looks like a bug (a budget shouldn't be negative). Options:
- > (p)in — assert `-1` as current behavior with a `// FIXME: looks wrong, pinned to characterize` note
- > (f)ix-first — stop; you fix the code, then I test the corrected behavior
- > (e)xpected — `-1` is actually correct here (tell me why; I assert it plainly)
+  > ⚠ `calculateRetryBudget(0)` currently returns `-1`. That looks like a bug (a budget shouldn't be negative). Options:
+  >   (p)in — assert `-1` as current behavior with a `// FIXME: looks wrong, pinned to characterize` note
+  >   (f)ix-first — stop; you fix the code, then I test the corrected behavior
+  >   (e)xpected — `-1` is actually correct here (tell me why; I assert it plainly)
 
 **Never bake a suspected bug into a test as "expected" silently.** Characterization pins behavior to enable refactoring; it does not bless behavior as correct. The flag is what keeps the suite from quietly enshrining a defect.
 
@@ -82,7 +82,7 @@ For **existing, untested** code, the default stance is **characterization-with-f
 
 On accept, the skill owns **what to test, to what standard, the plan**; the idiomatic **how** dispatches to the scope's **language-pro agent** (`c-sharp-pro`, `cpp-pro`, `rust-pro`, `react-pro`, …) where one exists.
 
-Dispatch protocol — honors [[agent-scope-control-hard-not-prompt]] and [[subagent-recursion-caps]]:
+Dispatch protocol — hard scope enforcement (worktree/allowlist, not prompt fences) and recursion caps (orchestrator-only spawning, max depth 2):
 
 - **Positive scope + hard placement**, never a "do NOT" fence. The prompt carries: the accepted test plan (cases + expected values, including any pinned-with-FIXME flags), the detected framework + conventions, and the `test-quality.md` standard. "Write xUnit tests for this C# class implementing exactly these cases with these expected values. Follow the project's convention: <…>. Standard: behavior-not-implementation, intention-revealing names, AAA, no interdependence. Output only the test file."
 - **No further spawn** — the language-pro agent is a leaf (recursion cap).
@@ -108,7 +108,7 @@ Never imply exhaustiveness. "Tests pass" means the authored cases pass, not that
 
 ### 7. Stop
 
-Do not invoke `/review`, do not commit. The authored tests are the user's to run in CI and commit. Do not auto-run `/write-tests` again. If authoring hit **testability friction** (couldn't test a behavior without reaching into internals), surface that as a *testability* signal in the code (a 048 finding) rather than lowering the test standard to work around it.
+Do not invoke `/review`, do not commit. The authored tests are the user's to run in CI and commit. Do not auto-run `/write-tests` again. If authoring hit **testability friction** (couldn't test a behavior without reaching into internals), surface that as a *testability* signal in the code (a testability-design finding) rather than lowering the test standard to work around it.
 
 ## What write-tests does NOT do
 
@@ -132,6 +132,6 @@ Do not invoke `/review`, do not commit. The authored tests are the user's to run
 
 ## Debug
 
-- **Framework misdetected** — point `/write-tests` at the convention source explicitly, or add a 079 test-conventions entry. The "I inferred these, confirm" note is the catch-point.
+- **Framework misdetected** — point `/write-tests` at the convention source explicitly, or add an extracted test-conventions entry. The "I inferred these, confirm" note is the catch-point.
 - **Language-pro returned tests that drift from the plan** — the skill re-authors to the accepted plan rather than writing drifted tests; flag a recurring drift via `/capture`.
-- **A flagged behavior keeps re-flagging** — if the user said "expected, here's why", that reason belongs in the test as a comment and, if durable, in the 079 conventions or a `/capture` note so the next run doesn't re-flag it.
+- **A flagged behavior keeps re-flagging** — if the user said "expected, here's why", that reason belongs in the test as a comment and, if durable, in the extracted conventions or a `/capture` note so the next run doesn't re-flag it.

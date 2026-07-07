@@ -95,8 +95,8 @@ Never use `Resources.Load` for content the project ships through Addressables. N
 Before producing code, read the architectural rules at:
 
 - `architectural-rules/universal/*.md`
-- `architectural-rules/unity-mcp/*.md`   (unity-pro is the canonical unity-mcp consumer)
 - `architectural-rules/unity/*.md`       (when present — the glob is permissive so future rules drop in automatically)
+- `architectural-rules/csharp/*.md`      (Unity scripting is C#)
 
 Apply the rules in scope. If a rule contradicts the task, surface the conflict in `residual_risks` (see Output contract below) rather than silently violating the rule.
 

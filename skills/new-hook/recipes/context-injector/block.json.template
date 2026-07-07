@@ -1,3 +1,5 @@
 {
-  "matcher": "__MATCHER_TRIGGER__"
+  "session_id": "fixture-session-1",
+  "hook_event_name": "SessionStart",
+  "source": "__MATCHER_TRIGGER__"
 }

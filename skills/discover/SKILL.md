@@ -1,6 +1,6 @@
 ---
 name: discover
-description: Load relevant stored memories and codemap entries for the current task. Use when the user types /discover, asks to "prep" or "load context," or any time the current task is about to start and stored context has not been surfaced yet. Also callable by other skills (prep, review) that need to query stored context programmatically.
+description: Load relevant stored memories and codemap entries for the current task. Use when the user types /discover, asks to "prep" or "load context," or a task is starting with stored context unsurfaced. Also callable by other skills (prep, review).
 ---
 
 # discover
@@ -22,10 +22,10 @@ Unified retrieval layer. Aggregates stored memory fragments (what we've decided/
 
 ## Architecture — MCP-primary, skill-fallback
 
-Per the retrieval vision (`.claude/visions/retrieval/v1.md`, which settled retrieval as **MCP-primary**), memory + recap + codemap retrieval is owned by the **`project-memory` MCP engine**, out of context. This skill is a **thin client** over it, with a **static always-on floor** when the engine is unreachable.
+Retrieval is **MCP-primary**: memory + recap + codemap retrieval is owned by the **`project-memory` MCP engine**, out of context. This skill is a **thin client** over it, with a **static always-on floor** when the engine is unreachable.
 
-Two responsibilities stay in this skill, NOT the MCP (vision boundary):
-- **Rules-overlay resolution (§4a)** — the 047 tier/patch/disable subsystem is a separate module; v1 keeps it skill-resident.
+Two responsibilities stay in this skill, NOT the MCP:
+- **Rules-overlay resolution (§4a)** — the rules-overlay tier/patch/disable subsystem is a separate module; v1 keeps it skill-resident.
 - **The fallback** — when the MCP is down, surface the static floor (§0b). The skill does **not** re-implement the full ranking as its primary path.
 
 ### 0. Primary path — query the MCP engine
@@ -34,15 +34,9 @@ Call `mcp__project-memory__discover` with the task-derived query:
 
 ```
 mcp__project-memory__discover({
- cwd: <project root>, // the engine resolves the layered tier
- task_keywords: [...], // §3 extraction
- scopes: [...], // §6 inference
- relevance_phases: [...], // current phase, if any
- kind: <filter or omit>,
- top_n: 8,
- render_bodies: <true for programmatic callers, false for user /discover>,
- include_recaps: <caller pref, default false>,
- include_codemap: true,
+  cwd: <project root>,     // the engine resolves the layered tier
+  include_codemap: true,
+  ...                      // remaining params per "Query interface" below
 })
 ```
 
@@ -64,7 +58,7 @@ The richer in-context scan (§1–§9 below) remains documented as the **degrade
 
 ## Procedure (degraded deep-scan / reference contract)
 
-*The steps below are the full in-context algorithm. They are (a) the contract the MCP engine implements, kept here as the spec of record, and (b) the deep-scan the skill runs only on explicit request when the MCP is down. The MCP-primary path (§0) supersedes them for normal operation.*
+*Contract-of-record for the engine; run in-context only on explicit request while the MCP is down (§0 supersedes for normal operation).*
 
 ### 1. Resolve the project memory directory
 
@@ -97,22 +91,9 @@ Keep entries with `keywords_hit ≥ 1` as **primary candidates**.
 
 When the candidate set includes `kind: architectural-rule` files — or the caller passed `kind: "architectural-rule"` (the prep / review path) — resolve them through the **tier-aware overlay** before scoring. This step is a no-op for memory / recap / codemap candidates; it only touches rule files.
 
-Full algorithm in [`docs/architectural-rules-overlay.md`](../../docs/architectural-rules-overlay.md) § Resolution (also implemented as the hook-callable `hooks/lib/resolve-rules.js` subroutine the rule-prime hook calls — same semantics, no model turn). Summary:
+The resolution algorithm (manifest precedence, tier walk, replace/patch modes, disables) lives in [`docs/architectural-rules-overlay.md`](../../docs/architectural-rules-overlay.md) § "Resolution algorithm (owned by discover)", implemented as the hook-callable `hooks/lib/resolve-rules.js` subroutine the rule-prime hook calls — same semantics, no model turn. Run it, then **strip `<!-- id: ... -->` anchors** from every resolved body — they are patch targets, never context (deliver also strips them, defense-in-depth). The surviving, stripped, patched files become the candidate set for §5 scoring. Carry per-file resolution metadata (winning tier, patch deltas, orphaned anchors, locked-divergence) into §9 so the report can annotate **non-default** rules only. If no manifest exists and no overlay dirs are present, this step resolves to "shipped tier only" — the overlay is inert until populated.
 
-1. Read manifests: `~/.claude/architectural-rules.config.yaml` (user), then `<project-root>/.claude/rules.config.yaml` (project), then any in-context session disables. Most-local wins.
-2. Enumerate rule files across enabled tiers, in precedence order (low → high): `~/.claude/architectural-rules/` (shipped) → `~/.claude/architectural-rules-company/` → `~/.claude/architectural-rules-local/` → `<project-root>/.claude/rules/`.
-3. Resolve each `<scope>/<name>` key, highest tier down:
- - `mode: replace` or no `override:` → keep the highest-tier file, drop the shadowed ones.
- - `mode: patch` (frontmatter has `override: <key>`) → load the lower-tier body, apply its `## remove` / `## replace` / `## add` deltas anchored on bullet `id`s (the `<!-- id:... -->` prefixes), falling back to exact-text match. An anchor that matches nothing loads the base **un-patched** and is flagged.
-4. Drop any key disabled at global / project / session scope.
-5. **Strip `<!-- id:... -->` anchors** from every resolved body — they are patch targets, never context. (Deliver also strips them, defense-in-depth.)
-6. The surviving, stripped, patched files become the candidate set for §5 scoring below.
-
-Carry per-file resolution metadata (winning tier, patch deltas, orphaned anchors, locked-divergence) into §9 so the report can annotate **non-default** rules only.
-
-If no manifest exists and no overlay dirs are present, this step resolves to "shipped tier only" — identical to pre-047 behaviour. The overlay is inert until populated.
-
-**Scope-resolution corpus source.** When a resolver `corpus-source` arrived from §6, it selects *which corpus* this overlay walks, before the tier resolution above: `submodule` → enumerate the active submodule's own `<submodule>/.claude/architectural-rules/` (in addition to / over the parent tiers per `inherit-parent`); `parent` → the enclosing tiers as normal, scoped to the submodule's tags; `none` → **short-circuit: load no rules for this subtree** (an out-of-discipline / vendored region). The submodule corpus layers as the most-local tier (above project), last-write-wins by relative path, per the [resolver merge order](../../docs/scope-resolution-resolver.md). Absent a resolver input → the standard tier walk above, unchanged.
+**Scope-resolution corpus source.** A resolver `corpus-source` from §6 selects *which corpus* the overlay walks: `submodule` → the submodule's own `<submodule>/.claude/architectural-rules/` layered as the most-local tier (above project, last-write-wins by relative path, per the [resolver merge order](../../docs/scope-resolution-resolver.md)); `parent` → the enclosing tiers scoped to the submodule's tags; `none` → **short-circuit: load no rules for this subtree**. Absent a resolver input → the standard tier walk, unchanged.
 
 ### 5. Read frontmatter of primary candidates
 
@@ -132,20 +113,22 @@ Sort candidates by score descending. Keep top 8. Cap adjustable by caller.
 
 ### 5a. Single-hop relation expansion
 
-For each candidate that survived §5 scoring, follow its `relations:` entries one hop. Pull in the targets and add them to the surfaced set, but with adjusted handling per relation type:
+For each candidate that survived §5 scoring, follow its `relations:` entries one hop:
 
-- **`supersedes`** — already filtered out by the §5 superseded suppression; do not re-pull the target.
-- **`contradicts`** — pull the target into the surfaced set even if it didn't independently match. Mark the pair with a `[contradicts]` flag in the report so the user sees the conflict and can resolve.
-- **`supports`** — if the target is already in the surfaced set, bump its score by `+1` (the source corroborates it). If the target is not in the set, do *not* pull it in — `supports` is a weight bonus, not a magnet.
-- **`related_to`** — soft pointer. Pull the target into the surfaced set with a `[related_to <source>]` flag in the report so the user knows why it surfaced. Do not transitively expand — single-hop only.
+| relation | action |
+|---|---|
+| `supersedes` | already filtered by §5 superseded suppression; do not re-pull the target. |
+| `contradicts` | pull the target even if it didn't independently match; flag the pair `[contradicts]` in the report so the user can reconcile. |
+| `supports` | if the target is already in the surfaced set, bump its score `+1`; if not, do *not* pull it in — a weight bonus, not a magnet. |
+| `related_to` | soft pointer: pull the target with a `[related_to <source>]` flag. No transitive expansion — single-hop only. |
 
-Cap relation-pulled additions at 3 per source candidate to prevent runaway expansion when one entry has many related-to links. If more than 3 candidates apply, keep the first 3 by `relations` order and note `[N more relations not expanded]` in the report.
+Cap relation-pulled additions at 3 per source candidate; beyond that keep the first 3 by `relations` order and note `[N more relations not expanded]` in the report.
 
 After 5a, re-sort the surfaced set by score (relation-pulled entries take their source's score minus 1 unless they had their own §5 score, in which case the higher of the two).
 
 ### 6. Inferring task scopes
 
-**Resolver-provided scopes are hard inputs (scope-resolution, 035+037).** When the caller (prep) ran the [scope-resolution resolver](../../docs/scope-resolution-resolver.md) for the task path, its resolved scopes + `corpus-source` arrive as a prior: treat the resolved scopes as **hard scope inputs** (a task under a `go` submodule carries the `go`/region scopes, not the sibling region's), and honor the `corpus-source` in §4a (below). **Absent manifests → no resolver input → infer scopes exactly as below (no regression).**
+**Resolver-provided scopes are hard inputs.** When the caller (prep) ran the [scope-resolution resolver](../../docs/scope-resolution-resolver.md) for the task path, treat its resolved scopes as hard scope inputs (a task under a `go` submodule carries the `go`/region scopes, not the sibling region's) and pass its `corpus-source` to §4a. **Absent manifests → no resolver input → infer scopes exactly as below (no regression).**
 
 From the task text, infer candidate scope tags (seeded by any resolver-provided scopes):
 - Strong hints: filenames or module names mentioned (`src/auth/` → scope `auth`).
@@ -163,7 +146,7 @@ If fewer than 2 entries survive with a score ≥ 2, widen:
 
 ### 8. Read the codemap (if present)
 
-Check `<project-root>/.claude/codemap.md`. If missing, skip §8 silently ( may not have landed in this project yet).
+Check `<project-root>/.claude/codemap.md`. If missing, skip §8 silently (the project may not have a codemap yet).
 
 If present:
 - Read and identify files/exports matching the inferred scopes and task keywords.
@@ -177,10 +160,7 @@ Skip silently if the folder does not exist — the project may have no recaps ye
 
 Scan filenames matching `YYYY-MM-DD-<slug>.md`. Parse the date.
 
-Apply the **30-day auto-surface cutoff**:
-
-- Recaps with `date` within the last 30 days are auto-candidates.
-- Older recaps are candidates only if the task text explicitly names a matching project slug, branch, or date (e.g. "the auth branch from March", "last week's recap"). When the task text does not name such an anchor, skip them.
+Apply the **30-day auto-surface cutoff**: recaps with `date` within the last 30 days are auto-candidates; older recaps only if the task text explicitly names a matching project slug, branch, or date (e.g. "the auth branch from March", "last week's recap").
 
 For each surviving recap, Read frontmatter. Score:
 
@@ -188,9 +168,7 @@ For each surviving recap, Read frontmatter. Score:
 - `+1 × keywords_hit` on `name` / `description`. Also scan the `Learned` section headings for bonus keyword hits.
 - **Recency bonus:** `+2` if `date` is within 7 days; `+1` if 8–30 days.
 
-Include scored recaps alongside memories and codemap as §9 candidates. They render as their own category ("Session recaps:") in the summary report and, when bodies are rendered (§9a), deliver as tier `session-recap`.
-
-Callers can opt out via `include_recaps: false` in the query interface.
+Scored recaps join the §9 candidate set; when bodies are rendered (§9a) they deliver as tier `session-recap`. Callers can opt out via `include_recaps: false` in the query interface.
 
 ### 9. Report
 
@@ -198,21 +176,21 @@ Report to the user in this shape:
 
 ```
 Loaded N memories + R recaps + M codemap entries (codemap age: X days):
- Memories (high confidence):
- - 📛 [Warning Title] (scope: <tags>, relevance: <phase>) ← warnings prefixed and listed first
- - [Title] (scope: <tags>, relevance: <phase>)
- - [Title] [related_to <source>] (scope: <tags>, relevance: <phase>)
- - [Title-A] ⚡ contradicts [Title-B] (both surfaced — needs reconciliation)
- -...
- Memories (possibly relevant):
- - [Title] (scope: <tags>, relevance: <phase>)
- -...
- Session recaps:
- - [Title] (date: <YYYY-MM-DD>, scope: <tags>)
- -...
- Codemap:
- - path — summary
- -...
+  Memories (high confidence):
+    - 📛 [Warning Title] (scope: <tags>, relevance: <phase>)
+    - [Title] (scope: <tags>, relevance: <phase>)
+    - [Title] [related_to <source>] (scope: <tags>, relevance: <phase>)
+    - [Title-A] ⚡ contradicts [Title-B] (both surfaced — needs reconciliation)
+    - ...
+  Memories (possibly relevant):
+    - [Title] (scope: <tags>, relevance: <phase>)
+    - ...
+  Session recaps:
+    - [Title] (date: <YYYY-MM-DD>, scope: <tags>)
+    - ...
+  Codemap:
+    - path — summary
+    - ...
 
 No stored context found for: [list of task aspects with no matches].
 Want to provide context, or should I proceed with what I have?
@@ -241,9 +219,9 @@ Construction of the `fragments[]` argument:
 - Include the top high-confidence memories (those surviving §5 scoring, ordered by score descending).
 - Include codemap entries from §8 if any (render as `kind: codemap`, path = file path, body = the codemap's section for that file).
 - Skip "possibly relevant" (keyword-fallback) matches unless the caller passes `include_fallback: true`.
-- For each memory fragment, Read the file body once and pass it verbatim — delivery does not re-read.
+- For each memory fragment, Read the file body once and pass it verbatim — delivery does not re-read. Batch the Reads: independent files go in one message, not one call per turn.
 
-The deliver skill enforces ordering, the 20-fragment cap, and the verbatim source-of-truth rule.
+The deliver skill enforces ordering, the 20-fragment cap, and the verbatim source-of-truth rule per its format contract.
 
 ### 10. Escalate when coverage is thin
 
@@ -269,22 +247,22 @@ These filters map 1:1 to the `mcp__project-memory__discover` parameters (§0) �
 
 ```
 {
- task_keywords: string[], // overrides the "last user message" extraction
- scopes: string[], // hard filter: only entries whose scope overlaps this
- kind: string | null, // hard filter: only entries with this kind (e.g. "architectural-rule")
- relevance_phases: string[], // hard filter: only entries matching at least one phase
- top_n: number, // default 8
- render_bodies: boolean, // default false; when true, §9a invokes deliver and appends the rendered block
- include_fallback: boolean, // default false; when true, include keyword-fallback matches in the delivered selection
- include_recaps: boolean // default true; when false, §8a is skipped entirely
+  task_keywords: string[],          // overrides the "last user message" extraction
+  scopes: string[],                 // hard filter: only entries whose scope overlaps this
+  kind: string | null,              // hard filter: only entries with this kind (e.g. "architectural-rule")
+  relevance_phases: string[],       // hard filter: only entries matching at least one phase
+  top_n: number,                    // default 8
+  render_bodies: boolean,           // default false; when true, §9a invokes deliver and appends the rendered block
+  include_fallback: boolean,        // default false; when true, include keyword-fallback matches in the delivered selection
+  include_recaps: boolean           // default false; when false, §8a is skipped entirely
 }
 ```
 
-Return the report content as structured data rather than the prose template — the caller decides how to present. When `render_bodies: true`, also return the delivered block ( format) so the caller can splice it into working context.
+Return the report content as structured data rather than the prose template — the caller decides how to present. When `render_bodies: true`, also return the delivered block (per the deliver format contract) so the caller can splice it into working context.
 
 ## What discover does NOT do
 
-- Does not re-implement full ranking in-context as its primary path — the MCP engine owns scoring (§0). The in-context scan is the engine's contract-of-record + an explicit-request deep-scan only.
+- Does not re-implement full ranking in-context as its primary path — see Architecture (§0).
 - Does not auto-fire at SessionStart (future evolution, not v1).
 - Does not cache results between invocations (stateless).
 - Does not use embeddings or semantic search (string match only).
@@ -295,4 +273,4 @@ Return the report content as structured data rather than the prose template — 
 
 ## Limits (v1)
 
-This matching logic is **deliberately simple** — tag overlap + keyword match + escalation. The MCP engine (`mcps/project-memory/src/retrieval/score.ts`) is the live implementation; this document is its contract-of-record. Any scoring change lands in the engine first, then this spec is updated to match (the parity rule — see `.claude/visions/retrieval/v1.md`). Do not add recency weighting beyond recaps, AND/OR tuning, scope hierarchies, or precedence rules speculatively; embeddings / semantic search are an open future direction in the vision, not v1.
+This matching logic is **deliberately simple** — tag overlap + keyword match + escalation. The MCP engine (`mcps/project-memory/src/retrieval/score.ts`) is the live implementation; any scoring change lands in the engine first, then this spec is updated to match (the parity rule). Do not add recency weighting beyond recaps, AND/OR tuning, scope hierarchies, or precedence rules speculatively; embeddings / semantic search are an open future direction, not v1.

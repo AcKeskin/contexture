@@ -2,7 +2,7 @@
 
 Authoritative procedure lives in [`skills/review/SKILL.md`](../skills/review/SKILL.md); this doc is the Claude-facing reference.
 
-Prep prevents drift; review detects it. Different jobs, complementary. Together they close the discipline loop — a rule exists (001/006), it's primed before work, it's audited after, and user corrections feed back into the corpus.
+Prep prevents drift; review detects it. Different jobs, complementary. Together they close the discipline loop — a rule exists (stored + tagged in the architectural-rules corpus), it's primed before work (prep), it's audited after (review), and user corrections feed back into the corpus (via capture).
 
 ## What review owns
 
@@ -13,14 +13,25 @@ Prep prevents drift; review detects it. Different jobs, complementary. Together 
 
 ## What review inherits / does not own
 
-| Concern | Source | What review does | | --- | --- | --- | | Rule storage + tagging | [storage tagging](storage-tagging.md) + [architectural-rules](architectural-rules.md) | Reads the rule corpus; never writes except via capture | | Retrieval | [discover](discover.md) | Consumes as a caller with `during-review` phase filter | | Body rendering | [deliver](delivery-organ.md) | Passes `render_bodies: true`; deliver owns the format contract | | Rule capture / sharpening / addition | [capture](capture-organ.md) | Feedback loop routes every rule change through capture | | Pre-work priming | [prep](prep-organ.md) | Complementary — review informs prep when the same drift recurs | | Project architecture file format | [project-architecture](project-architecture.md) | Reads `.claude/architecture.md` directly (not via discover) | | Syntax / style linting | External linters | Not review's job | | Security / performance / accessibility / i18n audits | Future skills | Out of scope | Review coordinates reads + heuristics + user interaction. Writes route through capture.
+| Concern | Source | What review does |
+| --- | --- | --- |
+| Rule storage + tagging | [storage tagging](storage-tagging.md) + [architectural-rules](architectural-rules.md) | Reads the rule corpus; never writes except via capture |
+| Retrieval | [discover](discover.md) | Consumes as a caller with `during-review` phase filter |
+| Body rendering | [deliver](delivery-organ.md) | Passes `render_bodies: true`; deliver owns the format contract |
+| Rule capture / sharpening / addition | [capture](capture-organ.md) | Feedback loop routes every rule change through capture |
+| Pre-work priming | [prep](prep-organ.md) | Complementary — review informs prep when the same drift recurs |
+| Project architecture file format | [project-architecture](project-architecture.md) | Reads `.claude/architecture.md` directly (not via discover) |
+| Syntax / style linting | External linters | Not review's job |
+| Security / performance / accessibility / i18n audits | Future skills | Out of scope for review |
+
+Review coordinates reads + heuristics + user interaction. Writes route through capture.
 
 ## Trigger — user-invoked only
 
 - `/review [scope]` — explicit slash command.
 - Natural language: "review this", "audit the architecture", "check for drift", "look for dead code".
 
-**No auto-fire.** explicitly parks continuous monitoring and session-end auto-run. Reasons:
+**No auto-fire.** Review explicitly parks continuous monitoring and session-end auto-run. Reasons:
 
 - Auto-running on every change is expensive and noisy (that's the parked continuous-monitoring organ).
 - Session-end auto-run is fragile — sessions don't have clean endings.
@@ -35,7 +46,14 @@ Typical use:
 
 ## Scope forms
 
-| Form | Scope | Phase-1 orientation | Persistent artefact | | --- | --- | --- | --- | | `/review` | Entire project. Respects `.gitignore` when present | Yes | Yes — `<scope_slug>=project` | | `/review <path>` (directory) | Directory recursively | Yes | Yes — `<scope_slug>=<path-kebab>` | | `/review <path>` (single file) | One file | No | Yes — `<scope_slug>=<path-with-extension>` | | `/review --since <ref>` | Files changed since the git ref. Bails cleanly when not a git repo | No | **No** — `--since` runs are ephemeral | **>50 files guard.** Review asks the user to narrow before proceeding on very large scopes. Explicit `y` overrides.
+| Form | Scope | Phase-1 orientation | Persistent artefact |
+| --- | --- | --- | --- |
+| `/review` | Entire project. Respects `.gitignore` when present | Yes | Yes — `<scope_slug>=project` |
+| `/review <path>` (directory) | Directory recursively | Yes | Yes — `<scope_slug>=<path-kebab>` |
+| `/review <path>` (single file) | One file | No | Yes — `<scope_slug>=<path-with-extension>` |
+| `/review --since <ref>` | Files changed since the git ref. Bails cleanly when not a git repo | No | **No** — `--since` runs are ephemeral |
+
+**>50 files guard.** Review asks the user to narrow before proceeding on very large scopes. Explicit `y` overrides.
 
 ## Phase-1 orientation gate
 
@@ -81,12 +99,12 @@ Review of: <resolved scope> (N files, M lines)
 Rules loaded: K architectural rules across language/domain/project scopes
 Run mode: fresh | repeat (baseline: v<N>.md, YYYY-MM-DD)
 
-## Orientation # omitted on file-scoped / --since runs
+## Orientation                                                  # omitted on file-scoped / --since runs
 Stack: <language>, <framework>. <N> declared deps. Entry: <main>.
 Layout: <one-line structure summary>
 Churn (last 6mo): <top 3 high-churn paths>; <total commits>
 Hot intersection (large × high-churn): N files
- - path/to/file.ext (L lines, C commits)
+  - path/to/file.ext (L lines, C commits)
 Mental model: <1–2 paragraph synthesis>
 
 Findings: T total (C critical, H high, M medium, L low)
@@ -104,26 +122,31 @@ Findings: T total (C critical, H high, M medium, L low)
 - …
 
 ## Findings table
-| ID | Category | File:Line | Severity | Effort | Description | Recommendation | |-------|------------|---------------------------|----------|--------|------------------------------|---------------------------------| | F001 | Monolith | src/auth/middleware.ts:1 | High | L | 612-line file, 4 concerns | Split per bullet section above | | … | … | … | … | … | … | … | ## Quick wins (Low effort × Medium+ severity)
+| ID    | Category   | File:Line                 | Severity | Effort | Description                  | Recommendation                  |
+|-------|------------|---------------------------|----------|--------|------------------------------|---------------------------------|
+| F001  | Monolith   | src/auth/middleware.ts:1  | High     | L      | 612-line file, 4 concerns    | Split per bullet section above  |
+| …     | …          | …                         | …        | …      | …                            | …                               |
+
+## Quick wins (Low effort × Medium+ severity)
 - [ ] F021 — Move login-form fetch to services/auth-service.ts
 - …
 (or "None — no Low-effort × Medium+-severity findings in this run" when empty)
 
-## Resolved since last run (X) # repeat runs only
+## Resolved since last run (X)                                  # repeat runs only
 - F003 — was 612 lines, now 287; split landed
 - …
 
 ## Things that look bad but are actually fine (≥2)
 - src/legacy/webhooks.ts:118 — looks like a refactor target, but it preserves ordering
- guarantees the queue-based replacement would break.
+  guarantees the queue-based replacement would break.
 - …
 
-## Carried as won't-fix # repeat runs only
+## Carried as won't-fix                                         # repeat runs only
 - F042 — exported `parseExpiry` (reason: kept for vendored external integration)
 
 ----
 Apply proposed fixes? Choose per finding:
- 1. Apply 2. Skip 3. Edit 4. View detail 5. Won't-fix (note reason)
+  1. Apply  2. Skip  3. Edit  4. View detail  5. Won't-fix (note reason)
 ```
 
 **Section discipline:**
@@ -160,8 +183,8 @@ On `n` or free-form correction, five system-level responses:
 2. **Add new rule.** No existing rule covers this. Review drafts one from the correction; invokes `/capture` to classify `kind` / `scope` / `relevance` and write.
 3. **Retag existing rule.** Right rule, wrong scope — didn't load when it should have. User picks the rule; review proposes a `scope` / `relevance` frontmatter edit; applies after user confirms.
 4. **Adjust threshold.** Heuristic was too lax. Two targets:
- - **Project-specific override** — capture writes a project memory with the new threshold scoped to `project-<name>`.
- - **General adjustment** — edit SKILL.md's threshold table (git-tracked, syncs to every machine).
+   - **Project-specific override** — capture writes a project memory with the new threshold scoped to `project-<name>`.
+   - **General adjustment** — edit SKILL.md's threshold table (git-tracked, syncs to every machine).
 5. **Record as out-of-scope.** The finding is real but a load-bearing reason makes it the right call to leave it (durable for *every* future explorer, not just the next run). Review drafts a `<project-root>/.claude/review-out-of-scope/<slug>.md` per the OUT-OF-SCOPE format; subsequent runs match against the index and suppress silently. If the reason is structural enough that an ADR makes more sense, review offers that path instead.
 
 User picks one (or none). Collaborator principle — nothing changes silently.
@@ -179,7 +202,7 @@ This is how prep + review become better than checklists: they learn from being w
 - **Prep prevents** what it can by priming rules before code is written.
 - **Review detects** what slipped through by auditing existing code.
 - **The feedback loop connects them** — when review keeps finding the same drift that prep should have prevented, the prep rule for that scope needs sharpening (or the rule was right but wasn't loaded because of a scope mistag).
-- Auto-suggesting prep-rule tightening when review finds recurring drift is parked open questions — manual for v1.
+- Auto-suggesting prep-rule tightening when review finds recurring drift is parked — manual for v1.
 
 ## Repeat runs and the persistent artefact
 

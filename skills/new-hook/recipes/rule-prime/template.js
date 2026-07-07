@@ -3,25 +3,26 @@
 
 // Rule-prime hook. Two events, one file:
 //
-//   SessionStart (startup | clear | compact)  → FLOOR prime via { context }
+//   SessionStart (settings matcher: startup | clear | compact)  → FLOOR prime
 //       Resolve always-tier + project-tier rule bodies and inject them so the
 //       relevant architectural rules are simply *present* in context — no manual
 //       /prep. If the repo is single-language, also prime that one language tier
 //       (eager-single, defer-polyglot). Writes a per-session watermark recording
 //       the primed tier-set.
 //
-//   UserPromptSubmit                           → DRIFT prime via additionalContext
+//   UserPromptSubmit                           → DRIFT prime
 //       Deterministically (no model call) derive which language/domain tiers the
 //       prompt implicates and inject only the ones not already primed this
 //       session (idempotent against the floor).
 //
-// Why these two events: they are the only lifecycle events with a model-visible
-// non-blocking output channel — SessionStart exposes `{ context }`, UserPrompt-
-// Submit exposes `hookSpecificOutput.additionalContext`. SubagentStop / PreCompact
-// do not (the 049 / 056-v2 wall), which is exactly why 077 uses these two.
+// Why these two events: they are the lifecycle events with a model-visible
+// non-blocking output channel — both inject via
+// `hookSpecificOutput.additionalContext` on exit 0. SubagentStop / PreCompact
+// have no such channel, which is exactly why this hook uses these two.
 //
-// Resolution is delegated to hooks/lib/resolve-rules.js (the 047 overlay as code),
-// NOT reimplemented here. This file is the trigger; that module is the engine.
+// Resolution is delegated to hooks/lib/resolve-rules.js (the tier-overlay
+// resolver), NOT reimplemented here. This file is the trigger; that module is
+// the engine.
 //
 // Fail-open: any error injects nothing and exits 0. A priming hook must never
 // block a turn or crash session start. Budget-guarded: the injected always-tier
@@ -254,7 +255,7 @@ function sessionStart(payload) {
   // ran this session" is what lets /prep know it is the deep pass, and lets
   // UserPromptSubmit subtract the floor. Always-tier scopes count as primed.
   primedScopes.add('universal');
-  writeMark({
+  writeMark(io.sessionId(payload), {
     scopes: [...new Set(primedScopes)],
     floorPrimed: true,
     language: census.isSingleLanguage ? census.dominant : null,
@@ -267,29 +268,28 @@ function sessionStart(payload) {
     blocks.join('\n\n') +
     '\n\n(Rules auto-primed by the rule-prime hook. Run /prep for the deep pass — higher top-N, task-specific domain tier.)';
 
-  process.stdout.write(JSON.stringify({ context }) + '\n');
-  return io.allow();
+  return io.addContext('SessionStart', context);
 }
 
 // --- Watermark accessors ----------------------------------------------------
 // The per-session watermark records which tier scopes were already primed, so
 // UserPromptSubmit only adds NEW tiers (idempotent against the floor) and /prep
 // can tell "floor primed, I'm the deep pass". Stored under session-state.json,
-// keyed by session id, namespaced (WATERMARK_KEY, declared at module top) so it
-// never collides with other hooks' state. These two accessors are the single
-// owner of that shape — every read/write of the watermark goes through them.
+// keyed by the payload's session_id (every hook event carries it), namespaced
+// (WATERMARK_KEY, declared at module top) so it never collides with other
+// hooks' state. These two accessors are the single owner of that shape — every
+// read/write of the watermark goes through them.
 
-// Read this session's watermark entry, or a fresh empty entry if none.
-function readMark() {
+// Read the given session's watermark entry, or a fresh empty entry if none.
+function readMark(sid) {
   const all = io.sessionState()[WATERMARK_KEY] || {};
-  return all[io.sessionId()] || { scopes: [] };
+  return all[sid] || { scopes: [] };
 }
 
-// Merge `patch` into this session's watermark and persist. Best-effort: a write
-// failure must never break the turn (priming is advisory). Returns nothing.
-function writeMark(patch) {
+// Merge `patch` into the given session's watermark and persist. Best-effort: a
+// write failure must never break the turn (priming is advisory). Returns nothing.
+function writeMark(sid, patch) {
   try {
-    const sid = io.sessionId();
     const state = io.sessionState();
     const all = state[WATERMARK_KEY] || {};
     all[sid] = Object.assign({}, all[sid] || { scopes: [] }, patch);
@@ -301,8 +301,8 @@ function writeMark(patch) {
 }
 
 // The set of scopes already primed this session (the idempotency comparand).
-function primedScopeSet() {
-  return new Set(readMark().scopes || []);
+function primedScopeSet(sid) {
+  return new Set(readMark(sid).scopes || []);
 }
 
 // --- Deterministic tier detection -------------------------------------------
@@ -366,6 +366,7 @@ function detectScopesFromFiles(payload) {
 function userPromptSubmit(payload) {
   const cwd = payload.cwd || io.projectRoot();
   const prompt = payload.prompt || '';
+  const sid = io.sessionId(payload);
 
   const implicated = new Set([
     ...detectScopesFromText(prompt),
@@ -374,7 +375,7 @@ function userPromptSubmit(payload) {
   if (!implicated.size) return io.allow();
 
   // Subtract scopes already primed this session (idempotent against the floor).
-  const primed = primedScopeSet();
+  const primed = primedScopeSet(sid);
   const fresh = [...implicated].filter((s) => !primed.has(s));
   if (!fresh.length) return io.allow(); // everything already primed → nothing
 
@@ -386,20 +387,12 @@ function userPromptSubmit(payload) {
   });
   if (!block) return io.allow();
 
-  // UserPromptSubmit's model-visible channel is hookSpecificOutput.additionalContext.
-  const out = {
-    hookSpecificOutput: {
-      hookEventName: 'UserPromptSubmit',
-      additionalContext: block,
-    },
-  };
-  process.stdout.write(JSON.stringify(out) + '\n');
-
   // Record the newly-primed scopes so a later prompt for the same tier is a
   // no-op. Union with the existing set; writeMark preserves floor metadata.
-  const merged = new Set([...(readMark().scopes || []), ...fresh]);
-  writeMark({ scopes: [...merged] });
-  return io.allow();
+  const merged = new Set([...(readMark(sid).scopes || []), ...fresh]);
+  writeMark(sid, { scopes: [...merged] });
+
+  return io.addContext('UserPromptSubmit', block);
 }
 
 // --- Dispatch ---------------------------------------------------------------
@@ -408,11 +401,11 @@ async function main() {
   const payload = await io.readPayload();
   const event = payload.hook_event_name || payload.hookEventName || '';
 
-  // SessionStart carries a `matcher` (startup | clear | compact | resume).
-  // UserPromptSubmit carries a `prompt`. Dispatch on whichever shape arrives;
+  // SessionStart carries `source` (startup | resume | clear | compact);
+  // UserPromptSubmit carries `prompt`. Dispatch on whichever shape arrives;
   // this keeps the hook usable when the harness omits hook_event_name.
   const looksSessionStart =
-    event === 'SessionStart' || typeof payload.matcher === 'string';
+    event === 'SessionStart' || typeof payload.source === 'string';
   const looksUserPrompt =
     event === 'UserPromptSubmit' || typeof payload.prompt === 'string';
 

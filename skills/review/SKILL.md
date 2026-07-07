@@ -1,6 +1,6 @@
 ---
 name: review
-description: Audit code in scope against your architectural rules; report drift (dead code, SoC, monolith, missing-pattern, principle, comment-drift, naming-quality) with propose-confirm-commit per fix, then route misses to /capture. User-invoked, never auto-fires. Triggers on /review [path | --since <ref> | --vault], or "review this" / "audit the architecture" / "check for drift". Not a linter, not a security audit (use security-reviewer), not a PR review (use pr-review).
+description: "Audit code in scope against your architectural rules; report drift (dead code, SoC, monolith, missing-pattern, principle, comment-drift, naming-quality) with propose-confirm per fix; route misses to /capture. Triggers: /review [path | --since <ref> | --vault], \"review this\", \"audit the architecture\", \"check for drift\". User-invoked only. Not a linter, not a security audit (use security-reviewer), not a PR review (use pr-review)."
 ---
 
 # review
@@ -13,7 +13,7 @@ Prep prevents drift by priming before code is written. Review detects drift afte
 
 - User types `/review` / `/review <path>` / `/review --since <ref>`.
 - Natural language: "review this", "audit the architecture", "check for drift", "look for dead code".
-- **Do not auto-fire.** No session-end trigger, no task-end trigger, no hook-based trigger. explicitly parks continuous monitoring. User-invoked only.
+- **Do not auto-fire.** No session-end trigger, no task-end trigger, no hook-based trigger. Continuous monitoring is deliberately parked. User-invoked only.
 
 ## Inputs
 
@@ -25,7 +25,16 @@ Prep prevents drift by priming before code is written. Review detects drift afte
 
 ### 1. Resolve scope
 
-| Form | Resolution | | --- | --- | | `/review` (no args) | Entire project — every file under the project root, respecting `.gitignore` | | `/review <path>` | Directory (recursive) or single file | | `/review --since <ref>` | `git diff <ref>..HEAD --name-only` — only changed files. Bail with a clear message if not a git repo. Skips Phase-1 orientation (§2c) and the persistent artefact (§7b) — `--since` runs are ephemeral by nature | | `/review --vault` (combinable with any of the above) | Same scan, plus a copy written to the Obsidian vault per §7c. The in-repo `.claude/reviews/...` artefact is still produced. | | `/review --expand` (combinable with `--vault`) | Force the vault artefact to use the subfolder layout (§7c) even when no threshold tripped. Useful when the user knows up front this review will accumulate iterations or attached discussion. | | Natural language | Infer from task text; default to entire project when unclear; narrow with `/review <path>` hint if user said "the auth module" or similar. Phrases like "save this to Obsidian", "write to the vault", "put it in my notes" enable `--vault` for the run. | **>50 files guard.** If the resolved scope has more than 50 files, ask the user to narrow before proceeding:
+| Form | Resolution |
+| --- | --- |
+| `/review` (no args) | Entire project — every file under the project root, respecting `.gitignore` |
+| `/review <path>` | Directory (recursive) or single file |
+| `/review --since <ref>` | `git diff <ref>..HEAD --name-only` — only changed files. Bail with a clear message if not a git repo. Skips Phase-1 orientation (§2c) and the persistent artefact (§7b) — `--since` runs are ephemeral by nature |
+| `/review --vault` (combinable with any of the above) | Same scan, plus a copy written to the Obsidian vault per §7c. The in-repo `.claude/reviews/...` artefact is still produced. |
+| `/review --expand` (combinable with `--vault`) | Force the vault artefact to use the subfolder layout (§7c) even when no threshold tripped. Useful when the user knows up front this review will accumulate iterations or attached discussion. |
+| Natural language | Infer from task text; default to entire project when unclear; narrow to a path when the user named a module. "Save this to Obsidian" / "write to the vault" / "put it in my notes" enables `--vault`. |
+
+**>50 files guard.** If the resolved scope has more than 50 files, ask the user to narrow before proceeding:
 
 > Scope resolves to N files — context cost high. Narrow with `/review <subdir>` or `/review --since <ref>`? (proceed anyway: `y`)
 
@@ -37,13 +46,13 @@ Invoke `skills/discover/SKILL.md` programmatically:
 
 ```
 {
- task_keywords: [<derived from scope + explicit cues>],
- scopes: [<detected language>, <detected domain>, "global", "project-<name>"],
- kind: "architectural-rule",
- relevance_phases: ["always", "during-review"],
- top_n: 20,
- render_bodies: true,
- include_recaps: false
+  task_keywords: [<derived from scope + explicit cues>],
+  scopes: [<detected language>, <detected domain>, "global", "project-<name>"],
+  kind: "architectural-rule",
+  relevance_phases: ["always", "during-review"],
+  top_n: 20,
+  render_bodies: true,
+  include_recaps: false
 }
 ```
 
@@ -63,11 +72,11 @@ Runs **only** for unscoped or directory-scoped invocations (`/review`, `/review 
 
 When triggered, perform these in order before §3:
 
-1. **Manifest read.** Read whichever of `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `*.csproj`, `*.sln`, `composer.json`, `Gemfile`, `pom.xml`, `build.gradle*` exist at the project root. Note primary language, framework, declared dependencies count, scripts/entry points.
-2. **Docs read.** Read top-level `README.md` plus any `docs/` and `adr/` (or `docs/adr/`) entries that exist. Skip `node_modules/` etc. Cap at ~10 files / ~3000 lines combined; sample biggest+newest if over.
-3. **Structure map.** Glob top-level directories (depth 2) under the project root. Identify major modules / layers from naming.
-4. **Churn data.** Run `git log --oneline -200` and `git log --stat --since="6 months ago" --pretty=format:` to see what's actually moving. Skip silently if not a git repo (no churn data, but orientation still proceeds with manifest + structure + docs).
-5. **LOC × churn intersection.** Compute the intersection — files that are both top-20 by line count *and* top-20 by commit frequency in the last 6 months. **Most architectural drift hides in this intersection.** This list becomes a default scan-priority hint for §3 — scan these first when finding budget is tight.
+1. **Manifest read.** Read whichever of `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `*.csproj`, `*.sln`, `composer.json`, `Gemfile`, `pom.xml`, `build.gradle*` exist at the root. Note primary language, framework, dep count, scripts/entry points.
+2. **Docs read.** Top-level `README.md` plus any `docs/` and `adr/` (or `docs/adr/`) entries. Skip `node_modules/` etc. Cap at ~10 files / ~3000 lines combined; sample biggest+newest if over.
+3. **Structure map.** Glob top-level directories (depth 2); identify major modules / layers from naming.
+4. **Churn data.** `git log --oneline -200` and `git log --stat --since="6 months ago" --pretty=format:`. Skip silently if not a git repo (orientation proceeds with manifest + structure + docs).
+5. **LOC × churn intersection.** Files both top-20 by line count *and* top-20 by commit frequency in the last 6 months. **Most architectural drift hides in this intersection.** Default scan-priority hint for §3 — scan these first when finding budget is tight.
 6. **Mental model paragraph.** Synthesize 1–2 paragraphs describing the architecture as observed. **If the model contradicts the README, that contradiction is itself a finding** — surface it under Comment drift in §5 with a `file:line` citation pointing at the README claim.
 
 Output the orientation block in §5's report header (before findings):
@@ -78,8 +87,8 @@ Stack: <language>, <framework>. <N> declared deps. Entry: <main script / binary>
 Layout: <one-line structure summary — e.g. "src/{api,domain,ui,services}; tests in tests/">
 Churn (last 6mo): <top 3 high-churn paths>; <total commits over period>
 Hot intersection (large × high-churn): N files
- - path/to/file.ext (L lines, C commits)
- - …
+  - path/to/file.ext (L lines, C commits)
+  - …
 Mental model: <1–2 paragraph synthesis>
 ```
 
@@ -89,7 +98,7 @@ The intersection list is non-empty unless the project is too small or too new �
 
 For each file in scope:
 
-1. Read the full content.
+1. Read the full content. Batch independent Reads — several files per message — and never re-read a file already in context.
 2. Run the six drift checks (see §"Drift checks" below).
 3. Collect findings of shape `{id, file, line, category, severity, effort, what, rule_cited, proposed_fix}`. `id` is `F<NNN>` — assigned provisionally in scan order during this step, then reassigned in §4b for repeat runs (CARRIED findings reuse the baseline id; NEW findings continue numbering above the baseline's max). For fresh runs, the provisional id is the final id.
 4. **`file:line` citation is mandatory.** Every finding must cite `path/to/file.ext:LINE` or a `file.ext:START-END` range. A finding that cannot point at a specific line is not a finding — it is pattern-matching, and it is rejected before reaching §4. Vague claims like "the code generally..." or "this module tends to..." do not pass this gate. The orientation paragraph in §2c is exempt (it is synthesis, not a finding); every concrete entry under a category in §5 is not.
@@ -103,14 +112,14 @@ For each file in scope:
 Assign:
 
 - **Severity** — Critical / High / Medium / Low. Anchored to confidence + impact:
- - Critical = clear rule breach, high blast radius (security-adjacent, data integrity, public API contract).
- - High = clear rule breach, localised impact; or probable drift that touches a load-bearing module.
- - Medium = probable drift, moderate impact; the typical category-3/4/5 finding.
- - Low = possible drift, weak confidence; informational dead code; minor comment drift.
+  - Critical = clear rule breach, high blast radius (security-adjacent, data integrity, public API contract).
+  - High = clear rule breach, localised impact; or probable drift that touches a load-bearing module.
+  - Medium = probable drift, moderate impact; the typical category-3/4/5 finding.
+  - Low = possible drift, weak confidence; informational dead code; minor comment drift.
 - **Effort** — S / M / L:
- - S = under ~1h, single file, mechanical (rename, delete, extract).
- - M = ≈half-day, 2–5 files, design choice but small.
- - L = multi-day, >5 files, sequencing / coordination needed.
+  - S = under ~1h, single file, mechanical (rename, delete, extract).
+  - M = ≈half-day, 2–5 files, design choice but small.
+  - L = multi-day, >5 files, sequencing / coordination needed.
 
 Cap at top 5 findings per file in the per-file detail section (the run-wide findings table stays uncapped within the global ceiling). Surplus reported as a count:
 
@@ -129,12 +138,12 @@ When `latest.md` exists:
 1. **Set Run mode = repeat** in the report header. Show the baseline filename and date.
 2. **Read the baseline.** Parse its findings table to extract `{id, file, line, category, what, status}` for every prior finding. `status` ∈ `{open, RESOLVED, WONT_FIX}` from the prior frontmatter / inline tags.
 3. **Match new-run findings against baseline.** Two findings match when category is identical and either:
- - file path + line are within ±5 lines (line drift tolerance for edits above), or
- - file path + a near-identical `what` string (Levenshtein under ~30% of the shorter — concept-level match for code that moved).
+   - file path + line are within ±5 lines (line drift tolerance for edits above), or
+   - file path + a near-identical `what` string (Levenshtein under ~30% of the shorter — concept-level match for code that moved).
 4. **Tag every finding in the new run:**
- - `CARRIED` — present in baseline (open) and present in this run; reuse the baseline `id` so the artefact diff is meaningful.
- - `NEW` — present in this run, no baseline match. Assign a fresh `F<NNN>`, continuing from the highest baseline ID + 1.
- - `WONT_FIX` — present in baseline tagged `WONT_FIX` and still present in code. Reuse the baseline `id`. Suppress from Quick wins. List at the bottom of the report under "Carried as won't-fix" with the prior reason quoted.
+   - `CARRIED` — present in baseline (open) and present in this run; reuse the baseline `id` so the artefact diff is meaningful.
+   - `NEW` — present in this run, no baseline match. Assign a fresh `F<NNN>`, continuing from the highest baseline ID + 1.
+   - `WONT_FIX` — present in baseline tagged `WONT_FIX` and still present in code. Reuse the baseline `id`. Suppress from Quick wins. List at the bottom of the report under "Carried as won't-fix" with the prior reason quoted.
 5. **Compute resolved.** Findings present in baseline (open) with no match in this run are tagged `RESOLVED`. List them in a "Resolved since last run" section before "Things that look bad but are actually fine":
 
 ```
@@ -147,7 +156,7 @@ Resolved findings are not silently dropped — surfacing them is half the point 
 
 When no `latest.md` exists, set Run mode = fresh, skip this step, and proceed to §5 with all IDs assigned in scan order from F001.
 
-If the baseline exists but is malformed (cannot parse the findings table, frontmatter missing required fields), log a one-line warning in the report header ("baseline at `<path>` malformed; treating run as fresh"), keep the prior file untouched, and proceed as fresh. Do not delete or rewrite a malformed baseline automatically.
+If the baseline is malformed (unparseable findings table, frontmatter missing required fields), log a one-line warning in the report header ("baseline at `<path>` malformed; treating run as fresh") and proceed as fresh — never delete or rewrite a malformed baseline automatically.
 
 ### 5. Report
 
@@ -158,74 +167,79 @@ Output shape:
 ```
 Review of: <resolved scope> (N files, M lines)
 Rules loaded: K architectural rules across language/domain/project scopes
-Run mode: <fresh | repeat (baseline: v<N>.md, YYYY-MM-DD)> # see §4b
+Run mode: <fresh | repeat (baseline: v<N>.md, YYYY-MM-DD)>     # see §4b
 
-## Orientation # §2c — omit when skipped
-Stack: <language>, <framework>. <N> declared deps. Entry: <main>.
-Layout: <one-line structure summary>
-Churn (last 6mo): <top 3 high-churn paths>; <total commits over period>
-Hot intersection (large × high-churn): N files
- - path/to/file.ext (L lines, C commits)
- - …
-Mental model: <1–2 paragraph synthesis>
+## Orientation — block per §2c; omit when §2c skipped.
 
 Findings: T total (C critical, H high, M medium, L low)
 
 ## Severity × Category
-| | Critical | High | Medium | Low | |--------------------|----------|------|--------|-----| | Dead code | 0 | 0 | 1 | 2 | | Monolithic files | 0 | 1 | 0 | 0 | | SoC violations | 0 | 0 | 2 | 0 | | Missing patterns | 0 | 0 | 1 | 1 | | Principle viol. | 1 | 0 | 0 | 0 | | Comment drift | 0 | 0 | 0 | 3 | | Naming quality | 0 | 0 | 1 | 2 | ## Diagram # see §5b — mandatory section
+|                    | Critical | High | Medium | Low |
+|--------------------|----------|------|--------|-----|
+| Dead code          | 0        | 0    | 1      | 2   |
+| Monolithic files   | 0        | 1    | 0      | 0   |
+| SoC violations     | 0        | 0    | 2      | 0   |
+| Missing patterns   | 0        | 0    | 1      | 1   |
+| Principle viol.    | 1        | 0    | 0      | 0   |
+| Comment drift      | 0        | 0    | 0      | 3   |
+| Naming quality     | 0        | 0    | 1      | 2   |
+
+## Diagram                                                      # see §5b — mandatory section
 <mermaid block, ASCII box-diagram, or one-line N/A justification>
 
 ## Per-file findings
 
 ### src/auth/middleware.ts (612 lines, 18 commits — hot)
-- F001 [High/L] Monolithic files L1 — 612-line file mixing 4 concerns. Suggested split: <sketch>.
-- F004 [Medium/S] SoC violations L210 — direct DB call from middleware layer. Move to services/.
-- F008 [Low/S] Dead code L488 — exported `legacyParseToken` never imported.
-
-### src/auth/utils.ts (87 lines, 3 commits)
-- F012 [Low/S] Dead code L42 — exported `parseExpiry` never imported. Remove.
+- F001 [High/L]  Monolithic files       L1     — 612-line file mixing 4 concerns. Suggested split: <sketch>.
+- …
 
 ### src/auth/login-form.tsx — no findings
 
 ## Findings table
-| ID | Category | File:Line | Severity | Effort | Description | Recommendation | |-------|------------------|-------------------------------|----------|--------|--------------------------------------------|-----------------------------------------| | F001 | Monolith | src/auth/middleware.ts:1 | High | L | 612-line file mixing 4 concerns | Split per bullet above | | F004 | SoC | src/auth/middleware.ts:210 | Medium | S | direct DB call from middleware layer | Move to services/ | | F008 | Dead code | src/auth/middleware.ts:488 | Low | S | exported `legacyParseToken` unused | Remove | | F012 | Dead code | src/auth/utils.ts:42 | Low | S | exported `parseExpiry` never imported | Remove | ## Quick wins (Low effort × Medium+ severity)
+| ID    | Category         | File:Line                     | Severity | Effort | Description                                | Recommendation                          |
+|-------|------------------|-------------------------------|----------|--------|--------------------------------------------|-----------------------------------------|
+| F001  | Monolith         | src/auth/middleware.ts:1      | High     | L      | 612-line file mixing 4 concerns            | Split per bullet above                  |
+| …     |                  |                               |          |        |                                            |                                         |
+
+## Quick wins (Low effort × Medium+ severity)
 - [ ] F004 — Move middleware DB call to services/
-- [ ] F045 — Extract duplicate validation block in checkout/
 
 ## Things that look bad but are actually fine (≥2)
-- src/legacy/webhooks.ts:118 — deeply nested callback pattern preserves ordering the queue-based replacement would break. Leave it.
 - src/auth/permissions.ts:240 — 180-line function is a flat dispatch table; splitting would obscure the 1-to-1 mapping that's the point.
-- src/services/audit-service.ts:8 — `any` on the payload type is intentional; the audit log accepts arbitrary tool-call payloads by design.
+- …
 
 ----
 Apply proposed fixes? Choose per finding:
- 1. Apply 2. Skip 3. Edit 4. View detail
+  1. Apply  2. Skip  3. Edit  4. View detail
 ```
 
 **Rules for the report sections:**
 
+- **Render report sections per the [review output contract](../../docs/review-output-contract.md)** — Read it at §5 if not already in context; on divergence the contract wins. It owns zero-finding-file rendering, the findings table, quick wins, and looks-bad-but-fine. Suggestion blocks (its §3) live in the propose-fix step here — see §6.
 - Orientation block is omitted when §2c was skipped (file-scoped or `--since` runs).
-- **Per-file sections are the primary structure.** Findings are sorted by Severity (Critical → Low) then Effort (S → L) within each file. Category is a column on the finding line, not a section header. Bullets capped at top 5 per file.
-- **Severity × Category roll-up table** always present when T > 0 — replaces the old per-category bullet sections. Rows with all zeros may be omitted to keep the matrix tight.
-- **Diagram section (§5b) is mandatory.** Try mermaid first, fall back to ASCII box-drawing, and only emit a one-line N/A justification when the scope genuinely doesn't lend itself to a diagram (e.g. single-file review of a leaf utility). See §5b.
-- Files with zero findings still appear as `### <path> — no findings` so the reviewer can confirm the file was scanned, not skipped.
-- Findings table is always present when T > 0 — uncapped within the run-wide ceiling, mirrors all findings across all files. Each row's ID matches the per-file bullet's ID.
-- **Quick wins** is always present. When no Low-effort × Medium+-severity findings exist, render the section with an explicit one-liner ("None — no Low-effort × Medium+-severity findings in this run") rather than omitting.
-- **"Things that look bad but are actually fine" is structurally required.** Enumerate at least 2–3 near-misses with reasoning. If genuinely none can be surfaced (very narrow scope, e.g. 1–2 files), report that explicitly with a one-line justification. An empty section without the justification is treated as audit incompleteness.
+- **Per-file sections are the primary structure.** Sorted by Severity (Critical → Low) then Effort (S → L) within each file; Category is a column on the finding line, not a section header. Bullets capped at top 5 per file.
+- **Severity × Category roll-up table** always present when T > 0. Rows with all zeros may be omitted.
+- **Diagram section (§5b) is mandatory.**
 - If T = 0, skip per-file sections, the table, and Quick wins; still emit the diagram (or its N/A justification) and the "looks bad but fine" section, then skip straight to §8.
-- **Output shape authority.** The grouping, diagram, suggestion-block, looks-bad-but-fine, table, and quick-wins rules above are the [review output contract](../../docs/review-output-contract.md). This skill consumes that contract — when the contract and this section ever diverge, the contract wins and this section is brought back into line. The one contract affordance that lives in the propose-fix step rather than the report is **suggestion blocks** (see §6).
 
 ### 5b. Diagram (mandatory)
 
-Always try to include a diagram. The purpose is to give the reviewer a visual anchor for what the code looks like *as a system*, not just what changed line-by-line. Choose the diagram type that best fits what the review actually surfaced:
+Always try to include a diagram — a visual anchor for the code *as a system*. Choose the type that fits what the review surfaced:
 
-| Scope shape | Diagram type | | --- | --- | | Cross-module / cross-layer findings (boundary violations, layering issues) | Mermaid `flowchart` showing the violating edge(s) highlighted | | Monolith split proposal | Mermaid `flowchart` or ASCII box-diagram showing the proposed sub-module decomposition | | Sequence-level finding (race condition, ordering bug) | Mermaid `sequenceDiagram` | | State drift / lifecycle issue | Mermaid `stateDiagram-v2` | | Many small findings without a unifying structural story | ASCII bar chart of findings-per-file (counts severity-stacked) | | Single-file leaf utility, fewer than 3 findings, no structural angle | One-line N/A justification: `Diagram: N/A — single-file scope with no cross-module structure to visualise.` | **Preference order: mermaid > ASCII box-drawing > ASCII bar chart > N/A justification.** The N/A line must state the *why* — empty without reason is treated as incompleteness, same as the "looks bad but fine" section.
+| Scope shape | Diagram type |
+| --- | --- |
+| Cross-module / cross-layer findings (boundary violations, layering issues) | Mermaid `flowchart` showing the violating edge(s) highlighted |
+| Monolith split proposal | Mermaid `flowchart` or ASCII box-diagram showing the proposed sub-module decomposition |
+| Sequence-level finding (race condition, ordering bug) | Mermaid `sequenceDiagram` |
+| State drift / lifecycle issue | Mermaid `stateDiagram-v2` |
+| Many small findings without a unifying structural story | ASCII bar chart of findings-per-file (counts severity-stacked) |
+| Single-file leaf utility, fewer than 3 findings, no structural angle | One-line N/A justification: `Diagram: N/A — single-file scope with no cross-module structure to visualise.` |
 
-Render mermaid inside a fenced ` ```mermaid ` block. ASCII diagrams use box-drawing characters inside a plain fenced code block.
+**Preference order: mermaid > ASCII box-drawing > ASCII bar chart > N/A justification.** The N/A line must state the *why* — empty without reason is treated as incompleteness, same as the "looks bad but fine" section. Format rules per the output contract §2.
 
 ### 6. Propose-confirm-commit per finding
 
-**Suggestion-block format for proposed fixes.** When a finding's `proposed_fix` is a concrete code change that is **≤10 lines, localised to one contiguous range in one file, and mechanically actionable** (no "you'll also need to update X elsewhere" caveats), the fix is rendered as a GitHub ` ```suggestion ` block in the finding's Recommendation — the literal replacement lines for the cited range, indentation matched to the cited file, no explanatory comments inside the block (those go in the prose above it). When any condition fails (bigger fix, spans files, has caveats, or is a judgment-call structural change), prose is correct — do not force a block. This is the [review output contract](../../docs/review-output-contract.md) §3 rule; it makes the recommendation appliable on GitHub as a one-click suggestion when the review output is pasted into a PR.
+**Suggestion-block format for proposed fixes.** When a finding's `proposed_fix` is a concrete code change that is **≤10 lines, localised to one contiguous range in one file, and mechanically actionable** (no "you'll also need to update X elsewhere" caveats), render it as a GitHub ` ```suggestion ` block in the Recommendation — the literal replacement lines for the cited range, indentation matched to the cited file, no explanatory comments inside the block (those go in the prose above it). When any condition fails, prose is correct — do not force a block. Per the [review output contract](../../docs/review-output-contract.md) §3.
 
 Iterate findings in report order. For each:
 
@@ -233,9 +247,9 @@ Iterate findings in report order. For each:
 - **Skip** → discard for this run. Mark resolution `skipped`. (Ephemeral; does not propagate into the next run's baseline as `WONT_FIX`.)
 - **Edit** → accept user's revised fix; apply; confirm. Mark resolution `edited`.
 - **View detail** → show fuller context (surrounding code, rule body, alternative fixes); loop to ask again.
-- **Won't fix (note reason)** → ask the user for a one-line durable reason. Mark resolution `wont_fix` and store the reason on the finding. The next run will carry this finding forward tagged `WONT_FIX` (see §4b) and suppress it from Quick wins. If the reason is ephemeral ("not now", "later"), use Skip instead — the prompt should remind the user of the distinction. If the reason is structural enough that it belongs in the out-of-scope index (durable for *every* future run, not just the next one), offer option 5 from §9 inline instead.
+- **Won't fix (note reason)** → ask the user for a one-line durable reason. Mark resolution `wont_fix` and store the reason on the finding. The next run will carry this finding forward tagged `WONT_FIX` (see §4b) and suppress it from Quick wins. If the reason is ephemeral ("not now", "later"), use Skip instead — the prompt should remind the user of the distinction. If the reason is structural enough that it belongs in the out-of-scope index (durable for *every* future run, not just the next one), offer option 5 from §9 inline — that path writes to `.claude/review-out-of-scope/` and overrides the per-run `wont_fix` tagging. The same inline shortcut applies when the user picks Skip with a load-bearing reason.
 
-Track counts of applied / skipped / edited / wont_fix per category. The Skip-with-load-bearing-reason inline shortcut to §9 option 5 still applies — that path writes to `.claude/review-out-of-scope/` and overrides the per-run `wont_fix` tagging.
+Track counts of applied / skipped / edited / wont_fix per category.
 
 No batch auto-apply. No silent fixes.
 
@@ -245,7 +259,7 @@ After per-finding resolution, report counts:
 
 ```
 Applied N fixes across C categories. Skipped M. Edited K. Won't-fix W. Suppressed S (out-of-scope).
-Repeat mode: N new, R resolved since last run, C carried, W carried as won't-fix. # repeat runs only
+Repeat mode: N new, R resolved since last run, C carried, W carried as won't-fix.   # repeat runs only
 ```
 
 Omit the suppressed line when S = 0. Omit the repeat-mode line for fresh runs.
@@ -257,7 +271,7 @@ After §7, write the run's results to `<project-root>/.claude/reviews/<scope-slu
 **Slug derivation** (from the resolved scope):
 - `/review` → `slug = project` (whole-project default).
 - `/review src/auth/` → `slug = src-auth` (path with separators → kebab; trailing slash dropped).
-- `/review src/auth/middleware.ts` → `slug = src-auth-middleware-ts` (extension included to disambiguate same-named files in different dirs is unnecessary; extension included for one-file slugs only).
+- `/review src/auth/middleware.ts` → `slug = src-auth-middleware-ts` (extension included for single-file slugs).
 - `/review --since HEAD~5` → **do not persist.** `--since` runs are ephemeral by nature; the file set is git-state-dependent and there is no stable scope to baseline against. Skip §7b for `--since` invocations.
 
 **Versioning** (per the version-evolving-artefacts decision):
@@ -273,20 +287,20 @@ date: YYYY-MM-DD
 scope: <resolved scope as the user passed it>
 scope_slug: <slug>
 run_mode: fresh | repeat
-baseline: v<N>.md # repeat only; omit on fresh
-supersedes: v<N>.md # repeat only; omit on fresh
+baseline: v<N>.md       # repeat only; omit on fresh
+supersedes: v<N>.md     # repeat only; omit on fresh
 findings_total: T
 counts:
- critical: C
- high: H
- medium: M
- low: L
+  critical: C
+  high: H
+  medium: M
+  low: L
 resolutions:
- applied: N
- skipped: M
- edited: K
- wont_fix: W
- suppressed: S
+  applied: N
+  skipped: M
+  edited: K
+  wont_fix: W
+  suppressed: S
 ---
 
 <full §5 report body verbatim — orientation, bullets, table, quick wins, looks-bad-but-fine, plus repeat-run sections (Resolved / Carried as won't-fix) when applicable>
@@ -294,11 +308,17 @@ resolutions:
 
 **Per-finding state in the table** (used by §4b on the next run): the table's rightmost column gains a `Status` field for repeat-mode artefacts:
 
-| ID | … | Status | |-------|---|---------------| | F003 | … | applied | | F012 | … | wont_fix: <reason> | | F021 | … | open | `open` covers findings the user neither resolved nor declined; they are the default carry-forward signal for the next run.
+| ID    | … | Status        |
+|-------|---|---------------|
+| F003  | … | applied       |
+| F012  | … | wont_fix: <reason> |
+| F021  | … | open          |
+
+`open` covers findings the user neither resolved nor declined; they are the default carry-forward signal for the next run.
 
 **Atomicity:** write `v<N+1>.md` first, then rename `latest.md` → `v<N>.md` (if it exists), then copy `v<N+1>.md` → `latest.md`. If any step fails, leave the tree as-is and report the failure in the run summary; do not partially overwrite. Do not block §8 on write failure — the report has already been delivered to the user; the persistence step is a side effect.
 
-The artefact is committable. Teams that want to track architectural debt over time can review the diff between `v3.md` and `v4.md` to see what closed, what opened, what moved. This is not a substitute for fixing things; it is a substrate for noticing trends.
+The artefact is committable — the version-to-version diff is a substrate for tracking architectural debt trends, not a substitute for fixing things.
 
 ### 7c. Obsidian vault output (opt-in)
 
@@ -316,32 +336,15 @@ On `y` → end. On `n` or free-form correction → step 9.
 
 ### 9. Feedback loop
 
-Offer four system-level responses:
+Offer five system-level responses. Read [feedback-loop.md](feedback-loop.md) for the per-option procedure when the loop opens.
 
-1. **Sharpen existing rule.** Current rule exists but didn't catch the missed drift.
- - Ask which rule. Show candidates from the loaded set.
- - Draft a sharpened rule body.
- - Invoke `skills/capture/SKILL.md` with the sharpened body as candidate content + a note that this is an *overwrite* of the existing file at `<path>`. Capture's flow handles confirm + write.
-2. **Add new rule.** No existing rule covers this.
- - Draft a new rule body from the user's correction.
- - Invoke `skills/capture/SKILL.md` with the draft. Capture classifies kind / scope / relevance, user confirms per capture's own flow.
-3. **Retag existing rule.** Right rule, wrong scope — didn't load when it should have.
- - Ask which rule.
- - Propose a `scope` / `relevance` frontmatter edit.
- - Apply via Edit after user confirms.
-4. **Adjust threshold.** Heuristic was too lax (e.g. file-length threshold too high).
- - Identify which threshold (from the table in §"Monolithic files" below, or elsewhere).
- - Two target options:
- - **Project-specific override** — write to a project memory with `scope: [project-<name>]`, `kind: architectural-rule`, describing the new threshold. Invoke capture.
- - **General adjustment** — propose an edit to this SKILL.md's threshold table. User explicitly confirms (this change ships to every machine via the subtree link).
-5. **Record as out-of-scope.** The finding is real, but a load-bearing reason makes it the right call to leave it.
- - Confirm the reason is durable (would still apply to a future explorer), not ephemeral.
- - If structural enough that an ADR makes more sense, offer that instead.
- - Otherwise draft a `<project-root>/.claude/review-out-of-scope/<slug>.md` per [OUT-OF-SCOPE.md](OUT-OF-SCOPE.md) and write after user confirms.
+1. **Sharpen existing rule** — a rule exists but didn't catch the missed drift; sharpened body routes through capture as an overwrite.
+2. **Add new rule** — no existing rule covers this; draft routes through capture.
+3. **Retag existing rule** — right rule, wrong scope; `scope` / `relevance` frontmatter edit after user confirms.
+4. **Adjust threshold** — project-specific override via capture, or a general edit to this SKILL.md's threshold table that the user explicitly confirms (it ships to every machine via the subtree link).
+5. **Record as out-of-scope** — the finding is real but a load-bearing reason makes leaving it the right call; confirm the reason is durable (would still apply to a future explorer), not ephemeral, then write to `.claude/review-out-of-scope/` after user confirms.
 
 User picks one (or none). Collaborator principle — never change silently.
-
-The feedback loop also fires after individual finding dismissals during step 6 — when the user picks **Skip** with a load-bearing reason, offer option 5 inline instead of waiting for the end-of-run prompt.
 
 ## Drift checks
 
@@ -358,7 +361,18 @@ Dead-code findings are self-evident — no rule citation required.
 
 Per-language line thresholds (adjustable via feedback loop):
 
-| Language | Threshold | | --- | --- | | C# | >400 | | TypeScript / JavaScript / JSX / TSX | >300 | | C++ / header files | >500 | | Python | >300 | | Go | >400 | | Rust | >400 | | Markdown / docs | N/A (skip) | | Other | >400 | Additional signals for this category:
+| Language | Threshold |
+| --- | --- |
+| C# | >400 |
+| TypeScript / JavaScript / JSX / TSX | >300 |
+| C++ / header files | >500 |
+| Python | >300 |
+| Go | >400 |
+| Rust | >400 |
+| Markdown / docs | N/A (skip) |
+| Other | >400 |
+
+Additional signals for this category:
 
 - File declares more than 3 unrelated top-level concerns (distinct classes / top-level functions without shared state / distinct feature areas).
 - A single function exceeds ~60 lines of non-trivial logic.
@@ -398,7 +412,7 @@ Comment-drift findings are self-evident for the first signal; the second needs t
 
 Catches identifiers and comments that are **technically correct but read badly** — distinct from check 6 (which catches *stale* comments, out of sync with code). This class audits *quality of expression*, not staleness. Cite [`universal/naming-and-comments.md`](../../architectural-rules/universal/naming-and-comments.md) on every finding (loaded via discover under `relevance: during-review`).
 
-**Boundary vs check 6 (comment-drift).** A *stale* comment (mentions a removed symbol) is check 6. An *awkward / low-value* comment (restates the code, stilted AI-flavored prose) is check 7. A single comment generates **at most one** finding — if it is both stale and awkward, report it under check 6 (staleness is the more actionable defect) and do not double-count.
+**Boundary vs check 6 (comment-drift).** A single comment generates **at most one** finding — if it is both stale (check 6) and awkward (check 7), report it under check 6.
 
 **What this class flags** (confident cases → findings):
 - **Machine/AI-flavored names** — meaningless numbered suffixes (`processData2`, `handlerHandler`), placeholder-as-name (`tmp`/`data`/`obj`/`val` standing alone), names that read like generated code.
@@ -406,18 +420,18 @@ Catches identifiers and comments that are **technically correct but read badly**
 - **Stilted / AI-flavored comment prose** — "This function is responsible for facilitating…". Terse, direct is the standard.
 - **Names contradicting the file's OWN established style** — a lone `snake_case` local in a file of `camelCase` ones. A self-inconsistency, the most confident signal (conformance-over-ideal).
 
-**Calibration — BALANCED.** Severity is **low by default** for this whole class; it earns trust by not nagging.
+**Calibration — BALANCED.** Severity is **low by default** for this whole class.
 - **Confident** (the four signals above) → findings, low/medium severity.
 - **Borderline** (a name that's *slightly* off, a comment of marginal value) → **low-severity** findings the user can dismiss in one keystroke — surfaced, never silently dropped.
-- **Correct-but-unusual** (domain term, math/protocol name, idiomatic abbreviation, deliberate legacy consistency — the when-not-to-flag clause of the cited rule) → route to the **required "Things that look bad but are actually fine" section** with reasoning, **never a finding**. This class makes that section's population mandatory: a naming-quality pass that surfaces findings but lists *nothing* in looks-bad-but-fine is a shallow pass (it pattern-matched instead of considering the surrounding domain) — the empty section is the incompleteness signal (`lessons/looks-bad-but-fine-section`).
+- **Correct-but-unusual** (domain term, math/protocol name, idiomatic abbreviation, deliberate legacy consistency — the when-not-to-flag clause of the cited rule) → route to the **required "Things that look bad but are actually fine" section** with reasoning, **never a finding**.
 
-**Conformance-over-ideal precedence (079 wiring).** Before flagging a name, resolve the scope's conventions through the 047 overlay. Precedence, highest first: a **079 project convention** (`.claude/rules/<lang>/conventions.md`) > the **file's own observed style** > the **universal default**. A name that *matches a present 079 convention is never flagged*, even when it deviates from the universal default (e.g. an `m_` field prefix where the project's extracted conventions endorse it). The universal default applies only where no more-local convention speaks.
+**Conformance-over-ideal precedence.** Before flagging a name, resolve the scope's conventions through the rule-overlay tiers. Precedence, highest first: an **extracted project convention** (`.claude/rules/<lang>/conventions.md`) > the **file's own observed style** > the **universal default**. A name that *matches a present project convention is never flagged*, even when it deviates from the universal default (e.g. an `m_` field prefix where the project's extracted conventions endorse it). The universal default applies only where no more-local convention speaks.
 
 **Apply policy — localized-auto / cross-cutting-suggest-only.**
-- **Comment rewords** and **local-variable renames** are localized → apply directly through the per-finding Apply gate, emitted as ` ```suggestion ` blocks per the [contract](../../docs/review-output-contract.md) (the replacement lines for the cited range).
+- **Comment rewords** and **local-variable renames** are localized → apply directly through the per-finding Apply gate, emitted as suggestion blocks per §6.
 - **Public / exported renames** are **suggest-only** — a public rename is *not localized* (it ripples across call sites), so it never auto-applies and never becomes a suggestion-fence. Flag it, propose the better name in prose, and note that sweeping the call sites is the user's call. Do not edit call sites.
 
-**Feedback loop.** When the user rejects a naming finding as wrong ("that's a domain term", "that abbreviation is idiomatic here"), route to the §9 `/capture` four-option loop (sharpen / add / retag / lower-threshold) so the universal rule **or** the 079 convention learns the exception — the class gets *more* trustworthy with each correction rather than repeating the false positive.
+**Feedback loop.** When the user rejects a naming finding as wrong ("that's a domain term"), route to §9 so the universal rule **or** the project convention learns the exception.
 
 ## Failure modes
 
@@ -425,19 +439,19 @@ Catches identifiers and comments that are **technically correct but read badly**
 - **Discover returned zero rules.** Fall back to dead-code + comment-drift only. Make this explicit in the report header.
 - **Not a git repo but user passed `--since`.** Refuse with a clear message; suggest `/review <path>` instead.
 - **Finding's proposed fix would conflict with uncommitted changes.** Check `git status` for the file before Edit; if dirty, pause and ask user to stash / commit first.
-- **Feedback loop's "sharpen" target is in the global architectural-rules tree (not per-project memory).** Capture writes there per 006; proceed as normal. User's confirmation is the safety net.
+- **Feedback loop's "sharpen" target is in the global architectural-rules tree (not per-project memory).** Capture writes there by design; proceed as normal. User's confirmation is the safety net.
 
 ## What review does NOT do
 
-- **Does not auto-fire.** Not on any hook, not at any session / task boundary.
-- **Does not replace a linter.** Syntax / style is lint's job.
-- **Does not audit security, performance, accessibility, or i18n.** Separate skills, §"What this is not".
-- **Does not apply fixes silently.** Every fix is propose-confirm-commit per finding.
-- **Does not track findings across runs in any active sense.** The persistent artefact at `.claude/reviews/<scope-slug>/` (§7b) is a passive record — it is read on the next repeat run for tagging (NEW / CARRIED / RESOLVED / WONT_FIX) and is never re-played, executed, or used to prompt the user outside a fresh `/review` invocation. The out-of-scope index is also user-driven, not automatic.
-- **Does not auto-suggest rule-tightening** based on recurring findings. Parked open questions.
-- **Does not modify rule files itself.** Rule changes always route through capture (or an explicit Edit on retag / threshold adjustment after user confirms).
-- **Does not write to the Obsidian vault unless asked.** The vault copy (§7c) is opt-in via `--vault` or natural-language request. The in-repo `.claude/reviews/...` artefact always writes; the vault copy is a side-channel for human browsing.
-- **Does not silently promote a vault file to a subfolder.** Promotion (≥2 iterations, >3000 lines, or `--expand`) is always proposed first.
+- **Does not auto-fire** — not on any hook, not at any session / task boundary.
+- **Does not replace a linter** — syntax / style is lint's job.
+- **Does not audit security, performance, accessibility, or i18n** — separate skills.
+- **Does not apply fixes silently** — every fix is propose-confirm-commit per finding.
+- **Does not track findings across runs in any active sense** — the §7b artefact is a passive record read for repeat-run tagging, never re-played, executed, or used to prompt the user outside a fresh `/review` invocation.
+- **Does not auto-suggest rule-tightening** on recurring findings — deliberately parked.
+- **Does not modify rule files itself** — rule changes route through capture (or an explicit user-confirmed Edit on retag / threshold adjustment).
+- **Does not write to the Obsidian vault unless asked** — the vault copy (§7c) is opt-in; the in-repo artefact always writes.
+- **Does not silently promote a vault file to a subfolder** — promotion (≥2 iterations, >3000 lines, or `--expand`) is always proposed first.
 
 ## Relationship to other organs
 

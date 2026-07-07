@@ -7,7 +7,7 @@ description: Keep multiple live Claude sessions aligned via a shared, file-based
 
 Multi-session coordination. The pipeline *tells you to fragment* — `/spec` and `/draft-plan` recommend a fresh session per phase — so when you plan several things and spin up multiple live sessions (a `/execute` window per work-stream), they drift: session A doesn't know what B decided. `coordinate` is the **shared memory those live, peer sessions coordinate through.**
 
-It is **not** `orchestrate` (which dispatches fire-and-forget *subagents* within one session and reconverges them). These are independent, user-driven **peer sessions** with no parent — so coordination is a **passive shared board**, read-at-action and written-on-change, no daemon or polling. (Folding this into orchestrate's deferred background-session runtime is a later increment —'s "board now, orchestrate later".)
+It is **not** `orchestrate` (which dispatches fire-and-forget *subagents* within one session and reconverges them). These are independent, user-driven **peer sessions** with no parent — so coordination is a **passive shared board**, read-at-action and written-on-change, no daemon or polling. (Folding this into orchestrate's deferred background-session runtime is a later increment.)
 
 ## The board
 
@@ -17,7 +17,11 @@ It is **not** `orchestrate` (which dispatches fire-and-forget *subagents* within
 # Active sessions
 <!-- coordinator: <label or "none"> -->
 
-| Session | Owns | Status | Updated | Hand-offs / assignments | |---------|------|--------|---------|-------------------------| | auth | slug:auth-rework, src/auth/* | executing step 3 | 2026-06-11T14:20 | — | | ui | slug:settings-ui, src/ui/settings/* | drafting plan | 2026-06-11T14:05 | from auth: "changed the token contract — re-read before wiring" | ```
+| Session | Owns | Status | Updated | Hand-offs / assignments |
+|---------|------|--------|---------|-------------------------|
+| auth    | slug:auth-rework, src/auth/* | executing step 3 | 2026-06-11T14:20 | — |
+| ui      | slug:settings-ui, src/ui/settings/* | drafting plan | 2026-06-11T14:05 | from auth: "changed the token contract — re-read before wiring" |
+```
 
 `Session` is a short stable label (the slug it's working on, or a user-given name like `auth`/`ui`). The board carries no secrets — paths + labels only.
 
@@ -89,8 +93,6 @@ On close, remove this session's row (or mark `Status: done`). Surface any hand-o
 
 ## Relationship to other organs
 
-- **orchestrate** — the *subagent* path (fire-and-forget children, one parent, reconverge). coordinate is the *peer-session* path (no parent, shared board). 070's "board now, orchestrate later": a future increment may fold this into orchestrate's deferred background-session runtime.
+- **orchestrate** — the *subagent* path (fire-and-forget children, one parent, reconverge). coordinate is the *peer-session* path (no parent, shared board). A future increment may fold this into orchestrate's deferred background-session runtime.
 - **recap** — per-session episodic close; coordinate is live cross-session state *during* work. A session's `done` teardown pairs naturally with `/recap`.
 - **execute / draft-plan / spec** — the per-phase fresh sessions that this board keeps aligned (the fragmentation those phases recommend is what creates the need).
-
-See `.claude/specs/coordinate/v1.md` for the design.

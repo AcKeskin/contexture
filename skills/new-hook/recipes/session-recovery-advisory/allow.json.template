@@ -1,4 +1,6 @@
 {
-  "matcher": "startup",
+  "session_id": "fixture-session-1",
+  "hook_event_name": "SessionStart",
+  "source": "startup",
   "transcript_path": "__TRANSCRIPT_FIXTURE_WITH_SIGNAL__"
 }

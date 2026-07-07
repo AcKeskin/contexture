@@ -13,7 +13,7 @@ Forms:
 
 Auto-detect: a diff/PR in play → diff; a just-built / named module → module; no target → corpus; ambiguous → asks once. The resolved scope is shown in the report header so you can correct it.
 
-Findings render as **one batch** (042 output contract); you pick which to apply in a single pass; each routes to `/capture` / `/memory-audit` / a `proposals/` stub / a direct edit. Never fixes in place, never auto-fires.
+Findings render as **one batch** (the batched output contract); you pick which to apply in a single pass; each routes to `/capture` / `/memory-audit` / a `proposals/` stub / a direct edit. Never fixes in place, never auto-fires.
 
 `retrospect` + `system-review` are **deprecated** (kept and functional) — `/checkpoint --scope corpus` is their successor; they retire once checkpoint is proven.
 

@@ -5,7 +5,7 @@ description: Scaffold a new Claude Code hook end-to-end — pick a recipe, name 
 
 # new-hook
 
-The hook scaffold organ. Closes the gap that no existing skill — in this project or in the audited plugin set — helps with: building new Claude Code hooks correctly, including the matcher / event vocabulary, the fail-open exit-code contract, and the high-stakes `~/.claude/settings.json` registration edit.
+The hook scaffold organ. Closes the gap that no other skill helps with: building new Claude Code hooks correctly, including the matcher / event vocabulary, the fail-open exit-code contract, and the high-stakes `~/.claude/settings.json` registration edit.
 
 ## When to run
 
@@ -28,12 +28,12 @@ List the recipes available in `recipes/`. Each recipe folder has a `README.md` w
 
 ```
 Which recipe?
- 1. bash-command-blocker (PreToolUse, matcher: Bash) — pattern-match a Bash command, block on hit
- 2. file-write-blocker (PreToolUse, matcher: Write|Edit|MultiEdit|NotebookEdit) — block file writes by path
- 3. mcp-tool-blocker (PreToolUse, matcher: mcp__*) — block a specific MCP tool by exact name
- 4. context-injector (SessionStart, matcher: startup|compact) — inject context at session start
- 5. session-recovery-advisory (SessionStart, matcher: clear|compact) — scan the prior transcript and nudge to recover something lost across a clear/compact
- 6. rule-prime (SessionStart[startup|clear|compact] + UserPromptSubmit) — mechanically prime resolved architectural rules into context; floor at session start, incremental tiers per prompt
+  1. bash-command-blocker (PreToolUse, matcher: Bash) — pattern-match a Bash command, block on hit
+  2. file-write-blocker (PreToolUse, matcher: Write|Edit|MultiEdit|NotebookEdit) — block file writes by path
+  3. mcp-tool-blocker (PreToolUse, matcher: mcp__*) — block a specific MCP tool by exact name
+  4. context-injector (SessionStart, matcher: startup|compact) — inject context at session start
+  5. session-recovery-advisory (SessionStart, matcher: clear|compact) — scan the prior transcript and nudge to recover something lost across a clear/compact
+  6. rule-prime (SessionStart[startup|clear|compact] + UserPromptSubmit) — mechanically prime resolved architectural rules into context; floor at session start, incremental tiers per prompt
 ```
 
 Wait for the user's choice (number or name). Reject anything outside the list with the same prompt.
@@ -76,9 +76,9 @@ Compute the target hook path: `<root>/<name>.js`. If a file already exists there
 
 ```
 Hook '<name>' already exists at <root>/<name>.js.
- (o)verwrite — replace file, regenerate fixtures, keep existing settings.json registration intact
- (r)ename — pick a new hook name
- (a)bort — exit without changes
+  (o)verwrite — replace file, regenerate fixtures, keep existing settings.json registration intact
+  (r)ename    — pick a new hook name
+  (a)bort     — exit without changes
 Choice?
 ```
 
@@ -96,10 +96,10 @@ Invoke the merger at [`lib/settings-merge.js`](lib/settings-merge.js) with:
 
 ```
 {
- event: <recipe's event — PreToolUse | SessionStart>,
- matcher: <recipe's matcher, e.g. "Bash" | "Write|Edit|MultiEdit|NotebookEdit" | "startup|compact">,
- command: "node " + <absolute path to the new hook file>,
- timeout: 5
+  event: <recipe's event — PreToolUse | SessionStart>,
+  matcher: <recipe's matcher, e.g. "Bash" | "Write|Edit|MultiEdit|NotebookEdit" | "startup|compact">,
+  command: "node " + <absolute path to the new hook file>,
+  timeout: 5
 }
 ```
 
@@ -114,12 +114,12 @@ Show the user:
 
 ```
 About to scaffold:
- Recipe: <r>
- Name: <name>
- Hook file: <root>/<name>.js
- Fixtures: <root>/tests/<name>.{block,allow}.json
- Runner: <root>/tests/<name>.test.js
- Settings: ~/.claude/settings.json — registration appended
+  Recipe:    <r>
+  Name:      <name>
+  Hook file: <root>/<name>.js
+  Fixtures:  <root>/tests/<name>.{block,allow}.json
+  Runner:    <root>/tests/<name>.test.js
+  Settings:  ~/.claude/settings.json — registration appended
 
 Settings.json diff:
 <unified diff from lib/settings-merge.js#unifiedDiff>
@@ -147,16 +147,16 @@ Spawn `node <root>/tests/<name>.test.js`. Capture stdout + exit code.
 
 - Exit 0 with PASS lines for both fixtures → report success:
 
- ```
- ✓ <name> scaffolded and verified.
- Hook: <root>/<name>.js
- Tests: PASS (block + allow)
- Settings: registered under <event>/<matcher>
- ```
+  ```
+  ✓ <name> scaffolded and verified.
+    Hook:     <root>/<name>.js
+    Tests:    PASS (block + allow)
+    Settings: registered under <event>/<matcher>
+  ```
 
 - Anything else → surface the failure verbatim. Do **not** claim success. The artefacts stay on disk for the user to inspect; the user decides whether to revert. Suggest:
 
- > Runner reported FAIL. Check <root>/tests/<name>.test.js output above. To revert, delete the four generated files and undo the settings.json change.
+  > Runner reported FAIL. Check <root>/tests/<name>.test.js output above. To revert, delete the four generated files and undo the settings.json change.
 
 The skill stops without auto-reverting — fail-noisy beats silent rollback.
 
@@ -179,8 +179,8 @@ Recipes import `./lib/hook-io.js` from the existing hooks tree (`contexture/hook
 
 The context-injector recipe is a `SessionStart` hook, not a blocker. Its exit-code contract differs:
 
-- `block.json.template` represents a **matching** SessionStart event (e.g. `{ "matcher": "startup" }`). The hook reads the event, emits the configured context to stdout, exits 0. Verification is *exit 0 + non-empty stdout*, not *exit 2*.
-- `allow.json.template` represents a **non-matching** event (e.g. `{ "matcher": "compact" }` when configured for `startup` only). The hook silently exits 0 with no stdout.
+- `block.json.template` represents a **matching** SessionStart event (e.g. `{ "source": "startup", ... }` — `source` is the documented payload field; `matcher` exists only in the settings.json registration). The hook reads the event, emits the configured context via `hookSpecificOutput.additionalContext`, exits 0. Verification is *exit 0 + non-empty stdout*, not *exit 2*.
+- `allow.json.template` represents a **non-matching** event (e.g. `{ "source": "compact" }` when configured for `startup` only). The hook silently exits 0 with no stdout.
 
 The runner generator at [`lib/runner-template.js`](lib/runner-template.js) reads the recipe's README to decide which assertion mode to use. Document this in the recipe's README so future readers know why context-injector is special.
 
@@ -189,7 +189,7 @@ The runner generator at [`lib/runner-template.js`](lib/runner-template.js) reads
 - **Does not edit existing hooks.** Use `Edit` directly. Modifying registration is a manual settings.json edit.
 - **Does not unregister hooks.** Removing a hook from settings.json and deleting its file are manual. v2 candidate.
 - **Does not scaffold plugin hooks.** Plugin-bundled hooks live inside the plugin's directory and are registered via the plugin's manifest, not the user's settings.json.
-- **Does not support languages other than Node.js in v1.** All existing hooks are Node, the shared lib is Node, settings.json registers `node...`. Other languages are deferred until a real case forces it.
+- **Does not support languages other than Node.js in v1.** All existing hooks are Node, the shared lib is Node, settings.json registers `node ...`. Other languages are deferred until a real case forces it.
 - **Does not validate the rest of settings.json.** The merger only validates the structure it touches. A pre-existing malformed `statusLine` block is the user's problem.
 - **Does not auto-fire.** Mode A only — every run is user-initiated.
 - **Does not auto-revert on verification failure.** Fail-noisy. The user decides whether to delete the generated files and undo the settings.json change.
@@ -198,9 +198,9 @@ The runner generator at [`lib/runner-template.js`](lib/runner-template.js) reads
 
 PostToolUse, Stop, SubagentStop, Notification, PreCompact. No current use case. Add reactively when one surfaces — each new recipe is a small additive change (template + fixtures + README under `recipes/<name>/`); the skill's procedure does not change.
 
-**`UserPromptSubmit` is now supported** (via the `rule-prime` recipe). It was excluded in v1 for want of a use case; 077 supplies one — its `additionalContext` is a model-visible non-blocking channel, exactly the property a per-prompt rule injector needs. The recipe registers it paired with SessionStart through the `rulePrime` settings bundle.
+**`UserPromptSubmit` is supported** (via the `rule-prime` recipe) — its `additionalContext` is a model-visible non-blocking channel, exactly the property a per-prompt rule injector needs. The recipe registers it paired with SessionStart through the `rulePrime` settings bundle.
 
-**PreCompact / SessionEnd stay excluded by design, not by neglect.** They were investigated for a "warn before context is discarded" recipe and found unsuitable for a *non-blocking advisory*: per `code.claude.com/docs/en/hooks`, their stdout on exit 0 goes to the debug log (the model never sees it), and exit 2 — the only model-visible channel — blocks the action (and SessionEnd cannot block at all). `additionalContext` is documented for PreToolUse / PostToolUse / PostToolBatch only. The recovery use case is served instead by the `session-recovery-advisory` recipe on `SessionStart[clear|compact]`, whose `{ context }` output *is* model-visible. Add a PreCompact/SessionEnd recipe only when a genuinely *blocking* or cleanup-only use case appears.
+**PreCompact / SessionEnd stay excluded by design, not by neglect.** They are unsuitable for a *non-blocking advisory*: per `code.claude.com/docs/en/hooks`, their stdout on exit 0 goes to the debug log (the model never sees it), and exit 2 — the only model-visible channel — blocks the action (and SessionEnd cannot block at all). The recovery use case is served instead by the `session-recovery-advisory` recipe on `SessionStart[clear|compact]`, whose `hookSpecificOutput.additionalContext` output *is* model-visible. Add a PreCompact/SessionEnd recipe only when a genuinely *blocking* or cleanup-only use case appears.
 
 ## Relationship to other organs
 

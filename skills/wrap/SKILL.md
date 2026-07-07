@@ -9,7 +9,7 @@ The session-**terminus driver**. The closing organs — `recap`, `close-out`, `u
 
 It is a **driver, not a new organ**: it calls the existing organs in order and adds only the missing connective tissue (the sequence, the dedup, the autonomy-posture read, the BACKLOG-shipped-row sweep, the build_progress offer). If it reimplements recap/close-out/changelog logic, it is wrong.
 
-Governed by the autonomy write-class line: automate the reversible read/draft/detect spine, keep the accept/edit/reject gate on every canonical write. Generalizes two existing precedents — `capture`'s auto-propose-never-write and `prep`'s auto-fire-read-only.
+Governed by the autonomy write-class line: automate the reversible read/draft/detect spine, keep the accept/edit/reject gate on every canonical write. Same pattern as `capture`'s auto-propose-never-write and `prep`'s auto-fire-read-only.
 
 **Where it sits.** The forward chain (`envision → spec → draft-plan → blueprint → execute`) is complete; `/close-out` closes a *shipped slug*; `/update-changelog` is the one changelog writer; `recap` records the *session*. `/wrap` sits above all of them as the *session-close orchestrator* — it decides which of them the session earned and runs them in one pass. `checkpoint --scope corpus` audits coherence; `/wrap` closes the session.
 
@@ -93,8 +93,8 @@ Report what ran: which steps fired, which were skipped, what's staged for the us
 - **update-changelog** — step 5 (only on a non-slug ship when close-out didn't run); the one changelog writer.
 - **checkpoint** — optional step 2; it also reads the autonomy contract (the pattern `/wrap` extends to the whole ceremony). Its reconcile must not double-run against close-out's.
 - **coordinate** — step 1 teardown; coordinate's auto mode registers the row at session start and shares `/wrap`'s SessionStart hook home.
-- **capture** — recap's promotion pass routes here (gated); its auto-propose-never-write shape is the precedent the auto-fire generalizes.
+- **capture** — recap's promotion pass routes here (gated); same auto-propose-never-write shape as the auto-fire.
 - **autonomize** — the contract `/wrap` reads once at entry to set the interrupt posture.
 - **clear-context guard** — the SessionStart-recovery hook pattern the auto-fire inherits (and the SessionEnd-can't-surface constraint).
-- **prep** — the all-read-only auto-fire-on-SessionStart precedent.
+- **prep** — the same all-read-only auto-fire-on-SessionStart pattern.
 - **Governed by the autonomy write-class line** — automate the reversible spine, gate every canonical write.

@@ -5,7 +5,7 @@ description: Prime the session with architectural rules relevant to the current 
 
 # prep
 
-The prep organ (previously "grounding"). Consumes [discover](../discover/SKILL.md), [deliver](../deliver/SKILL.md), the [architectural-rules tree](../../architectural-rules/README.md), and project `.claude/architecture.md` (when present, per [project-architecture.md](../../docs/project-architecture.md)).
+The prep organ. Consumes [discover](../discover/SKILL.md), [deliver](../deliver/SKILL.md), the [architectural-rules tree](../../architectural-rules/README.md), and project `.claude/architecture.md` (when present, per [project-architecture.md](../../docs/project-architecture.md)).
 
 Prep **prevents** drift by priming Claude with the rules *before* code is written. Review **detects** drift after the fact. Different jobs, complementary.
 
@@ -38,27 +38,28 @@ Prep **prevents** drift by priming Claude with the rules *before* code is writte
 
 ### 0. Read the floor watermark (rule-prime hook handoff)
 
-The **rule-prime hook** primes the *floor* — always-tier + project-tier rules, plus the one language tier in a single-language repo — mechanically at `SessionStart`, and incremental tiers per prompt at `UserPromptSubmit`. It records what it primed in a per-session watermark (`~/.claude/session-state.json`, key `rulePrime`, keyed by session id): `{ scopes: [...], floorPrimed: true, language, polyglot }`.
+The **rule-prime hook** primes the *floor* — always-tier + project-tier rules, plus the one language tier in a single-language repo — mechanically at `SessionStart`, and incremental tiers per prompt at `UserPromptSubmit`. It records what it primed in a per-session watermark (`~/.claude/session-state.json`, key `rulePrime`, keyed by session id): `{ scopes: [...], floorPrimed: true|false, droppedRules: [...], language, polyglot }`. When the floor exceeds its token budget the hook drops rules, sets `floorPrimed: false`, and lists the dropped rule keys in `droppedRules` — the watermark records what actually reached context, and the dropped rules are prep's to backfill.
 
 Before priming, read that watermark:
 
-- **Watermark present + `floorPrimed: true`** → the floor is already in context. Prep runs the **deep pass**, not a re-prime: announce *"floor primed by the hook (scopes: …) — running deep pass"*, then proceed to step 1 with the floor's scopes treated as already-loaded. In step 4, **do not re-emit** rules whose scope is entirely within the watermark's `scopes` (they are already in context); surface only what the deep pass *adds* — higher top-N, the task-specific domain tier, `.claude/architecture.md`, and any language tier the polyglot floor deferred.
+- **Watermark present + `floorPrimed: true` (and `droppedRules` empty or absent)** → the full floor is already in context. Prep runs the **deep pass**, not a re-prime: announce *"floor primed by the hook (scopes: …) — running deep pass"*, then proceed to step 1 with the floor's scopes treated as already-loaded. In step 4, **do not re-emit** rules whose scope is entirely within the watermark's `scopes` (they are already in context); surface only what the deep pass *adds* — higher top-N, the task-specific domain tier, `.claude/architecture.md`, and any language tier the polyglot floor deferred.
+- **Watermark present + `floorPrimed: false` (or `droppedRules` non-empty)** → the floor is **partial**: the rules named in `droppedRules` were resolved but never injected. Announce *"partial floor (dropped: …) — backfilling in deep pass"*, then run the deep pass as above **and re-emit every rule named in `droppedRules`** with its full body in step 4 — even when its scope appears in the watermark's `scopes`. Deferring a dropped rule leaves a silent gap; backfill takes priority over the step-4 dedupe.
 - **No watermark (hook disabled, or non-hook environment)** → prep owns the floor as before. Run the full procedure from step 1 with nothing pre-primed. This is the unchanged legacy path — prep degrades gracefully when the hook is off.
 
 The watermark is advisory and read-only here. Prep never writes it; it is the hook's artefact. If the watermark is malformed or unreadable, treat it as absent (full prime) — fail toward priming, never toward a silent gap.
 
 ### 1. Identify task scope
 
-**First — resolve the active region (scope-resolution, 035+037).** Before inferring scope from the task text, run the [scope-resolution resolver](../../docs/scope-resolution-resolver.md) for the task path: the downward longest-prefix walk over `<repo>/.claude/submodules.md` + `<path>/.claude/submodule.md` + `<dir>/.claude/scope.md`. It returns the effective `(corpus-source, scopes, kind, inherit-parent, active-submodule)`. Seed the detection below with this result — the resolved scopes are a prior on Language/Domain, and `corpus-source` selects which corpus the §2 discover call targets (`submodule` → the submodule's own corpus; `parent` → the enclosing corpus + the submodule's scopes; `none` → no rules, an out-of-discipline subtree). **No `submodules.md` (or no match) → single-tree, this step is a no-op and detection proceeds exactly as today** (the no-regression invariant). The walk is prose the resolver doc owns — do not re-derive the manifest formats.
+**First — resolve the active region (scope-resolution).** Before inferring scope from the task text, run the [scope-resolution resolver](../../docs/scope-resolution-resolver.md) for the task path: the downward longest-prefix walk over `<repo>/.claude/submodules.md` + `<path>/.claude/submodule.md` + `<dir>/.claude/scope.md`. It returns the effective `(corpus-source, scopes, kind, inherit-parent, active-submodule)`. Seed the detection below with this result — the resolved scopes are a prior on Language/Domain, and `corpus-source` selects which corpus the §2 discover call targets (`submodule` → the submodule's own corpus; `parent` → the enclosing corpus + the submodule's scopes; `none` → no rules, an out-of-discipline subtree). **No `submodules.md` (or no match) → single-tree, this step is a no-op and detection proceeds exactly as today** (the no-regression invariant). The walk is prose the resolver doc owns — do not re-derive the manifest formats.
 
 Then, from the task text + project context (seeded by the resolved region), determine:
 
 - **Task type** — one of: `code-writing`, `design`, `debugging`, `review`. Drives `relevance_phases` filter to discover.
- - Code-writing: explicit "implement", "add", "write", "refactor", "fix".
- - Design: "design", "plan", "how should we structure", architectural questions.
- - Debugging: "debug", "not working", "fails with", error traces.
- - Review: "review", "look over", "check this code".
- - Default when ambiguous: `code-writing`.
+  - Code-writing: explicit "implement", "add", "write", "refactor", "fix".
+  - Design: "design", "plan", "how should we structure", architectural questions.
+  - Debugging: "debug", "not working", "fails with", error traces.
+  - Review: "review", "look over", "check this code".
+  - Default when ambiguous: `code-writing`.
 - **Language(s).** From file extensions mentioned in the task, cwd-visible repo indicators (`package.json`, `*.csproj`, `CMakeLists.txt`, `.unity` packages), codemap, or explicit mention. Multiple allowed.
 - **Domain(s).** From module names (`api`, `ui`, `rendering`, `auth`), task keywords, file paths. Multiple allowed.
 - **Project.** The current working directory's project. If `<project-root>/.claude/architecture.md` exists, flag it for explicit read in step 3.
@@ -71,21 +72,28 @@ Invoke [`skills/discover/SKILL.md`](../discover/SKILL.md) programmatically:
 
 ```
 {
- task_keywords: [<derived from task text>],
- scopes: [<language>, <domain>, "global", "project-<name>"],
- kind: "architectural-rule",
- relevance_phases: [<task-type mapping>, "always"],
- top_n: 20,
- render_bodies: true,
- include_recaps: false
+  task_keywords: [<derived from task text>],
+  scopes: [<language>, <domain>, "global", "project-<name>"],
+  kind: "architectural-rule",
+  relevance_phases: [<task-type mapping>, "always"],
+  top_n: 20,
+  render_bodies: true,
+  include_recaps: false
 }
 ```
 
 `relevance_phases` mapping:
 
-| task type | phases | | --- | --- | | `code-writing` | `always`, `when-language-<lang>`, `when-domain-<domain>` | | `design` | `always`, `during-planning` | | `debugging` | `always`, `during-debug` | | `review` | `always`, `during-review` | `include_recaps: false` is deliberate — prep primes *what rules apply*, not *what I was doing last time*. Recaps are for the discover report, not the priming block.
+| task type | phases |
+| --- | --- |
+| `code-writing` | `always`, `when-language-<lang>`, `when-domain-<domain>` |
+| `design` | `always`, `during-planning` |
+| `debugging` | `always`, `during-debug` |
+| `review` | `always`, `during-review` |
 
-Discover resolves the architectural-rule overlay as part of this call — the rules prep receives are already the *effective* corpus (user / company / project overrides + patches applied, disables dropped, anchors stripped). Prep does not re-resolve; it consumes the resolved set and carries any non-default annotations through to step 5.
+`include_recaps: false` is deliberate — prep primes *what rules apply*, not *what I was doing last time*. Recaps are for the discover report, not the priming block.
+
+Discover resolves the architectural-rule tier overlay as part of this call — the rules prep receives are already the *effective* corpus (user / company / project overrides + patches applied, disables dropped, anchors stripped). Prep does not re-resolve; it consumes the resolved set and carries any non-default annotations through to step 5.
 
 ### 3. Read `.claude/architecture.md` if present
 
@@ -109,7 +117,7 @@ Combine discover's rendered fragments + the architecture file content.
 
 **Compression:**
 
-- The architectural-rules tree already enforces rule-level compression at storage time ( + 006). Do not re-compress here.
+- The architectural-rules tree already enforces rule-level compression at storage time. Do not re-compress here.
 - If the `.claude/architecture.md` content is long (>10 bullets), pull the most-relevant sections to the task; leave the rest for an explicit user request.
 
 ### 5. Surface the priming block
@@ -120,10 +128,10 @@ Output shape:
 Prepped for: <language(s)> / <domain(s)> / project: <name>
 
 Loaded N rules:
- Universal: <terse rule list, comma-separated or bulleted>
- Language: <terse rule list>
- Domain: <terse rule list>
- Project: <terse rule list>
+  Universal: <terse rule list, comma-separated or bulleted>
+  Language: <terse rule list>
+  Domain: <terse rule list>
+  Project: <terse rule list>
 
 Codemap age: X days. Architecture file: present | absent.
 ```
@@ -171,7 +179,7 @@ When any of those is true, stop and say:
 
 No state tracking of file sets. No silent detection. Observe → surface → ask. Matches the collaborator principle.
 
-**Boundary-cross specialization (scope-resolution, 035+037).** When the repo has a `submodules.md`, the task-shift watch above gains a sharper trigger: the active region the [resolver](../../docs/scope-resolution-resolver.md) computes for the new task path. The cross-type — and the response — keys off the **filename**, never the contents:
+**Boundary-cross specialization (scope-resolution).** When the repo has a `submodules.md`, the task-shift watch above gains a sharper trigger: the active region the [resolver](../../docs/scope-resolution-resolver.md) computes for the new task path. The cross-type — and the response — keys off the **filename**, never the contents:
 
 - **Submodule cross** — the task path enters a *different* `submodule.md`-bearing registered path → treat as a re-prep event (the prompt above), noting the region change (`Submodule: services/api (go) → apps/web (ts)`); the new region may carry a new language/corpus.
 - **Subfolder cross** — the task path crosses a `scope.md` boundary *within the same submodule* → **silent filter swap**: merge the new scopes, no prompt (it's a refinement, not a region change).
@@ -185,9 +193,9 @@ When the user corrects Claude with reference to a rule ("you violated SoC", "thi
 
 1. Note the correction.
 2. Identify whether the correction maps to:
- - **A rule already in the primed set.** Claude missed it — acknowledge, adjust the code, no capture needed (the rule exists).
- - **A rule not in the primed set but already captured.** Prep's scope detection missed it — acknowledge, offer to re-run `/prep` with broader scope.
- - **A rule that does not exist in the tree.** Propose a capture: *"This correction looks like a new rule. Capture it via `/capture`?"* — invokes [`skills/capture/SKILL.md`](../capture/SKILL.md) with the user's correction text as candidate content. Capture's own confirmation flow runs.
+   - **A rule already in the primed set.** Claude missed it — acknowledge, adjust the code, no capture needed (the rule exists).
+   - **A rule not in the primed set but already captured.** Prep's scope detection missed it — acknowledge, offer to re-run `/prep` with broader scope.
+   - **A rule that does not exist in the tree.** Propose a capture: *"This correction looks like a new rule. Capture it via `/capture`?"* — invokes [`skills/capture/SKILL.md`](../capture/SKILL.md) with the user's correction text as candidate content. Capture's own confirmation flow runs.
 3. Never auto-capture. Collaborator principle.
 
 ## Failure modes
@@ -217,7 +225,7 @@ When the user corrects Claude with reference to a rule ("you violated SoC", "thi
 - **project-architecture.md** — the project's canonical architectural file. Prep reads it directly (step 3), not via discover.
 - **review** — review consumes the same primed scope signal. For now, prep's primed-scope note is session-internal only.
 - **recap** — prep does not load recaps into the priming block. Recaps belong in `/discover`-style recall, not rule priming.
-- **rule-prime hook** — the mechanical half of priming. The hook owns the *floor* (always + project + single-language tier at SessionStart; incremental tiers at UserPromptSubmit) and records it in the `rulePrime` session watermark. Prep reads that watermark (step 0) and runs the *deep* pass — higher top-N, task-specific domain tier, architecture file — instead of re-priming the floor. When the hook is off, prep owns the floor as before (the legacy path). Prep + hook are the same belt-and-suspenders shape as the 049 rule+hook pair: prep is the discretionary deep prime, the hook is the mechanical floor backstop. Drift between the floor the hook primes and the deep set prep adds is a flag.
+- **rule-prime hook** — the mechanical half of priming. The hook owns the *floor* (always + project + single-language tier at SessionStart; incremental tiers at UserPromptSubmit) and records it in the `rulePrime` session watermark. Prep reads that watermark (step 0) and runs the *deep* pass — higher top-N, task-specific domain tier, architecture file — instead of re-priming the floor. When the hook is off, prep owns the floor as before (the legacy path). Prep + hook are the same belt-and-suspenders shape as the persist-before-discard rule + clear-context-decision-guard hook pair: prep is the discretionary deep prime, the hook is the mechanical floor backstop. Drift between the floor the hook primes and the deep set prep adds is a flag.
 - **persist-before-discard rule + clear-context-decision-guard hook** — prep surfaces `universal/persist-before-discard.md` like any other rule when the scope matches session-close. That rule is the intent-shaping half (don't *suggest* clearing with decisions pending); the `clear-context-decision-guard` SessionStart hook is the mechanical backstop (recover at next session start). Rule and hook must stay aligned — drift between them is a flag.
 
 See [`docs/prep-organ.md`](../../docs/prep-organ.md) for the scope map and the rationale behind each rule.

@@ -1,6 +1,6 @@
 ---
 name: brainstorm
-description: Ideation organ upstream of /envision — talk a half-formed idea into shape, or crystallize a blurry one into a name, one-line description, edges (in/out), and end-goal. Converges (doesn't just chat); writes a light.claude/ideas/<slug>.md note that /envision picks up. Use on /brainstorm [slug], "help me shape this idea", "I have a vague idea for…", "crystallize this". Mode A — propose-confirm, never auto-fires.
+description: Ideation organ upstream of /envision — talk a half-formed idea into shape, or crystallize a blurry one into a name, one-line description, edges (in/out), and end-goal. Converges (doesn't just chat); writes a light .claude/ideas/<slug>.md note that /envision picks up. Use on /brainstorm [slug], "help me shape this idea", "I have a vague idea for…", "crystallize this". Mode A — propose-confirm, never auto-fires.
 ---
 
 # brainstorm
@@ -11,7 +11,7 @@ The ideation organ. The stage *before* `/envision`: where a half-formed or blurr
 [half-formed idea] → /brainstorm → shaped idea (.claude/ideas/<slug>.md) → /envision → /spec → …
 ```
 
-The discipline: it must **converge**, not just chat. A `/brainstorm` that ends without a crystallized statement the user accepts was just conversation. Governed by [[config-efficient-helper-for-competent-engineer]] — the engineer wants the idea *sharpened*, not a transcript.
+The discipline: it must **converge**, not just chat. A `/brainstorm` that ends without a crystallized statement the user accepts was just conversation. The engineer wants the idea *sharpened*, not a transcript.
 
 ## When to run
 
@@ -78,8 +78,6 @@ On edit → revise the draft, re-propose. On reject → discard, write nothing.
 
 ## Relationship to other organs
 
-- **envision (029-era)** — the immediate downstream. brainstorm's `.claude/ideas/<slug>.md` becomes `/envision <slug>`'s starting intent. (envision's "or `/brainstorm` if it ever lands" pointer is now live.)
+- **envision** — the immediate downstream. brainstorm's `.claude/ideas/<slug>.md` becomes `/envision <slug>`'s starting intent.
 - **improve-prompt** — a sibling interview-to-converge organ, but for *prompts*, not *project ideas*. Different corpus, same converge-don't-ramble discipline.
 - **spec** — two hops downstream (brainstorm → envision → spec). brainstorm shapes the idea; spec pins one module's requirements.
-
-See `.claude/specs/brainstorm/v1.md` for the design.

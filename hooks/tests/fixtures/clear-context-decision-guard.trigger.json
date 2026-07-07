@@ -1,0 +1,7 @@
+{
+  "session_id": "test-session-a",
+  "hook_event_name": "SessionStart",
+  "source": "clear",
+  "cwd": "__FIXTURES__",
+  "transcript_path": "__FIXTURES__/transcript.decision-unpersisted.jsonl"
+}

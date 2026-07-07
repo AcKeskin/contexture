@@ -14,7 +14,7 @@ Front door for the architectural-rule overlay system. Manages the user/company/p
 
 - shipped: `~/.claude/architectural-rules/` (read-only here — never edit through this skill)
 - company: `~/.claude/architectural-rules-company/`
-- user: `~/.claude/architectural-rules-local/`
+- user:    `~/.claude/architectural-rules-local/`
 - project: `<project>/.claude/rules/`
 
 Manifests: `~/.claude/architectural-rules.config.yaml` (user), `<project>/.claude/rules.config.yaml` (project).
@@ -39,8 +39,8 @@ Remove the key from whichever manifest `disabled:` set holds it (project checked
 ### `/rules edit <key> [--editor]`
 1. Resolve the current winning tier for the key.
 2. Ask: whole-file override or field patch?
- - **whole-file** → create `~/.claude/architectural-rules-local/<key>.md` seeded with the resolved lower-tier body (a real baseline, not blank). Set `origin: user`.
- - **field patch** → create the same path with `override: <key>`, `mode: patch`, and empty `remove`/`replace`/`add` sections to fill in.
+   - **whole-file** → create `~/.claude/architectural-rules-local/<key>.md` seeded with the resolved lower-tier body (a real baseline, not blank). Set `origin: user`.
+   - **field patch** → create the same path with `override: <key>`, `mode: patch`, and empty `remove`/`replace`/`add` sections to fill in.
 3. **Conversational by default**: load the body into the chat; the user describes the change; apply via Edit with propose-confirm. `--editor` instead opens the file in `$EDITOR` for raw hand-editing.
 4. If the target is `locked: true`, confirm + write a divergence entry (as in `disable`).
 5. Show the resulting effective rule (post-resolution) so the user sees the merged outcome.
@@ -53,6 +53,6 @@ Clone or pull the company repo per the user manifest's `company.repo` + `ref`, i
 - This skill never edits the shipped tree. Overrides always land in the user or project tier.
 - `--session` disables are the fastest control: kill a rule that's in the way *now*, nothing persisted.
 - The resolver is shared with discover; keep behaviour identical (one source of truth in `docs/architectural-rules-overlay.md`).
-- Anchors (`<!-- id:... -->`) stay in files but are stripped before context — do not remove them when editing a body, they are patch targets.
+- Anchors (`<!-- id: ... -->`) stay in files but are stripped before context — do not remove them when editing a body, they are patch targets.
 
 See `docs/architectural-rules-overlay.md` for the full contract.

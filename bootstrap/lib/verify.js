@@ -3,8 +3,9 @@
 // Verify: read-only audit that the repo's synced subtrees and their entries
 // are wired into ~/.claude/. Three drift modes:
 //   missing-link — entry exists in repo, no link/copy in ~/.claude/<subtree>/
-//   stale-link   — a dst entry whose name is still in the repo set but whose
-//                  link/copy diverged from the source (re-link fixes it)
+//   stale-link   — a bootstrap-owned copy (matches its recorded hashes in the
+//                  copy manifest) whose source has since changed; a plain
+//                  bootstrap run refreshes it
 //   orphan       — a dangling symlink into the repo whose target was renamed or
 //                  deleted. ADVISORY / non-blocking: a plain
 //                  bootstrap run self-heals it via link.js's pruneOrphans, so
@@ -20,7 +21,11 @@
 const fs = require('fs');
 const path = require('path');
 
+const { directoriesEqual, filesEqual } = require('./compare');
+const { loadManifest, matchesRecorded } = require('./copy-manifest');
+
 function verifyAll({ repoRoot, homeClaude, subtrees }) {
+  const manifest = loadManifest(homeClaude); // read-only here — never saved
   const subtreeReports = [];
   for (const sub of subtrees) {
     const src = path.join(repoRoot, sub.name);
@@ -30,16 +35,24 @@ function verifyAll({ repoRoot, homeClaude, subtrees }) {
       continue;
     }
     if (sub.mode === 'whole') {
-      subtreeReports.push(verifyWhole(sub.name, src, dst));
+      subtreeReports.push(verifyWhole(sub.name, src, dst, manifest));
     } else {
-      subtreeReports.push(verifyItems(sub.name, src, dst));
+      subtreeReports.push(verifyItems(sub.name, src, dst, manifest));
     }
 
     // In-repo mirror (e.g. .claude/skills/) — the generated cross-tool
     // discovery copy. Same per-item drift check, against the repo-relative dst.
     if (sub.inRepoMirror) {
       const mirrorDst = path.join(repoRoot, sub.inRepoMirror);
-      subtreeReports.push(verifyItems(`${sub.name} (mirror)`, src, mirrorDst));
+      subtreeReports.push(verifyItems(`${sub.name} (mirror)`, src, mirrorDst, manifest));
+    }
+
+    // Copy mirror (e.g. .github/skills/) — real-file copies for Copilot CLI.
+    // Same per-item drift check; validity comes from the copy manifest, not a
+    // symlink, so a stale copy surfaces as drift like the symlink mirror does.
+    if (sub.copyMirror) {
+      const copyDst = path.join(repoRoot, sub.copyMirror);
+      subtreeReports.push(verifyItems(`${sub.name} (copy)`, src, copyDst, manifest));
     }
   }
 
@@ -57,13 +70,22 @@ function verifyAll({ repoRoot, homeClaude, subtrees }) {
   return { subtreeReports, missing, stale, orphans, clean: missing === 0 && stale === 0 };
 }
 
-function verifyWhole(name, src, dst) {
+function verifyWhole(name, src, dst, manifest) {
   const existing = safeLstat(dst);
   if (!existing) {
     return { subtree: name, mode: 'whole', status: 'drift', missing: [{ name, dst, reason: 'not-present' }], stale: [] };
   }
   if (linksTo(dst, existing, src)) {
     return { subtree: name, mode: 'whole', status: 'ok' };
+  }
+  if (isStaleOwnedCopy(dst, existing, manifest)) {
+    return {
+      subtree: name,
+      mode: 'whole',
+      status: 'drift',
+      missing: [],
+      stale: [{ name, dst, target: src, reason: 'stale copy — source changed; rerun bootstrap to refresh' }],
+    };
   }
   return {
     subtree: name,
@@ -74,7 +96,7 @@ function verifyWhole(name, src, dst) {
   };
 }
 
-function verifyItems(name, srcDir, dstDir) {
+function verifyItems(name, srcDir, dstDir, manifest) {
   const missing = [];
   const stale = [];
   const orphans = [];
@@ -99,6 +121,8 @@ function verifyItems(name, srcDir, dstDir) {
     }
     if (linksTo(itemDst, existing, itemSrc)) {
       okCount += 1;
+    } else if (isStaleOwnedCopy(itemDst, existing, manifest)) {
+      stale.push({ name: entryName, dst: itemDst, target: itemSrc, reason: 'stale copy — source changed; rerun bootstrap to refresh' });
     } else {
       missing.push({ name: entryName, dst: itemDst, reason: 'not-linked' });
     }
@@ -150,6 +174,17 @@ function linksTo(dst, lstat, expectedSrc) {
   return false;
 }
 
+// A non-symlink destination that diverges from its source but still matches
+// its recorded hashes in the copy manifest is bootstrap-owned and merely
+// stale — a plain bootstrap run refreshes it. Anything else (user-modified or
+// no manifest entry) stays 'not-linked': unknown provenance.
+function isStaleOwnedCopy(dst, lstat, manifest) {
+  if (lstat.isSymbolicLink()) return false;
+  const kind = lstat.isDirectory() ? 'dir' : lstat.isFile() ? 'file' : null;
+  if (!kind) return false;
+  return matchesRecorded(manifest, dst, kind);
+}
+
 function isInside(child, parent) {
   const rel = path.relative(parent, child);
   return rel && !rel.startsWith('..') && !path.isAbsolute(rel);
@@ -170,31 +205,6 @@ function safeReadlink(p) {
   } catch {
     return null;
   }
-}
-
-function directoriesEqual(a, b) {
-  const listA = fs.readdirSync(a).sort();
-  const listB = fs.readdirSync(b).sort();
-  if (listA.length !== listB.length) return false;
-  for (let i = 0; i < listA.length; i++) {
-    if (listA[i] !== listB[i]) return false;
-    const sa = fs.statSync(path.join(a, listA[i]));
-    const sb = fs.statSync(path.join(b, listB[i]));
-    if (sa.isDirectory() !== sb.isDirectory()) return false;
-    if (sa.isDirectory()) {
-      if (!directoriesEqual(path.join(a, listA[i]), path.join(b, listB[i]))) return false;
-    } else if (sa.size !== sb.size) {
-      return false;
-    }
-  }
-  return true;
-}
-
-function filesEqual(a, b) {
-  const sa = fs.statSync(a);
-  const sb = fs.statSync(b);
-  if (sa.size !== sb.size) return false;
-  return fs.readFileSync(a).equals(fs.readFileSync(b));
 }
 
 // --- Share-readiness leak scan -------------------------------

@@ -1,11 +1,11 @@
 ---
 name: blueprint
-description: Author a concrete blueprint for a slug — what we wanted (intent from vision + spec) and what we're building now (the mature concrete shape: classes, interfaces, dependencies, module relationships, build order) with Mermaid UML. Optional, after /draft-plan — the commit-point view an engineer reaches for before coding. Also re-blueprints existing code (--from-code). Use on /blueprint [slug] or "blueprint this" / "show the concrete shape". Never auto-fires.
+description: "Author a concrete blueprint for a slug — what we wanted (intent from vision + spec) and what we're building now (the mature concrete shape: classes, interfaces, dependencies, module relationships, build order) with Mermaid UML. Optional, after /draft-plan — the commit-point view an engineer reaches for before coding. Also re-blueprints existing code (--from-code). Use on /blueprint [slug] or \"blueprint this\" / \"show the concrete shape\". Never auto-fires."
 ---
 
 # blueprint
 
-The concrete-blueprint organ (renamed + repositioned from the old `document` organ). Built from [`.claude/specs/document/v1.md`](../../.claude/specs/document/v1.md).
+The concrete-blueprint organ.
 
 A blueprint puts two things side by side so a competent engineer can see they're aligned and **commit**:
 
@@ -15,7 +15,7 @@ A blueprint puts two things side by side so a competent engineer can see they're
 It is **optional and post-planning** — reached for *after* `/draft-plan` when you want everything concretized in one place. It does **not** merge with `/draft-plan` (the plan stays the stepped plan; the blueprint is the concrete synthesis on top):
 
 ```
-envision → spec → draft-plan → [ blueprint ] → execute (blueprint optional)
+envision → spec → draft-plan → [ blueprint ] → execute      (blueprint optional)
 ```
 
 It **authors** (writes new diagrams + the concrete shape). It is **not** `visualise-codemap` (which *renders* structure from finished code — derived, post-hoc). Mermaid templates live in [`mermaid-templates.md`](mermaid-templates.md).
@@ -42,9 +42,9 @@ The point is *intent + mature concrete shape*, aligned. It is **not** a process 
 
 - **Slug:** given → use it. Omitted → resolve via `.claude/specs/INDEX.md`: `default` if active; else the single active slug; else list active slugs and ask.
 - **Mode:**
- - `--from-code` flag → Mode 2.
- - Else check for `.claude/specs/<slug>/` (active) and/or `.claude/visions/<slug>/`. Present → Mode 1. Absent → Mode 2 (announce: *"No spec/vision for `<slug>` — running from code + codemap."*).
- - **Both a stale spec and live code exist:** prefer Mode 1 (spec is the intent) but add a Notes line: *"Code may have diverged from spec v<M> — verify."*
+  - `--from-code` flag → Mode 2.
+  - Else check for `.claude/specs/<slug>/` (active) and/or `.claude/visions/<slug>/`. Present → Mode 1. Absent → Mode 2 (announce: *"No spec/vision for `<slug>` — running from code + codemap."*).
+  - **Both a stale spec and live code exist:** prefer Mode 1 (spec is the intent) but add a Notes line: *"Code may have diverged from spec v<M> — verify."*
 
 ### 2. Read the sources
 
@@ -69,11 +69,11 @@ Three parts. **Omit any part whose source material is empty** — no "N/A" place
 1. **What we wanted (intent).** 1–3 short paragraphs from the vision's intent + the spec's problem/goals/done-criteria (Mode 1) or the codemap's inferred purpose (Mode 2): what the system is, who it's for, the success criterion. **No diagram.** Terse — this is the comparand, not an essay.
 
 2. **What we're building now (the concrete shape).** The mature, concrete answer — the heart of the blueprint. Author whichever of these the slug actually has:
- - **Module / component map** — a `C4Container` block AND a flowchart fallback (template: `c4-architecture`) showing modules, responsibilities, and **the relationships between them**. Always present when there is more than one module.
- - **Classes & interfaces** — a `classDiagram` (template: `class`) of the concrete types: interfaces, classes, their key fields and operations, and **relationships** (extends / implements / composition). From the spec's defined entities + the plan's named types (Mode 1) or the codemap's `## Class graph` (Mode 2). This is what "concrete" means — the actual surface to be built.
- - **Dependencies & build order** — a dependency graph (flowchart) of module/class dependencies, plus a short **build order** list (what gets built first, what depends on it). From the plan's step ordering (Mode 1) or the codemap's dependency edges (Mode 2).
- - **Key runtime flows** *(optional)* — a `sequenceDiagram` (template: `sequence`) for the one or two interactions that actually matter. Skip the exhaustive flow catalogue — only the load-bearing ones. Mode 2: label inferred flows `%% inferred — verify against runtime`.
- - **Data model** *(optional)* — `classDiagram` + `erDiagram` (templates: `class`, `er`) only when there is persisted state worth pinning.
+   - **Module / component map** — a `C4Container` block AND a flowchart fallback (template: `c4-architecture`) showing modules, responsibilities, and **the relationships between them**. Always present when there is more than one module.
+   - **Classes & interfaces** — a `classDiagram` (template: `class`) of the concrete types: interfaces, classes, their key fields and operations, and **relationships** (extends / implements / composition). From the spec's defined entities + the plan's named types (Mode 1) or the codemap's `## Class graph` (Mode 2). This is what "concrete" means — the actual surface to be built.
+   - **Dependencies & build order** — a dependency graph (flowchart) of module/class dependencies, plus a short **build order** list (what gets built first, what depends on it). From the plan's step ordering (Mode 1) or the codemap's dependency edges (Mode 2).
+   - **Key runtime flows** *(optional)* — a `sequenceDiagram` (template: `sequence`) for the one or two interactions that actually matter. Skip the exhaustive flow catalogue — only the load-bearing ones. Mode 2: label inferred flows `%% inferred — verify against runtime`.
+   - **Data model** *(optional)* — `classDiagram` + `erDiagram` (templates: `class`, `er`) only when there is persisted state worth pinning.
 
 3. **Alignment** — 2–4 lines closing the loop: does the concrete shape in part 2 still serve the intent in part 1? Name any place it drifted, narrowed, or added scope the intent didn't ask for. This is the commit point — the engineer reads this to decide "yes, build it." *(Optionally fold in a one-line **key decision** note here when a concrete choice is non-obvious — e.g. "chose composition over an inheritance tree for the renderers." Keep it to the decision, not the deliberation — process is out of scope.)*
 
@@ -99,9 +99,9 @@ Frontmatter:
 slug: <slug>
 version: <N>
 status: active
-spec:../../specs/<slug>/v<M>.md # Mode 1 hard-pin; omit in Mode 2 (no spec)
-plan:../../plans/<slug>/v<P>.md # soft reference; omit if no plan
-supersedes: v<N-1>.md # omit on v1
+spec: ../../specs/<slug>/v<M>.md     # Mode 1 hard-pin; omit in Mode 2 (no spec)
+plan: ../../plans/<slug>/v<P>.md      # soft reference; omit if no plan
+supersedes: v<N-1>.md                 # omit on v1
 mode: intent-driven | from-code
 created: YYYY-MM-DD
 description: <one-line — what this blueprint commits to>
@@ -133,7 +133,7 @@ No draft scratch file — only the accepted blueprint is written.
 ### 8. Report
 
 ```
-Wrote.claude/docs/<slug>/v<N>.md (<K> parts, <D> diagrams), pinned to spec v<M>.
+Wrote .claude/docs/<slug>/v<N>.md (<K> parts, <D> diagrams), pinned to spec v<M>.
 Wrote <Vault>/Projects/<ProjectFolder>/Docs/<slug>-blueprint.md (+ N part notes).
 Mode: <intent-driven | from-code>.
 ```

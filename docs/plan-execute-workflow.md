@@ -12,9 +12,9 @@ Codifies the `spec → plan → execute → review` workflow as user-invoked bui
 
 ## What this does not own
 
-- **Rule storage** — lives in the architectural-rules tree and memory (001/011).
+- **Rule storage** — lives in the architectural-rules tree and memory.
 - **Rule retrieval** — discover.
-- **Rule priming before code** — prep (004, formerly "grounding").
+- **Rule priming before code** — prep (formerly "grounding").
 - **Drift detection after code** — review.
 - **Memory capture** — capture.
 - **Tool protection** — security hooks.
@@ -25,21 +25,21 @@ The workflow is a *sequencer* across those organs. It does not replace any of th
 
 ```
 [user idea]
- ↓
-/spec → SPEC.md (interviewed) ← phase 1: surface requirements
- ↓
+   ↓
+/spec  →  SPEC.md (interviewed)            ← phase 1: surface requirements
+   ↓
 [fresh session recommended]
- ↓
-/draft-plan → PLAN.md (reviewable) ← phase 2: decide the shape
- ↓
+   ↓
+/draft-plan  →  PLAN.md (reviewable)       ← phase 2: decide the shape
+   ↓
 [user reviews the plan]
- ↓
-/blueprint → intent + concrete shape (optional) ← phase 2.5: commit the shape before coding
- ↓
-/execute → implementation + verification ← phase 3: do it, gate each step
- ↓
-/review → drift check ← phase 4: audit for drift
- ↓
+   ↓
+/blueprint →  intent + concrete shape (optional)  ← phase 2.5: commit the shape before coding
+   ↓
+/execute →  implementation + verification  ← phase 3: do it, gate each step
+   ↓
+/review  →  drift check                    ← phase 4: audit for drift
+   ↓
 commit → one concern per commit
 ```
 
@@ -95,7 +95,13 @@ Once the work has actually shipped (done-criteria met), `/close-out <slug>` **cl
 
 Three organs fire near the end of work, and they're easy to confuse. They differ by *what they're about*:
 
-| Organ | About | Does | Use when | | --- | --- | --- | --- | | **/recap** | the **session** | writes a "what we did today / where we left off" note | wrapping up a work session (may span several features, or half of one) | | **/close-out** | a **feature** (slug) | reconciles its spec to reality, files away its plan, logs the ship | that *specific feature* has shipped | | **/checkpoint** | a **scope** (a diff / module / the whole project) | audits "does this serve the point + cohere?" and routes fixes | you want to step back and judge fit, at any zoom | Rule of thumb: **`/recap` = the session, `/close-out` = the feature, `/checkpoint` = the judgment.** They compose — a session-end `/recap` will *offer* `/close-out` for any feature that shipped during it.
+| Organ | About | Does | Use when |
+| --- | --- | --- | --- |
+| **/recap** | the **session** | writes a "what we did today / where we left off" note | wrapping up a work session (may span several features, or half of one) |
+| **/close-out** | a **feature** (slug) | reconciles its spec to reality, files away its plan, logs the ship | that *specific feature* has shipped |
+| **/checkpoint** | a **scope** (a diff / module / the whole project) | audits "does this serve the point + cohere?" and routes fixes | you want to step back and judge fit, at any zoom |
+
+Rule of thumb: **`/recap` = the session, `/close-out` = the feature, `/checkpoint` = the judgment.** They compose — a session-end `/recap` will *offer* `/close-out` for any feature that shipped during it.
 
 ## When to skip
 
@@ -103,7 +109,15 @@ Anthropic's rule: *"if you could describe the diff in one sentence, skip the pla
 
 Applied in practice:
 
-| Task shape | /spec | /draft-plan | /execute | | --- | --- | --- | --- | | One-line change (rename var, fix typo) | skip | skip | skip — just do it | | Single file, clear scope | skip | skip | /execute or just do it | | Multi-file change with a clear target | skip | /draft-plan | /execute | | Unclear requirements, multi-phase | /spec | /draft-plan | /execute | | Refactor across boundaries | /spec (light) | /draft-plan | /execute | The triviality check inside `/draft-plan` enforces the rule automatically for the first two rows.
+| Task shape | /spec | /draft-plan | /execute |
+| --- | --- | --- | --- |
+| One-line change (rename var, fix typo) | skip | skip | skip — just do it |
+| Single file, clear scope | skip | skip | /execute or just do it |
+| Multi-file change with a clear target | skip | /draft-plan | /execute |
+| Unclear requirements, multi-phase | /spec | /draft-plan | /execute |
+| Refactor across boundaries | /spec (light) | /draft-plan | /execute |
+
+The triviality check inside `/draft-plan` enforces the rule automatically for the first two rows.
 
 ## File conventions
 
@@ -112,16 +126,16 @@ Versioned, per-slug. Two parallel trees under `.claude/`:
 ```
 .claude/
 ├── specs/
-│ ├── INDEX.md # registry: slug → current version + status
-│ └── <slug>/
-│ ├── v1.md
-│ ├── v2.md
-│ └── v3.md # currently active
+│   ├── INDEX.md                      # registry: slug → current version + status
+│   └── <slug>/
+│       ├── v1.md
+│       ├── v2.md
+│       └── v3.md                     # currently active
 └── plans/
- ├── INDEX.md
- └── <slug>/
- ├── v1.md # spec:../../specs/<slug>/v1.md
- └── v2.md # spec:../../specs/<slug>/v3.md
+    ├── INDEX.md
+    └── <slug>/
+        ├── v1.md                     # spec: ../../specs/<slug>/v1.md
+        └── v2.md                     # spec: ../../specs/<slug>/v3.md
 ```
 
 **Frontmatter contract** (every versioned file):
@@ -130,15 +144,15 @@ Versioned, per-slug. Two parallel trees under `.claude/`:
 ---
 slug: <slug>
 version: <N>
-status: active # draft | active | superseded | abandoned
-supersedes: v<N-1>.md # omit on v1
-superseded_by: v<N+1>.md # added when the next version takes over
+status: active            # draft | active | superseded | abandoned
+supersedes: v<N-1>.md     # omit on v1
+superseded_by: v<N+1>.md  # added when the next version takes over
 created: YYYY-MM-DD
 description: <one-line — used by INDEX>
 ---
 ```
 
-Plans additionally carry `spec:../../specs/<slug>/v<M>.md` pinning the spec version they were drafted against. A plan does not silently update when its spec evolves — re-run `/draft-plan <slug>` to produce a new plan against the new spec.
+Plans additionally carry `spec: ../../specs/<slug>/v<M>.md` pinning the spec version they were drafted against. A plan does not silently update when its spec evolves — re-run `/draft-plan <slug>` to produce a new plan against the new spec.
 
 **Status transitions:**
 - `draft → active → superseded` is the normal evolution path.

@@ -12,35 +12,42 @@ Unlike `claude-md/`, no `@import` line is needed in `~/.claude/CLAUDE.md` — th
 
 ```
 architectural-rules/
-├── universal/ scope: [universal], relevance: always (most) — a few are phase-gated (naming-and-comments.md: during-review; test-quality.md: during-review + when-writing-tests)
-├── config-authoring/ scope: [config-authoring], relevance: when-touching-{skills,agents,rules,hooks}
-│ # language scopes — gate on the language of the file in scope
-├── bash/ scope: [bash], relevance: when-language-bash
-├── cpp/ scope: [cpp], relevance: when-language-cpp
-├── csharp/ scope: [csharp], relevance: when-language-csharp
-├── python/ scope: [python], relevance: when-language-python
-├── rust/ scope: [rust], relevance: when-language-rust
-├── sql/ scope: [sql], relevance: when-language-sql
-├── typescript/ scope: [typescript], relevance: when-language-typescript
-├── web/ scope: [web], relevance: when-language-web
-│ # engine scopes — gate on the engine the project targets
-├── unity/ scope: [unity], relevance: when-domain-unity
-├── godot/ scope: [godot], relevance: when-engine-godot
-│ # platform scopes — gate on the OS/platform the build targets
-├── android/ scope: [android], relevance: when-platform-android
-├── linux/ scope: [linux], relevance: when-platform-linux
-│ # domain scopes — gate on the problem domain the task touches
-├── openxr/ scope: [openxr], relevance: when-domain-openxr
-├── rendering/ scope: [rendering], relevance: when-domain-rendering
-├── webrtc/ scope: [webrtc], relevance: when-domain-webrtc
-└── codecs/ scope: [codecs], relevance: when-domain-codecs
+├── universal/           scope: [universal],        relevance: always (most) — a few are phase-gated (naming-and-comments.md: during-review; test-quality.md: during-review + when-writing-tests)
+├── config-authoring/    scope: [config-authoring], relevance: when-touching-{skills,agents,rules,hooks}
+│   # language scopes — gate on the language of the file in scope
+├── bash/                scope: [bash],       relevance: when-language-bash
+├── cpp/                 scope: [cpp],        relevance: when-language-cpp
+├── csharp/              scope: [csharp],     relevance: when-language-csharp
+├── python/              scope: [python],     relevance: when-language-python
+├── rust/                scope: [rust],       relevance: when-language-rust
+├── sql/                 scope: [sql],        relevance: when-language-sql
+├── typescript/          scope: [typescript], relevance: when-language-typescript
+├── web/                 scope: [web],        relevance: when-language-web
+│   # engine scopes — gate on the engine the project targets
+├── unity/               scope: [unity],      relevance: when-domain-unity
+├── godot/               scope: [godot],      relevance: when-engine-godot
+│   # platform scopes — gate on the OS/platform the build targets
+├── android/             scope: [android],    relevance: when-platform-android
+├── linux/               scope: [linux],      relevance: when-platform-linux
+│   # domain scopes — gate on the problem domain the task touches
+├── openxr/              scope: [openxr],     relevance: when-domain-openxr
+├── rendering/           scope: [rendering],  relevance: when-domain-rendering
+├── webrtc/              scope: [webrtc],     relevance: when-domain-webrtc
+└── codecs/              scope: [codecs],     relevance: when-domain-codecs
 ```
 
 New languages / domains: create a new sub-folder. Do not nest further.
 
 **Relevance gate verbs.** A scope's `relevance` tag declares *what kind of fact* makes it fire — four verbs, one family:
 
-| Verb | Fires when | Examples | |---|---|---| | `when-language-<x>` | a file of that language is in scope | cpp, csharp, python, typescript, web, sql, bash | | `when-engine-<x>` | the project targets that engine | unity (`when-domain-unity`, historical), godot | | `when-platform-<x>` | the build targets that OS/platform | android, linux | | `when-domain-<x>` | the task touches that problem domain | openxr, rendering, webrtc, codecs | These are orthogonal and compose: an OpenXR app built for Android pulls `openxr/` **and** `android/`; a Godot project on Linux pulls `godot/` **and** `linux/`. (`unity/` predates the split and is tagged `when-domain-unity`; left as-is for stability — the engine/platform/domain distinction is what `discover`/`prep` filter on, and an exact-string match still works.)
+| Verb | Fires when | Examples |
+|---|---|---|
+| `when-language-<x>` | a file of that language is in scope | cpp, csharp, python, typescript, web, sql, bash |
+| `when-engine-<x>` | the project targets that engine | unity (`when-domain-unity`, historical), godot |
+| `when-platform-<x>` | the build targets that OS/platform | android, linux |
+| `when-domain-<x>` | the task touches that problem domain | openxr, rendering, webrtc, codecs |
+
+These are orthogonal and compose: an OpenXR app built for Android pulls `openxr/` **and** `android/`; a Godot project on Linux pulls `godot/` **and** `linux/`. (`unity/` predates the split and is tagged `when-domain-unity`; left as-is for stability — the engine/platform/domain distinction is what `discover`/`prep` filter on, and an exact-string match still works.)
 
 The four verbs above are the **scope-axis** (what the project *is*). A second **action-axis** family gates on *what the agent is doing* rather than what the project is: `during-<phase>` (`during-planning` / `during-review` / `during-execution` / `during-session` / `during-session-close`), `when-touching-<surface>`, and `when-invoking-tools`. A rule loads at the right *moment* rather than always — e.g. `during-session` fires mid-session once history has accumulated (the session scope-boundary guard's pivot watch), distinct from `during-session-close` at the clear/compact boundary. See [`docs/architectural-rules.md`](../docs/architectural-rules.md) for the full action-axis list.
 
@@ -58,7 +65,7 @@ name: <short>
 description: <one-line>
 type: user
 kind: architectural-rule
-scope: [<cluster-tag>, <universal | cpp | csharp | rust | unity | godot | openxr | rendering |...>]
+scope: [<cluster-tag>, <universal | cpp | csharp | rust | unity | godot | openxr | rendering | ...>]
 relevance: <always | when-language-X | when-engine-X | when-platform-X | when-domain-X>
 ---
 ```

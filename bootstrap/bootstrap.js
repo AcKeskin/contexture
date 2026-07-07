@@ -15,6 +15,7 @@ const { resolveSettings, writeSettings } = require('./lib/settings');
 const { ensureInstalled: ensureCcline } = require('./lib/ccline');
 const { verifyAll, formatReport, scanLeaks, formatLeakReport, planLeakFixes, verifyInstructionGlobs, formatInstructionGlobReport } = require('./lib/verify');
 const { loadEnablement, excludeFor, isFilterable } = require('./lib/enablement');
+const { loadManifest } = require('./lib/copy-manifest');
 const { makeBackupSession } = require('./lib/backup');
 const { registerMcps, MCP_MANIFEST } = require('./lib/mcps');
 
@@ -27,10 +28,14 @@ const { registerMcps, MCP_MANIFEST } = require('./lib/mcps');
 //             other coding agents (Copilot/Codex/Cursor/VS Code) auto-discover
 //             skills from the in-repo `.claude/skills/` they natively scan,
 //             without moving the committed source off repo-root `skills/`.
+//   copyMirror — like inRepoMirror but written as REAL FILE COPIES, not
+//             symlinks. Targets Copilot CLI's native `.github/skills/` scan dir:
+//             a bare clone (no symlink permission) must still expose the skills,
+//             and Copilot CLI reads real files, not links into ~/.claude.
 const SYNCED_SUBTREES = [
   { name: 'claude-md', mode: 'whole' },
   { name: 'architectural-rules', mode: 'whole' },
-  { name: 'skills', mode: 'items', inRepoMirror: '.claude/skills' },
+  { name: 'skills', mode: 'items', inRepoMirror: '.claude/skills', copyMirror: '.github/skills' },
   { name: 'commands', mode: 'items' },
   { name: 'agents', mode: 'items' },
   { name: 'hooks', mode: 'items' },
@@ -65,7 +70,11 @@ async function main(argv) {
       verifyInstructionGlobs({ repoRoot, homeClaude: env.homeClaude })
     );
     if (globReport) log(globReport);
-    if (!result.clean) process.exitCode = 1;
+    // Rules lint — BLOCKING. A rule whose frontmatter fails strict YAML or uses
+    // an unrecognized relevance token silently drops out of priming/resolution;
+    // that must fail the audit, not pass quietly.
+    const rulesOk = runRulesLint(repoRoot, log);
+    if (!result.clean || !rulesOk) process.exitCode = 1;
     return;
   }
 
@@ -96,6 +105,11 @@ async function main(argv) {
   // created if at least one entry needs backing up).
   const backupSession = flags.dryRun ? null : makeBackupSession(env.homeClaude);
 
+  // Copy-provenance manifest: lets link.js refresh its own unmodified copies
+  // (Windows symlink-denied fallback) instead of conflicting on every
+  // upstream change. Divergent user content still conflicts.
+  const copyManifest = flags.dryRun ? null : loadManifest(env.homeClaude);
+
   // 1. Link synced subtrees that actually exist in the repo.
   for (const sub of subtrees) {
     const src = path.join(repoRoot, sub.name);
@@ -118,13 +132,19 @@ async function main(argv) {
           log(`prune ${sub.name} (mirror): would remove orphan '${path.basename(p.dst)}'`)
         );
       }
+      if (sub.copyMirror) {
+        log(`copy ${sub.name}: would copy per-item ${src} → ${path.join(repoRoot, sub.copyMirror)}`);
+        pruneOrphans(src, path.join(repoRoot, sub.copyMirror), { dryRun: true }).forEach((p) =>
+          log(`prune ${sub.name} (copy): would remove orphan '${path.basename(p.dst)}'`)
+        );
+      }
       continue;
     }
     if (sub.mode === 'items') {
       const exclude = excludeFor(enablement.enabled, sub.name);
       const filterable = isFilterable(sub.name);
       const linkSet = filterable ? listEntries(src).filter((n) => !exclude.includes(n)) : null;
-      const results = linkItems(src, dst, { only: linkSet });
+      const results = linkItems(src, dst, { only: linkSet, manifest: copyManifest });
       const gcResults = filterable
         ? collectExcluded({ exclude, dst, backupSession, subtreeName: sub.name })
         : [];
@@ -137,7 +157,7 @@ async function main(argv) {
       // so non-Claude agents discover the same (enablement-filtered) skill set.
       if (sub.inRepoMirror) {
         const mirrorDst = path.join(repoRoot, sub.inRepoMirror);
-        const mirrorResults = linkItems(src, mirrorDst, { only: linkSet });
+        const mirrorResults = linkItems(src, mirrorDst, { only: linkSet, manifest: copyManifest });
         const mirrorGc = filterable
           ? collectExcluded({ exclude, dst: mirrorDst, backupSession, subtreeName: `${sub.name} (mirror)` })
           : [];
@@ -146,8 +166,22 @@ async function main(argv) {
           log(`prune ${sub.name} (mirror): removed orphan '${path.basename(p.dst)}'`)
         );
       }
+
+      // Copy mirror: real-file copies into Copilot CLI's `.github/skills/` scan
+      // dir, so a clone without symlink permission still exposes the skills.
+      if (sub.copyMirror) {
+        const copyDst = path.join(repoRoot, sub.copyMirror);
+        const copyResults = linkItems(src, copyDst, { only: linkSet, forceCopy: true, manifest: copyManifest });
+        const copyGc = filterable
+          ? collectExcluded({ exclude, dst: copyDst, backupSession, subtreeName: `${sub.name} (copy)` })
+          : [];
+        reportItems(`copy ${sub.name}`, copyResults.concat(copyGc));
+        pruneOrphans(src, copyDst).forEach((p) =>
+          log(`prune ${sub.name} (copy): removed orphan '${path.basename(p.dst)}'`)
+        );
+      }
     } else {
-      const result = linkDir(src, dst);
+      const result = linkDir(src, dst, { manifest: copyManifest });
       report(`link ${sub.name}`, result);
     }
   }
@@ -353,6 +387,23 @@ function wireGitHooksPath(repoRoot) {
   }
 }
 
+// Run the standalone rules lint (strict-YAML frontmatter + relevance vocabulary)
+// and fold its result into --verify. Returns true if clean. A lint script that
+// can't be found (e.g. an old checkout) is treated as a pass, not a hard error.
+function runRulesLint(repoRoot, logFn) {
+  const script = path.join(repoRoot, 'scripts', 'lint-rules.js');
+  if (!fs.existsSync(script)) return true;
+  try {
+    const out = execFileSync(process.execPath, [script], { stdio: ['ignore', 'pipe', 'pipe'] });
+    logFn(out.toString().trim());
+    return true;
+  } catch (err) {
+    const detail = (err.stdout || err.stderr || Buffer.from('')).toString().trim();
+    logFn(detail || 'rules-lint: failed');
+    return false;
+  }
+}
+
 function parseFlags(argv) {
   const flags = { exclude: [], dryRun: false, verify: false, fixLeaks: false };
   for (const a of argv) {
@@ -401,7 +452,7 @@ function reportItems(label, results) {
     log(`${label}: up-to-date (empty)`);
     return;
   }
-  const tally = { created: 0, 'up-to-date': 0, conflict: 0, skipped: 0, excluded: 0 };
+  const tally = { created: 0, refreshed: 0, 'up-to-date': 0, conflict: 0, skipped: 0, excluded: 0 };
   for (const r of results) tally[r.action] = (tally[r.action] ?? 0) + 1;
   const summary = Object.entries(tally)
     .filter(([, n]) => n > 0)
@@ -414,6 +465,8 @@ function reportItems(label, results) {
       process.exitCode = 1;
     } else if (r.action === 'created') {
       log(`  + ${path.basename(r.dst)} (${r.mode})`);
+    } else if (r.action === 'refreshed') {
+      log(`  ~ ${path.basename(r.dst)} (stale copy refreshed from source)`);
     } else if (r.action === 'excluded') {
       log(`  - ${path.basename(r.dst)} (${r.reason})`);
     }

@@ -12,11 +12,27 @@ Capture *writes*; discovery reads. Classification quality at capture time dictat
 
 Capture does not redefine discipline that already lives elsewhere. The organ leans on:
 
-| Concern | Source | What it contributes | | --- | --- | --- | | Frontmatter schema (`name`, `description`, `type`, `kind`, `scope`, `relevance`) | 001 | Template and field semantics | | Folder layout (`feedback/`, `project/`, `lessons/`, `decisions/`, `preferences/`, `architectural-rules/<scope>/`) | 001 | Where each `kind` / `type` lands | | Compression discipline (rule + why + scope, drop ceremony) | 001 | Body voice | | `kind` taxonomy (`lesson` / `decision` / `architectural-rule` / `preference`) | 006 | Kind values and their folders | | Architectural-rule tree (`~/.claude/architectural-rules/<lang-or-domain>/`) | 006 | Target for universal / language / domain rules | | User-correction feedback trigger | 005 (pending) | Invokes capture when review catches a missed rule | Capture's job is to apply all of the above consistently — not to reinvent any of it.
+| Concern | Source | What it contributes |
+| --- | --- | --- |
+| Frontmatter schema (`name`, `description`, `type`, `kind`, `scope`, `relevance`) | storage tagging | Template and field semantics |
+| Folder layout (`feedback/`, `project/`, `lessons/`, `decisions/`, `preferences/`, `architectural-rules/<scope>/`) | storage tagging | Where each `kind` / `type` lands |
+| Compression discipline (rule + why + scope, drop ceremony) | storage tagging | Body voice |
+| `kind` taxonomy (`lesson` / `decision` / `architectural-rule` / `preference`) | the architectural-rules corpus | Kind values and their folders |
+| Architectural-rule tree (`~/.claude/architectural-rules/<lang-or-domain>/`) | the architectural-rules corpus | Target for universal / language / domain rules |
+| User-correction feedback trigger | review | Invokes capture when review catches a missed rule |
+
+Capture's job is to apply all of the above consistently — not to reinvent any of it.
 
 ## Invocation shapes
 
-| Form | Who | What happens | | --- | --- | --- | | `/capture <text>` | User | `<text>` is the candidate memory content. | | `/capture` | User | Infer content from recent turns; ask one clarifying question if ambiguous. | | Natural language: "remember that…", "save this" | User | Description match triggers the skill. | | Programmatic (another skill) | Review, future | Caller passes structured content + suggested classification. | Never auto-fired. See §"Mode A vs Mode B" below.
+| Form | Who | What happens |
+| --- | --- | --- |
+| `/capture <text>` | User | `<text>` is the candidate memory content. |
+| `/capture` | User | Infer content from recent turns; ask one clarifying question if ambiguous. |
+| Natural language: "remember that…", "save this" | User | Description match triggers the skill. |
+| Programmatic (another skill) | Review, future | Caller passes structured content + suggested classification. |
+
+Never auto-fired. See §"Mode A vs Mode B" below.
 
 ## The flow
 
@@ -37,7 +53,7 @@ Mode B is revisited once v1 is in use and there is evidence of what genuinely ge
 
 ## Feedback vs preference — folder split
 
-A point of confusion worth pinning: both `type: feedback` and `kind: preference` are about "how the user wants things done." The folder layout is explicit:
+A point of confusion worth pinning: both `type: feedback` and `kind: preference` are about "how the user wants things done." The storage-tagging folder layout is explicit:
 
 - **`feedback/`** — keyed on `type: feedback`. Uses the `**Why:** / **How to apply:**` body shape. User-given rules with incident-backed reasoning.
 - **`preferences/`** — keyed on `kind: preference` (with `type: user`). Lighter-weight style notes.
@@ -50,7 +66,7 @@ Capture is the write path; discovery is the read path. A poorly classified captu
 
 ## Relationship to architectural rules
 
-`kind: architectural-rule` captures target the global tree (`~/.claude/architectural-rules/<scope>/`), not per-project memory. Capture must recognise the universal / language / domain / project split from 006 and route accordingly. For project-specific architectural rules, the two homes are (a) per-project memory with `scope: [project-<name>]` or (b) the project's `.claude/architecture.md` file (version control is user's choice). Capture writes memories; it does not edit `.claude/architecture.md` unless the user explicitly asks.
+`kind: architectural-rule` captures target the global tree (`~/.claude/architectural-rules/<scope>/`), not per-project memory. Capture must recognise the architectural-rules corpus's universal / language / domain / project split and route accordingly. For project-specific architectural rules, the two homes are (a) per-project memory with `scope: [project-<name>]` or (b) the project's `.claude/architecture.md` file (version control is the user's choice). Capture writes memories; it does not edit `.claude/architecture.md` unless the user explicitly asks.
 
 ## Relationship to session recaps
 

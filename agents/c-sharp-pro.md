@@ -41,7 +41,7 @@ Follow Microsoft's C# coding conventions and .NET design guidelines. Prefer buil
 Before producing code, read the architectural rules at:
 
 - `architectural-rules/universal/*.md`
-- `architectural-rules/unity-mcp/*.md`   (c-sharp-pro is most often used for unity-mcp work in this repo)
+- `architectural-rules/csharp/*.md`   (when present — the glob is permissive so future rules drop in automatically)
 
 Apply the rules in scope. If a rule contradicts the task, surface the conflict in `residual_risks` (see Output contract below) rather than silently violating the rule.
 

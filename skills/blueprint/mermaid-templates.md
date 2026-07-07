@@ -1,6 +1,6 @@
 # Mermaid templates for `/blueprint`
 
-Diagram templates the `document` skill references by name. All Mermaid (native in Obsidian + GitHub). Each template shows the shape; the skill fills it from the source. Fan-out caps from `SKILL.md` §4.5 apply.
+Diagram templates the `blueprint` skill references by name. All Mermaid (native in Obsidian + GitHub). Each template shows the shape; the skill fills it from the source. Fan-out caps from `SKILL.md` §4.5 apply.
 
 ## `c4-architecture`
 

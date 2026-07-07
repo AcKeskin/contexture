@@ -18,12 +18,11 @@ const path = require('path');
 const fs = require('fs');
 const io = require('./lib/hook-io');
 
-const MATCHER_TARGETS = new Set(['startup', 'compact']);
-
 async function main() {
-  const payload = await io.readPayload();
-  const matcher = payload.matcher || '';
-  if (!MATCHER_TARGETS.has(matcher)) return io.allow();
+  // Which SessionStart sources invoke this hook is decided by the settings
+  // matcher (bundle `bootstrapDrift`); the payload itself carries `source`,
+  // not `matcher`, so no in-hook gate is needed.
+  await io.readPayload();
 
   const repoRoot = locateRepoRoot();
   if (!repoRoot) return io.allow();
@@ -60,8 +59,7 @@ async function main() {
     `Bootstrap drift: ${result.missing} missing-link, ${result.stale} stale-link — ${preview}${suffix}. ` +
     `Run \`node ${path.join(repoRoot, 'bootstrap', 'bootstrap.js')}\` to fix.`;
 
-  process.stdout.write(JSON.stringify({ context: message }) + '\n');
-  io.allow();
+  io.addContext('SessionStart', message);
 }
 
 function locateRepoRoot() {

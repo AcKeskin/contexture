@@ -2,11 +2,16 @@
 
 Authoritative procedure lives in [`skills/recap/SKILL.md`](../skills/recap/SKILL.md); this doc is the Claude-facing reference.
 
-(Naming note: the proposal uses "rollup" for this artefact; renamed to "recap" — `/recap`, `skills/recap/`, `type: session-recap`.'s filename preserved for git history.)
+(Naming note: an earlier design used "rollup" for this artefact; renamed to "recap" — `/recap`, `skills/recap/`, `type: session-recap`.)
 
 ## Two tiers at a glance
 
-| Tier | Lives in | Shape | Capture | Retention | |---|---|---|---|---| | **Rules** (existing) | `memory/feedback/`, `memory/architectural-rules/`, `memory/decisions/`, `memory/lessons/`, `memory/preferences/` | rule + why + scope | deliberate via [capture](capture-organ.md) | durable, rarely deleted | | **Session recaps** (new) | `memory/sessions/YYYY-MM-DD-<slug>.md` | structured: request / investigated / learned / completed / next-steps / references | end-of-session, user-confirmed via [recap skill](../skills/recap/SKILL.md) | episodic, auto-surfaced only if ≤ 30 days | Rules answer *how should I work*; recaps answer *what happened and where did I leave off*. Conflating them (what claude-mem does) drowns rules in session chatter at retrieval time. Two tiers, different jobs.
+| Tier | Lives in | Shape | Capture | Retention |
+|---|---|---|---|---|
+| **Rules** (existing) | `memory/feedback/`, `memory/architectural-rules/`, `memory/decisions/`, `memory/lessons/`, `memory/preferences/` | rule + why + scope | deliberate via [capture](capture-organ.md) | durable, rarely deleted |
+| **Session recaps** (new) | `memory/sessions/YYYY-MM-DD-<slug>.md` | structured: request / investigated / learned / completed / next-steps / references | end-of-session, user-confirmed via [recap skill](../skills/recap/SKILL.md) | episodic, auto-surfaced only if ≤ 30 days |
+
+Rules answer *how should I work*; recaps answer *what happened and where did I leave off*. Conflating them (what claude-mem does) drowns rules in session chatter at retrieval time. Two tiers, different jobs.
 
 ## File format
 
@@ -38,7 +43,7 @@ Fields mirror claude-mem's `session_summaries` schema — validated shape, keeps
 
 - **User-invoked** — `/recap` or natural-language ("wrap up", "write session notes", "recap this session").
 - **Claude-proposed** — at natural endpoints the user signals (PR merged, "done for today", deliberate pause after non-trivial work). Claude proposes; user confirms before anything lands.
-- **Never auto-fired.** Mode B (silent auto-capture on session end) stays parked's collaborator principle. Every recap is explicit.
+- **Never auto-fired.** Mode B (silent auto-capture on session end) stays parked per capture's collaborator principle. Every recap is explicit.
 
 Conservative trigger rule: only propose when the user signals closure. Pure time-based triggers risk nagging; do not use them.
 
@@ -99,9 +104,9 @@ If a recap's `Completed` section is just a commit SHA list with no accompanying 
 ```
 ~/.claude/projects/<slug>/memory/
 └── sessions/
- ├── 2026-04-21-context-family-ship.md
- ├── 2026-04-22-prep-onepager.md
- └──...
+    ├── 2026-04-21-context-family-ship.md
+    ├── 2026-04-22-prep-onepager.md
+    └── ...
 ```
 
 Filename convention: `YYYY-MM-DD-<slug>.md`. Slug is short kebab-case of the recap's primary goal. Multiple recaps on the same day get a numeric suffix (`-2`, `-3`).

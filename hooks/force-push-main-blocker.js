@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 'use strict';
 
-// Block `git push --force` (and variants) to main / master. Feature branches
+// Block `git push --force` (and variants, including a `+refspec` force-prefix)
+// to main / master. Feature branches
 // stay unrestricted. Ambiguous pushes (no target branch specified) while the
 // current branch is protected count as blocked.
 //
@@ -20,7 +21,10 @@ async function main() {
   const command = (payload.tool_input && payload.tool_input.command) || '';
   if (!/\bgit\s+push\b/.test(command)) return io.allow();
 
-  const forced = /--force\b|\s-f\b|--force-with-lease\b/.test(command);
+  // A leading `+` on a refspec (`git push origin +main`) forces the update
+  // with no --force flag, so it must count as forced too.
+  const forced =
+    /--force\b|\s-f\b|--force-with-lease\b/.test(command) || /\s\+[^\s:]+(?::[^\s]+)?/.test(command);
   if (!forced) return io.allow();
 
   const protectedBranches = getProtectedList();
@@ -67,9 +71,11 @@ function resolveTargetBranch(cmd) {
   for (let i = pushIdx + 1; i < tokens.length; i++) {
     const t = tokens[i];
     if (t.startsWith('-')) continue;
-    // Strip refspec suffixes like local:remote — take the remote side.
-    const colon = t.indexOf(':');
-    positional.push(colon === -1 ? t : t.slice(colon + 1));
+    // Drop a leading `+` force-prefix, then for a `local:remote` refspec take
+    // the remote side.
+    const ref = t.replace(/^\+/, '');
+    const colon = ref.indexOf(':');
+    positional.push(colon === -1 ? ref : ref.slice(colon + 1));
   }
   if (positional.length >= 2) return positional[1];
   return null;

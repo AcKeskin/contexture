@@ -12,7 +12,7 @@ A blueprint puts two things side by side so a competent engineer can see they're
 It is **optional and post-planning** — reached for *after* `/draft-plan` when you want everything concretized in one place. It does **not** merge with `/draft-plan` (the plan stays the stepped *how*; the blueprint is the concrete *what*). It is the commit-point view, **not** a process narrative — how the plan was arrived at is out of scope.
 
 ```
-envision → spec → draft-plan → [ blueprint ] → execute (blueprint optional)
+envision → spec → draft-plan → [ blueprint ] → execute      (blueprint optional)
 ```
 
 ## Two modes
@@ -28,7 +28,7 @@ envision → spec → draft-plan → [ blueprint ] → execute (blueprint option
 
 ## Output + gate
 
-- **Review gate first**: present the drafted blueprint for accept/edit/reject before any write. No draft scratch file.
+- **Review gate first** (the accept/edit/reject gate): present the drafted blueprint for accept/edit/reject before any write. No draft scratch file.
 - **In-repo:** `.claude/docs/<slug>/v<N>.md` (versioned, supersedes chain, INDEX). **Vault:** `<Vault>/Projects/<ProjectFolder>/Docs/<slug>-blueprint.md` — `vaultRoot` read from `~/.claude/hook-config.json`, never hardcoded.
 
 ## What blueprint is not

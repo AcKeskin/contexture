@@ -7,7 +7,7 @@ description: Detect, score, and rewrite AI-generated texture in USER-FACING pros
 
 ## Overview
 
-Make user-facing prose read like a person wrote it, without changing what it says. Grounded in deep-research wf_1a39f292 (21 verified claims; Wikipedia AI-Cleanup + peer-reviewed detection literature). The catalogue is the source of truth; this skill applies it.
+Make user-facing prose read like a person wrote it, without changing what it says. Grounded in a verified research base (Wikipedia AI-Cleanup + peer-reviewed detection literature). The catalogue is the source of truth; this skill applies it.
 
 **Core principles (all load-bearing):**
 - **Signs, not proof. Scorer, not oracle.** Every marker also appears in genuine human prose (LLMs trained on it). Report advisory **density/likelihood** — never a binary "this is AI". No text-only detector escapes a false-positive floor.

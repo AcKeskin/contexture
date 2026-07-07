@@ -5,20 +5,22 @@ const fs = require('fs');
 const { execSync } = require('child_process');
 const io = require('./lib/hook-io');
 
-const MATCHER_TARGETS = new Set('__MATCHER__'.split('|'));
+// `source` is the documented SessionStart payload field (startup | resume |
+// clear | compact); `matcher` exists only in the settings.json registration.
+// This gate is belt-and-braces against settings drift.
+const SOURCE_TARGETS = new Set('__MATCHER__'.split('|'));
 const SOURCE_TYPE = '__CONTEXT_SOURCE_TYPE__';
 const SOURCE_VALUE = '__CONTEXT_SOURCE_VALUE__';
 
 async function main() {
   const payload = await io.readPayload();
-  const matcher = payload.matcher || '';
-  if (!MATCHER_TARGETS.has(matcher)) return io.allow();
+  const source = payload.source || '';
+  if (!SOURCE_TARGETS.has(source)) return io.allow();
 
   const context = resolveContext();
   if (!context) return io.allow();
 
-  process.stdout.write(JSON.stringify({ context }) + '\n');
-  io.allow();
+  io.addContext('SessionStart', context);
 }
 
 function resolveContext() {

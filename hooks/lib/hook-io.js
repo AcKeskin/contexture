@@ -41,25 +41,30 @@ function block(reason) {
   process.exit(2);
 }
 
-// PostToolUse hooks can attach an advisory message to the tool result via
-// `hookSpecificOutput.additionalContext`. The model sees this on its next
-// turn as a system reminder; the tool call is not blocked. Use for warnings
-// and nudges. Do not use for hard rejections — PostToolUse fires after the
-// tool already ran.
+// The documented model-visible non-blocking channel: JSON stdout of
+// `{ hookSpecificOutput: { hookEventName, additionalContext } }` on exit 0.
+// SessionStart, UserPromptSubmit, and PostToolUse hooks all inject context
+// this way; `hookEventName` must name the event that fired. Not a rejection
+// channel — exit 2 is what blocks.
 const POST_TOOL_USE_EVENT = 'PostToolUse';
 const HOOK_SPECIFIC_OUTPUT = 'hookSpecificOutput';
 const HOOK_EVENT_NAME_KEY = 'hookEventName';
 const ADDITIONAL_CONTEXT_KEY = 'additionalContext';
 
-function advise(message) {
+function addContext(eventName, message) {
   const payload = {
     [HOOK_SPECIFIC_OUTPUT]: {
-      [HOOK_EVENT_NAME_KEY]: POST_TOOL_USE_EVENT,
+      [HOOK_EVENT_NAME_KEY]: String(eventName || ''),
       [ADDITIONAL_CONTEXT_KEY]: String(message || ''),
     },
   };
   process.stdout.write(JSON.stringify(payload) + '\n');
   process.exit(0);
+}
+
+// PostToolUse advisory — attaches a warning/nudge to the tool result.
+function advise(message) {
+  addContext(POST_TOOL_USE_EVENT, message);
 }
 
 function projectRoot() {
@@ -77,10 +82,6 @@ function readJsonIfExists(p) {
   } catch {
     return null;
   }
-}
-
-function settingsLocal() {
-  return readJsonIfExists(path.join(homeClaude(), 'settings.local.json')) || {};
 }
 
 // Hook-specific overrides live in their own file so they do not collide with
@@ -109,8 +110,15 @@ function writeSessionState(next) {
   fs.writeFileSync(target, JSON.stringify(next, null, 2) + '\n');
 }
 
-function sessionId() {
-  return process.env.CLAUDE_SESSION_ID || '<unknown>';
+// Session identity comes from the stdin payload — every hook event carries
+// `session_id`. The env var is a legacy fallback production does not set;
+// without the payload, all sessions would collapse onto one '<unknown>' key.
+function sessionId(payload) {
+  return (
+    (payload && payload.session_id) ||
+    process.env.CLAUDE_SESSION_ID ||
+    '<unknown>'
+  );
 }
 
 // Normalise any path to forward-slash for cross-platform comparison.
@@ -155,10 +163,10 @@ module.exports = {
   allow,
   block,
   advise,
+  addContext,
   projectRoot,
   homeClaude,
   readJsonIfExists,
-  settingsLocal,
   hookConfigAll,
   hookConfig,
   sessionState,

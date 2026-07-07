@@ -1,6 +1,6 @@
 ---
 name: deliver
-description: Render a selection of retrieved fragments into Claude's working context per the format contract. Library-only — callable by other skills (discover, prep, review, future plan) that need to present bodies, not a user-invoked skill. Stateless.
+description: Render a selection of retrieved fragments into Claude's working context per the deliver format contract. Library-only — callable by other skills (discover, prep, review, future plan) that need to present bodies, not a user-invoked skill. Stateless.
 ---
 
 # deliver
@@ -19,22 +19,22 @@ Structured, from the caller:
 
 ```
 {
- fragments: Fragment[], // already-selected; delivery does not re-filter
- order_override?: Order, // optional; default = priority
- cap?: number, // optional; default 20; hard ceiling regardless of caller
+  fragments: Fragment[],        // already-selected; delivery does not re-filter
+  order_override?: Order,       // optional; default = the §2 tier priority
+  cap?: number,                 // optional; default 20; hard ceiling regardless of caller
 }
 
 Fragment = {
- path: string, // repo-relative or ~/-relative; source-of-truth pointer
- frontmatter: { // parsed YAML
- name: string,
- description?: string,
- type?: string,
- kind?: string, // "architectural-rule" | "decision" | "lesson" | "preference" |...
- scope?: string[],
- relevance?: string,
- },
- body: string, // verbatim content — delivery does not paraphrase
+  path: string,                 // repo-relative or ~/-relative; source-of-truth pointer
+  frontmatter: {                // parsed YAML
+    name: string,
+    description?: string,
+    type?: string,
+    kind?: string,              // "architectural-rule" | "decision" | "lesson" | "preference" | ...
+    scope?: string[],
+    relevance?: string,
+  },
+  body: string,                 // verbatim content — delivery does not paraphrase
 }
 
 Order = "default" | "caller" | explicit-tier-list
@@ -90,9 +90,9 @@ For `kind: warning`, prepend a callout line before the header so the warning is 
 
 Notes:
 - `scope` joins `frontmatter.scope` with `, `. If empty → `[scope: -]`.
-- `kind` defaults to `lesson` when absent (matches convention).
+- `kind` defaults to `lesson` when absent (the memory-format default).
 - `path` verbatim from input — no normalisation, no resolution.
-- `body` verbatim — no trimming beyond preserving the original content, **except** strip architectural-rule bullet-id anchors (`<!-- id:... -->` prefixes): they are patch-resolution targets, never context. This is the one sanctioned body edit — it removes machinery, not content. Discover's resolver strips them too; deliver does it as defense-in-depth so a caller that bypasses the resolver still never leaks anchors. No other reformatting.
+- `body` verbatim — no trimming beyond preserving the original content, **except** strip architectural-rule bullet-id anchors (`<!-- id: ... -->` prefixes): they are patch-resolution targets, never context. This is the one sanctioned body edit — it removes machinery, not content. Discover's resolver strips them too; deliver does it as defense-in-depth so a caller that bypasses the resolver still never leaks anchors. No other reformatting.
 - One blank line between fragments.
 - Warning callout is the only prepend — other kinds render plain. Keep the callout to one line; the body itself carries the actual content.
 
