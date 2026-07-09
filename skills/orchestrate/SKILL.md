@@ -152,21 +152,17 @@ depth annotation):
 1. **Positive scope declaration** — "you may write *only* `<files>`." Evidenced to beat
    negative fences. The unit is also *placed* (Q2) where that scope is physically enforced.
 2. **Placement** — which worktree, or "shared tree" (from Q2).
-3. **Step budget** — `maxTurns` (a real subagent frontmatter field; a generic count). The
-   forced-BLOCKED return (Q3.5) trips when the budget is exhausted. **Scale the budget to the
-   autonomy contract's `effort`** ([autonomize](../autonomize/SKILL.md) — read
-   the effective contract): `minimal` → a tight budget (favour an early BLOCKED over deep
-   work); `thorough`/`exhaustive` → a larger budget. `maxTurns` does **not** cascade from the
-   parent, so the contract's effort must be set *explicitly per unit* — it propagates into each
-   dispatch, it is not inherited.
+3. **Step budget** — `maxTurns`, scaled to the autonomy contract's `effort` per dispatch's
+   *Autonomy contract at dispatch* section (dispatch owns the scaling; set it explicitly per
+   unit — it does not cascade). The forced-BLOCKED return (Q3.5) trips when the budget is
+   exhausted.
 4. **Convergence-contract reference** — return a `produced:` block per the *Unit return
    contract* section, so the parent can reassemble.
 5. **`harvest:` invitation** — "if you reach a decision, lesson, or landmine
    worth keeping beyond this task, emit a `harvest:` block."
-6. **Ask posture** — carry the contract's `ask` posture into the unit prompt: `forks-only` →
-   the unit returns BLOCKED on a real fork rather than guessing; `every-step` → more granular
-   partials (no mid-flight confirmations exist); `until-blocked` → runs to its budget. Read at
-   dispatch only (the platform has no model-visible mid-flight channel) — never streamed in.
+6. **Ask posture** — the contract's `ask` posture per dispatch's *Autonomy contract at
+   dispatch* section. Read at dispatch only (the platform has no model-visible mid-flight
+   channel) — never streamed in.
 
 **Scope is stated positively and fenced by placement** — see Overview finding 2. Positive
 scope guides attention; the Q2 worktree/placement is the enforcement.

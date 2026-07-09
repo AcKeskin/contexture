@@ -90,6 +90,8 @@ Good agent prompts are:
 2. **Self-contained** - All context needed to understand the problem
 3. **Specific about output** - What should the agent return?
 4. **Depth-annotated** - Tells the subagent its current depth and remaining depth budget (required by Gate 2 of [Hard caps](#hard-caps)).
+5. **Budgeted** — carries a `maxTurns` scaled to the autonomy contract's `effort` (see "Autonomy contract at dispatch" below).
+6. **Ask-postured** — carries the contract's `ask` posture, so the unit knows whether to return BLOCKED on a fork or run to its budget.
 
 The depth annotation is a single line at the top of the subagent's prompt:
 
@@ -125,6 +127,17 @@ Return: Summary of what you found and what you fixed.
 
 If you reach a decision, lesson, or landmine worth remembering beyond this task, emit a `harvest:` block (decisions / lessons / open_questions) per "Harvesting subagent state". Omit it if there's nothing worth keeping.
 ```
+
+### Autonomy contract at dispatch
+
+Read the effective autonomy contract once per dispatch batch — `.claude/autonomy/active.md`, falling through to the rule-tier `autonomy:` default ([autonomize](../autonomize/SKILL.md)) — and wire two fields into every unit:
+
+- **`effort` → step budget.** Scale the unit's `maxTurns`: `minimal` → tight (~8 turns; favour an early BLOCKED over deep work), `balanced` → ~15, `thorough` → ~25, `exhaustive` → ~40. Anchors, not law — scale to unit size. `maxTurns` does not cascade from the parent; set it explicitly on every unit.
+- **`ask` → return posture.** `forks-only` → return BLOCKED on a real fork rather than guessing; `every-step` → more granular partial returns (no mid-flight confirmations exist); `until-blocked` → run to the budget.
+
+No contract set and no rule-tier default → dispatch as `balanced` / `forks-only`.
+
+This section is the single owner of contract-to-dispatch wiring; orchestrate's Q3 references it rather than restating it.
 
 ## Output contract (for agents that declare one)
 
@@ -187,6 +200,23 @@ This is one line; it carries no obligation. It is the State-side complement to t
 **Need full context:** Understanding requires seeing entire system
 **Exploratory debugging:** You don't know what's broken yet
 **Shared state:** Agents would interfere (editing same files, using same resources)
+
+## Tier and effort selection
+
+The gates below only prevent bad dispatches; they don't pick good ones. Before walking the gates, choose the **lowest** tier the unit's judgment load allows — the default is not "parent tier for everything":
+
+| Unit shape | Model | Reasoning effort |
+|---|---|---|
+| Bulk mechanical work, no judgment — file sweeps, renames, grep-and-collect, fixture generation, format conversion | `haiku` | low |
+| Scoped implementation with a known approach — write/fix code in one module, make failing tests pass, apply a described refactor | `sonnet` (or the matching `-pro` agent) | inherit |
+| Judgment-heavy work — design decisions, cross-module synthesis, review verdicts, root-cause analysis | inherit the parent model (no override) | inherit; raise only for the hardest verify/judge units |
+
+Two rules ride on the table:
+
+- **Downgrade is the default question.** For every unit, ask "what judgment does this actually need?" before dispatching at parent tier. Parent-tier-for-everything is the silent cost failure the gates cannot catch — they cap escalation, not waste.
+- **A unit that mixes shapes is two units.** A mechanical sweep plus a judgment call is two dispatches at two tiers, not one dispatch at the higher tier.
+
+Reasoning effort follows the same logic: set `effort` in the agent definition (or accept the definition's value); drop to low for mechanical units, raise only for the hardest verify/judge units.
 
 ## Hard caps
 
