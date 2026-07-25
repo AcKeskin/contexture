@@ -2,14 +2,13 @@
 
 ## What it does
 
-Wires this `contexture` clone into `~/.claude/` and installs per-machine tools. Idempotent — safe to re-run.
+Wires this `contexture` clone into `~/.claude/`. Idempotent — safe to re-run.
 
 Steps, in order:
 
-1. Links each synced subtree (`claude-md/`, `skills/`, `commands/`, `agents/`, `hooks/`) from the repo into `~/.claude/<name>`. Subtrees that do not exist in the repo are skipped — no speculative scaffolding.
-2. Installs CCometixLine globally via npm if the binary is not present at the expected path.
-3. Merges `settings/settings.template.json` + `settings/settings.local.json` (if present) + resolved ccline path, writes `~/.claude/settings.json`.
-4. **Architectural-rule overlay:**
+1. Links each synced subtree (`claude-md/`, `skills/`, `commands/`, `agents/`, `hooks/`) from the repo into `~/.claude/<name>`. Subtrees that do not exist in the repo are skipped — no speculative scaffolding. The statusline renderer ships as `hooks/statusline.js`, linked with the rest of the hooks subtree.
+2. Merges `settings/settings.template.json` + `settings/settings.local.json` (if present), writes `~/.claude/settings.json`.
+3. **Architectural-rule overlay:**
    - Creates `~/.claude/architectural-rules-local/` (empty, user-owned) if absent. **Never overwritten** on re-run — it's the user tier.
    - If `~/.claude/architectural-rules.config.yaml` declares a `company.repo`, clones it to `~/.claude/architectural-rules-company/` at the pinned `ref` (or `git pull` if already cloned). Skipped silently if no company repo is configured.
    - **Shipped-tree drift check:** warns if any file *inside* the symlinked shipped `architectural-rules/` tree has been hand-edited (git status against the contexture repo shows modifications). Points the user at `/rules edit <key>` to move the edit into the user tier instead. Closes the [[plugin-cache-edits-revert-on-update]] loop — the warning fires *before* the next `git pull` clobbers the edit.
@@ -24,7 +23,7 @@ Flags:
 - `--dry-run` — print the plan without making changes.
 - `--verify` — read-only audit: report missing/stale links (exits 1 on drift) and run an **advisory share-readiness leak scan** (non-blocking — flags owner-coupling leaks like hardcoded paths / identity / personal tool tokens in the authoring surfaces, but never changes the exit code). CI-safe.
 - `--fix-leaks` — interactive companion to the leak scan: re-scan and, per mechanically-fixable leak, propose a fix and apply on confirm (propose-confirm-commit). Ambiguous leaks are listed report-only and never auto-touched. Annotate an intentional line with `share-readiness: WONT_FIX — <reason>` to suppress it.
-- `--exclude=<a,b,...>` — skip subtrees or the ccline step. Valid names: `claude-md`, `skills`, `commands`, `agents`, `hooks`, `ccline`.
+- `--exclude=<a,b,...>` — skip subtrees or the MCP step. Valid names: `claude-md`, `architectural-rules`, `skills`, `commands`, `agents`, `hooks`, `mcps`.
 
 ## Share-readiness leak scan & clean-clone test
 
@@ -39,7 +38,7 @@ Prefers `fs.symlink` so edits in `~/.claude/` flow straight back to the repo. On
 
 ## Settings template
 
-`settings/settings.template.json` contains the synced (shared across machines) shape. Current v1 content: the `statusLine` block only. The literal token `__CCLINE_PATH__` is replaced at write time with the platform-specific absolute path to the CCometixLine binary.
+`settings/settings.template.json` contains the synced (shared across machines) shape: the `statusLine` block and the hook bundles. The literal token `__HOME__` is replaced at write time with the user's home directory (forward-slashed), so the statusLine command resolves to `node <home>/.claude/hooks/statusline.js`.
 
 Per-machine overrides go in `settings/settings.local.json` (gitignored). Shallow-merged over the template. See `settings.local.json.example` for shape.
 

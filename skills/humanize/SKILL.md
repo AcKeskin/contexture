@@ -1,6 +1,6 @@
 ---
 name: humanize
-description: Detect, score, and rewrite AI-generated texture in USER-FACING prose — technical/dev docs, professional email & messaging, and project/internal docs (PR/proposal/issue). Auto-detects register, flags AI-texture by aggregate density (never single instances), scores on four evidence-based dimensions, and produces a voice-calibrated rewrite that preserves every argument. Reports advisory likelihood, never a binary AI/human verdict. Use when the user types /humanize, pastes a draft and asks to "humanize / de-AI / make this sound human / does this read like AI", or wants a doc/email/PR voice-checked. Refuses the terse model corpus (memory, codemap, specs). Mode A only — never auto-fires.
+description: "Detect, score, and rewrite AI-generated texture in user-facing prose — docs, professional email, PR/proposal/issue. Density-based flagging, advisory likelihood (never a binary verdict), voice-calibrated rewrite preserving every argument. Use on /humanize or \"make this sound human / does this read like AI\". Refuses the terse model corpus. Mode A — never auto-fires."
 ---
 
 # Humanize
@@ -67,7 +67,7 @@ Clean-but-flagged: <conventions present that are NOT tells, named so the user is
 Ask for (or accept an in-context) **writing sample** — this run calibrates to it; no stored profile. Then rewrite:
 - **Preserve every argument.** No added ideas, no removed substance. Only delivery changes.
 - Reduce marker density; reintroduce cross-segment variation; match the register's tone and preserve-set (keep lists/headers/sign-offs/structure that the module marks native).
-- **Match the author's punctuation cadence.** Diversify connectives — periods, commas, colons, parentheses — toward the author-sample's frequency, and specifically counter the LLM-default *spaced em-dash* habit (catalogue §B6). Do not eliminate em-dashes (they're legitimate); reduce *overuse* to a human cadence.
+- **Match the author's punctuation cadence.** Diversify connectives — periods, commas, colons, parentheses — toward the author-sample's frequency, and specifically counter the LLM-default *spaced em-dash* habit (catalogue § B.6). Do not eliminate em-dashes (they're legitimate); reduce *overuse* to a human cadence.
 - **Re-score your own rewrite (close the loop).** A forward "sound human" instruction isn't enough: the rewriter drifts back to its own cadence (spaced em-dashes, rule-of-three, uniform connectives) even when told not to. Re-run steps 2–3 on the draft; if it still hits the author's-cadence target or carries the spaced-em-dash signature, iterate once before presenting. Counter the *rewriter's* fingerprint, not just the input's generic AI-vocabulary.
 - Present the rewrite after the report. Tell the user: your edits on top are usually the best version.
 

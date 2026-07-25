@@ -34,7 +34,7 @@ test('renders sidebar', () => {
 - Test passes when mock is present, fails when it's not
 - Tells you nothing about real behavior
 
-**The user's correction:** "Are we testing the behavior of a mock?"
+**The gate question:** are we testing the behavior of a mock?
 
 **The fix:**
 ```typescript

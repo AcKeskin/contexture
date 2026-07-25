@@ -100,6 +100,8 @@ git worktree add "$path" -b "$BRANCH_NAME"
 cd "$path"
 ```
 
+**If `git worktree add` fails** because the branch or the path already exists, do not force it. Surface the conflict and offer two exits: resume work in the existing worktree/branch, or retry with a new suffixed name (`<branch>-2`, `<path>-2`). Picking silently risks attaching to someone else's in-flight work.
+
 ### 3. Run Project Setup
 
 Auto-detect and run appropriate setup:
@@ -216,4 +218,4 @@ Ready to implement auth feature
 - Any task that needs an isolated workspace alongside in-flight work on `main`.
 - `/orchestrate` — calls this skill once per concurrent unit it places in a worktree (Q2 placement).
 
-**Deferred (v2) — N concurrent worktrees.** This skill is single-worktree by shape. An additive **N-worktree registry** is planned — `.claude/.worktrees-active.md` (gitignored): one row per active worktree (branch / path / owning-unit / file-scope claim), with a collision-claim check at creation and teardown + orphan-surfacing discipline. It does **not** change anything above — single-worktree behaviour is unchanged. See the **orchestrate** skill's "Deferred design (v2)" section for the full design and its v2 trigger.
+**Deferred (v2) — N concurrent worktrees.** This skill is single-worktree by shape. An additive **N-worktree registry** is planned — `.claude/.worktrees-active.md` (gitignored): one row per active worktree (branch / path / owning-unit / file-scope claim), with a collision-claim check at creation and teardown + orphan-surfacing discipline. It does **not** change anything above — single-worktree behaviour is unchanged. See `orchestrate/DEFERRED-DESIGN.md` for the full design and its trigger.

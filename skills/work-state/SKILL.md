@@ -30,14 +30,14 @@ The fixed stage order and what each stage depends on (the graph the resolver com
 | **execute** | *no artefact of its own* | plan |
 | **archive** | `.claude/archive/<date>-<slug>/` (the close-out terminus) | execute |
 
-Dependencies are **enablers, not gates** — the report never forbids skipping a stage; it only computes readiness (OpenSpec's own stance, and a non-goal here).
+Dependencies are **enablers, not gates** — the report never forbids skipping a stage; it only computes readiness.
 
 ## Procedure (deterministic — no model call for any of this)
 
 ### 1. Resolve paths and the slug
 
 - Base: `$CLAUDE_PROJECT_DIR/.claude/` (cwd fallback if the env var is unset), same as every chain skill.
-- `/work-state <slug>` → use the slug. `/work-state` with no slug → read the specs + plans INDEX, list active slugs, and ask which (single-slug v1; no fleet view — that's `/coordinate`'s territory).
+- `/work-state <slug>` → use the slug. `/work-state` with no slug → resolve per draft-plan's canonical slug-resolution cascade ([draft-plan SKILL.md § Forms](../draft-plan/SKILL.md)), asking which when several are active (single-slug v1; no fleet view — that's `/coordinate`'s territory).
 
 ### 2. Detect each stage's status
 
@@ -52,7 +52,7 @@ Walk the trees and classify each stage as `missing` / `present` / `stale` / `don
 - **plan** — `.claude/plans/<slug>/` active version (via `.claude/plans/INDEX.md`).
   - Spec `missing` → plan is `blocked` (gap: "no spec").
   - No active plan → `missing`.
-  - Active plan present, read its `spec:` frontmatter pin (`../../specs/<slug>/v<K>.md` → version `vK`). **Compare `vK` to the spec's active `vM`:**
+  - Active plan present, read its `spec:` frontmatter pin (`../../specs/<slug>/v<K>.md` → version `vK`). A plan whose `spec:` is `none` (the `--task` convention) is **exempt from the stale-pin check** — report it `present` with the note "task plan, no spec pin." **Otherwise compare `vK` to the spec's active `vM`:**
     - `vK == vM` → `present`.
     - `vK <  vM` → **`stale`** — the load-bearing finding. Name it: "plan pins spec v<K>, active spec is v<M>."
 - **blueprint** — `.claude/docs/<slug>/` active version present → `present` (optional stage; its absence is never a blocker, never the `next:` action unless explicitly asked). Apply the same spec-pin staleness if the blueprint records a pin. Else `missing` (and *not* blocked — it's optional).
@@ -61,6 +61,7 @@ Walk the trees and classify each stage as `missing` / `present` / `stale` / `don
 
 ### 3. Compute the next action and blockers
 
+- **Short-circuit first:** if `archive` is `done`, the chain is closed — emit `next: — chain closed for <slug>; nothing pending.` and stop. Close-out retires the plan and blueprint on purpose, so their now-`missing`/`stale` state is the expected end state, not work to redo. Never propose `/draft-plan` (or any upstream stage) for a closed slug.
 - **next action** = the **first stage in chain order** whose upstream dependency is satisfied (`done`/`present`) and whose own artefact is `missing` or `stale`. Emit its command + the reason:
   - spec missing → `next: /spec <slug>`
   - spec done, plan missing → `next: /draft-plan <slug>`

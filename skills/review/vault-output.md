@@ -7,12 +7,12 @@ Procedure for `review`'s opt-in vault copy. The SKILL.md §7c keeps the trigger,
 **Filename (slug-first, em-dash separator):**
 
 ```
-<vault-root>\Projects\<ProjectFolder>\Reviews\<scope-slug> — <YYYY-MM-DD>.md
+<vault-root>/Projects/<ProjectFolder>/Reviews/<scope-slug> — <YYYY-MM-DD>.md
 ```
 
 Examples:
-- `/review src/auth/` on the `MyApp` repo, 2026-05-26 → `Projects\MyApp\Reviews\src-auth — 2026-05-26.md`
-- `/review` (whole project) → `Projects\MyApp\Reviews\project — 2026-05-26.md`
+- `/review src/auth/` on the `MyApp` repo, 2026-05-26 → `Projects/MyApp/Reviews/src-auth — 2026-05-26.md`
+- `/review` (whole project) → `Projects/MyApp/Reviews/project — 2026-05-26.md`
 
 Slug derivation follows §7b. Date is `YYYY-MM-DD` of the run.
 
@@ -30,7 +30,7 @@ On promotion (propose first, never silent):
 
 On `y`:
 
-1. Create `<vault-root>\Projects\<ProjectFolder>\Reviews\<scope-slug> — <YYYY-MM-DD>\` (folder name = the original flat filename without `.md`).
+1. Create `<vault-root>/Projects/<ProjectFolder>/Reviews/<scope-slug> — <YYYY-MM-DD>/` (folder name = the original flat filename without `.md`).
 2. Move the original body into `iteration-1.md` inside the new folder. Frontmatter stays on `iteration-1.md` — it is the source of truth for this review thread; later iterations append iteration content only.
 3. Write the new iteration as `iteration-2.md` (and so on).
 4. **Leave a stub redirect at the old flat path** so existing Obsidian links resolve:

@@ -1,6 +1,6 @@
 ---
 name: visualise-codemap
-description: Generate a UML-heavy technical document from `.claude/codemap.md` — module Structure tree, a topologically layered top-down Module map (labeled edges, hub + cycle highlighting, legend), per-module class diagrams + subfolder-clustered file graphs, a cross-module class relations diagram, per-module call-graph diagrams (TS/C# call edges shown type-resolved as `Type.method` where available), and Mermaid sequence diagrams for high-signal entry points. Writes to both `.claude/codemap.diagrams.md` and the Obsidian vault. Use when the user types `/visualise-codemap` or asks to render / draw / diagram the codemap. Does not rescan the tree — consumes the existing codemap. Mode A only — never auto-fires.
+description: "Render .claude/codemap.md into a UML-heavy document — layered module map, per-module class/file graphs, cross-module relations, call graphs, sequence diagrams — written to .claude/codemap.diagrams.md and the vault. Consumes the existing codemap, never rescans. Use on /visualise-codemap or \"diagram the codemap\". Mode A — never auto-fires."
 ---
 
 # visualise-codemap
@@ -23,7 +23,7 @@ node "$SKILL_DIR/visualise-codemap.mjs" --vault "<vault-root>"    # also write t
 node "$SKILL_DIR/visualise-codemap.mjs" --project-folder MyProduct   # override inferred ProjectFolder
 ```
 
-Vault root (`<Vault>`) is read from machine-local config — `vaultRoot` in `~/.claude/hook-config.json` — **never hardcoded** (per `universal/no-hardcoded-machine-paths.md`; the user has two PCs, other users have their own). Pass it as `--vault "<vaultRoot>"`. If `vaultRoot` is unset, write only the in-repo artifact and surface *"Set `vaultRoot` in `~/.claude/hook-config.json` to also write the vault copy."* The script infers `<ProjectFolder>` by matching an existing `Projects/<Name>/` subfolder, else the project name; ships no owner-specific repo mapping. To alias several repos onto one folder, pass `--project-folder <name>`. On vault-write failure, the script prints the exact `outsideProjectWriteBlocker.allow` line to add.
+Vault root (`<Vault>`) is read from machine-local config — `vaultRoot` in `~/.claude/hook-config.json` — **never hardcoded** (per `universal/no-hardcoded-machine-paths.md`). Pass it as `--vault "<vaultRoot>"`. If `vaultRoot` is unset, write only the in-repo artifact and surface *"Set `vaultRoot` in `~/.claude/hook-config.json` to also write the vault copy."* The script infers `<ProjectFolder>` by matching an existing `Projects/<Name>/` subfolder, else the project name; ships no owner-specific repo mapping. To alias several repos onto one folder, pass `--project-folder <name>`. On vault-write failure, the script prints the exact `outsideProjectWriteBlocker.allow` line to add.
 
 Per-project tuning (caps, skip patterns, renderer, vault layout) lives under the `## Visualize` section of `.claude/codemap.config.md` — see the [Visualize config](#visualize-config) reference below.
 
@@ -59,7 +59,7 @@ Parse the existing codemap structure:
 - **Top-level groups** (`## <dir>/` headings) → module nodes, file lists, and Structure tree leaves.
 - **File entries** under each group → file-graph nodes.
 - **`exports:` lines** → Files-list children; the export list also drives class-diagram method emission when a file contains exactly one class.
-- **`## Layers`** section, if present → declared layer clustering for the Module map (overrides topological auto-layering).
+- **`## Layers`** in `.claude/codemap.config.md` (not the codemap), if present → declared layer clustering for the Module map (overrides topological auto-layering).
 - **`## Entry points`** section, if present → Module map highlighted nodes (`:::entry` class).
 - **`## Dependencies`** section, if present → module-level adjacency for Module map edges. If absent, edges are synthesised from `## File deps` (counted per cross-module file→file edge).
 - **`## File deps`** section, if present → file-level adjacency. Drives per-module File graphs and the module-edge fallback.
@@ -69,7 +69,7 @@ If the codemap predates the extended format and lacks Layers / Entry points / De
 
 ### 3. Compose the document
 
-The output is a single technical document built from five composed parts, in this order. Each part is independent — partial inputs degrade individual parts but don't block the rest.
+The output is a single technical document built from seven composed parts, in this order. Each part is independent — partial inputs degrade individual parts but don't block the rest.
 
 **3a. Structure tree.** ASCII tree (in a plain code fence, not Mermaid) of top-level modules and their immediate subfolders. Each module line shows the file count; each subfolder line is annotated `— subfolder`. Modules and files matched by `## Visualize` `skip:` are excluded. The `./` and `.claude/` groups (if present) are dropped.
 
@@ -79,7 +79,7 @@ The output is a single technical document built from five composed parts, in thi
 - Entry points: render with `:::entry` class (distinct fill).
 - **Hubs:** the most-depended-on modules (top ~15% by inbound edge weight) render with a `:::hub` class so the architecture's load-bearing centres read at a glance.
 - **Cycle nodes:** modules on a detected dependency cycle get a distinct red stroke, so a cycle reads visually, not only in the `### Cycles detected` text block.
-- **Layers — declared OR auto.** When `## Layers` is present in `.claude/codemap.config.md`, it wins: modules are clustered by `subgraph <LayerName>` and any module not assigned to a declared layer goes into a synthetic `Unlayered` bucket. When absent, layers are derived topologically — a cycle-tolerant DFS post-order assigns each module `layer = 1 + max(layer of its dependencies)`, settling over at-most-N passes so cycles stabilise. Sources land in `Layer 0`, sinks high.
+- **Layers — declared OR auto.** `.claude/codemap.config.md` `## Layers` is the single source of declared layers (never the codemap itself). When present, it wins: modules are clustered by `subgraph <LayerName>` and any module not assigned to a declared layer goes into a synthetic `Unlayered` bucket. When absent, layers are derived topologically — a cycle-tolerant DFS post-order assigns each module `layer = 1 + max(layer of its dependencies)`, settling over at-most-N passes so cycles stabilise. Sources land in `Layer 0`, sinks high.
 - Edges: from `## Dependencies`, weighted. If `## Dependencies` is missing, module-edges are synthesised by counting cross-module file→file edges from `## File deps`.
   - **Intra-layer edges are dropped.** They belong in the per-module File graphs.
   - **Bidirectional pairs (A→B and B→A) collapse to a single `A <--> B` edge.** Both halves are still flagged in a `### Cycles detected` block.
@@ -99,7 +99,7 @@ The output is a single technical document built from five composed parts, in thi
 
 **3f. Sequence diagrams.** Optional, from `## Call sequence`. A small set of Mermaid `sequenceDiagram`s for the highest-signal entry points (ranked by distinct project-internal callees), each expanding the ordered call chain. Builtin/stdlib noise is filtered to project symbols. Every diagram carries a caption that it is **static call-structure order, not a runtime execution trace** (no conditionals/loops/await timing). Omitted when the codemap has no `## Call sequence`.
 
-**3e. Notes.** Caveats from earlier steps: missing `## Dependencies`, missing `## File deps`, no `## Layers` (auto-layering used), no `## Entry points`, modules hidden by `skip:` patterns, etc. The script appends a line per condition so the user sees what's missing without re-running anything.
+**3g. Notes.** Caveats from earlier steps: missing `## Dependencies`, missing `## File deps`, no `## Layers` (auto-layering used), no `## Entry points`, modules hidden by `skip:` patterns, etc. The script appends a line per condition so the user sees what's missing without re-running anything.
 
 ### 4. Mermaid templates
 
@@ -107,7 +107,7 @@ The output is a single technical document built from five composed parts, in thi
 
 ```mermaid
 %%{init: {"flowchart": {"defaultRenderer": "elk"}}}%%
-graph LR
+graph TB
   classDef entry fill:#fef3c7,stroke:#d97706,stroke-width:2px
   classDef overflow fill:#f3f4f6,stroke:#9ca3af,stroke-dasharray: 4 2
 
@@ -212,6 +212,14 @@ Source: `.claude/codemap.md` (last updated: <date from source>)
 ## Cross-module class relations    (omitted when no cross-module class edges)
 
 <mermaid block>
+
+## Call graph                      (omitted when the codemap has no `## Call graph`)
+
+<mermaid block per module>
+
+## Sequence diagrams               (omitted when the codemap has no `## Call sequence`)
+
+<mermaid block per entry point>
 
 ## Notes
 
@@ -332,7 +340,7 @@ Glob semantics match the `## Skip` and `## Vendored` sections in `update-codemap
 ## Limits (v1)
 
 - Mermaid only (plus an ASCII tree for the Structure section, in a plain code fence). No PlantUML, no Graphviz, no Mermaid alternative for the rest. Obsidian + GitHub both render Mermaid natively; duplication isn't worth the file weight.
-- Module-map edges come from the codemap's `## Dependencies` section, falling back to synthesis from `## File deps`. File-graph edges come from `## File deps`. Quality is bounded by `update-codemap`'s extraction (tree-sitter AST across ~18 languages; basename-index resolution for bare-name C++ includes; regex only as a no-deps fallback). Cross-language imports may be missed.
+- Module-map edges come from the codemap's `## Dependencies` section, falling back to synthesis from `## File deps`. File-graph edges come from `## File deps`. Quality is bounded by `update-codemap`'s extraction (tree-sitter AST across 12 languages; basename-index resolution for bare-name C++ includes; regex only as a no-deps fallback). Cross-language imports may be missed.
 - Class-diagram quality is bounded by `update-codemap`'s `## Class graph` extraction — extends/implements/fields are parsed from source-language declarations (per-language extractor). Generics are stripped to the head identifier for relation matching. Methods are pulled from `exports:` only when a file contains exactly one class, so multi-class files render bodies without methods.
 - Vault output: one index note + N module notes per project when `split-per-module: true`; one file when `false`. In-repo artifact is always single-file.
 - Fan-out caps (`l2-file-cap`, `l2-edge-cap`, `class-method-cap`) are guards. If a module routinely exceeds them, the module is probably too large — that is a finding for `/review`, not a `visualise-codemap` bug.

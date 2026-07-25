@@ -106,6 +106,70 @@ function registerMcps({ repoRoot, homeDir, dryRun }) {
   return { ok: true, action: 'written', results };
 }
 
+// Register the same repo-owned MCPs into Copilot CLI's ~/.copilot/mcp-config.json.
+// Copilot's schema differs from Claude's: each server carries `type: "local"`
+// (stdio child process) and a `tools` allow-list. Unlike ~/.claude.json, this
+// file is NOT auto-created by any tool, so we create it when absent. The MCP is
+// home-anchored (reads ~/.claude/), so it serves Copilot the identical corpus.
+function registerCopilotMcps({ repoRoot, homeDir, dryRun }) {
+  const configPath = path.join(homeDir, '.copilot', 'mcp-config.json');
+  const results = [];
+
+  let config = {};
+  if (fs.existsSync(configPath)) {
+    try {
+      config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    } catch (err) {
+      return { ok: false, reason: `failed to parse ${configPath}: ${err.message}`, results: [] };
+    }
+  }
+
+  const current = isPlainObject(config.mcpServers) ? config.mcpServers : {};
+  const next = { ...current };
+  let changed = false;
+
+  for (const entry of MCP_MANIFEST) {
+    if (!entry.enabled) {
+      results.push({ name: entry.name, action: 'skipped (disabled in manifest)' });
+      continue;
+    }
+    const buildPath = path.join(repoRoot, entry.relativeBuildPath);
+    if (!fs.existsSync(buildPath)) {
+      results.push({
+        name: entry.name,
+        action: 'skipped (build artefact missing — run `npm run build` in the MCP project)',
+        buildPath,
+      });
+      continue;
+    }
+
+    const desired = {
+      type: 'local',
+      command: entry.runtime,
+      args: [normalisePath(buildPath)],
+      tools: ['*'],
+      env: {},
+    };
+
+    const existing = next[entry.name];
+    if (existing && deepEqual(existing, desired)) {
+      results.push({ name: entry.name, action: 'up-to-date' });
+      continue;
+    }
+    next[entry.name] = desired;
+    changed = true;
+    results.push({ name: entry.name, action: existing ? 'updated' : 'registered' });
+  }
+
+  if (!changed) return { ok: true, action: 'no-op', results };
+  if (dryRun) return { ok: true, action: 'would-write', results };
+
+  config.mcpServers = next;
+  fs.mkdirSync(path.dirname(configPath), { recursive: true });
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n');
+  return { ok: true, action: 'written', results };
+}
+
 function isPlainObject(x) {
   return x !== null && typeof x === 'object' && !Array.isArray(x);
 }
@@ -133,4 +197,4 @@ function normalisePath(p) {
   return p.split('\\').join('/');
 }
 
-module.exports = { registerMcps, MCP_MANIFEST };
+module.exports = { registerMcps, registerCopilotMcps, MCP_MANIFEST };

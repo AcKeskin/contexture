@@ -41,7 +41,7 @@ One sub-folder per scope. Flat within each sub-folder — one file per coherent 
 
 New scope: create a new sub-folder. No master list enforced.
 
-`config-authoring/` is the **meta scope** — rules about authoring this harness itself (skills/agents/rules/hooks/settings templates), distinct from every other scope which governs a *user's* project code. A user's app code legitimately contains their own paths and identity, so config-authoring rules are relevance-gated to the authoring surfaces (`when-touching-skills/-agents/-rules/-hooks`) and never `always` — they must not fire on user code. First inhabitant: `share-readiness`.
+`config-authoring/` is the **meta scope** — rules about authoring this harness itself (skills/agents/rules/hooks/settings templates), distinct from every other scope which governs a *user's* project code. A user's app code legitimately contains their own paths and identity, so config-authoring rules are relevance-gated to the authoring surfaces (`when-touching-skills/-agents/-rules/-hooks`) and never `always` — they must not fire on user code. Inhabitants: `share-readiness` (keep the harness leak-free and clonable), `cross-tool-core` (project cleanly to other agents), `thresholds` (a count may guard a resource or trip a question, never decide a judgment call).
 
 ## Frontmatter
 

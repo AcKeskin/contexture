@@ -1,6 +1,6 @@
 ---
 name: discover
-description: Load relevant stored memories and codemap entries for the current task. Use when the user types /discover, asks to "prep" or "load context," or a task is starting with stored context unsurfaced. Also callable by other skills (prep, review).
+description: Load relevant stored memories and codemap entries for the current task. Use when the user types /discover, asks to "load context," or a task is starting with stored context unsurfaced. Also callable by other skills (prep, review).
 ---
 
 # discover
@@ -40,7 +40,7 @@ mcp__project-memory__discover({
 })
 ```
 
-The engine returns ranked memory fragments (with `📛` warning prefixes, `[related_to]` / `⚡ contradicts` flags, scope/relevance metadata), plus a `## Codemap` block, plus any `⚠️` shadowed-tier / case-split warnings. Surface that result directly (§9 shaping is mostly done by the engine). Then run §4a (rules-overlay) and merge.
+The engine returns ranked memory fragments (with `📛` warning prefixes, `[related_to]` / `⚡ contradicts` flags, scope/relevance metadata), plus a `## Codemap` block, plus any `⚠️` shadowed-tier / case-split warnings. Surface that result directly (§9 shaping is mostly done by the engine). Then run §4a (rules-overlay) and merge: overlay-resolved rules are appended to the engine's result list and ranked by the same signals the engine reports (scope match, then kind priority, then description keyword overlap with the task); ties break toward the overlay rule, since a tier override outranks a shipped default. The merged list honours the caller's top_n as a single combined cap — overlay rules never bypass the cap. Deliver then renders the merged list's bodies exactly as in the degraded path (§9a applies to engine-returned bodies too).
 
 **Detecting MCP-unavailable:** the tool call errors, returns "No memory tree found" with no result, or the `project-memory` server is not connected. On any of these → fall through to §0b. Do not retry in a loop.
 
@@ -168,7 +168,7 @@ For each surviving recap, Read frontmatter. Score:
 - `+1 × keywords_hit` on `name` / `description`. Also scan the `Learned` section headings for bonus keyword hits.
 - **Recency bonus:** `+2` if `date` is within 7 days; `+1` if 8–30 days.
 
-Scored recaps join the §9 candidate set; when bodies are rendered (§9a) they deliver as tier `session-recap`. Callers can opt out via `include_recaps: false` in the query interface.
+Scored recaps join the §9 candidate set; when bodies are rendered (§9a) they deliver as tier `session-recap`. Recaps are opt-in: callers pass `include_recaps: true`; the default is false and §8a is skipped entirely.
 
 ### 9. Report
 
@@ -243,7 +243,7 @@ Do not ask generic questions ("tell me more about X"). Each question must identi
 
 ## Query interface (for other skills)
 
-These filters map 1:1 to the `mcp__project-memory__discover` parameters (§0) — the skill passes them straight through to the engine on the primary path, and uses them for the degraded deep-scan on the fallback path. When invoked by another skill rather than a user, accept these optional filters:
+These filters map to the `mcp__project-memory__discover` parameters (§0), with two skill-side exceptions: `include_fallback` is resolved by this skill (the engine has no such parameter), and this skill passes `top_n` explicitly (default 8) rather than inheriting the engine's default (10) — the skill passes them straight through to the engine on the primary path, and uses them for the degraded deep-scan on the fallback path. When invoked by another skill rather than a user, accept these optional filters:
 
 ```
 {

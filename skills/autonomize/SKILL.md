@@ -1,6 +1,6 @@
 ---
 name: autonomize
-description: Goal-directed autonomy contract — own one effort/stopping/ask contract that the workflow organs (execute, checkpoint, orchestrate, the rule-prime hook) read at their decision points, so the model runs toward a goal at a calibrated push/stop/ask without per-step human input. Set it four ways — persistent default (rule-tier overlay), per-task at kickoff, live mid-flight steer, or established by a short interview when none is set. Use on /autonomize [effort=… stopping=… ask=…], "set how hard to push", "keep going / leave it here", "how autonomous should you be". Mode A — propose-confirm, never auto-fires.
+description: "Own the goal-directed autonomy contract — effort / stopping / ask — that execute, checkpoint, orchestrate, and the rule-prime hook read at their decision points, plus dispatch/coordinate/wrap. Set as persistent default, per-task at kickoff, live mid-flight steer, or by short interview. Use on /autonomize, \"set how hard to push\", \"how autonomous should you be\". Mode A — never auto-fires."
 ---
 
 # autonomize
@@ -13,7 +13,7 @@ The goal-directed autonomy organ. It owns **one contract** — *how hard to push
 2. **Effort / stopping calibration** — the model under- or over-builds, forcing "keep going" / "leave it here, perfect next session". The contract's `effort` + `stopping` fields are the dial the organs read to calibrate.
 
 ```
-/autonomize → .claude/autonomy/active.md → read by execute / checkpoint / orchestrate / the rule-prime hook
+/autonomize → .claude/autonomy/active.md → read by execute / checkpoint / orchestrate / dispatch / coordinate / wrap / the rule-prime hook
 ```
 
 ## The contract object
@@ -62,7 +62,7 @@ live  >  kickoff  >  (inferred)  >  default  >  implicit-default
 
 - **live** — a mid-flight `/autonomize` steer, written to `active.md` for the *current task only*.
 - **kickoff** — a per-task `/autonomize effort=… ask=…` (or set inline by `/spec` / `/draft-plan`), in `active.md`.
-- **inferred** — *deferred in v1* (mode d, artefact inference). Slot reserved in the order.
+- **inferred** — *deferred*: artefact-inference mode. Slot reserved in the order.
 - **default** — the persistent `autonomy:` block resolved by the rule-overlay cascade (shipped < user < project).
 - **implicit-default** — the balanced/criteria-met/forks-only fallback above.
 
@@ -154,7 +154,10 @@ This homes the default in the rule overlay (your project default is exactly the 
 
 - **execute** — reads `ask` at §2.5 (`--strategy` stays execute's own method choice) and `stopping` at §4a. The largest consumer seam.
 - **checkpoint** — the fit-pass reads `stopping` to size its drift question (`user-anytime` → freeze-and-record; `criteria-met` → all-met + gold-plating check).
-- **orchestrate** — Q3 dispatch passes `effort` (per-unit budget) + `ask`; Q4 convergence reads `stopping`. Read at dispatch only (no mid-flight subagent steer).
+- **orchestrate** — Q4 convergence reads `stopping`. The per-unit `effort`/`ask` threading at fan-out is owned by **dispatch** (its "Autonomy contract at dispatch" section), which orchestrate composes; read at dispatch only (no mid-flight subagent steer).
+- **dispatch** — owns the contract-at-dispatch wiring: scales each unit's `maxTurns` to `effort` and passes the `ask` posture into the unit prompt.
+- **coordinate** — reads `ask` to decide whether board ops run auto or per-invocation.
+- **wrap** — reads the contract once to set the interrupt posture for the whole closing ceremony.
 - **rule-prime hook** — carries the recall-before-ask deviation line when the contract deviates from default; zero injection at default. No sibling hook.
 - **spec / draft-plan** — set the contract inline as one interview question (the implicit surface of the kickoff mode); they call autonomize as a library.
 - **rule overlay** — the persistent-default home (one more overlaid tier).

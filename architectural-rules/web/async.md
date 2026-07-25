@@ -12,4 +12,4 @@ relevance: when-language-web
 - Cancelation is part of the design — every long-running async operation has a cancel path (AbortController, effect cleanup, subscription disposal).
 - Errors in async work are handled explicitly. Unhandled promise rejections are bugs, not warnings to ignore.
 
-**Why:** async bugs dominate production incidents in web apps. Explicit patterns catch them at review time.
+**Why:** async bugs dominate production incidents in web apps. Explicit patterns catch them at review time. Source: MDN AbortController; WHATWG HTML unhandledrejection.

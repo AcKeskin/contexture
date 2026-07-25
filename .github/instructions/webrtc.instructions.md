@@ -26,7 +26,7 @@ Tie RTCRtpSender/RTCRtpReceiver lifetime to the connection — they are owned by
 
 Never orphan MediaStreamTracks. Call `track.stop()` on every local track when removing it or tearing down — an unstopped camera/mic track keeps the device live and the capture indicator on. (W3C WebRTC — MediaStreamTrack.stop)
 
-Renegotiate when tracks or transceivers are added or removed. Adding/removing media changes the SDP m-lines, so the change must be re-offered or the remote peer never sees the new (or gone) media. (W3C WebRTC — onnegotiationneeded)
+Track and transceiver changes make the SDP stale — adding/removing media changes the m-lines. Let the resulting negotiationneeded event drive the re-offer (never trigger renegotiation manually); never skip it, or the remote peer never sees the new (or gone) media. (W3C WebRTC — onnegotiationneeded)
 
 **Why:** RTP media sections are negotiated per-transceiver in SDP, and senders/receivers/transceivers are objects the RTCPeerConnection owns and invalidates on close — treating them as long-lived application state leaks device handles and stale m-lines. Explicit direction, stopping unused transceivers, stopping every track, and renegotiating on track changes keeps the negotiated media state consistent with what the application actually streams. Source: W3C WebRTC specification (MediaStream, RTCRtpTransceiver) / IETF RFC 3550 (RTP).
 

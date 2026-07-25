@@ -1,23 +1,23 @@
 ---
 name: retrospect-core
-description: Shared engine for the meta-review organs — orientation pass, NEW/CARRIED/RESOLVED baseline diffing, propose-confirm-commit-with-routing, and review-output-contract report rendering. Library-only — callable by retrospect and system-review (and any future meta-review skill), not user-invoked. There is no /retrospect-core command. Stateless per call except for the report artefacts it persists.
+description: Shared engine for the meta-review organs — orientation pass, NEW/CARRIED/RESOLVED baseline diffing, propose-confirm-commit-with-routing, and review-output-contract report rendering. Library-only — callable by checkpoint (and any future meta-review skill), not user-invoked. There is no /retrospect-core command. Stateless per call except for the report artefacts it persists.
 ---
 
 # retrospect-core
 
-The meta-review engine. It is to [retrospect](../retrospect/SKILL.md) and [system-review](../system-review/SKILL.md) what [deliver](../deliver/SKILL.md) is to discover/prep/review: one mechanism, many consumers, so the meta-review skills stay single-responsibility without duplicating the engine.
+The meta-review engine. It is to [checkpoint](../checkpoint/SKILL.md) what [deliver](../deliver/SKILL.md) is to discover/prep/review: one mechanism, its consumers kept single-responsibility without duplicating the engine.
 
 It does **not** know how to find decision drift or organ overlap — that domain logic lives in the calling skill's *passes*. retrospect-core owns the four things every meta-review run shares: orient, diff against the prior run, render per the [review output contract](../../docs/review-output-contract.md), and route each confirmed finding to the organ that actually fixes it.
 
 ## When to run
 
-- A meta-review skill (`retrospect`, `system-review`) invokes one of the functions below programmatically.
+- A meta-review skill (`checkpoint`) invokes one of the functions below programmatically.
 - **Do not** respond to user prose triggers. There is no `/retrospect-core` command and no "when the user says X" branch. It is a format-and-orchestration helper.
 - Stateless per call, with one exception: `persist` writes a report artefact to disk (the substrate the next run's `diff` reads).
 
 ## The contract
 
-The caller (retrospect / system-review) owns:
+The caller (checkpoint) owns:
 - **Which corpus** to point at and **where its files live**.
 - **The passes** — the domain logic that produces findings.
 
@@ -53,7 +53,7 @@ Finding = {
 Mirrors review's Phase-1 orientation (§2c), generalised off code and onto whatever corpus the caller names.
 
 **Input:** `target = { kind, roots, report_dir }`
-- `kind` — `"decisions"` | `"system"` | `"conformance:<slug>"` (caller-defined; engine treats it as an opaque label for the orientation header and the report path).
+- `kind` — `"decisions"` | `"system"` | `"conformance:<slug>"` (reserved — no current consumer; caller-defined; engine treats it as an opaque label for the orientation header and the report path).
 - `roots` — the directories/files the corpus lives in (caller supplies; e.g. a `proposals/` directory, the memory tree, the skills tree).
 - `report_dir` — where this kind's reports persist (e.g. `.claude/retrospects`, `.claude/system-reviews`).
 
@@ -96,7 +96,7 @@ Render the report body per the [review output contract](../../docs/review-output
 - **Header** — corpus, files scanned, run mode, baseline.
 - **Orientation block** (from `orient`).
 - **Severity × Pass roll-up matrix** (the meta-review analogue of review's Severity × Category — rows are the caller's passes).
-- **Mandatory diagram** — try mermaid, fall back to ASCII, only emit a one-line N/A *with a why* when the run genuinely has no structure to draw. Good defaults: a `supersedes`-chain graph for retrospect's decision-integrity findings; an organ-dependency / overlap graph for system-review.
+- **Mandatory diagram** — try mermaid, fall back to ASCII, only emit a one-line N/A *with a why* when the run genuinely has no structure to draw. Good defaults: a `supersedes`-chain graph for decision-integrity findings; an organ-dependency / overlap graph for organ-surface findings.
 - **Per-node findings**, grouped by `locator`, severity-sorted within each.
 - **Findings table** — uncapped within the run ceiling, one row per finding with `Status` on repeat runs.
 - **Quick wins** — Low-effort × Medium+-severity; explicit "None" line when empty.
@@ -111,7 +111,7 @@ Iterate findings in report order. For each, present it and offer:
 - **Apply** → execute by `route`:
   - `capture` → invoke [capture](../capture/SKILL.md) with `proposed_action` as candidate content. Capture classifies kind/scope/relevance and runs its own confirm. (Used for: uncaptured lessons, sharpened/added rules.)
   - `memory-audit` → the fix is a *mechanical* memory edit (e.g. add a missing `superseded_by` back-link, fix a broken relation). Apply it as a direct Edit framed as the memory-audit fix, or hand off to [memory-audit](../memory-audit/SKILL.md) `--check` for the relevant dimension when the run surfaced several. retrospect-core never decides memory *validity* itself beyond the caller's verdict — it routes the integrity fix.
-  - `proposal` → write a stub under the project's `proposals/` directory (next free slot or a `BACKLOG.md` row), titled from `proposed_action`, body = the finding + why. Never auto-fills a full proposal; it captures the candidate so it isn't lost. Confirm the slot number with the user first.
+  - `proposal` → write a stub under the project's proposal convention (numbered slot, backlog row, or issue — whatever the project uses), titled from `proposed_action`, body = the finding + why. Never auto-fills a full proposal; it captures the candidate so it isn't lost. Confirm the slot number with the user first.
   - `direct-fix` → a self-evident edit the organ owns outright (e.g. an index line, a stale path in a coverage map). Edit, confirm.
 - **Skip** → discard for this run (ephemeral; does not become next run's `wont_fix`).
 - **Edit** → take the user's revised action; apply; loop.
@@ -120,7 +120,7 @@ Iterate findings in report order. For each, present it and offer:
 
 No silent action — every finding is the user's decision. Two **caller-selectable** flows, both user-driven (neither auto-applies):
 
-- **Per-finding loop** (default — `retrospect`, `review`, `memory-audit`): iterate findings in report order, confirm each (the loop above). Each decision is isolated.
+- **Per-finding loop** (default — `review`, `memory-audit`): iterate findings in report order, confirm each (the loop above). Each decision is isolated.
 - **Batch-select** (`checkpoint`): after `render` presents the whole batch, the caller collects the user's selected finding ids in **one** prompt, then calls `route` over only that subset. Fewer conversational round-trips (the efficiency *conversations* axis); still no silent apply — the user picked the set. Unselected findings persist for the next run, not lost.
 
 ### `persist(report, scope)`
@@ -148,4 +148,4 @@ The artefact is committable — diffing `v3.md`↔`v4.md` shows which decisions 
 - **deliver** — called to render memory/proposal bodies inside reports. Same library-only posture.
 - **review** — same orient/diff/persist machinery, here generalised off code; review keeps its own copy inlined.
 - **capture / memory-audit** — the two routing targets for lessons and memory-integrity fixes respectively.
-- **retrospect / system-review** — the two consumers. They own corpus + passes; they delegate the spine here.
+- **checkpoint** — the consumer. It owns corpus + passes (see its corpus-passes.md); it delegates the spine here.

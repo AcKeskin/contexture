@@ -33,7 +33,7 @@ Use `constexpr` for values computable at compile time — they cost nothing at r
 - Destructors do not throw.
 - `noexcept` on move constructors / move assignment where achievable — standard library containers depend on it.
 
-**Why:** silent failures in C++ become corrupted state. Explicit errors are the minimum insurance against that.
+**Why:** silent failures in C++ become corrupted state. Explicit errors are the minimum insurance against that. Source: C++ Core Guidelines (E.2, E.6, C.36, C.37).
 
 ## C++ GPU interop
 
@@ -55,14 +55,15 @@ Expose GPU objects through an abstract interface (e.g. texture, framebuffer, sha
 - `.h` owns the contract (declarations, public interface).
 - `.cpp` owns implementation.
 - No logic in headers unless trivial inline accessors or `constexpr`. Templates are the exception — implementation must live in the header, keep it self-contained.
+- Where the toolchain supports C++20 modules, prefer a module interface unit; the include / forward-declare rules above govern header-based TUs.
 
-**Why:** header bloat is the dominant cost of C++ build times. Each unnecessary include is paid by every TU that transitively pulls it in.
+**Why:** header bloat is the dominant cost of C++ build times. Each unnecessary include is paid by every TU that transitively pulls it in. Source: C++ Core Guidelines (SF.7, SF.8, SF.10, SF.11).
 
 ## C++ interfaces and ABI
 
 Public entry points that cross a binary boundary must be `extern "C"` with an explicit calling-convention macro (e.g. `XRAPI_CALL`, an exported-symbol macro). C++ name mangling and calling conventions are not stable across compilers or versions.
 Expose only opaque integer or pointer-sized handles across the ABI. Never expose C++ object pointers or references directly — the other side cannot destruct them. Internal mapping lives in a dispatch table or registry hidden from the caller.
-Do not pass `std::string`, `std::vector`, or any STL type across an `extern "C"` or DLL boundary. Their layout and allocator are CRT-version-specific; use `const char*`, `T*`+`count`, or the C-style two-call pattern (`capacityInput`, `countOutput`, `elements`). (I.4)
+Do not pass `std::string`, `std::vector`, or any STL type across an `extern "C"` or DLL boundary. Their layout and allocator are CRT-version-specific; use `const char*`, `T*`+`count`, or the C-style two-call pattern (`capacityInput`, `countOutput`, `elements`). (I.26)
 Implement runtime polymorphism across a binary boundary as a flat struct of function pointers, not as a vtable. A vtable layout is ABI-private to the compiler; a plain C struct of `PFN_` typedefs is stable.
 Use static factory methods as the public creation point for objects that manage binary-loaded resources. The factory validates, negotiates the protocol (e.g. an interface-negotiation handshake), and owns the resulting `unique_ptr`.
 Classes that wrap a binary-loaded library handle (e.g. a type owning a platform library handle) must delete copy and copy-assign. Copying the handle aliases the library reference count and causes a double-close on teardown. (C.81)
@@ -73,12 +74,12 @@ Wrap platform-specific handle types behind a single typedef per platform (e.g. a
 
 ## Modern C++ and RAII
 
-- Target C++17 or newer unless the project explicitly constrains to older.
+- Target C++20 or newer unless the project explicitly constrains to older; prefer C++23 where the toolchain allows.
 - RAII mandatory. Every resource (memory, file handle, lock, socket, GPU resource) is owned by an object whose destructor releases it.
 - No manual `new` / `delete` pairs at call sites. If you write `new`, wrap it in a smart pointer or RAII type immediately.
 - No raw `malloc` / `free` in application code.
 
-**Why:** resource leaks in C++ are the dominant source of bugs, and they are entirely preventable by construction.
+**Why:** resource leaks in C++ are the dominant source of bugs, and they are entirely preventable by construction. Source: C++ Core Guidelines (R.1, R.3, R.11, R.12).
 
 ## C++ move semantics
 
@@ -88,10 +89,10 @@ Delete copy for types that own a unique GPU or OS handle — copy would alias th
 Mark move constructor and move-assignment `noexcept`. STL containers call the move path only when `noexcept`; without it, `std::vector` of a handle-owning type copies instead of moves. (C.66)
 In the move constructor/assignment, null-out the source handle immediately after transferring it. The source destructor must be a no-op on the zeroed state (`other.handle = 0;`).
 In move-assignment, guard against `this == &other` before releasing the current resource — otherwise you destroy the handle before reading it from `other`.
-Pass sink parameters by value and `std::move` into storage (forwarding pattern). Pass read-only parameters by const-ref. Never copy a resource-owning type where a move or reference suffices. (F.15, F.18)
+Pass sink parameters by value and `std::move` into storage (forwarding pattern). Pass read-only parameters by const-ref. Never copy a resource-owning type where a move or reference suffices. (F.16)
 `shared_ptr` is not a default for GPU/OS resource ownership — it pays reference-count overhead and hides the ownership graph. Use `unique_ptr` or a move-only RAII wrapper when exactly one owner exists; reserve `shared_ptr` for genuinely shared lifetimes. (R.20, R.21)
 
-**Why:** moving handle types (`GLuint`, `HMODULE`, fds) instead of copying prevents double-free and alias bugs that appear only under destruction order. `noexcept` on moves is load-bearing for STL container reallocation. Source: C++ Core Guidelines (C.20, C.21, C.66, C.81, F.15, F.18, R.20, R.21).
+**Why:** moving handle types (`GLuint`, `HMODULE`, fds) instead of copying prevents double-free and alias bugs that appear only under destruction order. `noexcept` on moves is load-bearing for STL container reallocation. Source: C++ Core Guidelines (C.20, C.21, C.66, C.81, F.15, F.16, R.20, R.21).
 
 ## C++ ownership semantics
 
@@ -100,25 +101,25 @@ Pass sink parameters by value and `std::move` into storage (forwarding pattern).
 - Raw pointers only as non-owning views or short-lived parameters. Never for ownership.
 - No hidden globals or singletons without a strong, documented reason. Prefer dependency injection.
 
-**Why:** ownership confusion is the second-largest source of C++ bugs after lifetimes. Make it impossible to get wrong.
+**Why:** ownership confusion is the second-largest source of C++ bugs after lifetimes. Make it impossible to get wrong. Source: C++ Core Guidelines (R.20, R.21, R.30, I.11).
 
 ## C++ performance
 
-Mark move constructors and move-assignment `noexcept`. `std::vector` and other containers use the move path during reallocation only when the move is `noexcept`; without it they fall back to copy, which for GPU buffer types means double allocation or a deleted-function compile error. This is both a correctness and a performance rule. (Per.10, C.66)
+Mark move constructors and move-assignment `noexcept`. `std::vector` and other containers use the move path during reallocation only when the move is `noexcept`; without it they fall back to copy, which for GPU buffer types means double allocation or a deleted-function compile error. This is both a correctness and a performance rule. (C.66)
 Do not default to `shared_ptr` for GPU resources that have a single clear owner. `shared_ptr` adds atomic reference-count increments on every copy — including passing to functions — and hides the ownership graph. Use `unique_ptr` or a move-only RAII wrapper when there is one owner; reserve `shared_ptr` for genuinely shared lifetimes (e.g. a texture referenced by multiple render passes). (R.20, R.21)
 Use `GL_DYNAMIC_COPY` for SSBOs written from the CPU and read by the GPU (compute input) or written by the GPU and read by the CPU (compute output). `GL_STATIC_DRAW` signals one-time upload; using it for per-frame or per-patch data pessimizes driver buffer placement.
-Process GPU work in bounded per-frame batches (e.g. a max-dispatches / max-completions cap) rather than draining all pending work in one frame. Unbounded dispatch loops stall the CPU waiting for earlier dispatches and cause frame-time spikes. Bound is a tuning knob, not a magic constant. (Per.1)
+Process GPU work in bounded per-frame batches (e.g. a max-dispatches / max-completions cap) rather than draining all pending work in one frame. Unbounded dispatch loops stall the CPU waiting for earlier dispatches and cause frame-time spikes. Bound is a tuning knob, not a magic constant. (Per.6)
 Sort pending work by priority (distance to camera, screen-space error) before dispatching within the budget. Dispatching in insertion order wastes the frame budget on distant low-visibility patches while nearby visible gaps go unfilled.
 Prefer `glMemoryBarrier` over `glFinish` for inter-dispatch synchronization. `glFinish` flushes the entire pipeline and stalls; `glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT)` signals only the required visibility guarantee and allows the GPU to continue other work.
 Mark `const` query methods that cannot throw as `noexcept` (e.g. validity, count, and size-in-bytes accessors). This enables the compiler to omit exception-handling machinery at call sites in tight loops. (F.6)
 
-**Why:** performance in GPU-coupled C++ code is dominated by three things — unnecessary memory traffic (shared_ptr, needless copy), CPU/GPU synchronization granularity (glFinish vs. barrier + fence), and work scheduling (unbounded vs. budgeted dispatch). Getting these right eliminates whole categories of frame-time spikes without profiling heroics. Source: C++ Core Guidelines (Per.1, Per.10, R.20, R.21, F.6, C.66).
+**Why:** performance in GPU-coupled C++ code is dominated by three things — unnecessary memory traffic (shared_ptr, needless copy), CPU/GPU synchronization granularity (glFinish vs. barrier + fence), and work scheduling (unbounded vs. budgeted dispatch). Getting these right eliminates whole categories of frame-time spikes without profiling heroics. Source: C++ Core Guidelines (Per.6, R.20, R.21, F.6, C.66).
 
 ## C++ templates and generics
 
 Constrain every template parameter with a concept (C++20). Prefer the standard concepts (`std::integral`, `std::ranges::range`) before writing your own. (T.10)
 A concept must express meaningful semantics, not just a syntactic shape. A naked `typename`-only constraint isn't a concept — it's an unconstrained template wearing a name. (T.20)
-Use SFINAE / `enable_if` only when concepts genuinely can't express the constraint. Concepts give readable errors; SFINAE gives a wall of substitution failures. (T.13x)
+Use SFINAE / `enable_if` only when concepts genuinely can't express the constraint. Concepts give readable errors; SFINAE gives a wall of substitution failures. (T.48)
 Do not specialize function templates — overload instead. Function-template specialization interacts surprisingly with overload resolution. (T.144)
 Template definitions live in the header (or an included `.tpp`/`.ipp`), not a `.cpp` — the definition must be visible at every instantiation point. Keep it self-contained.
 

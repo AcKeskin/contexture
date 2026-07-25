@@ -49,7 +49,7 @@ State the resolved set before proposing anything: *"Found for `<slug>`: spec v<M
 
 The spec is **intent at spec-time** (done-criteria frozen). The shipped change routinely diverges from what was specced. Reconcile closes that gap **without losing the intent record**.
 
-1. **Diff spec-vs-shipped.** Reuse the intent-vs-shipped lens from [`retrospect-core`](../retrospect-core/SKILL.md) (the engine `/checkpoint` and `/retrospect` share): read the active spec's intent + done-criteria, read what actually shipped (the working tree for the slug's surface, the plan's outcomes), and surface the **divergences** — behavior that shipped differently than specced, criteria met by a different mechanism, scope that grew or shrank, decisions made during the build the spec never anticipated.
+1. **Diff spec-vs-shipped.** Reuse the intent-vs-shipped lens from [`retrospect-core`](../retrospect-core/SKILL.md) (the engine the corpus checkpoint shares): read the active spec's intent + done-criteria, read what actually shipped (the working tree for the slug's surface, the plan's outcomes), and surface the **divergences** — behavior that shipped differently than specced, criteria met by a different mechanism, scope that grew or shrank, decisions made during the build the spec never anticipated.
 
 2. **If there is no material divergence** (shipped == intent): say so and **skip the spec write** — there is nothing to reconcile. Note it (*"Spec v<M> already matches shipped reality — no reconcile needed."*) and go to retire.
 
@@ -75,7 +75,7 @@ The reconciled spec stays live. Everything the change consumed becomes audit his
    - The active **plan** version + its superseded predecessors → `archive/<date>-<slug>/plans/`.
    - The active **blueprint** version + predecessors → `archive/<date>-<slug>/docs/`.
    - **Superseded spec versions** (`v<K>.md`, `status: superseded`, including the just-superseded intent `v<M>.md`) → `archive/<date>-<slug>/specs/`. The active reconciled `v<M+1>.md` **stays** in `.claude/specs/<slug>/`.
-   - Leave a one-line `archive/<date>-<slug>/README.md`: the slug, the close-out date, the active spec version the change reconciled into, and the changelog line (after § 4). So the archive folder is self-describing.
+   - The archive's `README.md` is **not** written here — it cites the changelog line, which § 4 composes. See § 4's last step.
 
 3. **Preview, then move.** List every source→dest move and ask **accept / skip-retire / cancel**:
    - **accept** → perform the moves (mechanical — this is scripted, not narrated; use `git mv` when the artefacts are tracked so history follows, plain move otherwise).
@@ -92,7 +92,8 @@ The change shipped; record it **once**. Invoke [`update-changelog`](../update-ch
 
 - Pass a terse unit description in changelog voice: *"`<slug>` — <one-line of what shipped>"*.
 - `update-changelog` also offers (its § 5) to retire the slug's `BACKLOG.md` row — accept it here; closing out a slug is exactly when its forward-queue row should close.
-- If `update-changelog` is unavailable, fall back to a single manual note in `BACKLOG.md` "Recently shipped" (or the pointer there) + the `build_progress` memory — but the point is **one** write, not three.
+- **Then write the archive README** (last, so the changelog line exists to cite): a one-line `archive/<date>-<slug>/README.md` carrying the slug, the close-out date, the active spec version the change reconciled into, and the recorded changelog line. The archive folder is self-describing; the README is its index. Skip it when § 3 was cancelled (nothing was archived).
+- If `update-changelog` is unavailable, fall back to a single manual note in `BACKLOG.md` "Recently shipped" (or the pointer there) + the project's ship-narrative record (a build-progress memory or equivalent), if it keeps one — but the point is **one** write, not three.
 
 ### 5. Close
 
@@ -105,16 +106,16 @@ Report what happened, in one block:
 >
 > The scope chain for `<slug>` is closed. `/checkpoint --scope corpus` still audits the whole later if you want the wider fit-pass.
 
-Do not commit (the user's call). Do not touch the `build_progress` memory or the `CLAUDE.md` coverage map — those stay their own narrative records (changelog-contract § 6).
+Do not commit (the user's call). Do not touch the project's ship-narrative record (a build-progress memory or equivalent), if it keeps one, or the `CLAUDE.md` coverage map — those stay their own narrative records (changelog-contract § 6).
 
 ## What /close-out does NOT do
 
 - **Does not auto-fire and does not auto-write.** Mode A. Every spec edit and file move passes a propose-confirm gate; execute only *offers* it.
 - **Does not overwrite the intent spec.** Reconcile *appends* a new `as-shipped` version; the intent version is superseded, not deleted — the supersedes chain preserves both.
 - **Does not replace spec versioning.** It adds the **completion event** versioning lacks; supersedes chains stay exactly as `spec` / `draft-plan` write them.
-- **Does not delta-merge.** Reconcile is propose-confirm prose editing (our specs are prose, not requirement-tuples) — not a mechanical ADDED/MODIFIED/REMOVED merge (that is a separate, unbuilt delta-spec concern).
+- **Does not delta-merge.** Reconcile is propose-confirm prose editing (our specs are prose, not requirement-tuples) — not a mechanical ADDED/MODIFIED/REMOVED merge.
 - **Does not replace git.** Git records the *code* diff; close-out reconciles the *spec* + retires *working artefacts*. Different layer.
-- **Does not write three ledgers.** The record step is **one** changelog line (via `update-changelog`), not a hand-copy into BACKLOG + build_progress + coverage map.
+- **Does not write three ledgers.** The record step is **one** changelog line (via `update-changelog`), not a hand-copy into BACKLOG + the ship-narrative record + coverage map.
 - **Does not delete artefacts.** Retire *moves* to a dated archive folder (audit history kept), it does not destroy.
 - **Does not run `/checkpoint`.** Reconcile closes drift at ship; checkpoint audits the wider corpus later. Distinct lenses.
 

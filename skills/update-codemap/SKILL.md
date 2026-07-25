@@ -39,8 +39,6 @@ Without the deps the script **degrades gracefully**: TS/C#/C++ still extract via
 
 The script honors `$CLAUDE_PROJECT_DIR`, reads `.claude/codemap.config.md` (skip patterns, layers, auto-update toggle), clears `.claude/codemap.dirty` after a successful write, and prints the diff summary on stdout. Surface the diff summary to the user; do not paraphrase. If the script fails, the error message tells you which spec step it choked on — fix the input or extend the script.
 
-## Procedure (the spec the script implements)
-
 ## When to run
 
 - User types `/update-codemap`.
@@ -54,7 +52,7 @@ The script honors `$CLAUDE_PROJECT_DIR`, reads `.claude/codemap.config.md` (skip
 2. **Previous codemap**, if present at `<root>/.claude/codemap.md`. Used for the diff summary at the end. Never used as input to what to scan — always scan from the filesystem.
 3. **Dirty sentinel**, if present at `<root>/.claude/codemap.dirty`. Indicates the codemap-dirty hook flagged the codemap stale since the last run. Acknowledge in the report and delete the sentinel after a successful write.
 
-## Procedure
+## Procedure (the spec the script implements)
 
 ### 1. Resolve project root and project name
 
@@ -290,7 +288,7 @@ Start here — the most-depended-on files, ranked by importers:
 - Single-page-app conventions: `src/main.{ts,tsx,js,jsx}`, `src/index.{ts,tsx,js,jsx}` when no explicit `main` field exists.
 - Omit the section entirely if no entry points are detected. Do not invent.
 
-**Layers section** — detect when `.claude/architecture.md` or `.claude/codemap.config.md` declares them (see config format below). Otherwise omit. Inference from folder names alone is too brittle.
+**Layers section** — detect when `.claude/codemap.config.md` declares them (see config format below). Otherwise omit. Inference from folder names alone is too brittle.
 
 **Dependencies section** — adjacency list, module-level, weighted:
 - For each top-level directory, collect all import targets from files inside it.
@@ -325,7 +323,7 @@ Start here — the most-depended-on files, ranked by importers:
 - Drives both `## Conventions detected` (same run) and `visualise-codemap`'s UML output (downstream).
 
 **Ordering rules (mandatory):**
-- Section order in the file: `# Architecture` header, then `## Overview`, `## Map`, `## Modules`, `## Conventions detected`, `## Hubs`, `## Symbol index`, `## Entry points`, `## Layers`, `## Dependencies`, `## File deps`, `## Class graph`, then the per-module `## <top-level-dir>/` groups. Sections with no content are omitted (except Overview and Modules, which are always emitted when any file exists).
+- Section order in the file: `# Architecture` header, then `## Overview`, `## Map`, `## Modules`, `## Conventions detected`, `## Hubs`, `## Symbol index`, `## Entry points`, `## Layers`, `## Dependencies`, `## File deps`, `## Class graph`, `## Call graph`, `## Call sequence`, then the per-module `## <top-level-dir>/` groups. Sections with no content are omitted (except Overview and Modules, which are always emitted when any file exists).
 - `### <module>/` blocks inside `## Modules` ordered by module importance (sum of inbound edges) descending, ties alphabetical.
 - Top-level file groups in alphabetical order by directory name.
 - Files within a group in alphabetical order by relative path.
@@ -377,7 +375,7 @@ Do not dump the full diff — just the counts and a pointer to `git diff .claude
 - Does not modify any file other than `.claude/codemap.md` and `.claude/codemap.dirty` (the latter is cleared after a successful write; `.claude/codemap.config.md` is read-only input).
 - Does not render diagrams. Diagrams come from `visualise-codemap`, which consumes this skill's output.
 - Does not commit to git. User owns the commit.
-- Does not inspect or modify `.gitignore`. Users choose their sync mode (local-only / git-tracked / external); the skill is indifferent.
+- Does not *modify* `.gitignore` (reading it per-directory is core walk behavior). Users choose their sync mode (local-only / git-tracked / external); the skill is indifferent to how the codemap itself is synced.
 - Does not cross project boundaries (no traversing into sibling projects, no following symlinks out of the tree).
 - Does not generate cross-references between files.
 
@@ -438,6 +436,5 @@ Notes:
 
 - Pattern-matching, not parsing. Edge cases (template specializations, partial classes, dynamic `export default` expressions) may produce imperfect output. The ambiguity protocol (§5) says: note, do not invent.
 - Read cap per file is practical, not semantic. If a real file surfaces where exports live past line 200, the proposal assumption needs revisiting.
-- Full-rewrite each run. Incremental mode is future evolution, not v1.
 - No subagent delegation. If main context strains on a huge repo, that is a signal to revisit — do not silently silence the symptom.
-- Per-project config is skip-only. Force-include is a future extension, not v1.
+- Per-project config covers Skip / Vendored / Layers / Auto-update. Force-include is a future extension, not v1.

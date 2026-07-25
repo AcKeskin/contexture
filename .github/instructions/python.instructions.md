@@ -41,12 +41,12 @@ Use the `src/` layout (`src/mypkg/`) so the installed package, not the working d
 No import-time side effects in `__init__.py` — no I/O, no network, no global mutation. Importing a package must be cheap and safe.
 Libraries declare compatible ranges, not exact pins. Pin exact versions only in applications / lockfiles, where reproducibility is the goal.
 
-**Why:** flat-layout import shadowing and import-time side effects are the two packaging mistakes that pass locally and break on a clean install or in CI. Source: Python packaging guidance, PEP 517/518.
+**Why:** flat-layout import shadowing and import-time side effects are the two packaging mistakes that pass locally and break on a clean install or in CI. Source: Python packaging guidance, PEP 621 (project metadata), PEP 517/518 (build backend).
 
 ## Python typing
 
 Annotate public APIs and anything hard to understand without types (PEP 484). Types are checked documentation — they catch contract drift the tests miss.
-Express nullability explicitly: `Optional[X]` or `X | None`. Do not rely on an un-annotated `= None` default to imply it.
+Express nullability explicitly with `X | None` (PEP 604). `Optional[X]` is the legacy spelling — soft-deprecated in the typing docs; keep it only for back-compat with pre-3.10 targets. Do not rely on an un-annotated `= None` default to imply it.
 Accept abstract types in parameters (`Sequence`, `Mapping`, `Iterable`) and return concrete types. Be liberal in what you accept, specific in what you produce.
 Do not use bare `Any` when a precise type is knowable — it disables checking for that value and everything derived from it. Reserve it for genuine dynamic boundaries.
 Prefer `Protocol` (structural typing) over an ABC when you only need "has these methods" and don't control the implementers.

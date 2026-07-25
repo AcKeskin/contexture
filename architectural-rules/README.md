@@ -12,7 +12,7 @@ Unlike `claude-md/`, no `@import` line is needed in `~/.claude/CLAUDE.md` — th
 
 ```
 architectural-rules/
-├── universal/           scope: [universal],        relevance: always (most) — a few are phase-gated (naming-and-comments.md: during-review; test-quality.md: during-review + when-writing-tests)
+├── universal/           scope: [universal],        relevance: mixed — 7 files form the always-on floor; the other 15 are phase- or surface-gated
 ├── config-authoring/    scope: [config-authoring], relevance: when-touching-{skills,agents,rules,hooks}
 │   # language scopes — gate on the language of the file in scope
 ├── bash/                scope: [bash],       relevance: when-language-bash
@@ -38,6 +38,8 @@ architectural-rules/
 
 New languages / domains: create a new sub-folder. Do not nest further.
 
+**After changing any rule, re-run the cross-tool projector** — `node skills/project-instructions/project-instructions.mjs`. Every scope in this tree is also projected into `.github/instructions/<scope>.instructions.md` for non-Claude agents, and those copies are generated, never hand-edited. `bootstrap` does *not* run the projector; they are separate mechanisms, so a rule edit that skips this step leaves the other agents reading the old rule. `--dry-run` previews without writing.
+
 **Relevance gate verbs.** A scope's `relevance` tag declares *what kind of fact* makes it fire — four verbs, one family:
 
 | Verb | Fires when | Examples |
@@ -49,11 +51,11 @@ New languages / domains: create a new sub-folder. Do not nest further.
 
 These are orthogonal and compose: an OpenXR app built for Android pulls `openxr/` **and** `android/`; a Godot project on Linux pulls `godot/` **and** `linux/`. (`unity/` predates the split and is tagged `when-domain-unity`; left as-is for stability — the engine/platform/domain distinction is what `discover`/`prep` filter on, and an exact-string match still works.)
 
-The four verbs above are the **scope-axis** (what the project *is*). A second **action-axis** family gates on *what the agent is doing* rather than what the project is: `during-<phase>` (`during-planning` / `during-review` / `during-execution` / `during-session` / `during-session-close`), `when-touching-<surface>`, and `when-invoking-tools`. A rule loads at the right *moment* rather than always — e.g. `during-session` fires mid-session once history has accumulated (the session scope-boundary guard's pivot watch), distinct from `during-session-close` at the clear/compact boundary. See [`docs/architectural-rules.md`](../docs/architectural-rules.md) for the full action-axis list.
+The four verbs above are the **scope-axis** (what the project *is*). A second **action-axis** family gates on *what the agent is doing* rather than what the project is: `during-<phase>` (`during-planning` / `during-review` / `during-execution` / `during-publishing` / `during-session` / `during-session-close`), `when-touching-<surface>` (including `when-writing-tests`), and `when-invoking-tools`. One value sits outside both families: **`on-demand`**, for a rule whose payload *is* its own frontmatter, read directly by the consuming organ rather than resolved through a phase match (`universal/autonomy-default.md`). A rule loads at the right *moment* rather than always — e.g. `during-session` fires mid-session once history has accumulated (the session scope-boundary guard's pivot watch), distinct from `during-session-close` at the clear/compact boundary. See [`docs/architectural-rules.md`](../docs/architectural-rules.md) for the full action-axis list.
 
 `typescript/` holds language-level TS idioms (type system, narrowing, modules, async) that hold in any TS context — Node, MCP server, browser. `web/` holds framework-agnostic architectural-layer rules (UI / State / Transport / Domain) that hold for any web framework regardless of language. A rule about `Promise` typing → `typescript/`; a rule about "domain must not import React" → `web/`.
 
-`config-authoring/` is the **meta scope**: rules about *authoring this harness itself* (skills, agents, rules, hooks, settings templates), as opposed to every other scope which governs a *user's* project code. The distinction matters — a user's app code *should* contain their paths and identity; a config-authoring rule must never fire on it. These rules are relevance-gated to the config-authoring surfaces (`when-touching-skills` / `-agents` / `-rules` / `-hooks`), never `relevance: always`. First inhabitant: `share-readiness` (no owner identity/machine assumptions in shipped artefacts).
+`config-authoring/` is the **meta scope**: rules about *authoring this harness itself* (skills, agents, rules, hooks, settings templates), as opposed to every other scope which governs a *user's* project code. The distinction matters — a user's app code *should* contain their paths and identity; a config-authoring rule must never fire on it. These rules are relevance-gated to the config-authoring surfaces (`when-touching-skills` / `-agents` / `-rules` / `-hooks`), never `relevance: always`. Inhabitants: `share-readiness` (no owner identity / machine assumptions in shipped artefacts) and `cross-tool-core` (the always-on discipline projected to non-Claude agents).
 
 ## File format
 

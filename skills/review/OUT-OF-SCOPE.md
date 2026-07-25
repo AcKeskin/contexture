@@ -42,7 +42,7 @@ scope: <file path or pattern>
 
 ## How review uses it
 
-At the start of step 3 (file scan), after rules load:
+At §2b (out-of-scope index load), after rules load and before the file scan:
 
 1. Read every file under `.claude/review-out-of-scope/`. Skip silently if the directory does not exist.
 2. Index by `scope` and `finding-category`.

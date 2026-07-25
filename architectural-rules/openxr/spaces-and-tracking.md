@@ -14,7 +14,7 @@ origin: shipped
 
 <!-- id: locate-with-predicted-time --> Pass predictedDisplayTime from XrFrameState as the time argument to xrLocateSpace. The runtime's prediction accounts for motion-to-photon latency at that exact display scanout; any other timestamp yields a stale or speculative pose. (OpenXR: xrLocateSpace, XrFrameState::predictedDisplayTime)
 
-<!-- id: reference-space-types --> Choose reference spaces by semantic intent: XR_REFERENCE_SPACE_TYPE_LOCAL for head-locked or room-scale content anchored to a recentring origin; XR_REFERENCE_SPACE_TYPE_STAGE for floor-level play-area content; XR_REFERENCE_SPACE_TYPE_VIEW for content rigidly attached to the HMD optical axes. Verify support with xrEnumerateReferenceSpaces before creating. (OpenXR: xrEnumerateReferenceSpaces, xrCreateReferenceSpace, XrReferenceSpaceType)
+<!-- id: reference-space-types --> Choose reference spaces by semantic intent: XR_REFERENCE_SPACE_TYPE_LOCAL for world-locked content anchored to a recentring origin (seated / standing scale); XR_REFERENCE_SPACE_TYPE_STAGE for floor-level play-area content; XR_REFERENCE_SPACE_TYPE_VIEW for content rigidly attached to the HMD optical axes. Verify support with xrEnumerateReferenceSpaces before creating. (OpenXR: xrEnumerateReferenceSpaces, xrCreateReferenceSpace, XrReferenceSpaceType)
 
 <!-- id: action-spaces-for-controllers --> Use action spaces (created via xrCreateActionSpace) for controller and hand poses — never hard-code a reference-space offset as a proxy for a controller. Action spaces route through the interaction-profile abstraction and stay valid across input-device changes. (OpenXR: xrCreateActionSpace, XrActionSpaceCreateInfo)
 

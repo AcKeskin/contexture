@@ -4,7 +4,7 @@ description: For tools with a config file and an install/setup surface, treat th
 type: feedback
 kind: architectural-rule
 scope: [universal, configuration, cli-design, installer]
-relevance: during-design, when-touching-installer, when-touching-cli-flags
+relevance: during-planning, when-touching-installer, when-touching-cli-flags
 ---
 
 For any tool with both (a) a config file and (b) an install/setup surface, the config file is the single source of truth. "First run on this machine" is just the case where the config file doesn't have the relevant block yet — write the default block, proceed through the normal code path, done. Same code path runs for the user's tenth re-bootstrap and for a friend's first-ever install.

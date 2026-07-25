@@ -12,7 +12,7 @@ applyTo: "**/*.cs"
 - No god components orchestrating unrelated systems. Split by concern and compose at the GameObject level.
 - Prefer composition of small components over inheritance trees of MonoBehaviours.
 
-**Why:** Unity's ECS-adjacent composition model fights inheritance. Working with the grain keeps prefabs reusable and testable.
+**Why:** Unity's GameObject/component composition model fights inheritance. Working with the grain keeps prefabs reusable and testable.
 
 ## Unity input via Input Actions on <Pointer>, not EnhancedTouch polling
 
@@ -73,7 +73,7 @@ For pointer/touch input in Unity (Input System 1.x+), the default approach is `I
 
 ## UGUI creation discipline
 
-Discipline for creating UGUI hierarchies — applies whether the work is hand-written or driven through a tool like [Unity-Skills](https://github.com/Besty0728/Unity-Skills) or [Unity-MCP](https://github.com/IvanMurzak/Unity-MCP).
+Discipline for creating UGUI hierarchies — applies whether the work is hand-written or driven through editor tooling. (Unity Manual: Canvas, UI Rect Transform, Auto Layout.)
 
 ## Create-then-position
 
@@ -101,21 +101,7 @@ When creating 2+ children of the same parent (menu buttons, HUD widgets, list ro
 - Text creation should auto-detect TextMeshPro and prefer `TextMeshProUGUI` over legacy `Text`. Legacy `Text` only as a fallback when TMP is not in the project.
 - Don't mix TMP and legacy Text in the same screen unless there's a reason — they have different metrics, line-height, and atlas paths.
 
-## Anti-hallucinations (when driving Unity-Skills)
-
-If using [Besty0728/Unity-Skills](https://github.com/Besty0728/Unity-Skills), the following commonly-guessed names **do not exist**:
-
-- `ui_add_canvas` → use `ui_create_canvas`.
-- `ui_create_label` → use `ui_create_text`.
-- `ui_create_checkbox` → use `ui_create_toggle`.
-- `ui_set_color` → use `component_set_property` on `Image`/`Text`.
-- `uitoolkit_create_button`, `uitoolkit_create_label` → UI Toolkit uses `uitk_add_element` with `elementType` for everything.
-- `uitoolkit_create_canvas` → UI Toolkit has no Canvas; use `uitk_create_document` (UIDocument).
-- `ui_create_batch.items` is a JSON-stringified array, not a raw array, in the current REST layer.
-
-When in doubt, query the live tool list (`/skills/schema` for Unity-Skills, MCP `tools/list` for Unity-MCP) instead of guessing names.
-
-**Why:** UGUI's create skills are intentionally position-agnostic so anchors and layouts stay authoritative. Hand-positioning bypasses both, producing UIs that work at one resolution and break at every other one. The hallucinated tool names are real failure modes from Anthropic-style models — having them written down up front is cheaper than a round-trip 404.
+**Why:** UGUI's create skills are intentionally position-agnostic so anchors and layouts stay authoritative. Hand-positioning bypasses both, producing UIs that work at one resolution and break at every other one.
 
 ## Unity UI architecture rules
 
@@ -157,6 +143,6 @@ USS looks like CSS but the supported subset is small. Generating "valid CSS" wit
 
 - USS class names and CSS variable names stay English. Localize visible *text*, not selectors.
 - Prefer one root UXML per screen with `<Style src="..."/>` for shared stylesheets. Inline `style=""` on UXML elements is allowed but defeats theming — use classes.
-- Read [Unity-Skills' USS_REFERENCE.md](https://github.com/Besty0728/Unity-Skills/blob/main/SkillsForUnity/unity-skills~/skills/uitoolkit/USS_REFERENCE.md) before generating non-trivial USS systems — it has worked patterns for cards, modals, scrollers.
+- Read the Unity Manual's "USS properties reference" (UI Toolkit) before generating non-trivial USS systems; the unsupported-property table above is the short form.
 
 **Why:** USS uses the Yoga flex engine, not a CSS engine. Anything outside flex + transforms either silently no-ops or produces a layout that looks right in the snapshot and breaks at a different resolution. The unsupported list is stable across Unity 2022.3 → Unity 6.

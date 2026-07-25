@@ -1,7 +1,7 @@
 {
   "statusLine": {
     "type": "command",
-    "command": "__CCLINE_PATH__",
+    "command": "node __HOME__/.claude/hooks/statusline.js",
     "padding": 0
   },
   "hookBundles": {

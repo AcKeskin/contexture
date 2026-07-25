@@ -59,7 +59,7 @@ Run the seven checks. Each is **tick** (pass, silent) or **flag** (surface). Opt
 3. **No AI-attribution lines.** Scan the commit messages in range for `Co-Authored-By:`, `Generated with`, `🤖`, or any AI-attribution footer. Flag any hit — per [git.md](../../architectural-rules/universal/git.md), commit history never carries AI attribution.
 4. **No staged-but-uncommitted leftovers.** `git diff --cached --stat` non-empty means staged changes that won't be in the push but linger in the index. A dirty *working tree* is fine (unstaged work in progress); *staged* leftovers are usually an accident — flag them.
 5. **No debug artifacts in the diff.** Scan `git diff @{u}..HEAD` (or `<base>..HEAD`) for printf-debugging and hardcoded test scaffolding: `console.log(` / `print(` / `println!` / `dbg!(` / `debugger` in non-test files, hardcoded `localhost` / `127.0.0.1` URLs, hardcoded test credentials or tokens. Report file:line for each hit. (Self-evident; don't flag legitimate logging frameworks or test files.)
-6. **Hooks not bypassed.** `git reflog -n 20` plus a scan of recent commit metadata for traces of `--no-verify`. If the last commits were made with hooks bypassed, surface it — the user may have meant to, but it's worth confirming before the work ships. Respect an active `allow-skip-hooks` arming: if hooks were *deliberately* skipped under that skill, note it as intentional, not a flag.
+6. **Hooks not bypassed.** Check the hook-skip arming log: if the `allow-skip-hooks` counter was armed during this session (its log/state file records arming events), list the armed commands and ask whether the bypassed hooks' checks were satisfied another way. `--no-verify` itself leaves no git-side trace — the arming log is the only reliable signal, so absence of an arming event plus active hooks counts as a pass.
 7. **Secret-hook carry-forward.** If the session's security hooks flagged a secret in a recent Write that wasn't resolved, that flag is a **stop condition** here — a secret must not reach the remote. Surface it as a hard flag.
 
 ### 3. Decide
@@ -84,8 +84,8 @@ Per-repo scratch-branch exemption lives in the project's `.claude/` config when 
 ## What pre-push does NOT do
 
 - **Does not force-push.** It never constructs a `--force` / `--force-with-lease` flag itself. The user runs force-push manually if they mean to.
-- **Does not bypass hooks.** It never adds `--no-verify`. It *reads* reflog for diagnostic traces of prior bypass, but respects `allow-skip-hooks` arming and never interferes with it.
-- **Does not run the full review.** Pre-push is a fast hygiene pass, not [review](../review/SKILL.md). A diff-level audit is a separate, heavier skill; running it here would make every push slow. (v2 may add an opt-in `--full` that chains a fast review.)
+- **Does not bypass hooks.** It never adds `--no-verify`. It *reads* the `allow-skip-hooks` arming log for diagnostic traces of prior bypass, but respects an active arming and never interferes with it.
+- **Does not run the full review.** Pre-push is a fast hygiene pass, not [review](../review/SKILL.md). A diff-level audit is a separate, heavier skill; running it here would make every push slow.
 - **Does not commit.** It surfaces staged leftovers and dirty trees; it doesn't decide commit granularity for the user.
 - **Does not push past a flag silently.** Every flag stops the flow until the user resolves or overrides it.
 

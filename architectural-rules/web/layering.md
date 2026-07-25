@@ -16,4 +16,4 @@ relevance: when-language-web
 - UI talks to State; State talks to Transport; Transport talks to Domain types (not the other way).
 - Avoid magic globals. No module-level mutable state.
 
-**Why:** frameworks churn. Domain logic bound to framework primitives dies with the framework.
+**Why:** frameworks churn. Domain logic bound to framework primitives dies with the framework. Source: ports-and-adapters / clean-architecture layering.

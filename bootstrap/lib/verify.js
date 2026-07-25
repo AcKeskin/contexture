@@ -24,7 +24,7 @@ const path = require('path');
 const { directoriesEqual, filesEqual } = require('./compare');
 const { loadManifest, matchesRecorded } = require('./copy-manifest');
 
-function verifyAll({ repoRoot, homeClaude, subtrees }) {
+function verifyAll({ repoRoot, homeClaude, home, subtrees }) {
   const manifest = loadManifest(homeClaude); // read-only here — never saved
   const subtreeReports = [];
   for (const sub of subtrees) {
@@ -53,6 +53,15 @@ function verifyAll({ repoRoot, homeClaude, subtrees }) {
     if (sub.copyMirror) {
       const copyDst = path.join(repoRoot, sub.copyMirror);
       subtreeReports.push(verifyItems(`${sub.name} (copy)`, src, copyDst, manifest));
+    }
+
+    // Home copy mirror (e.g. ~/.copilot/skills/) — real-file copies for Copilot
+    // CLI's personal, every-directory scan dir. Home-relative dst; only audited
+    // when `home` was supplied. Same per-item drift check as the copy mirror.
+    if (sub.homeCopyMirror && home) {
+      const homeDst = path.join(home, sub.homeCopyMirror);
+      const verifyFn = sub.mode === 'whole' ? verifyWhole : verifyItems;
+      subtreeReports.push(verifyFn(`${sub.name} (home-copy)`, src, homeDst, manifest));
     }
   }
 

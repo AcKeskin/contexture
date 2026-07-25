@@ -44,7 +44,7 @@ From the content and how the user framed it:
 
 ### 2. Classify `kind`
 
-When `type` is not `feedback` / `project`, pick `kind` per `memory-capture.md`'s kind table. Additional kind owned here: `canonical-command` — a verb→exact-command pin, a specialization of `architectural-rule`, routes per §5b. If the body has the shape "I did X on Y and it broke Z, hard to undo," it's a `warning`, not a `lesson`. Omit `kind` when default (`lesson`).
+When `type` is not `feedback` / `project`, pick `kind` per `memory-capture.md`'s kind table. Additional kind owned here: `canonical-command` — a verb→exact-command pin, a specialization of `architectural-rule`, routes per §5b. `canonical-command` never lands as file frontmatter — §5b writes sections into the canonical-commands rule file, so the kind enums of memory-audit and the engine are unaffected. If the body has the shape "I did X on Y and it broke Z, hard to undo," it's a `warning`, not a `lesson`. Omit `kind` when default (`lesson`).
 
 ### 3. Classify `scope`
 
@@ -219,7 +219,7 @@ The body that lands on disk is the post-redaction version; the original (with se
 
 - **Cannot classify `kind` confidently** — propose best guess, flag the uncertainty in the proposal message, let the user override. Do not silently commit a fuzzy classification.
 - **Ambiguous target folder** (e.g. "is this a universal rule or a C++-specific rule?") — ask one clarifying question. Do not write to both locations.
-- **Project memory root missing** — create `~/.claude/projects/<slug>/memory/` and seed `MEMORY.md` with a header line before writing the first file.
+- **Project memory root missing (first creation)** — if no `~/.claude/projects/*/memory/` folder matches the project root, derive the slug from the project directory path with the platform's path-to-slug encoding (the same encoding visible in existing sibling project folders), create the tree, and note the creation in the commit summary. Seed `MEMORY.md` with a header line before writing the first file.
 - **`MEMORY.md` write race** (rare, but possible if user has another session open) — if the file has changed since read, re-read, reconcile, re-append. Never blind-overwrite.
 - **Content plainly duplicates an existing memory** — surface the duplicate in the proposal, ask whether to replace / merge / reject. Never silently overwrite.
 

@@ -71,8 +71,8 @@ mcp__context7__resolve-library-id  <library-name>
 mcp__context7__query-docs          <library-id> <question>
 ```
 
-**Why:** avoids stale-training-data answers for libraries/frameworks/CLIs. Already
-the rule per `~/.claude/rules/context7.md`; restated here so it surfaces in
+**Why:** avoids stale-training-data answers for libraries/frameworks/CLIs. This is
+the standing rule for library documentation; restated here so it surfaces in
 canonical-command resolution alongside the other tool defaults.
 
 ---
@@ -169,11 +169,11 @@ A comment must answer "what non-obvious thing does this do?" or "why isn't the o
 - Mandatory only when non-obvious: hidden constraints, subtle invariants, bug workarounds, surprising behavior.
 - Explain **why**, not **what** — well-named identifiers show the what.
 - One line preferred. A paragraph signals the design needs work, not prose.
-- No task-referential comments ("added for X", "fix for #123") — those belong in commit messages and rot as code evolves.
-- No play-by-play. Don't narrate the debugging journey, what you tried first, or alternatives you ruled out. No "we discussed" / "decided not to" / "for now" / "originally". The current code is the decision; the comment makes it readable, not argues for it. If rationale is load-bearing, state the invariant in one sentence ("must be 2D — NVENC reads strides"), not the story of finding it.
-- Architectural rationale and historical context belong in a changelog or decision record, not source comments. Source comments are read every time someone touches the line; history is read only when someone needs it.
-- Same rules apply to docstrings and agent-written README sections — lead with the contract, don't recap the design conversation.
-- No redundancy with code. If removing the comment doesn't confuse a future reader, delete it.
+- Keep task-tracking out of comments — "added for X" / "fix for #123" belong in commit messages, and rot in code as it evolves.
+- Comment the decision, not the journey. The current code is the decision; a comment makes it readable, not argues for it — so state a load-bearing rationale as a one-sentence invariant ("must be 2D — NVENC reads strides"), not the story of finding it. (Not the debugging narrative, the alternatives ruled out, or "we discussed" / "for now".)
+- Put architectural rationale and historical context in a changelog or decision record. Source comments are read every time someone touches the line; history is read only when someone needs it.
+- Docstrings and agent-written README sections follow the same rule — lead with the contract, state what the reader needs to use it.
+- Say what the code cannot. If removing the comment wouldn't confuse a future reader, the code already said it — delete it.
 
 **Scope:** applies only to comments you are writing, or comments on lines you are already changing. Don't open a file just to trim comments — that is out of scope for any task other than an explicit "clean up comments in <file>" request, and the churn obscures the real change in review. But if a comment or doc on a line you're already changing has become wrong, updating it is in scope — that's the line's contract staying true, not churn. Only the unprompted comment-trimming side-quest is out of scope.
 
@@ -186,6 +186,17 @@ A comment must answer "what non-obvious thing does this do?" or "why isn't the o
 - Keep docs in sync with the code they describe. When a change invalidates a load-bearing doc, update it in the same change or delete it. A doc that describes code as it no longer is is worse than no doc.
 
 **Why:** comments and docs share a failure mode — both rot silently when written by habit instead of need. The discipline is the same: trigger on non-obviousness, keep terse, delete when stale.
+
+## Focused execution
+
+- Act on established context. When the session has already settled a fact or a decision, use it — don't re-read files already read, re-derive conclusions already reached, or re-open decisions the user has made. Re-opening requires new evidence, named as such.
+- When you have enough information to act, act. Gather what's missing; don't re-verify what isn't.
+- Don't narrate the road not taken. Weigh options internally; present the recommendation and its one load-bearing trade-off. A full options survey is only for genuine forks the user must decide.
+- Requirements are stated, not inferred. Before engineering for something the user never said — scalability, configurability, future variance, edge cases outside the described input space — name the assumption and ask, or build without it. Inferred requirements feel requested to you and speculative to the user; they are the root of most overengineering.
+- Robustness budget matches the stated problem. Handle error paths the described usage can hit; don't armor-plate impossible cases or add defensive fallbacks that mask failure.
+- Prefer the direct solution shape. A function over a class, a class over a framework. Generality arrives with the second concrete use case — never the first.
+
+**Why:** two failure modes of a capable agent compound quietly: burning the context window re-processing what's already settled, and gold-plating for requirements nobody stated. [[change-discipline]] governs how a change is made once scoped; this governs how attention and engineering effort get budgeted before that. The inferred-requirements bullet is the load-bearing one — "no unrequested scope" alone doesn't catch scope the model believes was requested.
 
 ## Git workflow mechanics
 
@@ -307,7 +318,7 @@ A **scope pivot** is the current request crossing the same task-shift boundary `
 Only treat a pivot as a boundary worth acting on when the session **also carries accumulated history worth dropping** — a real prefix that the new topic would otherwise pay to resend on every turn. A pivot on a fresh or short session (a handful of turns, no established prior topic) costs nothing to carry: stay silent. Both conditions must hold — a real pivot **and** a real prefix.
 At a qualified pivot, surface a **non-blocking two-branch fork**: name the old topic and the new one, state that the prior context is now dead weight on every turn, and offer *recap + clear so the new topic starts clean* **or** *keep going in this session*. Two named branches, not a one-line nudge. Route "recap + clear" to `/recap` (which writes the handoff) then the user's own `/clear`. Do not repeat the suggestion for the same pivot once the user has chosen.
 **Never auto-clear and never auto-recap.** A `/clear` is irreversible — the dropped context does not come back — so taking it is always the user's explicit decision. This guard proposes the boundary; the user decides whether to cross it.
-This rule shapes intent; the mechanical primer is the rule-prime hook, which loads `during-session` rules into context once a session is underway (past a small turn threshold — e.g. several user turns). Where that hook is not present the rule still resolves through `/prep` and `/discover` relevance matching — primed later, never worse than honor-system. Rule and primer must stay aligned; drift between them is itself a flag.
+This rule shapes intent. It resolves through `/prep` and `/discover` relevance matching — the rule-prime hook primes only the always tier, so no hook primes this rule today. Rule and primer must stay aligned; drift between them is itself a flag.
 
 **Why:** Claude is stateless — every turn resends the whole history, so a long session's cost is closer to quadratic than linear in its length. The fixable waste is not session *length* (a long, coherent session that ships a whole chain is correct) but **carrying context you are done with past a natural boundary** — the dead prefix you keep paying to resend after a topic pivot. Cutting it at the boundary with a `/clear` is the lever; this guard surfaces that choice at the right moment instead of relying on the user to notice the session has grown huge. It is the *timely/trigger* half of the clear boundary; [[persist-before-discard]] is the *safe/recovery* half — persist-before-discard makes a clear safe to take (decisions persisted), this makes it worth taking at the right moment. The two compose: a pivot suggestion here *is* the persistence event persist-before-discard wants, and the subsequent clear is the one it guards.
 

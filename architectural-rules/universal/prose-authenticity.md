@@ -3,8 +3,8 @@ name: Prose authenticity
 description: Remove AI-texture from USER-FACING prose (docs, email, PR/proposal) by aggregate density — never single instances; report likelihood, never a verdict. Hard scope-guard excludes the terse model corpus.
 type: user
 kind: architectural-rule
-scope: [prose, documentation, writing, user-facing-docs]
-relevance: when-authoring-user-docs, during-review, when-publishing
+scope: [prose, documentation, writing, user-facing-docs, universal]
+relevance: when-touching-user-docs, during-review, during-publishing
 ---
 
 User-facing prose should read like a person wrote it. AI-texture (significance puffery, AI-vocabulary clusters, negative parallelism, sycophancy) undercuts published work. Catch it — but by the evidence, not by folklore.

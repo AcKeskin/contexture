@@ -1,7 +1,7 @@
 'use strict';
 
 // Resolve ~/.claude/settings.json from the synced template + per-machine
-// overrides + computed values (ccline path, home-dir token). Idempotent:
+// overrides + computed values (home-dir token). Idempotent:
 // writes only when the resolved content differs from what is already on disk.
 //
 // Merge strategy:
@@ -18,10 +18,9 @@
 const fs = require('fs');
 const path = require('path');
 
-const CCLINE_PATH_TOKEN = '__CCLINE_PATH__';
 const HOME_TOKEN = '__HOME__';
 
-function resolveSettings({ repoRoot, cclinePathForSettings, homeDirForSettings, enabledHookBundles }) {
+function resolveSettings({ repoRoot, homeDirForSettings, enabledHookBundles }) {
   const templatePath = path.join(repoRoot, 'settings', 'settings.template.json');
   const localPath = path.join(repoRoot, 'settings', 'settings.local.json');
 
@@ -37,7 +36,6 @@ function resolveSettings({ repoRoot, cclinePathForSettings, homeDirForSettings, 
   const merged = mergeWithHooksDeepened(resolvedTemplate, local);
 
   substituteTokens(merged, {
-    [CCLINE_PATH_TOKEN]: cclinePathForSettings,
     [HOME_TOKEN]: homeDirForSettings,
   });
 
@@ -131,4 +129,4 @@ function substituteTokens(node, tokens) {
   }
 }
 
-module.exports = { resolveSettings, writeSettings, CCLINE_PATH_TOKEN, HOME_TOKEN };
+module.exports = { resolveSettings, writeSettings, HOME_TOKEN };

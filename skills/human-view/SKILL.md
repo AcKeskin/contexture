@@ -44,7 +44,7 @@ Read the artefact and render the four parts above. Rules:
 ### 3. Return / present
 
 - Library call: return the rendered view to the caller, which shows it above its accept/edit/reject prompt.
-- Command: present inline; `--vault` also writes `<Vault>/Projects/<ProjectFolder>/<type>s/<slug>-human.md`.
+- Command: present inline; `--vault` also writes `<Vault>/Projects/<ProjectFolder>/Docs/<slug>-<type>-human.md` — the same `Projects/<ProjectFolder>/<Category>/` shape the codemap and review vault copies use.
 
 ## What human-view does NOT do
 

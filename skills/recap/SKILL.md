@@ -26,7 +26,7 @@ Session recaps are the second memory tier — episodic, per-session, structured.
 
 ### 1. Resolve project memory directory
 
-Same as discover §1: Glob for `~/.claude/projects/*/memory/MEMORY.md`, pick the match whose path contains the project root directory name. If no match, create `~/.claude/projects/<slug>/memory/` lazily (slug is the Claude-Code-assigned slug for the project — do not reconstruct manually; infer from the existing folder naming).
+Same as discover §1: Glob for `~/.claude/projects/*/memory/MEMORY.md`, pick the match whose path contains the project root directory name. If no match, the tree does not exist yet — creation (including slug derivation) is defined once, in [capture](../capture/SKILL.md) § Failure modes, the organ that owns memory writes. Follow it there rather than restating it.
 
 The recaps folder is `<memory-root>/sessions/`. Create if absent.
 
@@ -124,7 +124,7 @@ Promotion is opt-in per item. Do not batch without asking — the collaborator p
 
 Recap is the one organ that runs at *every* deliberate session close, so it is the natural recurring guard against corpus bloat (no separate scheduler needed). After the promotion pass, do a cheap read of MEMORY.md's budget scoreboard (the `<!-- BUDGET: ... -->` header — see `claude-md/memory-capture.md`):
 
-- **If this session added memories**, recompute and update the scoreboard counts (`memories`, and `always-on` / `always-bytes` if any new entry is `relevance: always`) in the same recap commit. Keeping the scoreboard live is recap's job because recap is the reliable session-close hook; capture updates it per-write, recap reconciles it.
+- **If this session added memories**, recompute and update the scoreboard counts (`memories`, and `always-on` / `always-bytes` if any new entry is `relevance: always`) in the same recap commit. Keeping the scoreboard live is recap's job because recap is the reliable session-close hook — capture does not update it per-write, so recap is the only organ that reconciles it.
 - **If a soft ceiling is crossed** — `always-on > ~20 files` or `always-bytes > ~60 KB` or `memories` grew a lot since `last-audit` — surface a one-line nudge: *"Memory floor is at <A> always-on files / <B> KB (ceiling ~20/~60). Want to run `/memory-audit --check 10` to prune?"* Do not run it unprompted — just surface the signal at the moment the user is already wrapping up.
 - **If nothing crossed**, say nothing. The check is invisible when the corpus is healthy.
 
@@ -141,7 +141,7 @@ This closes the loop: capture guards entry (§6b), the scoreboard makes growth v
 ## What recap does NOT do
 
 - **Does not auto-fire.** Ever. Mode B parked.
-- **Does not do cross-session consolidation.** Recap is strictly **micro/episodic** — one session, what happened today, what's next tomorrow. Stepping back over the *body* of many sessions/ships to ask "what still coheres, what's drifted" is [retrospect](../retrospect/SKILL.md)'s job. Recap *feeds* retrospect (its recaps are an input corpus, swept by retrospect's uncaptured-lessons pass); it does not aggregate across sessions itself.
+- **Does not do cross-session consolidation.** Recap is strictly **micro/episodic** — one session, what happened today, what's next tomorrow. Stepping back over the *body* of many sessions/ships to ask "what still coheres, what's drifted" is the corpus checkpoint's job ([checkpoint](../checkpoint/SKILL.md) --scope corpus). Recap *feeds* it (recaps are an input corpus, swept by the uncaptured-lessons pass); it does not aggregate across sessions itself.
 - **Does not summarise each tool call.** That's claude-mem's granularity; recap rejects it as too noisy. Recap is session-level, not tool-level.
 - **Does not sync across machines.** Memory is local by design. Each PC has its own session log.
 - **Does not write directly to rule-tier memory.** Promotion flows through capture so classification is consistent.
@@ -151,7 +151,7 @@ This closes the loop: capture guards entry (§6b), the scoreboard makes growth v
 ## Relationship to other organs
 
 - **capture** — promotion path. Recap's Learned items pass through capture to become rule-tier memories.
-- **retrospect** — the macro aggregator above recap. Recap is the per-session feeder; retrospect sweeps *all* recaps since its last run for `Learned` items the per-session promotion pass (§8) missed, and consolidates across the body of work recap only records one slice of.
+- **checkpoint (corpus scope)** — the macro aggregator above recap. Recap is the per-session feeder; the corpus checkpoint sweeps *all* recaps since its last run for `Learned` items the per-session promotion pass (§8) missed, and consolidates across the body of work recap only records one slice of.
 - **discover** — discovery scans `sessions/` as a retrieval source with a 30-day auto-surface cutoff (see discover §8a).
 - **deliver** — recaps render as tier `session-recap` in delivery's default ordering, between project-facts and codemap.
 - **git log** — complementary, not duplicative. Git is authoritative for commits; recaps add the *why* and *what was learned* that commit messages don't capture.

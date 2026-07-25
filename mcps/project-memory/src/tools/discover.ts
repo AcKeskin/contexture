@@ -2,7 +2,8 @@ import { z } from "zod";
 import { resolveMemoryContext } from "../lib/paths.js";
 import { noTreeResponse, textResponse, warningBlock } from "../lib/response.js";
 import { loadAllMemories } from "../retrieval/load.js";
-import { scoreMemories, expandRelations } from "../retrieval/score.js";
+import { scoreMemories, expandRelations, scoreScratch } from "../retrieval/score.js";
+import { readScratch, reconcile } from "../lib/scratch.js";
 import { renderScoredMemories } from "../retrieval/render.js";
 import { loadCodemap } from "../retrieval/codemap.js";
 
@@ -55,6 +56,18 @@ export const discoverSchema = {
     .describe(
       "Include matching codemap entries (<project>/.claude/codemap.md). Default false. Skipped silently when no codemap exists.",
     ),
+  session_id: z
+    .string()
+    .optional()
+    .describe(
+      "Current session id. When set, this session's scratch tier (in-flight observations from execute/checkpoint) is surfaced alongside canonical memories so resuming is a read rather than a re-derivation. Scratch from other sessions is never returned.",
+    ),
+  scratch_limit: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe("Cap on surfaced scratch entries. Default 20."),
   cwd: z
     .string()
     .optional()
@@ -78,6 +91,8 @@ export async function discoverHandler(args: {
   render_bodies?: boolean;
   include_recaps?: boolean;
   include_codemap?: boolean;
+  session_id?: string;
+  scratch_limit?: number;
   cwd?: string;
   today?: string;
 }): Promise<{ content: { type: "text"; text: string }[] }> {
@@ -135,7 +150,46 @@ export async function discoverHandler(args: {
     }
   }
 
-  return textResponse(warningBlock(resolved) + header + text + codemapBlock);
+  // Scratch (109) — this session's in-flight observations. TTL is structural:
+  // the store is keyed by session, so passing only `session_id` makes prior
+  // sessions unreachable rather than filtered. Reconciled before ranking so a
+  // superseded observation cannot mislead the work that follows it.
+  let scratchBlock = "";
+  if (args.session_id) {
+    // The scratch read is isolated: `readScratch` throws on a malformed entry
+    // (correct for the store — a dropped observation must not look like one
+    // that was never written), but a corrupt DISPOSABLE file must never take
+    // down retrieval of DURABLE memories. Degrade to a visible warning instead.
+    try {
+      const reconciled = reconcile(readScratch(cwd, args.session_id));
+      const ranked = scoreScratch(reconciled, {
+        taskKeywords: csv(args.task_keywords),
+        limit: args.scratch_limit ?? 20,
+      });
+      if (ranked.length > 0) {
+        const rows = ranked
+          .map((s) => {
+            const flags: string[] = [s.entry.provenance, s.entry.salience];
+            if (s.entry.supersedes) flags.push("supersedes-earlier");
+            return `  - ${s.entry.observation}\n      why: ${s.entry.reason}  [${flags.join(", ")}]`;
+          })
+          .join("\n");
+        const omitted = reconciled.length - ranked.length;
+        scratchBlock =
+          `\n\n## Scratch (session ${args.session_id}) — ${ranked.length} of ${reconciled.length} in-flight observation(s)` +
+          (omitted > 0 ? `, ${omitted} below the cap` : "") +
+          `\n${rows}`;
+      }
+    } catch (err) {
+      // Surfaced, never swallowed — a silently missing scratch block is
+      // indistinguishable from a session that simply wrote nothing.
+      scratchBlock = `\n\n## Scratch (session ${args.session_id}) — UNAVAILABLE\n  ${String(err)}`;
+    }
+  }
+
+  return textResponse(
+    warningBlock(resolved) + header + text + codemapBlock + scratchBlock,
+  );
 }
 
 function csv(s: string | undefined): string[] | undefined {

@@ -28,7 +28,7 @@ Query XrSystemProperties (via xrGetSystemProperties) and XrSystemGraphicsPropert
 
 Call xrSuggestInteractionProfileBindings once per interaction profile during initialisation, before xrBeginSession. Suggesting bindings inside the frame loop is legal but wasteful; more importantly it signals that the binding design couples input layout to runtime state, which is an architecture smell. (OpenXR: xrSuggestInteractionProfileBindings, XrInteractionProfileSuggestedBinding)
 
-Attach all action sets to the session with xrAttachSessionActionSets before calling xrBeginSession. Action sets cannot be attached or detached after the session begins; design the full set of required actions up front. (OpenXR: xrAttachSessionActionSets)
+Attach all action sets to the session with xrAttachSessionActionSets exactly once, before the first xrSyncActions. A second call fails with XR_ERROR_ACTIONSETS_ALREADY_ATTACHED, and sets can never be detached; design the full set of required actions up front. (OpenXR: xrAttachSessionActionSets)
 
 Call xrSyncActions every frame before querying any action state. Action state is a snapshot; it is only updated by xrSyncActions. Reading stale state (e.g. querying without syncing after a focus loss/regain) produces silently outdated input. (OpenXR: xrSyncActions, XrActionsSyncInfo)
 
@@ -46,7 +46,7 @@ Destroy in strict reverse-creation order: swapchain → session → instance. Vi
 
 The frame loop is xrWaitFrame → xrBeginFrame → submit layers → xrEndFrame, in that order, every frame. Skipping xrWaitFrame or reordering the calls is undefined behaviour; the runtime uses the blocking xrWaitFrame to pace the app to the display. (OpenXR: xrWaitFrame, xrBeginFrame, xrEndFrame)
 
-Use XrFrameState::predictedDisplayTime from xrWaitFrame as the time argument to xrLocateSpace, xrGetActionStatePose, and layer projection views. Never substitute wall-clock time or an independent timer; the runtime's prediction is calibrated to the physical display scanout and differs from wall-clock by compositor pipeline depth. (OpenXR: XrFrameState, xrWaitFrame)
+Use XrFrameState::predictedDisplayTime from xrWaitFrame as the time argument to xrLocateSpace and layer projection views (XrFrameEndInfo::displayTime). Never substitute wall-clock time or an independent timer; the runtime's prediction is calibrated to the physical display scanout and differs from wall-clock by compositor pipeline depth. (OpenXR: XrFrameState, xrWaitFrame)
 
 Let XrSessionState drive xrBeginSession and xrEndSession. Transition to READY before calling xrBeginSession; transition through STOPPING before calling xrEndSession. Poll events each frame with xrPollEvent; act on XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED. Do not cache state across frames and assume it is still valid. (OpenXR: xrPollEvent, XrSessionState, xrBeginSession, xrEndSession, XrEventDataSessionStateChanged)
 
@@ -62,7 +62,7 @@ Distinguish VALID from TRACKED. POSITION_VALID and ORIENTATION_VALID mean the po
 
 Pass predictedDisplayTime from XrFrameState as the time argument to xrLocateSpace. The runtime's prediction accounts for motion-to-photon latency at that exact display scanout; any other timestamp yields a stale or speculative pose. (OpenXR: xrLocateSpace, XrFrameState::predictedDisplayTime)
 
-Choose reference spaces by semantic intent: XR_REFERENCE_SPACE_TYPE_LOCAL for head-locked or room-scale content anchored to a recentring origin; XR_REFERENCE_SPACE_TYPE_STAGE for floor-level play-area content; XR_REFERENCE_SPACE_TYPE_VIEW for content rigidly attached to the HMD optical axes. Verify support with xrEnumerateReferenceSpaces before creating. (OpenXR: xrEnumerateReferenceSpaces, xrCreateReferenceSpace, XrReferenceSpaceType)
+Choose reference spaces by semantic intent: XR_REFERENCE_SPACE_TYPE_LOCAL for world-locked content anchored to a recentring origin (seated / standing scale); XR_REFERENCE_SPACE_TYPE_STAGE for floor-level play-area content; XR_REFERENCE_SPACE_TYPE_VIEW for content rigidly attached to the HMD optical axes. Verify support with xrEnumerateReferenceSpaces before creating. (OpenXR: xrEnumerateReferenceSpaces, xrCreateReferenceSpace, XrReferenceSpaceType)
 
 Use action spaces (created via xrCreateActionSpace) for controller and hand poses — never hard-code a reference-space offset as a proxy for a controller. Action spaces route through the interaction-profile abstraction and stay valid across input-device changes. (OpenXR: xrCreateActionSpace, XrActionSpaceCreateInfo)
 

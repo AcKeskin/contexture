@@ -40,7 +40,7 @@ The point is *intent + mature concrete shape*, aligned. It is **not** a process 
 
 ### 1. Resolve slug and mode
 
-- **Slug:** given → use it. Omitted → resolve via `.claude/specs/INDEX.md`: `default` if active; else the single active slug; else list active slugs and ask.
+- **Slug:** given → use it. Omitted → resolve via `.claude/specs/INDEX.md` per draft-plan's canonical slug-resolution cascade ([draft-plan SKILL.md § Forms](../draft-plan/SKILL.md)). With `--from-code` and no slug, there is usually nothing to resolve against — **ask for the slug** (it names the output directory); never derive one silently from a path or a directory name.
 - **Mode:**
   - `--from-code` flag → Mode 2.
   - Else check for `.claude/specs/<slug>/` (active) and/or `.claude/visions/<slug>/`. Present → Mode 1. Absent → Mode 2 (announce: *"No spec/vision for `<slug>` — running from code + codemap."*).
@@ -59,7 +59,7 @@ The point is *intent + mature concrete shape*, aligned. It is **not** a process 
 
 ### 3. Determine output version and paths
 
-- In-repo: `.claude/docs/<slug>/`. Empty/absent → `v1.md`. Else → `v<N+1>.md`; mark the previous active `status: superseded`, `superseded_by: v<N+1>.md`.
+- In-repo: `.claude/docs/<slug>/`. Empty/absent → `v1.md`. Else → `v<N+1>.md`. Versioning follows spec's canonical contract ([spec SKILL.md § Versioning contract](../spec/SKILL.md)): mark the previous version superseded with a `superseded_by` pointer and regenerate the INDEX.
 - Vault: `<Vault>/Projects/<ProjectFolder>/Docs/<slug>-blueprint.md` (or per-section split — see step 7). Reuse visualise-codemap's `<ProjectFolder>` inference and allowlist-surfacing.
 
 ### 4. Author the blueprint (adaptive — omit empty)
@@ -112,7 +112,7 @@ Body: `# Blueprint — <slug> (v<N>)`, a one-line source provenance line, then t
 
 ### 6. Review gate — present before writing
 
-**Do not write any file yet.** Present the drafted blueprint for **accept / edit / reject** (the propose-confirm-commit gate):
+**Do not write any file yet.** Present the drafted blueprint for **accept / edit / reject** (the propose-confirm-commit gate), offering a [human-view](../human-view/SKILL.md) projection — *"want the plain-prose approval view? (/human-view)"* — alongside:
 
 - **Small blueprint (≤ 3 diagrams):** render the full body inline, then ask accept/edit/reject.
 - **Large blueprint:** render a **part outline** (one line per part + its diagram types), then ask: *"Show a part inline, write to disk, or edit a part? (accept / show <n> / write / edit <n> / reject)."*

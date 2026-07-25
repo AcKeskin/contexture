@@ -12,25 +12,11 @@ contexture/
 ├── README.md
 ├── bootstrap/                   # install scripts (Node — Windows-tested, untested elsewhere)
 │   ├── bootstrap.js
-│   └── lib/                     # platform / link / settings / ccline
+│   └── lib/                     # platform / link / settings / mcps
 ├── settings/                    # settings.json template + per-machine override
-├── skills/                      # one folder per skill, each with SKILL.md (committed source; bootstrap mirrors into gitignored .claude/skills/ for Copilot/Codex/Cursor discovery)
-│   ├── prep/   review/   pr-review/   capture/   recap/   discover/
-│   ├── pr-author/   pr-triage/   pre-push/         # GitHub reviewee triad
-│   ├── deliver/                 # library-only (no slash command)
-│   ├── update-codemap/   visualise-codemap/
-│   ├── new-hook/   new-agent/   new-mcp/   new-agents-md/
-│   ├── project-instructions/    # cross-tool projection (AGENTS.md + Copilot)
-│   ├── memory-audit/
-│   ├── brainstorm/   envision/   spec/   draft-plan/   blueprint/   execute/
-│   ├── checkpoint/   human-view/   coordinate/   # fit-check · approval view · multi-session board
-│   ├── retrospect/   retrospect-core/   system-review/  # meta-review (retrospect + system-review deprecated → /checkpoint)
-│   ├── orchestrate/             # goal-directed concurrent-work convergence
-│   ├── systematic-debugging/    # yoinked from superpowers plugin
-│   ├── test-driven-development/ # yoinked
-│   ├── dispatch/
-│   ├── improve-prompt/
-│   └── using-git-worktrees/
+├── skills/                      # one directory per skill, each with SKILL.md (committed source; bootstrap
+│                                #   mirrors into gitignored .claude/skills/ for Copilot/Codex/Cursor discovery).
+│                                #   For the full roster see docs/skills-catalog.md — enumerating it here drifts.
 ├── commands/                    # slash-command shims, one file each
 ├── agents/                      # subagents (cpp-pro, c-sharp-pro, rust-pro, react-pro, security-reviewer, metal-video-source-pro, vision-os-pro, unity-pro, unity-ui-pro, mcp-ts-pro, mcp-py-pro)
 ├── hooks/                       # Node hook scripts (default-on protection — see docs/security-hooks.md)
@@ -83,6 +69,7 @@ Directories are created lazily as proposals require them — no speculative scaf
 | `rule-prime` | SessionStart [startup/clear/compact] + UserPromptSubmit | Advisory — mechanically primes resolved architectural rules into context: the always+project floor (plus the one language tier for single-language repos) at session start, and incremental language/domain tiers per prompt, both via `hookSpecificOutput.additionalContext` (deterministic match, no model call). Also loads declared **glob-addressed instruction files** (see below), and injects the **autonomy recall-before-ask line** when the active autonomy contract deviates from the default (zero cost at default; the only reader-seam autonomize has on a hook). Budget-guarded, idempotent against a per-session watermark; never blocks. The mechanical half of `/prep` |
 | `wrap-terminus-recovery` | SessionStart [clear/compact] | Advisory, **off by default** (`wrapTerminus` bundle). Scans the prior transcript for a shipped/closed unit whose closing terminus never ran and, if found, proposes `/wrap` via `hookSpecificOutput.additionalContext` at the next session start; string/structure match, no model call; never blocks. The auto-fire seam for the session-terminus driver |
 | `coordinate-autoregister` | SessionStart [startup/clear/compact/resume] | Advisory, **off by default** (`coordinateAuto` bundle). When coordinate auto mode is enabled, surfaces a nudge to auto-register this session's board row + run a start-of-session check via `hookSpecificOutput.additionalContext`; the board write is coordinate's action, keyed off the nudge; never blocks |
+| `statusline.js` | — | *Not a hook — the statusline **renderer**, invoked by the `statusLine` settings key, not by a hook event. See [statusline.md](statusline.md)* |
 | `lib/hook-io.js` | — | *Shared utility — payload reading, fail-open exit codes, `addContext()` / `advise()` helpers for the `hookSpecificOutput.additionalContext` channel* |
 | `lib/resolve-rules.js` | — | *Shared utility — the tier-overlay resolver as callable code (precedence, whole-file override, patch-by-anchor, anchor-strip); the engine `rule-prime` calls* |
 | `lib/glob-files.js` | — | *Shared utility — path-aware instruction-glob expander; `rule-prime` (load) + `bootstrap --verify` (drift-check) call it* |
@@ -122,6 +109,22 @@ Beyond the fixed CLAUDE.md tree, a project can declare **additional instruction 
 - **Drift-checked.** `bootstrap --verify` warns (non-blocking, exit code unchanged) on a declared glob that matches nothing — a likely typo or stale path.
 
 v1 globs free-form prose instruction files only (not structured rule-corpus files; that is the scope-resolution resolver's job). The declaration home is `hook-config.json`; sourcing instruction files from the overlay tiers (so company/user tiers declare sources) is a deferred v2 extension.
+
+### `execute.cheapTier` — where the cheap executor is named
+
+A plan drafted `--executor cheap` tags its mechanical steps for a cheaper model tier, but **no plan or skill ever names a model**. The tier resolves from one place:
+
+```jsonc
+{
+  "execute": {
+    "cheapTier": "<model id>"   // omit → no routing; [mechanical] steps run in the main context
+  }
+}
+```
+
+- **One surface, on purpose.** Model ids change and are machine/account-specific; a name written into a plan file or a skill body is stale config in a shipped artifact. Skills say `[mechanical]`, config says which model that means.
+- **Absent key = no routing.** With nothing configured, a strict plan still executes correctly — every step just runs in the main context. Routing is an optimization, never a correctness dependency.
+- **Capped.** A cheap-tier executor inherits the subagent recursion caps and does not spawn further agents.
 
 ### The autonomy contract — one owner, many readers
 
@@ -173,15 +176,15 @@ Each skill has a `SKILL.md` that defines when it fires, what it does, and how it
 | `human-view` | Projects an LLM-optimized planning artefact (plan / blueprint / spec / vision) into a human-readable approval view — goal + concrete decisions + an alignment check |
 | `execute` | Runs a plan step-by-step with per-step verification gates |
 | `close-out` | The scope chain's terminus — reconciles a shipped slug's spec to what actually shipped (a new `as-shipped` version, intent preserved via supersedes), retires the spent plan/blueprint to a dated `.claude/archive/` folder, and records one ship line via `update-changelog`. Mode A, propose-confirm; `/execute` offers it on done-criteria-met |
-| `wrap` | Session-terminus driver — sequences the whole closing ceremony (coordinate teardown → checkpoint → recap → close-out → changelog → BACKLOG-shipped-row sweep → build_progress), driving the existing organs rather than reimplementing them. Auto-runs the reversible read/draft/detect spine; every canonical write passes accept/edit/reject. Reads the autonomy contract once to set the interrupt posture; dedups close-out against the changelog step. Mode A; an optional SessionStart-recovery hook (off by default) can propose it |
+| `wrap` | Session-terminus driver — sequences the whole closing ceremony (coordinate teardown → checkpoint → recap → close-out → changelog → BACKLOG-shipped-row sweep → ship-narrative record), driving the existing organs rather than reimplementing them. Auto-runs the reversible read/draft/detect spine; every canonical write passes accept/edit/reject. Reads the autonomy contract once to set the interrupt posture; dedups close-out against the changelog step. Mode A; an optional SessionStart-recovery hook (off by default) can propose it |
 | `work-state` | Reports a slug's position in the scope chain (`envision→…→execute→close-out`) as deterministic structured state — per-stage missing/present/stale/done + next-action + the load-bearing stale-spec-pin check. Read-only, filesystem-derived, no model call. `/status` alias |
 | `glossary` | Extracts a project's ubiquitous language (domain term → definition → code symbol) into a project-tier `.claude/rules/glossary.md` the rule-prime hook primes and `review` cites as a vocabulary-drift reference — the *meaning* leg beside codemap's structure and `extract-conventions`' style. Frequency-ranked candidates, confidence-flagged definitions, per-group propose-confirm |
 | `update-changelog` | The single writer of the canonical `CHANGELOG.md` ship-record — one line per shipped unit, propose-confirm. Several organs (`recap` / `checkpoint` / `execute` / `close-out` / `spec` / `draft-plan`) offer it; this skill does the write |
 | `autonomize` | Owns one goal-directed autonomy contract (effort / stopping / ask) that the workflow organs read at their decision points — set as a persistent overlay-tier default, per-task at kickoff, a live mid-flight steer, or via a short interview. Propose-confirm, never auto-fires |
 | `orchestrate` | Goal-directed orchestration & convergence for concurrent work — decompose-or-refuse, place each unit (shared tree / worktree / serialize), fan out via `dispatch`, verify-then-converge (merge or synthesis) |
 | `coordinate` | Keeps multiple live sessions aligned via a shared gitignored session board — register / check / hand-off / collision-detect; a session can claim coordinator. Peer-session alignment, distinct from subagents |
-| `checkpoint` | Scope-dialed fit-and-intent check (diff / module / corpus) — "does this serve the point + cohere + what did I learn?"; diff scope composes `/code-review` + a fit-pass. Supersedes the now-deprecated `retrospect` + `system-review` |
-| `retrospect-core` | Shared engine for the meta-review organs (the deprecated `retrospect`/`system-review` and `checkpoint`'s corpus scope) — orient, NEW/CARRIED/RESOLVED baseline diff, propose-confirm-commit-with-routing, batched review-output-contract render, persist. Library-only — not user-invoked |
+| `checkpoint` | Scope-dialed fit-and-intent check (diff / module / corpus) — "does this serve the point + cohere + what did I learn?"; diff scope composes `/code-review` + a fit-pass. Absorbed the retired `retrospect` + `system-review` organs (corpus passes) |
+| `retrospect-core` | Shared engine for the meta-review organs (`checkpoint`'s corpus scope) — orient, NEW/CARRIED/RESOLVED baseline diff, propose-confirm-commit-with-routing, batched review-output-contract render, persist. Library-only — not user-invoked |
 | `humanize` | Detects, scores, and rewrites AI-texture in user-facing prose (tech docs / email / PR-proposal-issue) — density-not-instance, advisory likelihood not a binary verdict, voice-calibrated rewrite that preserves every argument. Refuses the terse model corpus (memory, codemap, specs) |
 | `update-codemap` | Regenerates `.claude/codemap.md` with file tree, purposes, exports + signatures, entry points, layers, inter-module dependency adjacency, a class graph, a call graph (syntactic, with TypeScript/C# receiver-type resolution to `Type.method`), and a call sequence — tree-sitter AST extraction across ~18 languages. Honours per-directory `.gitignore` to denoise build output; warns on scoped runs about ancestor ignore/config it can't see. Clears the dirty sentinel after a successful write |
 | `visualise-codemap` | Renders a UML-heavy document from `.claude/codemap.md` — ASCII Structure tree, a top-down Module map (labeled edges, hub + cycle highlighting, legend), per-module class diagrams + subfolder-clustered file graphs, a cross-module class relations diagram, per-module call-graph diagrams, and Mermaid sequence diagrams for high-signal entry points. Writes to `.claude/codemap.diagrams.md` and the Obsidian vault under `Projects/<ProjectFolder>/Codemap/` |
@@ -240,11 +243,12 @@ Each file is a thin entrypoint that delegates to the corresponding skill. One fi
 | `/memory-audit` | `skills/memory-audit` |
 | `/rules` | `skills/rules` |
 | `/humanize` | `skills/humanize` |
-| `/retrospect` | `skills/retrospect` (deprecated → `/checkpoint --scope corpus`) |
-| `/system-review` | `skills/system-review` (deprecated → `/checkpoint --scope corpus`) |
+| `/orchestrate` | `skills/orchestrate` |
+| `/autonomize` | `skills/autonomize` |
+| `/new-agents-md` | `skills/new-agents-md` |
 | `/allow-skip-hooks` | Arms hook-skip-blocker to permit the next N git bypass commands |
 
-A few skills have no command shim and are invoked by name or auto-fire only: `orchestrate`, `autonomize`, `new-agents-md`, `deliver` (library-only), `dispatch`, `systematic-debugging`, `test-driven-development`, `using-git-worktrees`, `project-instructions` (run as a Node CLI).
+A few skills have no command shim and are invoked by name or auto-fire only: `deliver` and `retrospect-core` (library-only), `dispatch`, `systematic-debugging`, `test-driven-development`, `using-git-worktrees`. `project-instructions` is not a skill at all — it is the cross-tool projector script, run as a Node CLI by bootstrap.
 
 ### agents/ — Specialized subagent definitions
 
@@ -344,7 +348,7 @@ Queryable rules consumed by prep (before coding) and review (after coding). Each
 | `android/` (3) | lifecycle, resources-and-manifest, threading |
 | `bash/` (3) | quoting, safety, structure |
 | `codecs/` (3) | pipeline-lifetime, pixel-format-and-color, timing-and-buffers |
-| `config-authoring/` (2) | cross-tool-core, share-readiness — rules about *authoring this harness* (not user code): keep it shareable / leak-free, project cleanly cross-tool |
+| `config-authoring/` (3) | cross-tool-core, share-readiness, thresholds — rules about *authoring this harness* (not user code): keep it shareable / leak-free, project cleanly cross-tool, and never let a bare count stand in for a judgment call |
 | `cpp/` (11) | concurrency, const-correctness, error-paths, gpu-interop, headers, interfaces-and-abi, modern-cpp-raii, move-semantics, ownership, performance, templates |
 | `csharp/` (10) | async, collections-and-linq, disposal, events-and-delegates, exceptions, generics-and-constraints, naming, nullable, unity-interop, value-types-and-allocs |
 | `godot/` (5) | csharp-in-godot, editor-plugins, gdscript-style, nodes-and-scenes, signals |
@@ -389,7 +393,7 @@ Resolution is a pre-filter owned by `/discover` and runs *before* the existing s
 
 ### bootstrap/ — Idempotent per-machine installer
 
-`bootstrap.js` wires this repo into `~/.claude/` — syncs claude-md and architectural-rules (whole-directory mode), skills, commands, agents, and hooks (per-item mode), and merges settings. Library modules under `lib/`: ccline, platform, backup, enablement, link, settings, verify.
+`bootstrap.js` wires this repo into `~/.claude/` — syncs claude-md and architectural-rules (whole-directory mode), skills, commands, agents, and hooks (per-item mode), and merges settings. Library modules under `lib/`: platform, backup, enablement, link, settings, mcps, verify.
 
 ### claude-md/ — Reusable CLAUDE.md fragments
 
@@ -403,4 +407,4 @@ Resolution is a pre-filter owned by `/discover` and runs *before* the existing s
 
 ### docs/ — Internal reference documentation
 
-One markdown file per organ/subsystem: architectural-rules, architectural-rules-overlay, blueprint-organ, bootstrap, brainstorm-organ, capture-organ, changelog-contract, checkpoint-organ, coordinate-organ, delivery-organ, discover, human-view-organ, mcp-memory, memory-compression-spec, plan-execute-workflow, prep-organ, project-architecture, recap-organ, review-organ, review-output-contract, scope-resolution-manifests, scope-resolution-resolver, security-hooks, statusline, storage-tagging, update-codemap, wrap-organ. Not every organ has a dedicated doc — the census tables above are the complete list; docs/ covers the subsystems that need prose beyond a table row.
+One markdown file per organ/subsystem: architectural-rules, architectural-rules-overlay, blueprint-organ, bootstrap, brainstorm-organ, capture-organ, changelog-contract, checkpoint-organ, coordinate-organ, delivery-organ, discover, human-view-organ, mcp-memory, memory-compression-spec, plan-execute-workflow, prep-organ, project-architecture, recap-organ, reference (this file), review-organ, review-output-contract, scope-resolution-manifests, scope-resolution-resolver, security-hooks, skills-catalog, statusline, storage-tagging, update-codemap, wrap-organ. Not every organ has a dedicated doc — the census tables above are the complete list; docs/ covers the subsystems that need prose beyond a table row.

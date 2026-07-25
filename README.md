@@ -1,24 +1,35 @@
 # contexture
 
-The setup I use to work with AI: a discipline loop, an architectural-rule corpus, safety hooks, and a memory store. I mostly work with Claude, so it's built around Claude, though the instruction layer should port to other agents too.
+The setup I use to work with AI. A rule corpus that loads itself before I write code, a review pass that checks against it after, safety hooks, and a memory store.
 
-I built it mostly to get better at my own work — something good, efficient, and genuinely useful. I wanted it to match my vibe and workflow, to fit my ways and keep both of us on track while leaving room to move. So it sits between fully robust and loose enough to bend.
+I built it to get better at my own work, after catching myself correcting Claude on the same thing twice. It's built around Claude Code because that's what I use, though the instruction layer ports to other agents. The defaults are how I work, not how you have to: the rule overlay and per-machine config are there to bend them. Sharing it in case it's useful to someone working a similar way. [MIT](LICENSE).
 
-Setup isn't a plugin (at least not yet) — you clone the repo and run a bootstrap to wire it into Claude. The defaults lean a certain way because they're how I work, but they're not meant to stay that way: the rule overlay (`/rules`) and per-machine config let you bend them to yours. I'm sharing it in case it's useful to someone working a similar way. [MIT](LICENSE)-licensed.
+## Quick start
 
-## Contents
+Clone, bootstrap, restart. It's not a plugin, so there's no marketplace install.
 
-1. [The discipline loop](#the-discipline-loop) — what it actually does, with a real `/review` transcript.
-2. [Quick start](#quick-start) — clone, bootstrap, one line.
-3. [What you get](#what-you-get) — the harness, at a glance.
-4. [How I use it](#how-i-use-it) — the everyday loop vs the heavyweight track.
-5. [Other agents (cross-tool)](#other-agents-cross-tool) — Codex, Cursor, Copilot, Gemini, …
-6. [A note on Obsidian](#a-note-on-obsidian) · [Customising](#customising) · [Philosophy](#philosophy) · [Origin](#origin)
-7. [Full reference](docs/reference.md) — the exhaustive folder-by-folder breakdown.
+```sh
+cd <your-projects-dir>
+git clone https://github.com/AcKeskin/contexture.git contexture
+cd contexture
+node bootstrap/bootstrap.js
+```
 
-## The discipline loop
+Bootstrap is idempotent. It links `claude-md`, `architectural-rules`, `skills`, `commands`, `agents` and `hooks` into `~/.claude/`, and merges settings into `~/.claude/settings.json`. Restart Claude Code and it's live. Nothing to add to your CLAUDE.md.
 
-My motivation to start this was simple: *I kept catching myself correcting Claude on the same thing twice.* It would keep importing from the wrong layer, or naming things in a style I'd dropped, and I didn't want to keep repeating myself. So the idea: write the rule down once, and the system loads it the next time relevant code gets written, then checks against it after.
+```sh
+node bootstrap/bootstrap.js --dry-run                 # preview
+node bootstrap/bootstrap.js --exclude hooks,agents    # skip subtrees
+node bootstrap/bootstrap.js --verify                  # audit current state
+```
+
+**You need** Node 18+, git, and Claude Code. Optional: `gh` for `/pr-review`, and the .NET SDK plus Godot/Unity only if you build those MCP servers.
+
+**Platform caveat.** I develop and use this on Windows (PowerShell and Git Bash). The bootstrap, hooks and codemap scripts are plain Node, so macOS and Linux should work, but I haven't run it there. Expect rough edges.
+
+## The loop
+
+The whole idea in one line: write a rule down once, and the system loads it next time it's relevant, then checks against it after.
 
 ```mermaid
 flowchart LR
@@ -31,20 +42,16 @@ flowchart LR
   E -->|all good| F["/recap<br/>close the session"]
 ```
 
-On Claude Code this runs as the commands below; on other tools you get the same rule corpus but drive it yourself (see [Other agents](#other-agents-cross-tool)).
+1. **A rule gets written.** Deliberately with `/capture`, or by correcting Claude mid-session and saying "remember that". Rules are markdown with a bit of frontmatter (scope, when it applies), in `architectural-rules/` or per-project memory.
+2. **Rules load before coding, mechanically.** A `rule-prime` hook puts the always and project tiers in context at session start, plus the language tier in a single-language repo, and pulls incremental tiers per prompt by deterministic match. Nothing depends on the agent remembering. `/prep` runs a deeper pass on top when you want it.
+3. **Drift gets surfaced.** Moving from auth code to billing mid-task, it says so instead of quietly applying the wrong rules.
+4. **`/review` audits after.** Dead code, monolithic files, separation-of-concerns violations, missing patterns, principle violations, comment drift, and naming quality (machine-flavoured names, comments that restate instead of explain).
+5. **Misses feed back.** Say review missed something and `/capture` routes it: sharpen a rule, add one, retag, adjust a threshold.
+6. **`/recap` closes the session.** What happened, what was learned, what's next. Learned items can graduate into rules.
 
-1. **You write a rule** — deliberately (`/capture`), or by correcting it mid-session and saying "remember that". Rules are markdown files with a little frontmatter (scope, when-it-applies), stored in `architectural-rules/` or per-project memory.
-2. **Relevant rules load before you start coding — mechanically.** A `rule-prime` hook primes the always+project rule floor (plus the one language tier in a single-language repo) into context at session start, and pulls incremental language/domain tiers per prompt by deterministic match. No reliance on the agent remembering to prime. `/prep` still runs on demand for a deeper pass (higher top-N, task-specific domain rules) on top of that floor.
-3. **If the work drifts, it asks.** Moving from auth code to billing code mid-task? It surfaces that instead of silently applying the wrong rules.
-4. **`/review` audits after the fact** — dead code, monolithic files, separation-of-concerns violations, missing patterns, principle violations, comment drift, and naming/comment quality (machine-flavored names, comments that restate rather than explain). Findings are proposed one at a time: Apply, Skip, Edit, or Won't-fix.
-5. **When review misses something, the corpus learns.** You say so, and `/capture` routes the correction back: sharpen a rule, add one, retag, or adjust a threshold.
-6. **`/recap` closes the session.** What happened, what was learned, what's next. Learned items can graduate into rule-tier memories.
+**Everything is proposed, never applied silently.** Memory writes, fixes, captures: all of them stop and ask. The agent suggests, you decide.
 
-**The collaborator principle.** Every write — memory, fix, capture — is proposed and you confirm. No silent mutations, no auto-fixes, no background monitoring. The agent suggests; you decide.
-
-### What it looks like in practice
-
-After editing a file, you run `/review`. Roughly:
+### What a run looks like
 
 ```
 $ /review src/auth/
@@ -52,8 +59,8 @@ $ /review src/auth/
 Loaded 7 architectural rules (universal/layering, web/state, auth/session-handling, ...).
 Auditing 3 files...
 
-Finding F1 · 🟠 High · Layering — src/auth/login.ts:42
-  Direct database call from controller layer — violates universal/layering.md
+Finding F1 - High - Layering - src/auth/login.ts:42
+  Direct database call from controller layer, violates universal/layering.md
   ("controllers go via /domain, never /db").
 
   Replace L42:
@@ -64,173 +71,125 @@ Finding F1 · 🟠 High · Layering — src/auth/login.ts:42
   (a)pply / (s)kip / (e)dit / (w)on't-fix [reason]?  > _
 ```
 
-Each finding is its own decision. Nothing changes silently. When the run ends, `/review` asks *"did this catch what you wanted?"* — answering *no* routes the gap back into `/capture` so the corpus improves.
+Each finding is its own decision. At the end, review asks whether it caught what you wanted. Saying no routes the gap into `/capture`.
 
-## Quick start
+## What's in it
 
-The full experience is on Claude Code. Clone, bootstrap, restart.
-
-```sh
-# 1. Clone
-cd <your-projects-dir>
-git clone https://github.com/AcKeskin/contexture.git contexture
-
-# 2. Bootstrap (idempotent) — links claude-md, architectural-rules, skills,
-#    commands, agents, hooks into ~/.claude/, installs the statusline, and
-#    merges settings into ~/.claude/settings.json.
-cd contexture
-node bootstrap/bootstrap.js
-
-# 3. Restart Claude Code. Effective next session.
-#    (No @import to add — capture-time guidance loads on demand, not always-on.)
-```
-
-```sh
-node bootstrap/bootstrap.js --dry-run                 # preview
-node bootstrap/bootstrap.js --exclude hooks,agents    # skip some subtrees
-node bootstrap/bootstrap.js --verify                  # audit current state
-```
-
-**Prerequisites:** Node.js 18+ (bootstrap, codemap scripts, MCP builds), git, and Claude Code itself. Optional: `gh` (for `/pr-review`), the .NET SDK + Godot/Unity (only if you build those MCP servers).
-
-Developed and used on **Windows** (PowerShell + Git Bash). The bootstrap, hooks, and codemap scripts are pure Node, so macOS and Linux *should* work — but I haven't run it there, so expect the occasional platform rough edge.
-
-## What you get
-
-The pieces group into five harness subsystems — *how the agent is governed* — plus the safety layer underneath.
+Five subsystems, plus safety hooks underneath everything.
 
 ```mermaid
 flowchart TB
-    subgraph SL["🔄 Session lifecycle"]
-      direction LR
-      primehook["rule-prime hook"] --> prep["/prep"] --> review["/review"] --> capture["/capture"] --> recap["/recap"] --> wrap["/wrap<br/>(sequences the close)"]
-      discover["/discover"]
-    end
-    subgraph SC["📐 Scope (heavyweight track)"]
-      direction LR
-      brainstorm["/brainstorm"] --> envision["/envision"] --> spec["/spec"] --> plan["/draft-plan"] --> blueprint["/blueprint"] --> exec["/execute"] --> closeout["/close-out<br/>(reconcile + file)"]
-      workstate["/work-state<br/>(where's this slug?)"]
-    end
-    subgraph VER["✅ Verification"]
-      direction LR
-      checkpoint["/checkpoint"]
-      prr["/pr-review"]
-      pp["/pre-push"]
-    end
-    subgraph INST["📚 Instructions (the corpus)"]
-      rules["architectural-rules/<br/>(4-tier overlay · /rules)"]
-      agents["agents/ (experts)"]
-    end
-    subgraph STATE["💾 State"]
-      codemap["codemap"]
-      mem["memory store<br/>(project-memory MCP)"]
-    end
-    HOOKS["🛡️ Safety hooks — default-on guardrails (rm -rf, .env, force-push, git config, --no-verify)"]
-    INST -.feeds.-> SL
-    STATE -.retrieved by.-> discover
-    SL --- HOOKS
-    SC --- HOOKS
-    VER --- HOOKS
+  INST["Instructions<br/>architectural-rules (4-tier overlay) - agents"]
+  STATE["State<br/>codemap - memory store"]
+  LOOP["Session lifecycle<br/>/prep - /discover - /review - /capture - /recap - /wrap"]
+  SCOPE["Scope, the heavyweight track<br/>/envision - /spec - /draft-plan - /execute - /close-out"]
+  VER["Verification<br/>/checkpoint - /pr-review - /pre-push"]
+  PAR["Parallel work<br/>/orchestrate - /dispatch - /coordinate"]
+  HOOKS["Safety hooks, always on<br/>rm -rf - .env - force-push - git config - --no-verify"]
+
+  INST --> LOOP
+  STATE --> LOOP
+  LOOP --> SCOPE
+  LOOP --> VER
+  LOOP --> PAR
+  SCOPE --- HOOKS
+  VER --- HOOKS
+  PAR --- HOOKS
 ```
 
 | Capability | What it is |
 | --- | --- |
-| **The discipline loop** | Rules primed before (mechanically, by the `rule-prime` hook + `/prep`), `/review` after, `/capture` to grow the rule corpus. The thing this repo is really about. |
-| **Mechanical rule priming** | A `rule-prime` hook puts the relevant rules in context at session start and per prompt — no reliance on the agent remembering to `/prep`. Budget-guarded, deterministic, never blocks a turn. |
-| **Observe-and-record organs** | Three artefacts that read a codebase and write down what's tacit: `/update-codemap` (structure), `/extract-conventions` (house style → a project-tier rule the priming + review then enforce), and `/glossary` (the domain's *vocabulary* — term → meaning → code symbol, cited by review as a vocabulary-drift reference). `/write-tests` authors a quality suite for existing code to a standard, with a confirmable plan and a characterization-with-flags stance. |
-| **Rule overlay** | A four-tier rule corpus — shipped / company / user / project — that composes update-safely. `/rules` to override (whole-file or field-patch), disable, or resolve. Your edits survive `git pull`. |
-| **Autonomy contract** | `/autonomize` sets one *how-hard-to-push* contract (effort / stopping / when-to-ask) that the workflow organs — `/execute`, `/checkpoint`, `/orchestrate`, the spec/plan kickoff — read at their decision points. Set it once as a project default or steer it live ("keep going" / "leave it here"); calibrates a goal-directed run without per-step babysitting. Defaults to current behaviour, so it adds nothing until you tune it. |
-| **Stored context** | A codemap (architecture snapshot) + memory store (rules, decisions, lessons) that `/discover` retrieves on demand. |
-| **Safety hooks** | Default-on guardrails — block `rm -rf` on top-level paths, writes to `.env`, force-push to main, global git-config edits, `--no-verify` bypass. |
-| **Spec → plan → execute → close-out** | A heavyweight track for non-trivial features: interview-driven spec, versioned plan, step-by-step execute with per-step verification, and `/close-out` to reconcile the spec to what shipped + file the spent artefacts + log the ship. `/work-state <slug>` reports where any feature sits in the chain (and flags a plan pinned to a stale spec). |
-| **Debugging discipline** | `/systematic-debugging` front-doors a bug: reproduce, instrument, find the root cause first, before any fix is proposed. |
-| **Authoring meta-skills** | `/new-hook`, `/new-agent`, `/new-mcp` — interview-driven scaffolding for extending the toolkit. |
-| **Humanize prose** | `/humanize` flags and rewrites AI-texture in user-facing writing (READMEs, PRs, email): advisory density, never a binary verdict, calibrated to your own voice. |
+| **The loop** | Rules primed before, `/review` after, `/capture` to grow the corpus. What this repo is really about. |
+| **Mechanical priming** | The `rule-prime` hook puts relevant rules in context at session start and per prompt. Budget-guarded, deterministic, never blocks a turn. |
+| **Rule overlay** | Four tiers that compose update-safely: shipped, company, user, project. `/rules` to override a whole file, patch a field, or disable. Your edits survive `git pull`. |
+| **Observe and record** | Three organs that read a codebase and write down what's tacit: `/update-codemap` (structure), `/extract-conventions` (house style, as a project-tier rule), `/glossary` (domain vocabulary, cited by review). `/write-tests` authors a suite for existing code. |
+| **Stored context** | A codemap and a memory store of rules, decisions and lessons, retrieved on demand by `/discover`. |
+| **Safety hooks** | Default-on. Block `rm -rf` on top-level paths, writes to `.env`, force-push to main, global git-config edits, and `--no-verify` bypass. |
+| **Spec to ship** | The heavyweight track: interview-driven spec, versioned plan, step-by-step execute with per-step verification, `/close-out` to reconcile the spec to what shipped. `/work-state <slug>` says where a feature sits, and flags a plan pinned to a stale spec. |
+| **Parallel work** | `/orchestrate` splits one goal into units, places each (shared tree, worktree, or serialized), fans them out, then verifies and converges. `/coordinate` keeps several live sessions aligned through a shared board so two of them don't edit the same files. |
+| **Autonomy contract** | `/autonomize` sets one contract for how hard to push, when to stop, when to ask. `/execute`, `/checkpoint` and `/orchestrate` read it at their decision points. Defaults to current behaviour, so it costs nothing until you tune it. |
+| **Debugging** | `/systematic-debugging` front-doors a bug: reproduce, instrument, find the root cause, before any fix. |
+| **Authoring** | `/new-hook`, `/new-agent`, `/new-mcp` scaffold extensions by interview. |
+| **Prose** | `/humanize` flags and rewrites AI texture in user-facing writing. Advisory density, never a binary verdict. |
 
-The exhaustive breakdown — every hook, skill, agent, MCP tool surface, and the folder layout — lives in **[docs/reference.md](docs/reference.md)**.
-
-## Bundled MCP servers
-
-One MCP is part of the harness itself: **project-memory**, the first-party memory retrieval that backs `/discover` (registered by bootstrap; `/discover` degrades gracefully if it isn't there).
-
-The repo also carries two **game-engine editor bridges** under [`mcps/`](mcps/), a separate concern from the discipline harness. Standalone, opt-in, skippable with `bootstrap --exclude=mcps`. They live here only because I built them alongside everything else, not because anything depends on them:
-
-- **unity** — a substantial Unity Editor automation server (TypeScript server + a C# Editor extension).
-- **godot** — a Godot 4.x editor-bridge (TypeScript server + GDScript plugin).
-
-Full tool surfaces in [docs/reference.md](docs/reference.md).
+Every hook, skill, agent and MCP tool is listed in [docs/reference.md](docs/reference.md).
 
 ## How I use it
 
-Two loops at different timescales, plus a separate mode for when something's already broken.
+Two loops at different speeds, and a separate mode for when something's already broken.
 
-**Loop A — the discipline loop (per-session).** The one diagrammed above. Every time I open Claude on any project: `/prep` primes rules, I write code, `/review` audits, `/capture` grows the corpus, and `/wrap` closes the session — one command that sequences the whole closing ceremony (recap → close-out if a slug shipped → changelog → backlog sweep), driving the individual organs so I don't run each by hand. For a one-line fix, naked Claude conversation is fine — the loop is overhead for trivial work.
+**Per session.** The loop above. `/prep` primes, I write code, `/review` audits, `/capture` grows the corpus, `/wrap` closes it out (recap, then close-out if something shipped, then changelog and backlog sweep) so I don't run each by hand. For a one-line fix I skip all of it and just talk to Claude.
 
-**Loop B — the project-lifecycle scaffold (per-feature).** The heavyweight track for anything bigger than a one-sentence diff. Each phase writes a versioned markdown artefact the next phase reads:
+**Per feature.** The heavyweight track, for anything bigger than a one-sentence diff. Each phase writes a versioned markdown file the next phase reads.
 
 ```mermaid
 flowchart LR
-  V["/envision<br/>(once per project)<br/>intent · modules<br/>· non-goals"] --> S["/spec slug<br/>(per feature)<br/>requirements ·<br/>done-criteria"]
-  S --> P["/draft-plan slug<br/>steps · files ·<br/>verification"]
-  P --> E["/execute slug<br/>step-by-step,<br/>verify each"]
+  V["/envision<br/>(once per project)<br/>intent, modules,<br/>non-goals"] --> S["/spec slug<br/>(per feature)<br/>requirements,<br/>done-criteria"]
+  S --> P["/draft-plan slug<br/>steps, files,<br/>verification"]
+  P --> E["/execute slug<br/>step by step,<br/>verify each"]
   E -.->|missing rule found| C["/capture"]
   C -.-> E
-  E --> R["/review"] --> X["/close-out slug<br/>reconcile spec ·<br/>file artefacts · log ship"]
+  E --> R["/review"] --> X["/close-out slug<br/>reconcile spec,<br/>file artefacts, log ship"]
 ```
 
-The chain is opt-in and versioned — specs evolve `v1 → v2`, plans rebuild against them, nothing is destroyed. `/close-out` ends it: once the work ships it reconciles the spec to what actually shipped and files the spent plan away. Lost track of where a feature sits? `/work-state <slug>` reports its position in the chain (and flags a plan pinned to a superseded spec).
+Specs evolve v1 to v2, plans rebuild against them, nothing is destroyed. `/close-out` ends the chain: it reconciles the spec to what actually shipped and files the spent plan away.
 
-**When something's broken (a different mode).** Not a loop, not the build track. You show up with a symptom and `/systematic-debugging` front-doors it: reproduce, instrument, root-cause-first, before any fix. It's an investigator's posture, so the tools differ too: a debugger, logs, `git bisect`/`blame`, the codemap to orient. A structural cause can graduate into Loop B (spec a real refactor); a one-liner you just fix.
+**When something's broken.** Not a loop. You turn up with a symptom and `/systematic-debugging` takes it: reproduce, instrument, root cause first, before any fix is proposed. Different posture, different tools (a debugger, logs, `git bisect`, the codemap to orient). A structural cause can graduate into the feature track; a one-liner you just fix.
 
-| Situation | Track |
+| Situation | What I run |
 | --- | --- |
-| One-line fix, obvious diff | Naked Claude — no ceremony |
-| Typical edits within a known module | Loop A (`/prep` → code → `/review`) |
-| New feature spanning files / decisions | Loop B (`/spec` → `/draft-plan` → `/execute` → `/close-out`) |
-| Greenfield, no clear shape yet | Loop B with `/envision` upstream |
-| Something's broken / a test is failing | `/systematic-debugging` (reproduce → root-cause first) |
-| Picking up after a break | `/discover <topic>`, or `/work-state <slug>` for where a feature stands |
-| A feature has shipped | `/close-out <slug>` — reconcile the spec, file the plan, log the ship |
-| End of a session that produced anything | `/wrap` — sequences the close (recap → close-out → changelog → backlog sweep); or `/recap` alone for just the session note |
+| One-line fix, obvious diff | Nothing. Plain Claude. |
+| Normal edits in a module I know | `/prep`, code, `/review` |
+| A feature spanning files and decisions | `/spec`, `/draft-plan`, `/execute`, `/close-out` |
+| Greenfield with no shape yet | Same, with `/envision` first |
+| Something's broken | `/systematic-debugging` |
+| Several independent tasks at once | `/orchestrate` |
+| Picking up after a break | `/discover <topic>`, or `/work-state <slug>` |
+| End of a session that produced something | `/wrap` |
 
-## Other agents (cross-tool)
+## Other agents
 
-Claude Code is the full experience. Other agents get the **instruction corpus** through a vendor-neutral projection — they don't get the hooks, auto-fire, or hard propose-confirm-commit (those are Claude Code harness features).
+Claude Code is the full experience. Other agents get the instruction corpus through a generated projection. They don't get hooks, auto-fire, or the propose-confirm gate, because those are Claude Code features.
 
-- **`AGENTS.md`** (repo root) is the cross-tool surface. It's the [Linux-Foundation vendor-neutral standard](https://agents.md/) that **Codex, Cursor, Aider, Gemini CLI, GitHub Copilot, and Windsurf read natively** — plain Markdown, auto-loaded from the project root. It's a **generated projection** of the discipline corpus (`node skills/project-instructions/project-instructions.mjs`), so it can't drift from the rules — don't hand-edit it.
-- **GitHub Copilot** additionally gets `.github/copilot-instructions.md` (lean always-on core) + per-language `.github/instructions/*.instructions.md` (auto-load via `applyTo` globs). The skills are exposed as Agent Skills from a generated `.claude/skills/` mirror after you run `bootstrap`. *(Lightly tested on Copilot; the rest is built to the tools' documented file conventions.)*
-- **Codex / Cursor / a local model** — read `AGENTS.md`; no install.
+- **`AGENTS.md`** at the repo root is the cross-tool surface, the [vendor-neutral standard](https://agents.md/) that Codex, Cursor, Aider, Gemini CLI, Copilot and Windsurf read natively. It's generated from the corpus (`node skills/project-instructions/project-instructions.mjs`), so don't hand-edit it. Re-run the projector after changing any rule.
+- **Copilot** also gets `.github/copilot-instructions.md` and per-language `.github/instructions/*.instructions.md`, which auto-load by glob. Skills show up as Agent Skills from the `.claude/skills/` mirror bootstrap creates. Lightly tested.
+- **Codex, Cursor, a local model:** they read `AGENTS.md`. No install.
 
-What ports cross-tool: the **instructions** and (for tools that scan them) the **skills as files**. What doesn't: **hooks** (no tool-call interception elsewhere), **auto-fire** (no session-lifecycle events), and **hard propose-confirm-commit** (the editor's accept UI is the soft substitute). The discipline is portable; the enforcement primitives under it are Claude Code-only.
+What ports: the instructions, and the skills as files for tools that scan them. What doesn't: hooks (nothing else intercepts tool calls), auto-fire (no session-lifecycle events), and the hard propose-confirm gate (an editor's accept UI is the soft version). The discipline travels; the enforcement under it doesn't.
 
-> **Distribution is clone-and-bootstrap, not a plugin.** This is a full harness — the rule corpus and CLAUDE.md layer don't fit the skills-collection plugin model, so a marketplace package would ship a hollow subset. Clone the repo and run bootstrap.
+## Making it yours
 
-## A note on Obsidian
+The shipped corpus is one developer's standards. To diverge:
 
-Several pieces — codemap diagrams (`/visualise-codemap`), `/pr-review` artefacts, and vault exports — write to an **Obsidian vault**, because I keep my notes in Obsidian and wanted the graph view, backlinks, and reflection in one place. That's a personal choice baked in, pointed by a `vaultRoot` config value; if you don't use Obsidian, those features are simply inert — nothing else depends on them.
+1. **Use `/rules`.** The overlay is the intended way. Override a whole file, patch a single field, or disable a rule, at project, user or company tier. Higher tiers win and your edits survive `git pull`. You don't fork the shipped rules, you layer over them.
+2. **Edit `architectural-rules/<scope>/`** to add a language or domain, or drop scopes you don't work in.
+3. **Edit `claude-md/`**, the fragments imported into your `~/.claude/CLAUDE.md`.
+4. **Add agents and hooks** with `/new-agent` and `/new-hook`, then re-run bootstrap.
 
-## Customising
+## MCP servers
 
-The shipped corpus reflects one developer's standards. To make it yours:
+**project-memory** is part of the harness. It backs `/discover`, and bootstrap registers it. `/discover` degrades gracefully if it isn't there.
 
-1. **Use the rule overlay (`/rules`).** Your own and your team's rules get an update-safe home that *composes* with the shipped corpus — whole-file override, field-patch, or disable, across four tiers (project > user-local > company > shipped). Higher tiers win; your edits survive `git pull`. This is the intended way to diverge — you don't fork the shipped rules, you layer over them.
-2. **Edit `architectural-rules/<scope>/<topic>.md`** to add languages/domains or drop scopes you don't work in.
-3. **Edit `claude-md/`** — fragments imported into `~/.claude/CLAUDE.md`.
-4. **Add agents / hooks** with `/new-agent` and `/new-hook` (interview-driven), then re-run bootstrap.
+The repo also carries two game-engine editor bridges under [`mcps/`](mcps/). They're a separate concern, standalone and opt-in, skippable with `bootstrap --exclude=mcps`. They live here because I built them alongside everything else, not because anything depends on them.
 
-## Philosophy
+- **unity**, a Unity Editor automation server (TypeScript server plus a C# Editor extension).
+- **godot**, a Godot 4.x editor bridge (TypeScript server plus a GDScript plugin).
 
-- **Efficient helper for a competent engineer.** An amplifier, not scaffolding or a replacement. Every organ earns its place by leverage (tokens / round-trips / usefulness) over ceremony.
-- **Collaborator, not auto-learner.** Every write is proposed and confirmed. No silent mutations.
-- **Honest helper.** Objective and direct — weighs trade-offs, surfaces weak reasoning and hidden costs even unasked, never flatters or reflexively agrees.
-- **Markdown first.** Every artefact is reviewable as prose before it becomes behaviour.
-- **Proposals before code.** Mistakes cost paragraphs, not refactors.
-- **You own the sync boundary.** The repo ships defaults; you decide what travels.
+## Notes
 
-## Origin
+**On Obsidian.** Codemap diagrams, `/pr-review` artefacts and vault exports write to an Obsidian vault, because that's where I keep notes and I wanted the graph view and backlinks in one place. It's a personal choice, pointed at by a `vaultRoot` config value. Without it those features are inert and nothing else cares.
 
-This started as a personal research project — me trying out different AI-agent plugins, conventions, and ways of working, and keeping whatever actually held up. The pieces that proved themselves got folded into what you see here. The messy history and the dead ends stay private; what's public is just the part that worked.
+**What I was aiming for.**
+
+- An amplifier for someone who can already do the work, not scaffolding and not a replacement. Every organ earns its place by leverage over ceremony.
+- A collaborator, not an auto-learner. Every write is proposed and confirmed.
+- Honest. It weighs trade-offs and surfaces weak reasoning even when I didn't ask, instead of agreeing with me.
+- Markdown first, so every artefact is reviewable as prose before it becomes behaviour.
+- Proposals before code, so mistakes cost paragraphs instead of refactors.
+- You own the sync boundary. The repo ships defaults and you decide what travels.
+
+**Where it came from.** A personal research project: trying out agent plugins, conventions and ways of working, and keeping whatever held up. The parts that proved themselves ended up here. The messy history and the dead ends stay private.
 
 ---
 
-*Full folder-by-folder reference: **[docs/reference.md](docs/reference.md)**.*
+Full folder-by-folder reference: **[docs/reference.md](docs/reference.md)**.

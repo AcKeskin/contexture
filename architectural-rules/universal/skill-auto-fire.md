@@ -4,7 +4,7 @@ description: For task-scoped skills that should fire at a precise moment, put th
 type: user
 kind: architectural-rule
 scope: [claude-code, skills, universal]
-relevance: during-planning, when-designing-skills
+relevance: during-planning, when-touching-skills
 ---
 
 - Task-scoped skills (prep, review, capture, recap) fire on *a specific kind of user request*, not on session open.

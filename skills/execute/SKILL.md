@@ -7,7 +7,7 @@ description: "Run a plan step-by-step with verification gates — pick a strateg
 
 The execute organ. Consumes [prep](../prep/SKILL.md) for per-step rule re-load on boundary crossings; consumes [discover](../discover/SKILL.md) indirectly via prep.
 
-Execute is the *last phase* of the `spec → plan → execute → review` workflow. It runs a plan step-by-step with verification gates. It does not plan, does not draft, does not commit.
+Execute is the implementation phase of the `spec → plan → execute → review → close-out` workflow. It runs a plan step-by-step with verification gates. It does not plan, does not draft, does not commit.
 
 ## When to run
 
@@ -22,7 +22,7 @@ Execute is the *last phase* of the `spec → plan → execute → review` workfl
 
 - **Plan resolution.** One of:
   - **Slug** (`/execute <slug>`) — resolve to `.claude/plans/<slug>/v<N>.md` where N is the active version per `.claude/plans/INDEX.md`.
-  - **No argument** — read `.claude/plans/INDEX.md` and resolve in order: (1) if `default` row has `status: active`, use it; (2) else if exactly one row has `status: active`, use it; (3) else list active slugs and ask the user.
+  - **No argument** — resolve against `.claude/plans/INDEX.md` per draft-plan's canonical slug-resolution cascade ([draft-plan SKILL.md § Forms](../draft-plan/SKILL.md)): `default` if active, else the single active slug, else list active slugs and ask.
   - **Explicit path** (`/execute <path>`) — use the path verbatim. Required when targeting a non-active version.
   - **Legacy fallback** — if no slug / path resolves AND `$CLAUDE_PROJECT_DIR/PLAN.md` exists at project root, use it with a one-time deprecation note: *"Reading legacy PLAN.md at project root — new plans go under `.claude/plans/<slug>/v<N>.md`. Run `/draft-plan <slug>` to migrate."*
 - **Starting step.** Default: 1. Override via `--from N` — skips steps 1..N-1 (assumes they were done outside the skill).
@@ -93,16 +93,22 @@ If this step's files belong to a different *module / language / domain* than the
 
 First step always triggers prep (no previous step to compare against).
 
-#### 3b. Delegation decision
+#### 3b. Delegation and routing decision
 
-If any of the following is true:
-- Step tagged `[delegate]`.
-- Step tagged `[research]`.
-- Step's Files line lists >5 concrete paths.
+Delegating a step to a fresh subagent and routing it to a cheaper model tier are the **same decision** — both hand the step to an executor that does not share this conversation. So both read the same two criteria, and neither reads a file count (how many paths a step touches says nothing about whether it can be executed correctly elsewhere):
 
-...ask the user:
+1. **Self-contained** — the step carries a **Current state** excerpt and an **Exemplar** path, so it stands alone without this conversation.
+2. **Mechanically verifiable** — the step's Verification is command-shaped, or artifact-shaped with the exact check written out. User-attested verification disqualifies the step.
 
-> Step N is heuristically a good subagent candidate (reason: <tag or file count>). Delegate to a fresh subagent? (y/N)
+**Tier routing (`[mechanical]` steps).** When a step is tagged `[mechanical]` and meets both criteria, run it on the cheap tier by passing the configured model override to the `Task` tool. Do **not** prompt per step — routing follows the autonomy contract's `ask` posture like every other loop decision, and under the default `forks-only` posture a tagged, gated step is not a fork. Announce the routing in the step's opening line, don't ask permission for it.
+
+If a `[mechanical]` step fails either criterion, it does not route — say which criterion failed and run it in the main context. A `[judgment]` step always runs in the main context regardless of its other properties.
+
+The cheap tier resolves from configuration, never from a model name written into a plan or a skill. Cheap executors inherit the subagent recursion caps: a capped-tier executor does not spawn further agents.
+
+**Subagent delegation (`[delegate]` / `[research]` steps).** When a step is tagged `[delegate]` or `[research]`, ask the user:
+
+> Step N is a subagent candidate (reason: <tag>). Delegate to a fresh subagent? (y/N)
 
 On `y`: invoke the `Task` tool (if available) with:
 - Subagent type: default `general-purpose` (or `Explore` if step is clearly research-only).
@@ -116,6 +122,16 @@ On `y`: invoke the `Task` tool (if available) with:
 - Integrate the summary; do not accept the subagent's claim that work is done until verification (3d) passes.
 
 On `n` (or Task tool unavailable): run the step in the current context. No silent fallback — if the tool is missing, say so.
+
+#### 3b.1 Precondition check (steps routed away from this context)
+
+Before a step runs on the cheap tier or in a subagent, verify its **Current state** excerpt still matches the file it cites. A plan's excerpts pin file state at *draft* time; the repo has moved since, and a strict plan's whole safety argument rests on those excerpts being true.
+
+On a mismatch, do not improvise and do not let the remote executor reconcile it — **escalate the step to the main context** and say why:
+
+> Step N's Current-state excerpt no longer matches `<file:line>` (the plan was drafted against different content). Running it here instead of routing it.
+
+The main context can see the drift and judge it; a cheap or isolated executor working from a stale excerpt produces a confidently wrong diff. Escalation is the cheap outcome — a wrong diff that passes a stale check is not.
 
 #### 3c. Implement
 
@@ -139,6 +155,24 @@ Run the step's Verification. Three kinds:
 
   **Never self-attest** a user-attested verification. If you wrote UI code and the verification is "button is red" — that's not yours to call. Ask.
 
+#### 3d.1 Record the outcome to scratch
+
+After the verification resolves — **every outcome, pass and fail, all three kinds** — write one scratch entry via the `write_memory` MCP tool (`tier: scratch`, with the current `session_id`). Silent: no prompt, no interruption.
+
+Write the *semantic* reading of the outcome, never a tool-log. "Ran `npm test`, exit 0" is worthless as knowledge and actively dangerous — "ran without error" is not "validated," and encoding it as though it were is the named memory-poisoning enabler. What belongs in the entry is what you now know that you didn't before: what broke and why, which assumption turned out wrong, why an approach was chosen over its alternative.
+
+Per verification kind:
+
+| Kind | `provenance` | `salience` | What to write |
+|---|---|---|---|
+| Command-shaped | `model-inferred` | `low` on pass, `normal` on fail | On pass: what the passing command establishes. On fail: what broke, and the fix once known. |
+| Artifact-shaped | `model-inferred` | `low` on pass, `normal` on fail | What the artifact check confirmed or contradicted. |
+| User-attested | `user-said` | `normal` | The user's judgment and any reason they gave. Their call is the source — never downgrade it to inferred. |
+
+On a **fail** that is then fixed (3e option 1), write a second entry once the fix verifies, carrying `supersedes` set to the failing entry's `ts`. The corrected understanding replaces the wrong one for the rest of the session rather than sitting beside it.
+
+Scratch writes are **best-effort and never block the loop**: if the tool errors or is unavailable, note it once and advance — a verification gate must not fail because a note could not be filed. But do not silently swallow a repeated failure; if writes keep failing, say so once so the tier isn't quietly dead.
+
 #### 3e. On pass / on fail
 
 **Pass:** emit one line and advance:
@@ -160,6 +194,12 @@ Run the step's Verification. Three kinds:
 >   4. abort — stop executing
 
 Wait for the user's choice. Never advance on a `fail`.
+
+**Escalate, never loop.** If a step that ran outside this context (cheap tier or subagent) fails verification a **second** time, do not retry it there again — run the retry in the main context and say so:
+
+> Step N failed verification twice on the <cheap tier | a subagent>. Escalating to the main context rather than retrying at the same tier.
+
+Two failures on the same step is evidence that the executor cannot do it, not that it needs another attempt. Retrying identically is how a loop burns turns and ends in a worse diff than the first attempt.
 
 ### 4. After all steps complete
 
@@ -215,7 +255,7 @@ Procedure:
 
 **Skip 4a entirely** when:
 - Spec has no `done_criteria` (legacy spec — note in summary that completion is per-step verification only).
-- Plan was run with `--task` (degraded mode — no spec to read criteria from).
+- Plan was run with `--task` (degraded mode — no spec to read criteria from). A plan whose `spec:` frontmatter is `none` is the same case: exempt from the done-criteria echo and from the stale-pin check.
 - Plan's `spec:` frontmatter points at a missing file (warn, then skip).
 
 #### 4b. Summary
@@ -232,7 +272,7 @@ Emit:
 - **Just the changelog line** (the minimum): *"&lt;slug&gt; shipped — log it to CHANGELOG? (y/N)"*. On `y`, invoke [`update-changelog`](../update-changelog/SKILL.md) with the slug (behind its own accept/edit/reject gate).
 - **The full terminus** (when the slug has a spec/plan to close out): *"…or run `/close-out &lt;slug&gt;` to close the chain — reconcile shipped reality into the spec, retire the plan + blueprint, and log the ship line in one pass."* [`close-out`](../close-out/SKILL.md) contains the changelog write — point at it when there's a spec to reconcile, the bare changelog line otherwise.
 
-Skip the offer on `abort completion` (nothing shipped) and on `--task` against a throwaway plan (no spec → no `/close-out`; the bare changelog line still applies). Do **not** auto-invoke review, `/close-out`, or `/update-changelog`; do **not** auto-commit — all are the user's call, behind their own propose-confirm gates, following the contract's `ask` posture.
+Skip the offer on `abort completion` (nothing shipped). A `--task` run still gets the `/close-out` offer: close-out skips the reconcile step (no spec to reconcile) and performs retire + record only. Do **not** auto-invoke review, `/close-out`, or `/update-changelog`; do **not** auto-commit — all are the user's call, behind their own propose-confirm gates, following the contract's `ask` posture.
 
 ## What execute does not do
 
@@ -269,15 +309,15 @@ Skip the offer on `abort completion` (nothing shipped) and on `--task` against a
 - **prep** — re-invoked on module boundary crossings; prep loads rules, execute honours them per-step.
 - **discover** — not called directly; prep handles that. Mid-run memory lookups are the user's own `/discover` call.
 - **review** — the post-completion prompt nudges `/review`; not an execute sub-step.
-- **capture** — a step's surfaced lesson is the user's own `/capture` call; execute does not auto-capture.
+- **capture** — a step's surfaced lesson is the user's own `/capture` call; execute does not auto-capture. **The scratch tier is a carve-out, not an exception to this** (§3d.1): a scratch write is session-scoped, TTL'd and disposable, produces no durable artefact, and is deleted un-promoted at session end — so it is not a capture. Everything that becomes a *durable* memory still passes capture's accept/edit/reject gate, reached through the session-end reflection pass, never from inside this loop.
 - **security hooks** — execute runs inside the hook-protected tool surface; no special-casing around hooks.
-- **work-state** — stale-pin pre-run guard is a deferred v2 seam; until then the superseded-status warning (Edge cases) is the only pin guard.
+- **work-state** — reports a slug's chain position and owns the stale-pin check. Inside execute, the superseded-status warning (Edge cases) is the pin guard.
 - **close-out** — the scope chain's terminus; execute offers `/close-out <slug>` on done-criteria-met (§4b). Invitation only; close-out never auto-fires.
-- **update-changelog** — execute offers the bare ship line (§4b) when there's no spec to reconcile; otherwise `/close-out` subsumes it.
+- **update-changelog** — `/close-out` subsumes it whenever close-out runs; the bare ship line (§4b) is the fallback when the user declines close-out.
 
 ## Debug
 
 - **"no recognisable steps"** — the plan file's heading shape is off. Check for `## Step 1: <goal>` exactly. Re-run `/draft-plan` if unsure.
 - **Execute keeps re-prepping between every step** — boundary detection is over-triggering (files share a parent directory within 2 levels). Flag via `/capture`.
-- **Subagent delegation asks on every step** — more than one step is tagged `[delegate]` or touches >5 files. That's by design. If the user finds it noisy, they decline individually; don't auto-change the heuristic silently.
+- **Subagent delegation asks on every step** — more than one step is tagged `[delegate]` or `[research]`. That's by design. If the user finds it noisy, they decline individually; don't auto-change the criteria silently. Note that `[mechanical]` tier routing does *not* ask — if you are being prompted per step, the steps are tagged for delegation, not routing.
 - **User-attested verification loop** — if a user-attested step fails and the user picks "fix and retry," the skill must re-verify with the same user-attestation, not advance on author's word.

@@ -13,4 +13,4 @@ origin: shipped
 <!-- id: no-init-side-effects --> No import-time side effects in `__init__.py` — no I/O, no network, no global mutation. Importing a package must be cheap and safe.
 <!-- id: no-pinning-in-libs --> Libraries declare compatible ranges, not exact pins. Pin exact versions only in applications / lockfiles, where reproducibility is the goal.
 
-**Why:** flat-layout import shadowing and import-time side effects are the two packaging mistakes that pass locally and break on a clean install or in CI. Source: Python packaging guidance, PEP 517/518.
+**Why:** flat-layout import shadowing and import-time side effects are the two packaging mistakes that pass locally and break on a clean install or in CI. Source: Python packaging guidance, PEP 621 (project metadata), PEP 517/518 (build backend).

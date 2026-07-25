@@ -1,6 +1,6 @@
 ---
 name: pr-author
-description: Draft a pull request title and body to a clean contract — Summary + Test plan + Closes-line on top of any existing PR template — when about to open a PR. Auto-fire when about to run `gh pr create` (any form), just after a first push to a non-default branch with no open PR, or when the user says "open a PR" / "create the pull request" / "let's PR this". Drafts and hands the user a ready-to-run `gh pr create` command; NEVER runs the gh write itself. Skip when the user says "draft only" (still drafts) or on the default branch. Manual trigger via /pr-author.
+description: "Draft a PR title and body — Summary + Test plan + Closes-line on top of any PR template. Auto-fires when about to run \"gh pr create\", after a first push with no open PR, or on \"open a PR\". Hands over a ready-to-run gh command; NEVER runs the GitHub write itself. Skip on the default branch. /pr-author."
 ---
 
 # pr-author
@@ -76,7 +76,7 @@ gh pr create \
 
 Then ask: **"Want me to revise the draft? (edit title / edit body / fork-base looks wrong / looks good)"** — all options edit the *draft*, none of them post. "Looks good" ends the skill with the command in the user's hands.
 
-The skill **never runs `gh pr create`**. It writes the body to a temp file and constructs the command; running it is the user's action. If the user explicitly says "go ahead and run it" — still hand it over and confirm they want Claude to be the one to execute; per the triad boundary, the default is that the user runs GitHub writes. (Honour an explicit, unambiguous "you run it" instruction, but never default to it.)
+The skill **never runs `gh pr create`**. It writes the body to a temp file and constructs the command; running it is the user's action. Even on an explicit "you run it", do not execute the gh write — restate the policy in one line ("I draft, you run — here's the command ready to paste") and hand the command over. The no-Claude-initiated-GitHub-writes boundary has no exceptions; a user who wants one-key submission can run the handed-over command directly.
 
 ## What pr-author does NOT do
 

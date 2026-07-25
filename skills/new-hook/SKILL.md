@@ -56,6 +56,8 @@ Each recipe's `README.md` declares its placeholders. Ask one question per placeh
 - **file-write-blocker:** `__PATH_GLOB__` (gitignore-style glob, e.g. `**/secrets/**` or `**/.env*`), `__BLOCK_REASON__`.
 - **mcp-tool-blocker:** `__TOOL_NAME__` (exact tool name, e.g. `mcp__plugin_some-server_search__do`), `__BLOCK_REASON__`.
 - **context-injector:** `__MATCHER__` (one of `startup`, `compact`, `startup|compact`), `__CONTEXT_SOURCE_TYPE__` (one of `literal`, `file`, `command`), `__CONTEXT_SOURCE_VALUE__` (the literal string, the file path to read, or the command to invoke depending on the type).
+- **session-recovery-advisory:** `__SIGNAL_SCAN_FN__` (body of `scan(events) -> string[]` returning human labels for unresolved signals; empty = silent), `__WATERMARK_FN__` (body of `isWatermark(event) -> bool` marking a transcript event as resolved/saved), `__ADVISORY_PREFIX__` (leading sentence of the nudge), `__MATCHER_TRIGGER__` (fixture-only — a matching `source` value, `clear` or `compact`).
+- **rule-prime:** no template placeholders — the hook logic *is* the recipe, copied verbatim. One fixture-only placeholder: `__REPO_ROOT__` (absolute path to a repo the resolver can census for the floor; set it to the target project root so the runner is green out of the box). Registers two events via the `rulePrime` settings bundle.
 
 Quote-escape user input before substitution so a stray backtick or quote in `__BLOCK_REASON__` cannot break the template.
 
@@ -96,7 +98,7 @@ Invoke the merger at [`lib/settings-merge.js`](lib/settings-merge.js) with:
 
 ```
 {
-  event: <recipe's event — PreToolUse | SessionStart>,
+  event: <recipe's event — PreToolUse | SessionStart | UserPromptSubmit>,
   matcher: <recipe's matcher, e.g. "Bash" | "Write|Edit|MultiEdit|NotebookEdit" | "startup|compact">,
   command: "node " + <absolute path to the new hook file>,
   timeout: 5

@@ -68,8 +68,8 @@ mcp__context7__resolve-library-id  <library-name>
 mcp__context7__query-docs          <library-id> <question>
 ```
 
-**Why:** avoids stale-training-data answers for libraries/frameworks/CLIs. Already
-the rule per `~/.claude/rules/context7.md`; restated here so it surfaces in
+**Why:** avoids stale-training-data answers for libraries/frameworks/CLIs. This is
+the standing rule for library documentation; restated here so it surfaces in
 canonical-command resolution alongside the other tool defaults.
 
 ---

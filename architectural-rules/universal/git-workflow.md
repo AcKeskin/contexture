@@ -4,7 +4,7 @@ description: Branching model and commit-message construction mechanics for git-f
 type: user
 kind: architectural-rule
 scope: [git, universal]
-relevance: when-domain-git
+relevance: when-invoking-tools, during-execution
 ---
 
 - Build commit messages with simple, literal quoting — one `-m` per paragraph. Don't construct them with shell features that interpolate or wrap text (here-strings, expanding heredocs), especially when the tool's shell differs from your interactive shell: a mismatch injects stray characters (e.g. PowerShell here-string syntax used inside a Bash tool added a literal `@`).

@@ -12,4 +12,4 @@ relevance: when-language-cpp
 - Raw pointers only as non-owning views or short-lived parameters. Never for ownership.
 - No hidden globals or singletons without a strong, documented reason. Prefer dependency injection.
 
-**Why:** ownership confusion is the second-largest source of C++ bugs after lifetimes. Make it impossible to get wrong.
+**Why:** ownership confusion is the second-largest source of C++ bugs after lifetimes. Make it impossible to get wrong. Source: C++ Core Guidelines (R.20, R.21, R.30, I.11).

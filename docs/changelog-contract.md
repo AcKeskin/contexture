@@ -6,14 +6,14 @@ The shared format for the canonical `CHANGELOG.md` ship-record and the rule-of-r
 
 The **shape of the ship-record**: file location, ordering, the unit of a line, the two line-types and when each applies, and the voice. It does **not** own *whether to write a line* (the `update-changelog` propose-confirm gate owns that), *what counts as a shippable unit* in any given session (the caller/user judges that against the rule below), or *the forward backlog* (`BACKLOG.md` owns the ranked queue — the changelog is the backward-looking record).
 
-The changelog exists to be the **single "what actually happened, newest first" view** — the surface that cuts session re-alignment cost. It replaces `BACKLOG.md`'s "Recently shipped" prose section (which becomes a pointer). It does **not** replace the `build_progress` memory, which stays the *narrative-with-context* record (commit hashes, ship deviations, lessons) — the changelog is the index, build_progress is the story.
+The changelog exists to be the **single "what actually happened, newest first" view** — the surface that cuts session re-alignment cost. It replaces `BACKLOG.md`'s "Recently shipped" prose section (which becomes a pointer). It does **not** replace the project's ship-narrative record (a build-progress memory or equivalent), if it keeps one, which stays the *narrative-with-context* record (commit hashes, ship deviations, lessons) — the changelog is the index, the narrative record is the story.
 
 ## 1. Location
 
 - **Project with a deliberate root changelog**: `CHANGELOG.md` at the project root. Deliberately tracked — it is a real repo deliverable.
 - **Any other project**: `.claude/CHANGELOG.md`. Gitignored-by-default like other `.claude/` artefacts.
 - The skill resolves root-first, falls back to `.claude/`, and states which it wrote to.
-- **Never edit `.gitignore` to force-track a changelog** (`sync_is_user_choice`). If a bare/global ignore rule would swallow the root `CHANGELOG.md` (the `global_claude_md_ignore_trap` shape), surface it to the user — do not silently work around it.
+- **Never edit `.gitignore` to force-track a changelog** — syncing is the user's choice. If a bare/global ignore rule would swallow the root `CHANGELOG.md`, surface it to the user — do not silently work around it.
 
 ## 2. Ordering
 
@@ -75,7 +75,7 @@ The significant-change rule is a *soft* heuristic with a hard backstop: every ch
 | `CHANGELOG.md` | the canonical "what shipped, newest first" index | **new — the single chronological record** |
 | `BACKLOG.md` "Recently shipped" | was a prose ship-list | **replaced by a pointer to `CHANGELOG.md`** |
 | `BACKLOG.md` priority queue | the ranked *forward* queue | unchanged (the changelog is backward-looking) |
-| `build_progress` memory | narrative ship-record (hashes, deviations, lessons) | unchanged (the story; changelog is the index) |
+| the project's ship-narrative record | narrative ship-record (hashes, deviations, lessons) | unchanged (the story; changelog is the index) |
 | `recap` files | per-session episodic record | unchanged (recap *offers* a changelog line on a shipped unit) |
 
 The net effect is **−1 surface**: the prose ship-list moves from BACKLOG into the canonical CHANGELOG, and nothing new is left scattered.

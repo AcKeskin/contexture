@@ -4,8 +4,13 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { scoreMemories, expandRelations } from "../src/retrieval/score.js";
+import {
+  scoreMemories,
+  expandRelations,
+  scoreScratch,
+} from "../src/retrieval/score.js";
 import type { ParsedMemory } from "../src/lib/frontmatter.js";
+import type { ScratchEntry } from "../src/lib/scratch.js";
 
 function mem(
   name: string,
@@ -374,5 +379,83 @@ describe("expandRelations", () => {
       (r) => r.reason.kind === "related_to",
     ).length;
     assert.equal(pulled, 3);
+  });
+});
+
+// --- Scratch tier ranking (109) -------------------------------------------
+// Salience is deliberately NOT a retrieval filter: a low-salience entry (a
+// passing verification step) must still reload on resume, since telling a
+// resumed session what is already verified is the whole point of the tier.
+
+describe("scoreScratch", () => {
+  function s(
+    observation: string,
+    over: Partial<ScratchEntry> = {},
+  ): ScratchEntry {
+    return {
+      observation,
+      reason: "because the seam moved",
+      provenance: "model-inferred",
+      salience: "normal",
+      ts: "2026-07-24T00:00:00.000Z",
+      ...over,
+    };
+  }
+
+  it("returns every surviving entry — completeness over selectivity", () => {
+    // Scratch is small and session-scoped; a non-matching entry is still
+    // context the resumed session would otherwise re-derive.
+    const out = scoreScratch([s("alpha"), s("beta")], {
+      taskKeywords: ["nothing-matches"],
+    });
+    assert.equal(out.length, 2);
+  });
+
+  it("surfaces a low-salience entry — salience gates promotion, not retrieval", () => {
+    const out = scoreScratch([s("step 3 verified", { salience: "low" })], {});
+    assert.equal(out.length, 1);
+    assert.equal(out[0].entry.salience, "low");
+  });
+
+  it("ranks user-said above model-inferred at equal keyword match", () => {
+    const inferred = s("the cache is cold", { provenance: "model-inferred" });
+    const stated = s("the cache is cold", { provenance: "user-said" });
+    const out = scoreScratch([inferred, stated], { taskKeywords: ["cache"] });
+    assert.equal(out[0].entry.provenance, "user-said");
+    assert.ok(out[0].score > out[1].score);
+  });
+
+  it("scores keyword hits in both observation and reason", () => {
+    const out = scoreScratch([s("unrelated text", { reason: "the parser drifted" })], {
+      taskKeywords: ["parser"],
+    });
+    assert.ok(out[0].matches.includes("keyword:parser"));
+  });
+
+  it("records why an entry surfaced", () => {
+    const out = scoreScratch([s("x", { provenance: "user-said" })], {
+      taskKeywords: ["x"],
+    });
+    assert.ok(out[0].matches.includes("provenance:user-said"));
+    assert.ok(out[0].matches.includes("keyword:x"));
+  });
+
+  it("bounds the result set at the supplied limit", () => {
+    const many = Array.from({ length: 30 }, (_, i) => s(`obs ${i}`));
+    assert.equal(scoreScratch(many, { limit: 5 }).length, 5);
+  });
+
+  it("keeps the highest-ranked entries when capping, not an arbitrary slice", () => {
+    const entries = [
+      s("low value"),
+      s("high value", { provenance: "user-said" }),
+      s("low value 2"),
+    ];
+    const out = scoreScratch(entries, { limit: 1 });
+    assert.equal(out[0].entry.observation, "high value");
+  });
+
+  it("returns an empty list for an empty stream", () => {
+    assert.deepEqual(scoreScratch([], { taskKeywords: ["anything"] }), []);
   });
 });

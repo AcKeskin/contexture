@@ -215,7 +215,7 @@ Each `/review` run that has a stable scope (everything except `--since`) writes 
 - `/review src/auth/middleware.ts` → `slug = src-auth-middleware-ts` (extension included for one-file slugs)
 - `/review --since <ref>` → not persisted (ephemeral)
 
-**Versioning** (per the version-evolving-artefacts decision):
+**Versioning** — versioned artefacts evolve by appending a new version with a supersedes pointer, never by overwriting:
 
 - The previous run's `latest.md` is renamed to `v<N>.md` (where `N` is the next free index).
 - The new run is written as both `v<N+1>.md` *and* `latest.md` — same content, two paths. `latest.md` is the cheap "is there a baseline?" lookup; `v<N>.md` is the stable archive.

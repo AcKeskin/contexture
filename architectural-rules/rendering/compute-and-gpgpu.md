@@ -8,7 +8,7 @@ relevance: when-domain-rendering
 origin: shipped
 ---
 
-<!-- id: workgroup-size-hardware --> Size workgroups to multiples of the hardware warp/wavefront width (32 for NVIDIA, 32/64 for AMD, 32 for Intel Xe, 32/64 for Mali/Adreno); a non-multiple wastes lanes and reduces occupancy. Expose workgroup size as a specialization constant or compile-time define rather than a hardcoded literal so it can be tuned per target. (Vulkan spec §10.7; GLSL compute shader local_size; CUDA occupancy model)
+<!-- id: workgroup-size-hardware --> Size workgroups to multiples of the hardware warp/wavefront width (query it — `VkPhysicalDeviceSubgroupProperties::subgroupSize`, `gl_SubgroupSize`, or `WaveGetLaneCount`; commonly 4-128 across vendors); a non-multiple wastes lanes and reduces occupancy. Expose workgroup size as a specialization constant or compile-time define rather than a hardcoded literal so it can be tuned per target. (Vulkan spec §10.7; GLSL compute shader local_size; CUDA occupancy model)
 
 <!-- id: barrier-between-dependent-dispatches --> Between any two dispatches where the second reads data written by the first, insert the minimal required barrier: a compute-to-compute memory barrier (Vulkan vkCmdPipelineBarrier with COMPUTE→COMPUTE scope and SHADER_WRITE→SHADER_READ access) or equivalent; omitting it yields a data race with no guaranteed ordering. (Vulkan spec §7 "Synchronization and Cache Control"; GLSL memoryBarrier() for intra-group sync)
 

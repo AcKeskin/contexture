@@ -184,9 +184,7 @@ If any check fails, fix in-place before writing. Do not write a malformed vision
 
 ### 6. Update the previous active version (evolve flow only)
 
-- Set `status: superseded` in `v<N-1>.md`.
-- Add `superseded_by: v<N>.md` to its frontmatter.
-- Do not modify the body. Superseded versions are read-only.
+Versioning follows spec's canonical contract ([spec SKILL.md § Versioning contract](../spec/SKILL.md)): mark the previous version superseded with a `superseded_by` pointer and regenerate the INDEX. Do not modify the body — superseded versions are read-only.
 
 ### 7. Abandon flow
 
@@ -230,7 +228,7 @@ Tell the user (filling in the actual values):
 - **No non-goals.** Vision with zero non-goals = vision that will absorb scope creep. Refuse to write — push the user for at least three.
 - **Cross-cutting concerns smeared into module roles.** If "logging" appears in three different modules' Owns lines, that's a cross-cutting concern, not a per-module responsibility. Promote it.
 - **Skipping the module map.** The diagram is the load-bearing artefact. If the user wants to skip it ("I don't need a picture"), explain: the picture is how downstream Claude sessions reconstruct the partition without re-reading the whole document. Insist.
-- **Specs-as-vision-modules confusion.** A vision module ≠ a spec slug 1:1 by name guarantee. Most of the time it should match, but a vision can declare a module that's later specced as several sub-slugs (`engine` → `engine-core`, `engine-renderer`). That's fine; the warning in step 3 of the spec-alignment check surfaces it.
+- **Specs-as-vision-modules confusion.** A vision module ≠ a spec slug 1:1 by name guarantee. Most of the time it should match, but a vision can declare a module that's later specced as several sub-slugs (`engine` → `engine-core`, `engine-renderer`). That's fine — see "Relationship to /spec, /draft-plan, /execute" below for how the two names relate.
 
 ## Relationship to /spec, /draft-plan, /execute
 
@@ -249,7 +247,7 @@ Tell the user (filling in the actual values):
 Alignment is **advisory, not enforced** between `/envision` and `/spec`:
 
 - `/spec <slug>` where `<slug>` matches a module in the active vision: proceed normally. The spec's `Grounded context` may cite `vision <slug> v<N> module <module-slug>` as the source of its boundary assumptions.
-- `/spec <slug>` where `<slug>` does NOT match any active vision's modules: `/spec` warns once and continues. Warning is a smell-finder, not a gate.
+- `/spec <slug>` where `<slug>` does NOT match any active vision's modules: `/spec` proceeds normally. Mismatch is not surfaced by `/spec` — alignment is a reading convention here, not a check either skill runs.
 
 This means: mature projects with no vision are not retroactively forced into one. `/envision` is for greenfield top-level shaping. Use it where it helps; don't bolt it onto established codebases just for symmetry.
 

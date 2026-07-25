@@ -10,7 +10,7 @@ applyTo: "**"
 
 In a signal handler, call ONLY functions listed in the async-signal-safe set (man 7 signal-safety); malloc, printf, and most libc functions are NOT safe — they may hold internal locks that the signal interrupted, causing deadlock. (man 7 signal-safety, POSIX.1-2017 §2.4.3)
 
-Handle signals in the main event loop, not inside handlers: write a byte to a self-pipe in the handler and poll/epoll the read end, or use signalfd(2) to receive signals as readable events; this keeps all logic outside the async-signal-safe constraint. (man 2 signalfd, man 7 signal-safety)
+Handle signals in the main event loop, not inside handlers: write a byte to a self-pipe in the handler and poll/epoll the read end, or block the signal set with pthread_sigmask(SIG_BLOCK, ...) and create a signalfd(2) over that same mask to receive signals as readable events (without the block, the default disposition still fires and the fd never sees them); this keeps all logic outside the async-signal-safe constraint. (man 2 signalfd, man 7 signal-safety)
 
 In multithreaded programs, use pthread_sigmask to block signals in worker threads and deliver them to exactly one designated thread (or via signalfd); signal delivery to an arbitrary thread is uncontrollable and races with thread-local state. (man 3 pthread_sigmask, POSIX.1-2017 §2.4.1)
 
@@ -20,7 +20,7 @@ Never busy-wait on a fd or condition; use epoll/poll/select or a condition varia
 
 Prefer signalfd over sigaction in event-loop programs; signalfd integrates into a unified epoll watch set, removing the need for careful async-signal-safe bookkeeping entirely. (man 2 signalfd)
 
-**Why:** Signal handlers execute in an interrupted execution context where most libc internals are unsafe to call. The self-pipe trick and signalfd are the POSIX-endorsed patterns for bridging asynchronous signal delivery into synchronous event-loop code. Multithreaded signal delivery has undefined target-thread semantics unless masked and routed explicitly. Source: Linux man-pages / POSIX.
+**Why:** Signal handlers execute in an interrupted execution context where most libc internals are unsafe to call. The self-pipe trick is the portable pattern; signalfd(2) is the Linux-specific equivalent for bridging asynchronous signal delivery into synchronous event-loop code. Multithreaded signal delivery has undefined target-thread semantics unless masked and routed explicitly. Source: Linux man-pages / POSIX.
 
 ## resources-and-fds
 

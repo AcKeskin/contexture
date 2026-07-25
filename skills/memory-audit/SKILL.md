@@ -56,7 +56,7 @@ Ten dimensions, run in parallel where possible. Each dimension produces zero or 
 
 #### Dimension 2 — Frontmatter validity
 
-- Missing required fields per `claude-md/memory-capture.md` (`name`, `description`, `type`, `scope`, `relevance` — all mandatory) → flag the gap.
+- Missing required fields per `claude-md/memory-capture.md` (`name`, `description`, `type`, `scope`, `relevance` — all mandatory) → flag the gap. **Exception: `type: session-recap` files are exempt from `relevance`** — recaps are episodic records, not relevance-gated rules, and their frontmatter deliberately omits it.
 - `type` not in `{user | feedback | project | reference | session-recap}` → flag.
 - `kind` (when present) not in `{architectural-rule | decision | lesson | preference | warning}` → flag.
 - `scope` empty AND body is clearly domain-specific (heuristic: body mentions a specific module, language, or domain in the first paragraph) → flag for user judgment, suggest a more specific scope. Don't auto-fix — scope is judgment-laden.
@@ -88,7 +88,7 @@ Scan each memory file's body for:
 - Git commit hashes (7-40 hex chars in a context that looks like a hash reference — preceded by "commit", "in `", "(`hash`)"). For each, run `git rev-parse --verify <hash>` against the relevant repo (memory body usually names the repo). If unresolvable, flag "stale commit reference."
 - Design-doc / slot numbers a memory cites by id — cross-reference against the project's planning docs; if renumbered or materially changed, flag "outdated reference."
 
-The git and proposal checks require knowing which repo / project to query; use the memory's `scope` tags as hints. Skip checks where the repo can't be located rather than asserting failures. Note in the report: "git checks skipped — repo not located."
+The git and design-doc checks require knowing which repo / project to query; use the memory's `scope` tags as hints. Skip checks where the repo can't be located rather than asserting failures. Note in the report: "git checks skipped — repo not located."
 
 #### Dimension 6 — Orphan files
 
@@ -217,9 +217,9 @@ User declines → record "weekly schedule offered, declined" so the offer doesn'
 ## What memory-audit does NOT do
 
 - **Does not auto-fire.** Mode A only.
-- **Does not judge decision *validity*.** memory-audit owns **mechanical integrity** — is the `superseded_by` back-link present, is the relation target real, is the schema valid. It does **not** ask "*should* this decision be superseded — is it still true?" That validity judgment belongs to the corpus checkpoint (`/checkpoint --scope corpus`, which absorbs the deprecated [retrospect](../retrospect/SKILL.md)); it makes the call, then routes the resulting mechanical fix back here.
+- **Does not judge decision *validity*.** memory-audit owns **mechanical integrity** — is the `superseded_by` back-link present, is the relation target real, is the schema valid. It does **not** ask "*should* this decision be superseded — is it still true?" That validity judgment belongs to the corpus checkpoint (`/checkpoint --scope corpus`); it makes the call, then routes the resulting mechanical fix back here.
 - **Never auto-fixes, bulk-applies, or deletes silently** — every finding is its own propose-confirm decision, per §5.
-- **Does not back up before changes.** The user's git commit habits are the rollback mechanism for memory tree files; if the memory tree is not git-tracked (the default per `feedback/sync_is_user_choice.md`), the user's chosen sync layer (or lack thereof) is the rollback.
+- **Does not back up before changes.** The user's git commit habits are the rollback mechanism for memory tree files; if the memory tree is not git-tracked (the default — never edit `.gitignore` to force-track it; surface the situation and let the user decide), the user's chosen sync layer (or lack thereof) is the rollback.
 - **Does not use embeddings.** Duplicate detection is text-overlap on the first paragraph. For ~50 memory files, regex + tokenization is sufficient. Vector search is overkill for our scale (deliberately not adopted).
 - **Does not span multiple projects per invocation.** `--project <slug>` switches to a different project; it does not audit all projects in one pass. Cross-project audits would need a separate invocation per project.
 - **Does not modify files outside the memory tree.** No edits to skills, codemap, or commands. Audit is scoped to memory.

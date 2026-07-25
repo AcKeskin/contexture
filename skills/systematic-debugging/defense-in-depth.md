@@ -93,9 +93,9 @@ When you find a bug:
 3. **Add validation at each layer** - Entry, business, environment, debug
 4. **Test each layer** - Try to bypass layer 1, verify layer 2 catches it
 
-## Example from Session
+## Worked example
 
-Bug: Empty `projectDir` caused `git init` in source code
+Bug: an empty `projectDir` caused `git init` to run in the source tree
 
 **Data flow:**
 1. Test setup → empty string
@@ -109,7 +109,7 @@ Bug: Empty `projectDir` caused `git init` in source code
 - Layer 3: `WorktreeManager` refuses git init outside tmpdir in tests
 - Layer 4: Stack trace logging before git init
 
-**Result:** All 1847 tests passed, bug impossible to reproduce
+**Result:** the suite passed and the bug became impossible to reproduce
 
 ## Key Insight
 

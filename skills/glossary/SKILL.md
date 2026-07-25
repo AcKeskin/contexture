@@ -1,6 +1,6 @@
 ---
 name: glossary
-description: Extract a project's ubiquitous language — domain term → one-line definition → code symbol(s) → collision note — into a project-tier .claude/rules/glossary.md that the rule-prime hook primes and the naming-and-comments audit cites as a vocabulary-drift reference. Frequency-ranked candidates (mechanical) with confidence-flagged definitions (model judgment); per-group propose-confirm-commit gate. Use when the user types /glossary, or asks to capture / define / write down the project's domain terms / vocabulary / ubiquitous language. Mode A only — never auto-fires, never auto-writes.
+description: "Extract the project's ubiquitous language — term → definition → code symbol(s) → collision note — into a project-tier .claude/rules/glossary.md primed by the rule-prime hook and cited by the naming audit. Use on /glossary or \"write down the domain vocabulary\". Mode A — never auto-fires, never auto-writes."
 ---
 
 # glossary

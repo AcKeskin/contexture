@@ -10,7 +10,7 @@ origin: shipped
 
 <!-- id: suggest-bindings-at-init --> Call xrSuggestInteractionProfileBindings once per interaction profile during initialisation, before xrBeginSession. Suggesting bindings inside the frame loop is legal but wasteful; more importantly it signals that the binding design couples input layout to runtime state, which is an architecture smell. (OpenXR: xrSuggestInteractionProfileBindings, XrInteractionProfileSuggestedBinding)
 
-<!-- id: attach-action-sets-before-session --> Attach all action sets to the session with xrAttachSessionActionSets before calling xrBeginSession. Action sets cannot be attached or detached after the session begins; design the full set of required actions up front. (OpenXR: xrAttachSessionActionSets)
+<!-- id: attach-action-sets-before-session --> Attach all action sets to the session with xrAttachSessionActionSets exactly once, before the first xrSyncActions. A second call fails with XR_ERROR_ACTIONSETS_ALREADY_ATTACHED, and sets can never be detached; design the full set of required actions up front. (OpenXR: xrAttachSessionActionSets)
 
 <!-- id: sync-actions-each-frame --> Call xrSyncActions every frame before querying any action state. Action state is a snapshot; it is only updated by xrSyncActions. Reading stale state (e.g. querying without syncing after a focus loss/regain) produces silently outdated input. (OpenXR: xrSyncActions, XrActionsSyncInfo)
 

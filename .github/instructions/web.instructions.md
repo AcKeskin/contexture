@@ -13,7 +13,7 @@ applyTo: "**/*.{html,css,jsx,tsx}"
 - Cancelation is part of the design — every long-running async operation has a cancel path (AbortController, effect cleanup, subscription disposal).
 - Errors in async work are handled explicitly. Unhandled promise rejections are bugs, not warnings to ignore.
 
-**Why:** async bugs dominate production incidents in web apps. Explicit patterns catch them at review time.
+**Why:** async bugs dominate production incidents in web apps. Explicit patterns catch them at review time. Source: MDN AbortController; WHATWG HTML unhandledrejection.
 
 ## Web layering
 
@@ -26,7 +26,7 @@ applyTo: "**/*.{html,css,jsx,tsx}"
 - UI talks to State; State talks to Transport; Transport talks to Domain types (not the other way).
 - Avoid magic globals. No module-level mutable state.
 
-**Why:** frameworks churn. Domain logic bound to framework primitives dies with the framework.
+**Why:** frameworks churn. Domain logic bound to framework primitives dies with the framework. Source: ports-and-adapters / clean-architecture layering.
 
 ## Web state flow
 
@@ -35,4 +35,4 @@ applyTo: "**/*.{html,css,jsx,tsx}"
 - State changes are explicit and traceable — every change has an identifiable source (action, event handler, effect).
 - Prefer derived state over duplicated state. If two pieces of state can disagree, one is wrong.
 
-**Why:** state bugs are the hardest to reproduce. Predictable flow is the minimum insurance.
+**Why:** state bugs are the hardest to reproduce. Predictable flow is the minimum insurance. Source: Flux / Redux unidirectional-data-flow docs.

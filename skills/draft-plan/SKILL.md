@@ -20,6 +20,8 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
 - `/draft-plan` (no slug) — resolve in this order: (1) if `default` is active in `.claude/specs/INDEX.md`, use it; (2) else if exactly one named slug is active, use it; (3) else list active slugs and ask.
 - `/draft-plan <slug>` — read `.claude/specs/<slug>/` active version, write `.claude/plans/<slug>/v<N>.md`.
 - `/draft-plan <slug> --task "<text>"` — degraded mode: no spec required, the text is the input. Slug still required for the output path. Use `default` for the no-decision case.
+- `--quiet` — terse review gate: one accept/edit/reject prompt instead of an inline or outline walkthrough (step 9). Combinable with any form above.
+- `--executor cheap` — **strict drafting mode.** Draft the plan for an executor that does not share this conversation and reasons less capably: every step self-contained, every judgment call closed at draft time (step 8b). Default is `--executor main` (this context executes; today's behaviour). Combinable with any form above.
 
 ## Procedure
 
@@ -31,6 +33,7 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
    - No slug, no `default` but exactly one other active spec → use it.
    - No slug, multiple active → list active slugs and ask which.
    - No slug, no specs → only valid with `--task` (which itself requires an explicit slug); otherwise stop with: *"No specs and no task description. Run `/spec` first or pass `<slug> --task`."*
+   - **Stale INDEX** — INDEX.md names an active version whose file is missing on disk → stop with: *"INDEX.md points at `<path>` but the file is missing. Reconcile by re-running `/spec <slug>`, or pass an explicit path."*
 
 3. **Resolve the input.**
    - Default: read the active version file (`.claude/specs/<slug>/v<M>.md` where M = active version per INDEX).
@@ -49,7 +52,7 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
 
 4. **Resolve the output version.** Look at `.claude/plans/<slug>/`:
    - If empty / does not exist → write `v1.md`.
-   - Else → write `v<N+1>.md` where N is the highest existing version. Mark previous active plan as `superseded` (frontmatter), with `superseded_by: v<N+1>.md`.
+   - Else → write `v<N+1>.md` where N is the highest existing version, and supersede the previous active plan per step 11.
 
    No `--evolve` / `--new` distinction for plans. Plans are cheaper than specs and always evolve as a new version against the same slug. If the user wants a fresh plan tree under a new slug, that's a `/spec <new-slug> --new` operation upstream.
 
@@ -100,9 +103,28 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
 
    The closing done-criteria assessment is **not** a plan step — it's post-loop infrastructure inside `/execute`, run after the last real step's verification passes. The plan declares what done means; execute checks it.
 
+8b. **Strict drafting mode (`--executor cheap` only).** A cheap-tier executor is functionally a fresh subagent with weaker inference: it does not share this conversation, cannot re-derive intent, and will not notice that a step left something open. Strictness is therefore a function of *who executes*, and in this mode it applies to **every** step, not just `[delegate]`-tagged ones:
+
+   - **Self-containment everywhere.** Every step carries the **Current state** excerpt and **Exemplar** path that step 8 requires only of delegated steps. The same failure test applies, now plan-wide: if you cannot supply a concrete before-excerpt and an exemplar path for a step, the step is under-specified for this mode — Read the repo and fill them in, or draft the plan for `main` instead.
+   - **Judgment calls closed at draft time.** Anything the main context would have decided *while executing* — a name, a file location, which of two shapes to follow, whether an edge case is in scope — is decided **now** and written into the step as a statement, not a choice. "Pick a sensible name for the helper" becomes the name. A step whose text still contains a choice is not ready for a cheap executor.
+   - **Commands spelled out.** Verification and any setup commands appear verbatim, not described ("run the test suite" → the exact command). The executor should never have to infer an invocation.
+
+   State the cost honestly at the review gate: strict drafting reads more of the repo, produces a longer plan, and goes stale faster (excerpts pin file state at draft time). It pays off on mechanical-heavy plans — migrations, scaffolding, rename sweeps, test authoring — and loses on small or judgment-heavy ones. When the user passes `--executor cheap` on a plan that looks judgment-heavy, say so once and let them decide.
+
+8c. **Classify each step: `[mechanical]` or `[judgment]`.** In strict mode every step carries exactly one of these tags; in `main` mode they are optional and purely informational. The tag is what `/execute` reads to decide where a step runs, so classify by what the step *needs*, never by its size:
+
+   - **`[mechanical]`** — the step is fully determined by the plan text plus its exemplar. Renames, scaffolding from a pattern, config edits, boilerplate, porting an existing shape to a new file. Two readers following the step would produce the same diff.
+   - **`[judgment]`** — the step contains something the plan could not close: a design decision, an ambiguous requirement, an unknown that must be discovered while working. Always runs in the main context.
+
+   **The verification-shape gate (hard rule).** A step may carry `[mechanical]` **only if its Verification is command-shaped**, or artifact-shaped with the exact check written out (the literal Grep/Read, not "confirm the function exists"). User-attested verification never qualifies.
+
+   The reason is worth stating, because it is the whole basis for routing work to a weaker executor: strict prose does not constrain a model, a failing command does. Everything else in strict mode raises the odds of a correct execution; only the verification catches an incorrect one. A step whose correctness cannot be checked mechanically must not be handed to an executor that is likelier to get it wrong.
+
+   When a step is genuinely mechanical but its verification is user-attested, do not downgrade the verification to make the tag fit — tag it `[judgment]` and leave the verification honest.
+
    The drafted plan is held **in-conversation** at this point — nothing is written to disk yet. The review gate (step 9) decides whether it lands.
 
-9. **Review gate — present the plan and confirm before writing.** The plan is the last cheap checkpoint before `/execute` ("plan changes are cheap, implementation changes are not"). Do **not** write the file silently; present the drafted plan and ask the user how to proceed. Pick the presentation mode by plan size:
+9. **Review gate — present the plan and confirm before writing.** The plan is the last cheap checkpoint before `/execute` ("plan changes are cheap, implementation changes are not"). Do **not** write the file silently; present the drafted plan and ask the user how to proceed. For a non-trivial plan, offer a [human-view](../human-view/SKILL.md) projection alongside — *"want the plain-prose approval view? (/human-view)"* — so approval reads the decisions, not the artefact format. Pick the presentation mode by plan size:
 
    - **Inline (default, small plans ≤ 6 steps).** Render the full plan body — Context, the Done-criteria echo, and every numbered step (goal / files / outcome / verification / serves-criteria) — in the conversation. Then ask: *accept / edit / reject*.
    - **Outline-first (large plans > 6 steps).** Render a compact outline — one line per step (`Step N: <goal>  → serves [criteria]`) — then ask: *"Show the full plan inline, write it to disk for you to open, or edit a step? (accept / show / write / edit / reject)"*. Pull the full body inline only if the user asks for it.
@@ -127,10 +149,13 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
    status: active
    spec: ../../specs/<slug>/v<M>.md   # pin to the spec version this plan is built against
    supersedes: v<N-1>.md              # omit on v1
+   executor: main                     # or `cheap` — see step 8b; omit on main for brevity
    created: YYYY-MM-DD
    description: <one-line — what this plan accomplishes>
    ---
    ```
+
+   **`--task` plans (no spec):** write `spec: none — task description in Context` and put the task description in the plan's Context section. A plan whose `spec:` is `none` is exempt from the stale-pin check and the done-criteria echo — there is no pinned version to go stale and no criteria list to read.
 
    Body:
 
@@ -153,9 +178,9 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
    - Outcome: <what is true after this step>
    - Verification: <command or specific check>
    - Serves criteria: [<list of criterion indices, e.g. 1, 3>]   ← skipped in legacy mode
-   - Tags: [research] [delegate]   ← optional
-   - Current state: <before-excerpt, file:line>   ← [delegate] steps only; "new file" for new-file steps
-   - Exemplar: <path to follow as convention anchor>   ← [delegate] steps only
+   - Tags: [research] [delegate] [mechanical|judgment]   ← optional on main; [mechanical]/[judgment] mandatory in strict mode
+   - Current state: <before-excerpt, file:line>   ← [delegate] steps; every step in strict mode ("new file" for new-file steps)
+   - Exemplar: <path to follow as convention anchor>   ← [delegate] steps; every step in strict mode
 
    ## Step 2: <goal>
    ...
@@ -165,9 +190,7 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
    - Open risks: <list, or "none">
    ```
 
-11. **Update previous active plan** (when N > 1):
-    - Set `status: superseded` in `v<N-1>.md`.
-    - Add `superseded_by: v<N>.md`.
+11. **Update previous active plan** (when N > 1). Versioning follows spec's canonical contract ([spec SKILL.md § Versioning contract](../spec/SKILL.md)): mark the previous version superseded with a `superseded_by` pointer and regenerate the INDEX.
 
 12. **Update plans INDEX.** Path: `.claude/plans/INDEX.md`. Same shape as specs INDEX:
 

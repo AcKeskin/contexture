@@ -1,6 +1,6 @@
 ---
 name: new-agents-md
-description: Generate a vendor-neutral AGENTS.md (and a global AGENTS.md) by projecting this Claude-Code instruction corpus — CLAUDE.md tree, architectural rules, warning/feedback landmines, canonical commands — into a flat file other coding agents (Codex, Cursor, Aider, …) can read, then interviewing only for the gaps the corpus can't know (exact dev commands, repo-specific "never X", architecture orientation, infra hints). Use when the user types /new-agents-md or asks to create / generate / scaffold an AGENTS.md, or to make the repo readable by non-Claude agents. Mode A only — never auto-fire.
+description: "Generate a vendor-neutral AGENTS.md by projecting the Claude-Code instruction corpus — CLAUDE.md tree, rules, landmines, canonical commands — into a flat file other coding agents read, interviewing only for gaps the corpus can't know. Use on /new-agents-md or \"make the repo readable by non-Claude agents\". Mode A — never auto-fire."
 ---
 
 # new-agents-md
@@ -249,6 +249,8 @@ prompting patterns into a form a generic agent can act on. Insert verbatim:
   you'd be inventing requirements, ask before acting.
 - Separate gathering information from changing things. For non-trivial work, plan first and get
   the plan confirmed before mutating files.
+- Comments and docs state the non-obvious why, in one sentence — if a comment restates the code,
+  delete it. Commit messages are the same: signal only, no restating the diff.
 ```
 
 This is the only fixed-content section. Everything else in the file is corpus-projected or

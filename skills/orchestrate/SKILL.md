@@ -291,37 +291,9 @@ silently resolved.
 *(Branch mode — merging verified worktree branches in dependency-layer order, conflicts
 surfaced not auto-resolved — is documented in Deferred design; v1 builds agent-mode only.)*
 
-#### Worked example — agent-mode, end to end (a three-unit research fan-out)
+#### Worked example — agent-mode, end to end
 
-> **Goal:** "Research multi-agent on-track control." Three write-disjoint, read-only research
-> units → one source file.
->
-> **Dispatch (Q3):** U1 *platform-capability*, U2 *prior-art*, U3 *drift-control*, each with
-> positive scope (its subsection of the findings file), `maxTurns`, the `produced:` contract, and a
-> `harvest:` invitation. All depth-1, parallel-safe, shared tree (read-only + write-disjoint
-> sections — Q2 says no worktree needed).
->
-> **Returns:** each comes back with a `produced:` block per the *Unit return contract*.
->
-> **Stage 1 verify:**
-> - *Boundary audit* — `git status --porcelain --untracked-files=all` shows each unit touched
->   only `docs/findings/<topic>.md`, matching every `scope_declared`.
->   No out-of-claim writes. ✔
-> - *Separate-verifier* — research correctness is **not** mechanically checkable, so the parent
->   grades: are the platform claims cited to official docs? Is the "~0% deterrent" claim sourced
->   to a real paper, not the unit's confidence? The parent spot-checks U3's
->   `[2603.20320]`/`[2508.00500]` citations rather than trusting U3's `self_check`. ✔ (Had a
->   citation been unverifiable, this is where the false success is caught — not at self-report.)
->
-> **Stage 2 synthesize:** the parent reconciles the three `summary` fields into **one**
-> findings file — merging the depth-cap finding all three touched into a single statement,
-> ordering the corrected control hierarchy from the drift-control unit, and folding U1's
-> harvested open_question into the source's "Notes / open question" section. The output is **one
-> integrative artifact**, not three stacked summaries.
->
-> **Aftermath:** U1's `harvest:` open_question is routed to `/recap` on Mode-A confirmation.
-> This fan-out *actually happened* — three parallel research units, ~210k subagent tokens, ~80s
-> wall-clock, one synthesized source — a live precedent for agent-mode convergence.
+A three-unit research fan-out worked end to end on the live runtime.
 
 ## Unit return contract
 
@@ -355,9 +327,7 @@ produced:
   # budget_used: "7/10 steps"
 ```
 
-The schema is **validated, not invented** — checked against a real three-unit run; every field
-was needed to express a real unit's return. The `harvest:` block rides alongside, separately
-keyed.
+The `harvest:` block rides alongside, separately keyed.
 
 ## Deferred design
 

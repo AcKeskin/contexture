@@ -14,10 +14,16 @@ Three skills produced three slightly-different shapes and the same two affordanc
 | Whether to apply a fix | each skill's propose-confirm loop | Untouched — contract is presentation only |
 | Where the artefact lives | each skill's persistence section | Untouched — contract shapes the body, not the path |
 | `file:line` citation rule | review + pr-review | Reaffirms it; a finding without `file:line` is not a finding |
+| Grounding gate | review + pr-review + code-review | A finding must quote real code at its cited line — from the fetched diff, or from the file itself when no diff exists — with its *meaning* confirmed by reading the surrounding file, not the diff hunk alone (§1a) |
 
-## 1. File-then-severity grouping (primary)
+## 1. File grouping + destination-dependent within-file order (primary)
 
-Findings render **file-grouped, severity-ordered within each file**. This is the natural reviewer reading order — a reviewer works file by file, and within a file the highest-severity issue dictates whether the file is acceptable.
+Findings render **file-grouped**, files in the order the reviewer encounters them. **Within a file, the sort order depends on where the output goes:**
+
+- **GitHub-facing** (`pr-review`, `code-review` posting inline comments) → **line-ascending**. This matches GitHub's Files-changed view, where inline comments render top-to-bottom by line — so the findings read in the same order the reviewer scrolls the PR. Files render in the PR's Files-changed order (alphabetical-by-path, GitHub's default).
+- **Terminal-only** (`review` on the working tree) → **severity-first** (Critical → High → Medium → Low). In a terminal read there is no line-anchored display to mirror, and worst-thing-first tells the reviewer whether the file is acceptable at a glance.
+
+Either way severity stays visible — in each finding's `[Severity / Effort]` label and the Severity × Category roll-up (§5). Only the within-file *sort key* changes with destination; the severity signal is never dropped.
 
 ```
 ## <file/path/here.ext>
@@ -36,10 +42,27 @@ Findings render **file-grouped, severity-ordered within each file**. This is the
   ...
 ```
 
-- Severity sort key within a file: **Critical → High → Medium → Low**. Effort suffix (`S`/`M`/`L`) is informational, not a sort key.
+- Within-file sort key: **line-ascending** for GitHub-facing output, **Critical → High → Medium → Low** for terminal-only (see above). Effort suffix (`S`/`M`/`L`) is informational, never a sort key.
 - A finding that spans multiple files appears under the **primary** file (the changed file for pr-review; the importer for working-tree review) with cross-references in the recommendation.
 - Files with zero findings still render as `## <path> — no findings` (one line) so the reviewer can confirm the file was scanned, not skipped.
 - The category-grouped view (all SoC violations across the run, etc.) is a permitted **secondary** view. File-grouped is primary; category-grouped is optional supplementary. The Severity × Category roll-up matrix (§5) carries the category-level signal.
+
+## 1a. Grounding gate — a finding is pinned to real code
+
+A finding must be **verifiable against the fetched diff — or, when there is no diff (a working-tree or whole-path review), against the file at the cited line** — not asserted:
+
+- **Quote the real code.** Cite `file:line` *and* quote the actual code at that line, from the diff when one was fetched and from the file on disk otherwise. If you cannot quote it from what was read, the line number is a guess — and a guessed finding is dropped, not emitted.
+- **Confirm meaning beyond the hunk.** The diff tells you *what* changed; the surrounding file tells you *what it means*. Before emitting, read the full current version of the changed region and its call-sites — a change whose effect lives in an unchanged caller is misread from the hunk alone. A finding whose severity flips once you read the caller was never grounded.
+- **Anchor to GitHub when posting (optional affordance).** A GitHub-facing finding may carry the deterministic Files-changed link `<pr_url>/files#diff-<sha256(path)>R<newline>/L<oldline>` (lowercase hex SHA-256 of the repo-relative path; `R` = new side, `L` = old side) so the finding is one click from its exact diff line. Include it in the persisted/GitHub render; omit from the terminal scan.
+
+## Comment register — terse-professional
+
+The **posted comment** is short; the **report** carries the reasoning. Do not move the report's paragraph onto the PR thread.
+
+- **Lead with the point, in a few words to one sentence.** "nit: rename to `retryBudget`." "this can be null — guard it." "dead code?" "why not `map` here?" One clause of *why* at most.
+- **Terse, not slang.** Professional enough for any teammate reading the thread — drop the ceremony (no "I noticed that…", no "It might be worth considering…"), keep it plain and direct.
+- **Match the repo's register.** Where the PR's existing comments show a house tone, mirror it (sample a handful of recent review comments via `gh`); default to terse-professional when none is evident.
+- **The full explanation stays in the report**, file-grouped per §1. The comment is the pointer; the report is the argument. A suggestion block (§3) often replaces comment prose entirely — the diff *is* the point.
 
 ## 2. Diagrams — required when structural
 

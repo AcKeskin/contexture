@@ -38,7 +38,7 @@ Unsealed types holding unmanaged resources follow the full Dispose pattern (`pro
 
 Every `+=` subscription has a corresponding `-=` unsubscription at the end of the subscriber's lifetime. Forgetting to unsubscribe keeps the subscriber alive for as long as the publisher lives (the publisher holds a delegate that closes over `this`), producing a memory leak and stale callbacks. The pattern: subscribe in `OnEnable` / constructor, unsubscribe in `OnDisable` / `Dispose`. A symmetrical unsubscribe-all before re-subscribing on re-initialization prevents double-subscription.
 Do not capture `this` (or any large object graph) in a lambda that is stored in a long-lived event. Capturing `this` in a lambda that is assigned to a static event or a publisher that outlives the subscriber causes a leak identical to a missing `-=`. Use a named method (`HandleX`) and subscribe with `-= HandleX`; lambdas cannot be unsubscribed by value. Subscribing with a lambda is acceptable only when the publisher is destroyed together with the subscriber (e.g. a UI field on the same GameObject); a static-event subscriber with a lambda is the dangerous pattern.
-Declare events with the `event` keyword, not as public `Action` / `Func` fields. A public delegate field lets any caller overwrite all subscribers with `=` instead of adding with `+=`, silently discarding prior subscriptions. `event` enforces += / -= at the call site. A public delegate field (e.g. `public Action CloseKeyboard;`) instead of an event is the anti-pattern — any caller can zero it with `=`.
+Declare events with the `event` keyword, not as public `Action` / `Func` fields. A public delegate field lets any caller overwrite all subscribers with `=` instead of adding with `+=`, silently discarding prior subscriptions. `event` enforces += / -= at the call site. A public delegate field (e.g. `public Action OnClosed;`) instead of an event is the anti-pattern — any caller can zero it with `=`.
 Prefer `event Action<T>` for domain events carrying a single payload (game events, state changes). Use `event EventHandler<TEventArgs>` only when interoperability with .NET framework patterns is required (e.g. WinForms, WPF, or library APIs that expect sender). In Unity game code, `Action<T>` is idiomatic — it avoids the boilerplate `EventArgs` wrapper and the unused `sender` parameter.
 Raise events with the null-conditional operator: `MyEvent?.Invoke(arg)`. This is thread-safe for the read (avoids a race between the null-check and the invocation on a captured copy) and eliminates the null-guard boilerplate. Do not use `if (MyEvent != null) MyEvent(arg)` — the two-step form has a TOCTOU race on multi-threaded publishers.
 Do not capture loop-variable closures or create new delegate instances inside `Update`, `FixedUpdate`, or physics callbacks — each closure allocation puts pressure on the GC. Cache delegate instances as fields if they must be passed to APIs that accept `Action` per frame (e.g. `Invoke`, `StartCoroutine` workarounds). Prefer direct method calls over delegate indirection in hot paths.
@@ -58,7 +58,7 @@ Rethrow with `throw;`, never `throw ex;` — the latter resets the stack trace a
 
 ## C# generics and constraints
 
-Apply the `struct` constraint (`where T : struct`) when a generic type parameter must be a value type and must never be boxed. Without it, the JIT emits a boxing path for any value type passed to an unconstrained generic. The `struct` constraint also rules out `null` and removes the need for null checks. (Source: Microsoft .NET generics performance guidance)
+Apply the `struct` constraint (`where T : struct`) when a generic type parameter must be a value type and must never be boxed. CoreCLR reifies generic instantiations over value types, so an unconstrained `T` does not box on its own — boxing happens on conversion to `object` or an interface. The constraint's real value is ruling out `null`, enabling `Nullable<T>` interop, and combining with an interface constraint to enable constrained-call devirtualization. (Source: Microsoft .NET generics performance guidance)
 Add an interface constraint (`where T : IFoo`) only when the method body actually calls members of `IFoo`. A constraint that exists for documentation or future use adds cognitive cost, tightens coupling, and forces callers to implement the interface. If a type currently needs only one behavior, accept the specific type, not a constrained `T`. Concrete interface seams that vary by behavior should stay concrete; generics enter only where true type-parameterization is needed.
 An interface constraint does NOT prevent boxing of value types. Calling an interface method on a constrained `T` where `T : IFoo` boxes the value type if the interface is not implemented via a `readonly` JIT-devirtualizable path. To avoid boxing: use `struct` + interface together (`where T : struct, IFoo`), which enables constrained-call devirtualization, or avoid the interface constraint on hot-path generics entirely. (Source: Microsoft .NET devirtualization and constrained call documentation)
 Add the `new()` constraint only when the generic method or class actually calls `new T()`. It signals to callers that their type must have a public parameterless constructor — a real restriction. Do not add it speculatively; it rules out structs with required fields and classes with DI-only construction. (Source: Microsoft C# programming guide — constraints on type parameters)
@@ -74,13 +74,13 @@ Apply covariance (`out`) and contravariance (`in`) only on generic interface and
 | --- | --- |
 | Types | `PascalCase` |
 | Methods / Properties | `PascalCase` |
-| Private fields | `_camelCase` |
+| Private fields | `_camelCase` (house convention) |
 | Local variables | `camelCase` |
 | Constants | `PascalCase` |
 | Parameters | `camelCase` |
-| Events | `OnEventName` |
+| Events | `OnEventName` (house convention) |
 
-**Why:** consistency across the surface makes intent visible. Private vs public vs local at a glance.
+**Why:** consistency across the surface makes intent visible. Private vs public vs local at a glance. Source: Microsoft .NET naming guidelines; .editorconfig naming defaults. The two rows marked *house convention* are this corpus's choice, not Microsoft guidance.
 
 ## C# nullable reference types
 

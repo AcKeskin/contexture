@@ -1,13 +1,13 @@
 ---
 name: wrap
-description: Session-terminus driver — one /wrap runs the whole closing ceremony in order (coordinate teardown → checkpoint if warranted → recap → close-out → changelog → BACKLOG-shipped-row sweep → build_progress), driving the existing organs rather than reimplementing them. Auto-runs the reversible read/draft/detect spine; every canonical write passes accept/edit/reject. Reads the autonomy contract once to set the interrupt posture. Use when the user types /wrap, says "wrap up the session" / "close this out" / "run the closing steps". Mode A — the manual /wrap never auto-fires; an optional SessionStart-recovery hook (enabled:false) can propose it. Never silent-writes.
+description: "Session-terminus driver — one /wrap runs the closing ceremony in order (coordinate teardown → checkpoint if warranted → recap → close-out → changelog → backlog sweep → build progress), driving the existing organs. Auto-runs the reversible spine; every canonical write gated accept/edit/reject. Use on /wrap or \"wrap up the session\". Mode A — never auto-fires."
 ---
 
 # wrap
 
 The session-**terminus driver**. The closing organs — `recap`, `close-out`, `update-changelog`, `capture`, plus `coordinate` teardown — each exist and are individually good, but nothing sequences them and nothing fires them on its own, so the closing ceremony is several manual invocations the user must remember in the right order with the right dedup. `/wrap` is that sequencer.
 
-It is a **driver, not a new organ**: it calls the existing organs in order and adds only the missing connective tissue (the sequence, the dedup, the autonomy-posture read, the BACKLOG-shipped-row sweep, the build_progress offer). If it reimplements recap/close-out/changelog logic, it is wrong.
+It is a **driver, not a new organ**: it calls the existing organs in order and adds only the missing connective tissue (the sequence, the dedup, the autonomy-posture read, the BACKLOG-shipped-row sweep, the ship-narrative-record offer). If it reimplements recap/close-out/changelog logic, it is wrong.
 
 Governed by the autonomy write-class line: automate the reversible read/draft/detect spine, keep the accept/edit/reject gate on every canonical write. Same pattern as `capture`'s auto-propose-never-write and `prep`'s auto-fire-read-only.
 
@@ -34,8 +34,8 @@ The contract sets the *interrupt cadence*; it never converts a canonical write i
 
 Per the autonomy write-class line:
 
-- **Routine-reversible → auto** (no per-step confirm under `forks-only`): the coordinate `done` teardown (ephemeral board), reading the session's git/state, drafting the recap body, detecting a shipped slug, detecting shipped BACKLOG rows, reading the autonomy contract.
-- **Canonical-write → gated** (accept/edit/reject, always, regardless of contract — `every-step` only *adds* confirmation, never removes it): the recap file write, the promotion→capture, the MEMORY.md scoreboard write, the spec reconcile, the artefact move, the changelog line, the BACKLOG-row removal, the build_progress edit.
+- **Routine-reversible → auto** (no per-step confirm under `forks-only`): the coordinate `done` teardown (ephemeral board), reading the session's git/state, drafting the recap body, detecting a shipped slug, detecting shipped BACKLOG rows, reading the autonomy contract, the scratch read/reconcile/dedup pass and its post-promotion clear (session-scoped, disposable, already TTL-bound).
+- **Canonical-write → gated** (accept/edit/reject, always, regardless of contract — `every-step` only *adds* confirmation, never removes it): the recap file write, the promotion→capture, the **scratch promotion→capture**, the MEMORY.md scoreboard write, the spec reconcile, the artefact move, the changelog line, the BACKLOG-row removal, the ship-narrative-record edit.
 
 ## Procedure
 
@@ -48,6 +48,19 @@ Invoke [`coordinate`](../coordinate/SKILL.md) `done` to tear down this session's
 ### 2. Checkpoint (conditional; analysis auto, findings gated)
 
 If the session built a **module- or corpus-scope** change (not a diff-scope tweak), offer [`checkpoint`](../checkpoint/SKILL.md) — "does what I built still fit + what did I learn?" Reuse checkpoint's own auto-scope detection to decide whether it's warranted; skip for a diff-scope tweak. Its analysis is read-only (auto); any findings route through checkpoint's own gate. **Do not** run a reconcile pass here that step 4's close-out will re-run on the same slug — checkpoint *detects*, close-out *acts*; running both reconciles on one slug is duplicate work.
+
+### 2.5 Scratch reflection pass (read/dedup auto; promotion gated)
+
+The session's scratch tier (written silently during work by [`execute`](../execute/SKILL.md) §3d.1 and [`checkpoint`](../checkpoint/SKILL.md) step 7) holds in-flight observations that are **deleted un-promoted at session end**. This is the one pass that can turn any of them into durable memory. It runs **before recap** so recap narrates a session whose promotions are already settled.
+
+1. **Read + reconcile (auto).** Read this session's scratch and apply contradiction reconciliation — a later observation superseding an earlier one wins, so a corrected reading is never offered beside the stale one it replaced.
+2. **Filter by salience (auto).** Drop `low`-salience entries from candidacy. Those are the passing-verification notes: real value *during* the session for re-orientation, near-zero value as durable memory. They are filtered from the candidate list, not deleted early.
+3. **Dedup + merge (auto).** Collapse near-duplicates into one candidate. Several steps hitting the same seam should promote as one memory, not four.
+4. **Present as ONE batch (gated).** Show the survivors as a single accept/edit/reject list — *"promote 1,3 / all / none / show &lt;id&gt;"* — the same select-don't-loop posture as checkpoint's findings flow. **Not** a per-candidate confirm sequence: per-fact prompting is the cost this tier exists to remove.
+5. **Promote via capture (gated).** Accepted candidates go to [`capture`](../capture/SKILL.md), which owns durable authoring — frontmatter shape, secret redaction, MEMORY.md indexing. `/wrap` never writes a canonical memory itself. Rejected candidates are simply not promoted; they need no further action, since step 6 discards everything anyway.
+6. **Clear the scratch (auto, after promotion resolves).** Un-promoted scratch is deleted — a wrong observation must not outlive the session that produced it. The clear reports how many entries were discarded, so a session that promoted nothing still says so out loud rather than silently dropping its accrual.
+
+Skip the whole step silently when the session wrote no scratch. **Ordering is load-bearing:** the clear runs *after* promotion resolves, never before — an aborted or declined promotion must leave the entries readable, not consume them.
 
 ### 3. Recap (gather/draft auto; writes gated) — invoked with the under-wrap signal
 
@@ -67,11 +80,9 @@ If the session shipped a **non-slug unit of work** (a multi-organ change, a fix 
 
 Sweep `BACKLOG.md` for rows whose unit **already shipped** — cross-reference each row against `CHANGELOG.md` and the `.claude/archive/<date>-<slug>/` close-out folders. This closes the currently-unowned gap: a unit shipped without a changelog line orphans its BACKLOG row forever, and no other organ sweeps for that independent of a ship event. Detection is auto (a slug/unit-id match; model judgment only for ambiguous rows — never guess a row shipped); the **row removal is gated** (propose the retirement, accept/edit/reject). See the sweep detail in [`backlog-sweep.mjs`](./backlog-sweep.mjs) when the detection warrants a script. Skip silently if there's no `BACKLOG.md` in the project.
 
-### 7. build_progress offer (conditional — on a real ship; gated)
+### 7. Ship-narrative-record offer (conditional — on a real ship; gated)
 
-On a real ship, **offer** a gated update to the `build_progress` memory's narrative shipped-list: *"Log this ship to build_progress? (y/N)"*. It is a memory (canonical write) → propose-confirm, never auto-write. Skip silently when nothing shipped or the project has no `build_progress` memory.
-
-> **Note on the build_progress offer.** The changelog work deliberately treated `build_progress` as hand-maintained ("narrative-with-context, a different job"). This step *offers* a gated build_progress update instead — to stop the user hand-copying — without eroding that rationale (the offer is gated and only on a real ship; it does not turn build_progress into an auto-derived index). If a coherence pass later revisits the changelog/build_progress split, reconcile the two: amend the hand-maintained stance, or give build_progress a lighter structured surface `/wrap` appends to.
+On a real ship, **offer** a gated update to the project's ship-narrative record (a build-progress memory or equivalent), if it keeps one — its narrative shipped-list: *"Log this ship to the ship-narrative record? (y/N)"*. It is a memory (canonical write) → propose-confirm, never auto-write. Skip silently when nothing shipped or the project keeps no such record.
 
 ### 8. Close
 
@@ -80,7 +91,7 @@ Report what ran: which steps fired, which were skipped, what's staged for the us
 ## What wrap does NOT do
 
 - **Not a new closing organ.** A driver over recap / close-out / update-changelog / capture / coordinate. It sequences and dedups them; it never reimplements their logic.
-- **Not silent-write.** Every canonical write (recap file, capture, scoreboard, spec reconcile, artefact move, changelog line, BACKLOG-row removal, build_progress edit) passes accept/edit/reject. Auto = auto-*propose*.
+- **Not silent-write.** Every canonical write (recap file, capture, scoreboard, spec reconcile, artefact move, changelog line, BACKLOG-row removal, ship-narrative-record edit) passes accept/edit/reject. Auto = auto-*propose*.
 - **Not on by default.** The auto-fire hook ships `enabled: false`; the manual `/wrap` works with no hook at all.
 - **Not a Stop/SessionEnd hook.** `SessionEnd`/`PreCompact` stdout is debug-only and exit-2 blocks, so a non-blocking guard can't surface there; auto-fire is SessionStart-recovery only.
 - **Not mid-session supervision.** No background watcher; the auto-fire judgment runs once, at the next SessionStart.

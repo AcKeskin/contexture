@@ -11,21 +11,10 @@ function detect() {
   const home = os.homedir();
   const homeClaude = path.join(home, '.claude');
 
-  let cclinePath;
-  if (platform === 'win32') {
-    cclinePath = path.join(homeClaude, 'ccline', 'ccline.exe');
-  } else {
-    cclinePath = path.join(homeClaude, 'ccline', 'ccline');
-  }
-
   return {
     platform,
     home,
     homeClaude,
-    cclinePath,
-    // JSON/settings prefer forward slashes on Windows — Claude Code tolerates
-    // both, forward slashes avoid escaped-backslash ambiguity.
-    cclinePathForSettings: cclinePath.split(path.sep).join('/'),
   };
 }
 

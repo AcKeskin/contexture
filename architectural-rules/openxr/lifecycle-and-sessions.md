@@ -12,7 +12,7 @@ origin: shipped
 
 <!-- id: frame-loop-order --> The frame loop is xrWaitFrame → xrBeginFrame → submit layers → xrEndFrame, in that order, every frame. Skipping xrWaitFrame or reordering the calls is undefined behaviour; the runtime uses the blocking xrWaitFrame to pace the app to the display. (OpenXR: xrWaitFrame, xrBeginFrame, xrEndFrame)
 
-<!-- id: predicted-display-time --> Use XrFrameState::predictedDisplayTime from xrWaitFrame as the time argument to xrLocateSpace, xrGetActionStatePose, and layer projection views. Never substitute wall-clock time or an independent timer; the runtime's prediction is calibrated to the physical display scanout and differs from wall-clock by compositor pipeline depth. (OpenXR: XrFrameState, xrWaitFrame)
+<!-- id: predicted-display-time --> Use XrFrameState::predictedDisplayTime from xrWaitFrame as the time argument to xrLocateSpace and layer projection views (XrFrameEndInfo::displayTime). Never substitute wall-clock time or an independent timer; the runtime's prediction is calibrated to the physical display scanout and differs from wall-clock by compositor pipeline depth. (OpenXR: XrFrameState, xrWaitFrame)
 
 <!-- id: session-state-machine --> Let XrSessionState drive xrBeginSession and xrEndSession. Transition to READY before calling xrBeginSession; transition through STOPPING before calling xrEndSession. Poll events each frame with xrPollEvent; act on XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED. Do not cache state across frames and assume it is still valid. (OpenXR: xrPollEvent, XrSessionState, xrBeginSession, xrEndSession, XrEventDataSessionStateChanged)
 

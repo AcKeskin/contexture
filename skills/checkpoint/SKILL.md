@@ -1,13 +1,13 @@
 ---
 name: checkpoint
-description: Scope-dialed fit-and-intent checkpoint — audits "does this serve the original point + cohere with the whole + what did I learn?" at diff / module / corpus zoom. Auto-detects scope (a diff/PR → diff; just-built module(s) → module; whole history → corpus) with a --scope override. At diff scope it composes /code-review (correctness) + a fit-pass. Batches findings and routes them to /capture / /memory-audit / a proposal. Use on /checkpoint [--scope diff|module|corpus], "does this fit", "did I drift from the point", "step back on what I built". Never auto-fires.
+description: "Scope-dialed fit-and-intent audit — \"does this serve the original point + cohere with the whole + what did I learn?\" — at diff / module / corpus zoom. Auto-detects scope (--scope overrides); diff scope composes /code-review + a fit-pass; batches findings and routes them. Use on /checkpoint, \"does this fit\", \"did I drift\". Never auto-fires."
 ---
 
 # checkpoint
 
 The scope-dialed fit-and-intent organ. One lens — *does this serve the original point, cohere with the whole, and what did I learn?* — delivered at three zoom levels (one verb, no altitude gaps, batch findings). Delegates orientation, baseline-diff, rendering, routing, and persistence to [retrospect-core](../retrospect-core/SKILL.md).
 
-**Where it sits.** Today's diff reviewers (`review` rule-drift, `pr-review` an incoming PR, `code-review` correctness) judge a change *in isolation*; the backward-looking organs (`retrospect`, `system-review`) audit the *whole* by governance category. checkpoint is the missing middle and the missing lens: it asks **fit-and-intent at whatever zoom you're at.** It is the front door that **absorbs `retrospect` + `system-review`** (now [deprecated](#deprecation--absorb-gradually), kept until checkpoint is proven). `memory-audit` (mechanical integrity) and `recap` (per-session episodic) stay separate lenses.
+**Where it sits.** Today's diff reviewers (`review` rule-drift, `pr-review` an incoming PR, `code-review` correctness) judge a change *in isolation*; the corpus passes audit the *whole* by governance category. checkpoint is the middle and the lens: it asks **fit-and-intent at whatever zoom you're at.** Its corpus scope carries the passes absorbed from the retired `retrospect` + `system-review` organs — see [corpus-passes.md](corpus-passes.md). `memory-audit` (mechanical integrity) and `recap` (per-session episodic) stay separate lenses.
 
 ## When to run
 
@@ -40,6 +40,8 @@ Every scope produces `Finding` objects per the [retrospect-core](../retrospect-c
    - **Size the fit question to the autonomy contract's `stopping` posture** ([autonomize](../autonomize/SKILL.md) — read the effective contract): under **`criteria-met`** (default), ask the full fit question above *plus* gold-plating (any finished item tracing to no stated criterion?). Under **`user-anytime`**, do not flag "more could be done" as drift — the posture is freeze-a-coherent-best-so-far and record what remains; the fit question becomes *is what's here coherent and honestly scoped*, not *is it complete*. Under **`diminishing-returns`** / **`budget`**, treat "stopped before perfect" as intended, not a finding. The contract selects which fit question to ask; checkpoint does not redefine fit.
 3. Render **one report, two sections** (correctness from `code-review` + fit from the fit-pass). One action, both lenses.
 
+**Failure modes.** No intent docs found (no vision, no spec) → the fit-pass runs against the surrounding architecture only, and the report header states that it did. Module resolution comes back empty (a clean tree, nothing touched this session) → do not guess a scope; ask the user which module to check.
+
 ### module scope — the post-build checkpoint (the core need)
 
 Over the just-built module(s), four passes:
@@ -50,22 +52,26 @@ Over the just-built module(s), four passes:
 
 When a module-scope checkpoint confirms a built unit is **good and worth keeping** (drift clean, coheres, continue), offer a changelog ship line: *"&lt;unit&gt; checks out — log it to CHANGELOG? (y/N)"*. On `y`, invoke [`skills/update-changelog/SKILL.md`](../update-changelog/SKILL.md) with the unit — it composes a ship line behind its own accept/edit/reject gate. checkpoint is a *doorway*, not the changelog writer. Skip when the checkpoint kills/defers the work (nothing shipped to log).
 
-### corpus scope — the history + system audit (absorbed)
+### corpus scope — the history + system audit
 
-Delegates to the existing `retrospect` passes (decision integrity, intent-vs-shipped, uncaptured lessons, consolidation) and `system-review` passes (organ overlap, dead config, pipeline gaps, vision drift), run through `retrospect-core` — the engine they already share. checkpoint is the front door; the deprecated organs stay callable during the transition.
+Runs the eight corpus passes defined in [corpus-passes.md](corpus-passes.md) — decision & delivery (decision integrity, intent-vs-shipped, uncaptured lessons, consolidation) and organ surface (responsibility overlap, dead config, pipeline gaps, coherence vs vision) — through `retrospect-core`. A slug argument narrows to the conformance sub-mode (spec→ship `MET/PARTIAL/MISSING/EXTRA`) defined there.
 
 ## 3. Findings flow — batch, then apply selected
 
 1. `retrospect-core.orient` + the scope's passes → findings.
 2. `retrospect-core.diff(findings, baseline)` → NEW/CARRIED/RESOLVED tagging (baseline at `.claude/checkpoints/<scope-slug>/latest.md`).
 3. `retrospect-core.render(report)` → the review-output-contract **batch report**: header (with the resolved scope), the findings, a Severity × Pass matrix, the mandatory diagram, the structurally-required "looks bad but actually fine" section.
-4. **Select, don't loop.** Present the whole batch, then ask the user to **pick which findings to apply/route** in one pass (e.g. *"apply 1,3,4 / all / none / show <id>"*) — not a per-finding confirm sequence. This is the efficiency "conversations" axis: one round-trip, not N.
+4. **Select, don't loop.** Present the whole batch, then ask the user to **pick which findings to apply/route** in one pass (e.g. *"apply 1,3,4 / all / none / wontfix &lt;id&gt; &lt;reason&gt; / show &lt;id&gt;"*) — a `wontfix` selection carries per the engine's `WONT_FIX` semantics (durable reason, carried forward tagged, suppressed from Quick wins) — not a per-finding confirm sequence. This is the efficiency "conversations" axis: one round-trip, not N.
 5. `retrospect-core.route` on the **selected set only** — each routes by its `route` (capture / memory-audit / proposal / direct-fix). Unselected findings stay in the persisted report for next time.
 6. `retrospect-core.persist(report, scope-slug)` — the next run's baseline.
+7. **Record findings to scratch.** Write one entry per finding via the `write_memory` MCP tool (`tier: scratch`, current `session_id`) — the same tier `/execute` §3d.1 writes to, never a parallel path. Applies at **every scope** (diff / module / corpus): a fit-and-intent observation accrues exactly like a verification outcome, so a resumed session knows what this checkpoint already found instead of re-deriving it.
 
-## Deprecation — absorb gradually
+   - `salience: normal` for every finding — a checkpoint finding is never routine, so none of them are the low-salience case.
+   - `provenance: user-said` for a finding the user confirmed or raised in the select step; `model-inferred` for one the passes produced on their own. A user's ruling on a finding is their judgment, not the model's inference.
+   - Write **all** findings, not just the selected ones. An unselected finding is precisely the context a resumed session would otherwise re-derive and re-present — and the persisted report already keeps it for next time.
+   - Where a finding overturns an earlier in-session observation, set `supersedes` to that entry's `ts` so the corrected reading replaces the stale one.
 
-`retrospect` and `system-review` are **deprecated, not deleted**: their SKILL.md frontmatter carries `deprecated: true` and a "use `/checkpoint --scope corpus`" note, and they remain fully functional. They retire only once `/checkpoint` is proven in real use. Until then checkpoint is the **primary** surface and they are the **fallback** — one depends on the other's engine (`retrospect-core`), so the two surfaces can't silently diverge.
+   Best-effort, same as §3d.1 in execute: a failed scratch write never blocks the findings flow, but repeated failures are surfaced once rather than swallowed. Scratch is disposable and TTL'd — nothing here reaches durable memory except through the `capture` route in step 5.
 
 ## What checkpoint does NOT do
 
@@ -74,12 +80,11 @@ Delegates to the existing `retrospect` passes (decision integrity, intent-vs-shi
 - **Does not duplicate `code-review`.** At diff scope it *invokes* it for correctness and adds the fit lens; the lenses stay distinct.
 - **Does not absorb `memory-audit` or `recap`.** Mechanical integrity and per-session episodic are different lenses; both stay separate (recap *feeds* the corpus scope).
 - **Does not re-implement the engine.** orient / diff / render / route / persist are `retrospect-core`'s.
-- **Does not delete `retrospect` / `system-review` yet.** Deprecate-then-retire, not delete-now.
 
 ## Relationship to other organs
 
 - **retrospect-core** — the shared engine (orient/diff/render/route/persist + the batch-select render/route mode this organ uses).
-- **retrospect / system-review** — deprecated; checkpoint's corpus scope runs their passes via the shared engine.
+- **corpus-passes.md** — the corpus-scope pass definitions (absorbed from the retired retrospect / system-review organs).
 - **code-review** — composed at diff scope for the correctness lens.
 - **capture / memory-audit / proposals** — the routing targets.
 - **recap** — the per-session feeder to the corpus scope (unchanged).

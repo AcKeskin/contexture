@@ -1,4 +1,5 @@
 import type { ParsedMemory, Relation } from "../lib/frontmatter.js";
+import type { ScratchEntry } from "../lib/scratch.js";
 
 export interface ScoreQuery {
   taskKeywords?: string[];
@@ -291,4 +292,84 @@ function daysBetween(from: string, to: string): number | null {
   const b = Date.parse(to);
   if (Number.isNaN(a) || Number.isNaN(b)) return null;
   return Math.round((b - a) / 86_400_000);
+}
+
+// ---------------------------------------------------------------------------
+// Scratch tier
+// ---------------------------------------------------------------------------
+
+export interface ScoredScratch {
+  entry: ScratchEntry;
+  score: number;
+  matches: string[];
+}
+
+const SCRATCH_WEIGHT = {
+  /**
+   * `user-said` outranks `model-inferred`. The Mem0 `infer=False` lesson: an
+   * observation the user stated is higher-trust than one the model concluded,
+   * and collapsing that distinction is how an inferred mistake acquires the
+   * authority of a stated fact.
+   */
+  userSaid: 2,
+  keyword: 1,
+  /** Recency tiebreak within a session — later observations reflect more context. */
+  recent: 1,
+} as const;
+
+/**
+ * Rank a session's scratch stream for retrieval.
+ *
+ * Salience is deliberately absent from this function. It governs PROMOTION
+ * candidacy only: a `low` entry (a passing verification step) must still
+ * reload on resume, because telling a resumed session what is already verified
+ * is the entire reason the tier exists. Filtering low-salience at retrieval
+ * would defeat the re-orientation payoff while saving nothing durable.
+ *
+ * TTL and contradiction reconciliation happen before this: callers pass an
+ * already-reconciled, already-session-scoped stream (see `reconcile`).
+ */
+export function scoreScratch(
+  entries: ScratchEntry[],
+  query: { taskKeywords?: string[]; limit?: number },
+): ScoredScratch[] {
+  const keywords = (query.taskKeywords ?? []).map((k) => k.toLowerCase());
+  const out: ScoredScratch[] = [];
+
+  // Index positions so a later entry can win a tie without a clock read.
+  const lastIndex = entries.length - 1;
+
+  entries.forEach((entry, i) => {
+    const matches: string[] = [];
+    let score = 0;
+
+    if (entry.provenance === "user-said") {
+      score += SCRATCH_WEIGHT.userSaid;
+      matches.push("provenance:user-said");
+    }
+
+    const haystack = `${entry.observation} ${entry.reason}`.toLowerCase();
+    for (const kw of keywords) {
+      if (kw && haystack.includes(kw)) {
+        score += SCRATCH_WEIGHT.keyword;
+        matches.push(`keyword:${kw}`);
+      }
+    }
+
+    // Every surviving entry is retrievable — scratch is small, session-scoped,
+    // and its value is completeness on resume, not selectivity. Keywords and
+    // provenance order the list; they do not gate membership.
+    if (i === lastIndex && entries.length > 1) {
+      score += SCRATCH_WEIGHT.recent;
+      matches.push("recent");
+    }
+
+    out.push({ entry, score, matches });
+  });
+
+  out.sort((a, b) => b.score - a.score);
+  // Bounded so a long session cannot blow the always-on context budget. The
+  // cap keeps the HIGHEST-ranked entries, which is why recency is a scoring
+  // signal rather than a post-sort slice.
+  return typeof query.limit === "number" ? out.slice(0, query.limit) : out;
 }

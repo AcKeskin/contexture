@@ -182,7 +182,7 @@ On confirmation it writes a normal `submodules.md` row — **the same format def
 
 ## Evolving this doc
 
-The manifest formats are evolving artefacts. When fields are added later, this doc versions via the supersede discipline (per the version-evolving-artefacts decision) — a dated amendment block, original schema intact above — not a silent rewrite.
+The manifest formats are evolving artefacts. When fields are added later, this doc versions by appending a new version with a supersedes pointer, never overwriting — a dated amendment block, original schema intact above — not a silent rewrite.
 
 ## Consumers
 

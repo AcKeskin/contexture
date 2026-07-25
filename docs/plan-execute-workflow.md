@@ -49,6 +49,8 @@ Interview the user with `AskUserQuestion`. Probe technical implementation, UI/UX
 
 Output: `.claude/specs/<slug>/v<N>.md`. Sections: Problem, Goals, Non-goals, User-facing behavior, Technical approach, Constraints, Grounded context, Open questions, Verification criteria. Plus a `Changes from v<N-1>` section on evolutions.
 
+**Port and parity work reads the code first.** When the feature already exists somewhere — another platform, a sibling subsystem — that implementation *is* the requirements document, and interviewing from zero re-derives from memory what the repo already states exactly. On a port-shaped framing ("like X but for Y", "same as the desktop version"), spec sweeps for candidate bases, asks which is canonical (surfacing any drift between siblings as a requirements question), then interviews on **divergence only** — the evolve flow's delta discipline against a code baseline. The result is a `## Base implementation` section, parity-shaped done-criteria ("behaviours 1–7 of the base hold on the target"), and an explicit answer to port-copy-vs-extract-shared-core. Bases in another repo come from your nomination or a memory pointer — never an unprompted scan. No port framing, no pass.
+
 Specs evolve — `/spec <slug>` defaults to evolving the active version (interview only on diffs, write `v<N+1>`, mark old version `superseded`). Old versions are kept for archaeology. `/spec <slug> --abandon` marks the slug abandoned without writing a new file.
 
 `/spec` does NOT implement. It writes the file and updates `.claude/specs/INDEX.md`, then stops.
@@ -71,7 +73,7 @@ Output: `.claude/plans/<slug>/v<N>.md`, with frontmatter `spec:` pinning the exa
 
 Choose an execution strategy up front — `--strategy sequential|subtask|multi-agent` (multi-agent routes to `/orchestrate`) + a prompting cadence `--cadence per-step|on-failure-only|milestones`; default is sequential + per-step, so it's additive. Then run the plan step-by-step. Per step:
 1. Re-prep if crossing a module boundary.
-2. Offer subagent delegation if tagged `[delegate]` / `[research]` or touches >5 files.
+2. Decide where the step runs (see *Executor grade* below): offer subagent delegation if tagged `[delegate]` / `[research]`; route a `[mechanical]` step to the cheap tier without prompting.
 3. Implement the change.
 4. Run the verification. Pass = advance. Fail = stop, surface, ask.
 
@@ -175,16 +177,22 @@ Anthropic recommends fresh context per phase. `/spec` prompts the user to start 
 
 `/draft-plan` does NOT force a new session before `/execute` — the plan file itself is the context hand-off. Execute can run in the same session as plan with no context leakage, because execute's input is the file, not the prior conversation.
 
-## Subagent delegation
+## Executor grade, delegation, and tier routing
 
-`/execute` delegates a step to a fresh subagent when:
-- Step is tagged `[delegate]` in the plan.
-- Step is tagged `[research]`.
-- Step touches >5 files.
+Delegating a step to a fresh subagent and routing it to a cheaper model tier are the same decision — both hand the step to an executor that doesn't share the session. Both read the same two criteria, and neither reads a file count:
 
-At the moment of delegation, the user is asked to confirm. Default-on, user-interruptible.
+1. **Self-contained** — the step carries a `Current state` excerpt and an `Exemplar` path.
+2. **Mechanically verifiable** — its Verification is command-shaped, or artifact-shaped with the exact check spelled out. User-attested verification disqualifies it.
 
-Subagent returns a summary. Execute integrates the summary, then runs the verification in the main context — never accepts the subagent's "it's done" unverified.
+**Strict plans (`/draft-plan <slug> --executor cheap`).** Drafts for an executor that reasons less capably: *every* step gets the self-containment fields, every judgment call is closed at draft time (a name chosen, not "pick a sensible name"), and commands appear verbatim. Steps are tagged `[mechanical]` or `[judgment]`. It costs more to author and goes stale faster, so it's opt-in — worth it on mechanical-heavy plans (migrations, scaffolding, rename sweeps), not on small or judgment-heavy ones.
+
+**The verification-shape rule is what makes cheap execution safe.** Strict prose raises the odds of a correct execution; only a mechanical check catches an incorrect one. So `[mechanical]` is legal only on a step whose verification a command can settle. The cheap tier itself resolves from `~/.claude/hook-config.json`, never from a model name written into a plan or skill.
+
+**At execute time:** `[delegate]` / `[research]` steps ask before delegating (default-on, user-interruptible). `[mechanical]` steps route to the cheap tier *without* prompting — routing follows the autonomy contract's `ask` posture, and a tagged, gated step isn't a fork. `[judgment]` steps always run in the main context.
+
+**Two escalation rules protect the routed path.** Before running a routed step, execute re-checks that its `Current state` excerpt still matches the file; a mismatch escalates to the main context rather than letting a remote executor reconcile stale drift. And a step that fails verification twice outside the main context escalates instead of retrying at the same tier — two failures mean the executor can't do it, not that it needs another try.
+
+A subagent returns a summary; execute integrates it and runs the verification in the main context — never accepts "it's done" unverified.
 
 ## Verification discipline
 

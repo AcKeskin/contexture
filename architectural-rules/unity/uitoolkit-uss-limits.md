@@ -33,6 +33,6 @@ USS looks like CSS but the supported subset is small. Generating "valid CSS" wit
 
 - USS class names and CSS variable names stay English. Localize visible *text*, not selectors.
 - Prefer one root UXML per screen with `<Style src="..."/>` for shared stylesheets. Inline `style=""` on UXML elements is allowed but defeats theming — use classes.
-- Read [Unity-Skills' USS_REFERENCE.md](https://github.com/Besty0728/Unity-Skills/blob/main/SkillsForUnity/unity-skills~/skills/uitoolkit/USS_REFERENCE.md) before generating non-trivial USS systems — it has worked patterns for cards, modals, scrollers.
+- Read the Unity Manual's "USS properties reference" (UI Toolkit) before generating non-trivial USS systems; the unsupported-property table above is the short form.
 
 **Why:** USS uses the Yoga flex engine, not a CSS engine. Anything outside flex + transforms either silently no-ops or produces a layout that looks right in the snapshot and breaks at a different resolution. The unsupported list is stable across Unity 2022.3 → Unity 6.

@@ -1,6 +1,6 @@
 ---
 name: write-tests
-description: Author a quality test suite for EXISTING code to a standard. Detects the project's test framework + conventions (reusing the project's extracted test conventions where present), proposes a confirmable test plan (cases + rationale) before writing, delegates idiomatic authoring to the scope's language-pro agent, and defaults to a characterization-with-flags stance — pins current behavior but flags suspicious-as-bug rather than enshrining it. Optionally runs the suite; on failure surfaces the test-vs-code discrepancy rather than auto-adjusting, and reports covered AND deliberately-not-covered. Use when the user types /write-tests or asks to write / add / author tests for existing code. Mode A only — never auto-fire.
+description: "Author a quality test suite for EXISTING code — detects framework + conventions, proposes a confirmable test plan before writing, delegates idiomatic authoring to the scope's language-pro agent, pins current behavior but flags suspicious-as-bug. Use on /write-tests or \"write / add tests for existing code\". Mode A — never auto-fires."
 ---
 
 # write-tests
@@ -99,7 +99,7 @@ After writing, optionally run the authored suite (ask, or run when the framework
 
 This is the systematic-debugging posture: a failing test is a *question about which side is right*, not a prompt to paper over the test. Auto-changing the expected value to match observed output would defeat the entire purpose — it makes any code "pass."
 
-**Coverage honesty** (the enumerable-audit discipline): the report ends by stating what was covered **and what was deliberately not**, with reasons:
+**Coverage honesty** — an audit is complete only for the classes it enumerated, so list what was checked: the report ends by stating what was covered **and what was deliberately not**, with reasons:
 
 > Covered: happy path, empty-input boundary, the null-customer branch, the overdraft error path.
 > Did NOT cover: the logging side-effect (framework-guaranteed), the private `normalize` helper (tested via its public callers), concurrent access (out of scope — flag if you want it).
@@ -123,10 +123,10 @@ Do not invoke `/review`, do not commit. The authored tests are the user's to run
 
 ## Relationship to other organs
 
-- **test-driven-development** — the sibling workflow: test-*first* for new code. `/write-tests` is test-*after*, pointed at existing code. Both honor the same `test-quality.md` standard; the horizontal-vs-vertical ordering lesson governs the order within an authored suite (one behavior at a time).
+- **test-driven-development** — the sibling workflow: test-*first* for new code. `/write-tests` is test-*after*, pointed at existing code. Both honor the same `test-quality.md` standard; within an authored suite the order is one behavior per cycle — a test, then its implementation, before the next test.
 - **testability design rule** — the code-side pair. `test-quality.md` is the test side; testability is the code side. When authoring hits friction, surface a testability finding rather than working around it.
 - **review** — audits existing tests against `test-quality.md` (the same standard this writes to). `/write-tests` authors; `/review` audits.
-- **convention-extraction** — supplies the project's extracted test conventions (framework, naming, layout) this conforms to where present.
+- **extract-conventions** — supplies the project's extracted test conventions (framework, naming, layout) this conforms to where present.
 - **rule-prime-hook** — primes `test-quality.md` under `when-writing-tests`, so the standard is in context before the suite is written.
 - **language-pro agents** — own idiomatic test authoring (§5). Dispatched with positive scope + hard placement, no further spawn.
 

@@ -12,4 +12,4 @@ relevance: when-language-cpp
 - Destructors do not throw.
 - `noexcept` on move constructors / move assignment where achievable — standard library containers depend on it.
 
-**Why:** silent failures in C++ become corrupted state. Explicit errors are the minimum insurance against that.
+**Why:** silent failures in C++ become corrupted state. Explicit errors are the minimum insurance against that. Source: C++ Core Guidelines (E.2, E.6, C.36, C.37).

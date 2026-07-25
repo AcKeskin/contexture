@@ -61,13 +61,3 @@ When a user picks `(i)gnore` for a match in capture's step 7a, log the case here
 | Date | Pattern | Sanitized match | Why false positive |
 |------|---------|-----------------|--------------------|
 | (none yet) | | | |
-
-## Vetting notes (initial set)
-
-These were the decisions made when lifting the seed set:
-
-- `password-assignment` could fire on documentation snippets like `password = "your-password-here"`. Accepted: better to flag and let the user dismiss than to miss a real password. The `(i)gnore` path is fast.
-- `bearer-token` could fire on abstract examples like `Bearer abc123`. Same trade — flag, let the user dismiss.
-- `openai-api-key` (`sk-[a-zA-Z0-9]{20,}`) could collide with non-OpenAI things (Stripe non-live keys, file IDs starting `sk-`). Acceptable false-positive risk given the threat model.
-- The `private-key` pattern matches the BEGIN line only; the body of a private key block won't trigger further matches. By design — surfacing the BEGIN line is enough to halt the capture and prompt the user to abort or edit out the whole block.
-- All patterns use literal anchors (`AKIA`, `ghp_`, `xox`, etc.) where possible. High specificity keeps false-positive rates low on technical writing about systems.

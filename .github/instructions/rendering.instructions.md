@@ -28,7 +28,7 @@ When quantizing from float to 8-bit UNORM at output, apply a small triangular or
 
 ## Compute and GPGPU Discipline
 
-Size workgroups to multiples of the hardware warp/wavefront width (32 for NVIDIA, 32/64 for AMD, 32 for Intel Xe, 32/64 for Mali/Adreno); a non-multiple wastes lanes and reduces occupancy. Expose workgroup size as a specialization constant or compile-time define rather than a hardcoded literal so it can be tuned per target. (Vulkan spec §10.7; GLSL compute shader local_size; CUDA occupancy model)
+Size workgroups to multiples of the hardware warp/wavefront width (query it — `VkPhysicalDeviceSubgroupProperties::subgroupSize`, `gl_SubgroupSize`, or `WaveGetLaneCount`; commonly 4-128 across vendors); a non-multiple wastes lanes and reduces occupancy. Expose workgroup size as a specialization constant or compile-time define rather than a hardcoded literal so it can be tuned per target. (Vulkan spec §10.7; GLSL compute shader local_size; CUDA occupancy model)
 
 Between any two dispatches where the second reads data written by the first, insert the minimal required barrier: a compute-to-compute memory barrier (Vulkan vkCmdPipelineBarrier with COMPUTE→COMPUTE scope and SHADER_WRITE→SHADER_READ access) or equivalent; omitting it yields a data race with no guaranteed ordering. (Vulkan spec §7 "Synchronization and Cache Control"; GLSL memoryBarrier() for intra-group sync)
 
@@ -94,6 +94,6 @@ Partition descriptor sets by update frequency: set 0 = per-frame globals (camera
 
 Vertex shader outputs and fragment shader inputs must match by name and type (GLSL) or by semantic (HLSL); mismatches produce either a link error or silently zero-initialized inputs depending on driver. Validate with SPIR-V cross-compilation or shader reflection rather than relying on driver leniency. (GLSL 4.60 spec §4.3.4 "Input Variables"; SPIR-V spec §2.16 "Validation Rules")
 
-Prefer Vulkan specialization constants or compile-time #define variants over dynamic uniform booleans driving large if/else trees inside shaders; the GPU executes both branches of a divergent uniform-driven branch on many architectures, wasting ALU. (Vulkan spec §10.7 "Specialization Constants"; NVIDIA GPU Best Practices Guide)
+Prefer Vulkan specialization constants or compile-time #define variants over dynamic uniform booleans driving large if/else trees inside shaders; a runtime-uniform branch is not divergent, but it does block specialization — the compiler cannot constant-fold or dead-code-eliminate either side, so registers are allocated for the union of both paths and occupancy drops. (Vulkan spec §10.7 "Specialization Constants"; NVIDIA GPU Best Practices Guide)
 
 **Why:** CPU-GPU interface bugs (alignment, binding collisions, packing) are silent, often surface only on specific drivers or hardware, and cause corrupted visuals or GPU faults that are difficult to correlate to the source struct. Named bindings and explicit layout annotations make mismatches detectable at compile or link time. Source: GLSL 4.60 core spec §7.6; HLSL Language Specification §13; Khronos Vulkan descriptor set best practices.

@@ -69,9 +69,9 @@ Each agent gets:
 
 ```typescript
 // In Claude Code / AI environment
-Task("Fix agent-tool-abort.test.ts failures")
-Task("Fix batch-completion-behavior.test.ts failures")
-Task("Fix tool-approval-race-conditions.test.ts failures")
+Agent("Fix agent-tool-abort.test.ts failures")
+Agent("Fix batch-completion-behavior.test.ts failures")
+Agent("Fix tool-approval-race-conditions.test.ts failures")
 // All three run concurrently
 ```
 
@@ -145,7 +145,7 @@ Some agents under `agents/` declare an `## Output contract` section specifying a
 
 **Opt-in is per-agent and detected automatically:** add `## Output contract` and `## Required reads` sections to the agent's `.md` and the hook starts checking on the next dispatch. There is no allow-list to maintain. Agents without those sections are unchanged in behaviour.
 
-**Pilot agents (v1):** `c-sharp-pro`, `unity-pro`. The advisory is informational — it never rejects the agent response, so an orchestrator that needs strict compliance must re-dispatch on its own initiative.
+The advisory is informational — it never rejects the agent response, so an orchestrator that needs strict compliance must re-dispatch on its own initiative.
 
 ## Harvesting subagent state
 

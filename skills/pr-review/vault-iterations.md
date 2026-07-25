@@ -64,22 +64,42 @@ iteration_log:
     date: <YYYY-MM-DD>
     verdict: APPROVE
     findings: { critical: 0, high: 0, medium: 1, low: 1 }
+    status: { open: 0, claimed: 0, fixed: 8, wontfix: 1 }   # sum tracks prior findings
     head_sha: <commit sha at time of review>
 verdict: <latest iteration verdict>
+open_or_claimed: 0    # > 0 means the review is NOT done — items unverified
 ```
+
+`open_or_claimed` on the root frontmatter is the single at-a-glance "is this actually closed?" number. A `Code Reviews.base` view can filter `open_or_claimed > 0` to list reviews with unfinished verification.
+
+## Finding status (carried across iterations)
+
+Every finding carries a status, stable with its ID across iterations:
+
+| status | meaning |
+|---|---|
+| `open` | found, not addressed |
+| `claimed` | author / a GitHub "resolved" mark says it's done, but **I have not verified it against the new diff** — not the same as fixed |
+| `fixed` | **I verified it against the new diff** and cite the commit/hunk that resolved it |
+| `wontfix` | accepted as-is, with a reason |
+
+**Verify-before-fixed rule.** Never move a finding to `fixed` on the author's word or a GitHub "resolved" mark alone — that lands in `claimed` until *you* check the new diff and cite the evidence. Only evidence promotes `open`/`claimed` → `fixed`. **A review pass is not done while any finding is `open` or `claimed`** — that unverified-`claimed` bucket is exactly what otherwise slips through.
 
 ## Iteration delta in the body
 
-Each `iteration-N.md` (N ≥ 2) starts with a short delta against the prior iteration:
+Each `iteration-N.md` (N ≥ 2) starts with a short delta against the prior iteration, grouped by status:
 
 ```markdown
 ## Delta vs iteration <N-1>
 
-- Resolved since last pass: F003, F007, F012 (3 of 11 prior findings).
-- Still open: F001 (Critical — SQL injection), F005 (High — null guard missing).
-- New in this iteration: F-N1 (Medium — race in retry path).
-- Author responses noted: F005 marked "won't fix per discussion in PR thread" — kept open pending discussion.md.
+- ✅ Verified fixed (checked vs diff): F003 (commit abc123, hsr_config.cpp L27), F007.
+- ⚠️ Claimed but UNVERIFIED: F012 — author marked resolved; not yet checked. **Verify before closing the review.**
+- 🔴 Still open: F001 (Critical — SQL injection), F005 (High — null guard missing).
+- 🆕 New this iteration: F-N1 (Medium — race in retry path).
+- 🚫 Won't fix: F009 — accepted per discussion in the PR thread.
 ```
+
+Nothing goes under "Verified fixed" without a cited hunk/commit. If you could not check an item, it stays under "Claimed but UNVERIFIED", never "fixed".
 
 Finding IDs from prior iterations are stable — when a finding carries forward, reuse the prior ID (`F001` stays `F001` across iterations). New iteration-only findings use a `F-<N><k>` naming (`F-21` for iteration 2's first new finding) to make iteration-of-origin obvious without colliding with iteration 1's numbering.
 

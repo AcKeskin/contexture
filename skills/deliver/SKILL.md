@@ -1,6 +1,6 @@
 ---
 name: deliver
-description: Render a selection of retrieved fragments into Claude's working context per the deliver format contract. Library-only — callable by other skills (discover, prep, review, future plan) that need to present bodies, not a user-invoked skill. Stateless.
+description: Render a selection of retrieved fragments into Claude's working context per the deliver format contract. Library-only — callable by other skills (discover, prep, review, retrospect-core) that need to present bodies, not a user-invoked skill. Stateless.
 ---
 
 # deliver

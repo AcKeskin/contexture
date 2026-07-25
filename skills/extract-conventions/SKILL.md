@@ -1,6 +1,6 @@
 ---
 name: extract-conventions
-description: Observe a scope's dominant code conventions and write a project-tier conventions.md rule that overrides universal defaults for that scope. Hybrid detection — mechanical conventions (case style, prefixes, import ordering) deterministically via detect.mjs, semantic conventions (comment style, idioms) by model judgment flagged lower-confidence. Per-category propose-confirm-commit gate; nothing written until accepted. Idiomatic authoring delegated to the scope's language-pro agent. Conflicts with shipped universal rules surfaced at confirm time, never silently overridden. Use when the user types /extract-conventions or asks to capture / extract / codify a codebase's conventions or house style. Mode A only — never auto-fire.
+description: "Observe a scope's dominant code conventions and write a project-tier conventions.md rule overriding universal defaults — mechanical patterns detected deterministically, semantic ones flagged lower-confidence; per-category confirm gate; conflicts with shipped rules surfaced, never silently overridden. Use on /extract-conventions or \"codify the house style\". Mode A — never auto-fires."
 ---
 
 # extract-conventions
@@ -117,7 +117,7 @@ When a contradiction is found, surface it **at confirm time** using the `contrad
 >   (d)rop — keep the shipped rule; omit this convention
 >   (k)eep-both — write the convention without the override note (not recommended; the overlay will still resolve project-tier-wins, but the divergence won't be auditable)
 
-Default to **override-with-note** on explicit user choice — the file never *silently* shadows a shipped rule. The note + `contradicts` relation is what makes the divergence visible to `/rules` and to a future reviewer.
+Default to **override-with-note** on explicit user choice — the file never *silently* shadows a shipped rule. The note + `contradicts` relation is recorded in the rule file for a future reviewer.
 
 ### 6. Author the conventions prose (language-pro delegated)
 

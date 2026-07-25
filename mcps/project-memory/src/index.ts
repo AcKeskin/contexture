@@ -9,6 +9,10 @@ import {
 } from "./tools/recent-sessions.js";
 import { getMemorySchema, getMemoryHandler } from "./tools/get-memory.js";
 import { traceSchema, traceHandler } from "./tools/trace.js";
+import {
+  writeMemorySchema,
+  writeMemoryHandler,
+} from "./tools/write-memory.js";
 
 const server = new McpServer({
   name: "project-memory",
@@ -41,6 +45,13 @@ server.tool(
   "Trace transitive callers / callees of a symbol through the codemap's structural graph (call / file-dep / class edges). Answers 'who calls X', 'what does X reach', impact analysis. Syntactic / name-matched — best-effort, not type-resolved.",
   traceSchema,
   traceHandler,
+);
+
+server.tool(
+  "write_memory",
+  "Write an observation to project memory. `tier: scratch` appends a session-scoped, TTL'd, disposable entry (a decision / discovery / corrected assumption — never a tool-log) that reloads on resume so re-orientation is a read. `tier: canonical` is refused without capture's confirmed gate — /capture owns durable authoring.",
+  writeMemorySchema,
+  writeMemoryHandler,
 );
 
 async function main() {

@@ -281,12 +281,12 @@ Examples (matching the existing convention):
 
 **Diagram (mandatory)** per the review output contract (mermaid preferred; N/A only with a one-line why). Skill-specific portability nuance: the global convention prefers ASCII for portability, but mermaid is allowed and preferred for new files when the structure is graph-shaped.
 
-**First review:** write the flat `PR-<NNN> — <Title>.md` per above, with frontmatter:
+**First review:** write the flat `PR-<NNN> — <Short-Title>.md` per above, with frontmatter:
 
 ```yaml
 ---
 pr: <NNN>
-title: <Title>
+title: <Short-Title>
 repo: <repo>
 url: <PR url>
 ticket: <ticket id or null>
@@ -311,7 +311,7 @@ verdict: <latest iteration verdict>
 ---
 ```
 
-**Re-reviews:** if a review file or folder for this PR already exists in the vault, read [vault-iterations.md](vault-iterations.md) and follow it — it owns promotion to a per-iteration subfolder, the iteration delta format, and iteration-specific failure modes, extending the same `iteration_log` frontmatter schema.
+**Re-reviews:** if a review file or folder for this PR already exists in the vault, read [vault-iterations.md](vault-iterations.md) and follow it — it owns promotion to a per-iteration subfolder, the per-finding status model (`open`/`claimed`/`fixed`/`wontfix`) with the **verify-before-fixed** gate, the iteration delta format, and iteration-specific failure modes, extending the same `iteration_log` frontmatter schema. Do not mark a prior finding fixed on the author's word or a GitHub "resolved" mark — verify against the new diff first, else it stays `claimed`.
 
 **Failure modes:**
 

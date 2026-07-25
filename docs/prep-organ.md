@@ -161,3 +161,10 @@ Cons: subagents are heavier than skills; multiplying them risks fragmentation; t
 - Drift prompt fires too often. Budget is 1-per-3 file operations — if hitting more, the primed scope is probably too narrow. Re-prep with broader scope, or propose a budget adjustment.
 - Drift prompt never fires despite visible scope changes. Claude's own judgement failed — use `/prep` manually to re-prime. Flag if systemic.
 - Push-back → capture proposal isn't appearing when it should. Likely Claude attributed the correction to an already-primed rule. Confirm by asking Claude *"Is this a new rule, or did I miss one?"*.
+
+## Why prep and the rule-prime hook are both needed
+
+The hook owns the *floor* — always + project + single-language tier at SessionStart, incremental tiers at UserPromptSubmit — and records what it primed in the `rulePrime` session watermark. Prep reads that watermark and runs the *deep* pass on top: higher top-N, the task-specific domain tier, the architecture file. It does not re-prime what the hook already placed.
+
+Prep + hook are the same belt-and-suspenders shape as the persist-before-discard rule + clear-context-decision-guard hook pair: prep is the discretionary deep prime, the hook is the mechanical floor backstop. The rule half is intent-shaping (don't *suggest* clearing with decisions pending); the hook half recovers at the next session start. In both pairs, **drift between the two halves is a flag** — if the floor the hook primes and the deep set prep adds disagree, one of them is stale.
+

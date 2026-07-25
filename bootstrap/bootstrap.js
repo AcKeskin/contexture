@@ -2,8 +2,7 @@
 'use strict';
 
 // Bootstrap entry. Idempotent: safe to re-run. Per-machine install — clones
-// have already happened; this wires contexture into ~/.claude/ and
-// installs per-machine tools (CCometixLine).
+// have already happened; this wires contexture into ~/.claude/.
 
 const fs = require('fs');
 const path = require('path');
@@ -12,12 +11,11 @@ const { execFileSync } = require('child_process');
 const { detect } = require('./lib/platform');
 const { linkDir, linkItems, pruneOrphans } = require('./lib/link');
 const { resolveSettings, writeSettings } = require('./lib/settings');
-const { ensureInstalled: ensureCcline } = require('./lib/ccline');
 const { verifyAll, formatReport, scanLeaks, formatLeakReport, planLeakFixes, verifyInstructionGlobs, formatInstructionGlobReport } = require('./lib/verify');
 const { loadEnablement, excludeFor, isFilterable } = require('./lib/enablement');
 const { loadManifest } = require('./lib/copy-manifest');
 const { makeBackupSession } = require('./lib/backup');
-const { registerMcps, MCP_MANIFEST } = require('./lib/mcps');
+const { registerMcps, registerCopilotMcps, MCP_MANIFEST } = require('./lib/mcps');
 
 // Subtree link mode.
 //   'whole' — directory owned exclusively by contexture; link the whole dir.
@@ -32,10 +30,16 @@ const { registerMcps, MCP_MANIFEST } = require('./lib/mcps');
 //             symlinks. Targets Copilot CLI's native `.github/skills/` scan dir:
 //             a bare clone (no symlink permission) must still expose the skills,
 //             and Copilot CLI reads real files, not links into ~/.claude.
+//             Repo-relative: PROJECT-scoped, only seen when Copilot runs in-repo.
+//   homeCopyMirror — like copyMirror but HOME-relative (resolved against the
+//             user home, not the repo). Targets Copilot CLI's PERSONAL skill dir
+//             `~/.copilot/skills/`, the every-directory scan location — so skills
+//             are available in every project under Copilot, matching the global
+//             `~/.claude/skills/` install for Claude Code.
 const SYNCED_SUBTREES = [
   { name: 'claude-md', mode: 'whole' },
-  { name: 'architectural-rules', mode: 'whole' },
-  { name: 'skills', mode: 'items', inRepoMirror: '.claude/skills', copyMirror: '.github/skills' },
+  { name: 'architectural-rules', mode: 'whole', homeCopyMirror: '.copilot/architectural-rules' },
+  { name: 'skills', mode: 'items', inRepoMirror: '.claude/skills', copyMirror: '.github/skills', homeCopyMirror: '.copilot/skills' },
   { name: 'commands', mode: 'items' },
   { name: 'agents', mode: 'items' },
   { name: 'hooks', mode: 'items' },
@@ -56,7 +60,7 @@ async function main(argv) {
   const subtrees = SYNCED_SUBTREES.filter((s) => !excluded.has(s.name));
 
   if (flags.verify) {
-    const result = verifyAll({ repoRoot, homeClaude: env.homeClaude, subtrees });
+    const result = verifyAll({ repoRoot, homeClaude: env.homeClaude, home: env.home, subtrees });
     log(formatReport(result));
     // Share-readiness leak scan — ADVISORY. Reported but never
     // changes the exit code; only link drift (above) is blocking.
@@ -138,6 +142,14 @@ async function main(argv) {
           log(`prune ${sub.name} (copy): would remove orphan '${path.basename(p.dst)}'`)
         );
       }
+      if (sub.homeCopyMirror) {
+        log(`copy ${sub.name}: would copy ${shape} ${src} → ${path.join(env.home, sub.homeCopyMirror)}`);
+        if (sub.mode === 'items') {
+          pruneOrphans(src, path.join(env.home, sub.homeCopyMirror), { dryRun: true }).forEach((p) =>
+            log(`prune ${sub.name} (home-copy): would remove orphan '${path.basename(p.dst)}'`)
+          );
+        }
+      }
       continue;
     }
     if (sub.mode === 'items') {
@@ -180,33 +192,44 @@ async function main(argv) {
           log(`prune ${sub.name} (copy): removed orphan '${path.basename(p.dst)}'`)
         );
       }
+
+      // Home copy mirror: real-file copies into Copilot CLI's PERSONAL scan dir
+      // `~/.copilot/skills/`, so the skills are discovered in every project, not
+      // only when Copilot runs inside this repo.
+      if (sub.homeCopyMirror) {
+        const homeDst = path.join(env.home, sub.homeCopyMirror);
+        const homeResults = linkItems(src, homeDst, { only: linkSet, forceCopy: true, manifest: copyManifest });
+        const homeGc = filterable
+          ? collectExcluded({ exclude, dst: homeDst, backupSession, subtreeName: `${sub.name} (home-copy)` })
+          : [];
+        reportItems(`copy ${sub.name} (home)`, homeResults.concat(homeGc));
+        pruneOrphans(src, homeDst).forEach((p) =>
+          log(`prune ${sub.name} (home-copy): removed orphan '${path.basename(p.dst)}'`)
+        );
+      }
     } else {
       const result = linkDir(src, dst, { manifest: copyManifest });
       report(`link ${sub.name}`, result);
+
+      // Home copy mirror for whole-dir subtrees (e.g. architectural-rules →
+      // ~/.copilot/architectural-rules): real-file copies so Copilot skills'
+      // relative-path corpus lookups (`../../architectural-rules/`) resolve the
+      // same as they do under ~/.claude.
+      if (sub.homeCopyMirror) {
+        const homeDst = path.join(env.home, sub.homeCopyMirror);
+        const homeResult = linkDir(src, homeDst, { forceCopy: true, manifest: copyManifest });
+        report(`copy ${sub.name} (home)`, homeResult);
+      }
     }
   }
   if (backupSession && backupSession.wasUsed()) {
     log(`backup: created ${backupSession.root}`);
   }
 
-  // 2. Install CCometixLine (per-machine). Skip if explicitly excluded.
-  let cclineResult = { action: 'skipped', reason: 'excluded' };
-  if (!excluded.has('ccline')) {
-    if (flags.dryRun) {
-      log(`ccline: would ensure installed at ${env.cclinePath}`);
-    } else {
-      cclineResult = ensureCcline({ cclinePath: env.cclinePath });
-      report('ccline', cclineResult);
-    }
-  } else {
-    log('ccline: skipped (excluded)');
-  }
-
-  // 3. Resolve and write settings.json.
+  // 2. Resolve and write settings.json.
   if (!flags.dryRun) {
     const settings = resolveSettings({
       repoRoot,
-      cclinePathForSettings: env.cclinePathForSettings,
       homeDirForSettings: env.home.split(path.sep).join('/'),
       enabledHookBundles: enablement.enabled.hookBundles,
     });
@@ -219,7 +242,7 @@ async function main(argv) {
     log('settings: would merge template + local and write to ~/.claude/settings.json');
   }
 
-  // 4. Wire git core.hooksPath so .githooks/post-merge etc. fire on pulls.
+  // 3. Wire git core.hooksPath so .githooks/post-merge etc. fire on pulls.
   if (!flags.dryRun) {
     const hooksResult = wireGitHooksPath(repoRoot);
     report('githooks', hooksResult);
@@ -227,7 +250,7 @@ async function main(argv) {
     log('githooks: would set core.hooksPath=.githooks if unset or already pointing there');
   }
 
-  // 5. Register repo-owned MCP servers into ~/.claude.json's mcpServers map.
+  // 4. Register repo-owned MCP servers into ~/.claude.json's mcpServers map.
   // Peer MCPs (claude.ai built-ins, third-party plugins like context7) are
   // left alone — we only touch entries our manifest names.
   if (!excluded.has('mcps')) {
@@ -242,6 +265,16 @@ async function main(argv) {
           log(`  - ${r.name}: ${r.action}`);
         }
       }
+    }
+
+    // 4b. Register the same MCPs into Copilot CLI's ~/.copilot/mcp-config.json
+    // so /discover works there too. Home-anchored MCP → identical corpus.
+    const copilotResult = registerCopilotMcps({ repoRoot, homeDir: env.home, dryRun: flags.dryRun });
+    if (!copilotResult.ok) {
+      report('mcps (copilot)', { action: 'skipped', reason: copilotResult.reason });
+    } else {
+      const summary = summariseMcpResults(copilotResult.results);
+      log(`mcps (copilot): ${copilotResult.action}${summary ? ` (${summary})` : ''}`);
     }
   } else {
     log('mcps: skipped (excluded)');
@@ -425,7 +458,7 @@ function parseFlags(argv) {
 }
 
 function printHelp() {
-  const excludable = SYNCED_SUBTREES.map((s) => s.name).concat(['ccline', 'mcps']).join(', ');
+  const excludable = SYNCED_SUBTREES.map((s) => s.name).concat(['mcps']).join(', ');
   console.log(
     `Usage: node bootstrap/bootstrap.js [--dry-run] [--verify] [--fix-leaks] [--exclude=<list>]\n\n` +
       `  --verify     audit ~/.claude/ for missing or stale links; exits 1 on drift.\n` +

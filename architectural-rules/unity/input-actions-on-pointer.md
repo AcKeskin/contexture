@@ -4,7 +4,7 @@ description: Bind InputActions to `<Pointer>/press` and `<Pointer>/position`. Av
 type: user
 kind: architectural-rule
 scope: [unity, input-system]
-relevance: when-domain-unity, when-language-csharp
+relevance: when-domain-unity
 ---
 
 For pointer/touch input in Unity (Input System 1.x+), the default approach is `InputActionAsset` with bindings on the abstract `<Pointer>` device:

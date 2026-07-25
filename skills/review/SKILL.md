@@ -121,7 +121,7 @@ Assign:
   - M = ≈half-day, 2–5 files, design choice but small.
   - L = multi-day, >5 files, sequencing / coordination needed.
 
-Cap at top 5 findings per file in the per-file detail section (the run-wide findings table stays uncapped within the global ceiling). Surplus reported as a count:
+Cap at top 5 findings per file in the per-file detail section (the run-wide findings table stays uncapped within the global ceiling). **Global ceiling = 50 findings per run**; on reaching it, stop scanning and report the cap in the report header ("scan capped at 50 findings — N files unscanned"). Surplus reported as a count:
 
 ```
 +3 more findings in this file — drill in with /review <path/to/file> for detail
@@ -131,32 +131,9 @@ A roll-up "Severity × Category" matrix (Critical/High/Medium/Low × Dead code/M
 
 ### 4b. Repeat-run reconciliation
 
-If a prior review artefact exists for the resolved scope, treat it as a baseline. The artefact location is `<project-root>/.claude/reviews/<scope-slug>/latest.md` — see §7b for slug derivation, write semantics, and frontmatter.
+If a prior review artefact exists for the resolved scope (`<project-root>/.claude/reviews/<scope-slug>/latest.md`), treat it as a baseline: set Run mode = repeat, match this run's findings against it, and tag each `CARRIED` / `NEW` / `WONT_FIX` / `RESOLVED`. Resolved findings are surfaced in a "Resolved since last run" section, never silently dropped. No baseline → Run mode = fresh, IDs from F001. Malformed baseline → warn in the header, treat as fresh, never rewrite it.
 
-When `latest.md` exists:
-
-1. **Set Run mode = repeat** in the report header. Show the baseline filename and date.
-2. **Read the baseline.** Parse its findings table to extract `{id, file, line, category, what, status}` for every prior finding. `status` ∈ `{open, RESOLVED, WONT_FIX}` from the prior frontmatter / inline tags.
-3. **Match new-run findings against baseline.** Two findings match when category is identical and either:
-   - file path + line are within ±5 lines (line drift tolerance for edits above), or
-   - file path + a near-identical `what` string (Levenshtein under ~30% of the shorter — concept-level match for code that moved).
-4. **Tag every finding in the new run:**
-   - `CARRIED` — present in baseline (open) and present in this run; reuse the baseline `id` so the artefact diff is meaningful.
-   - `NEW` — present in this run, no baseline match. Assign a fresh `F<NNN>`, continuing from the highest baseline ID + 1.
-   - `WONT_FIX` — present in baseline tagged `WONT_FIX` and still present in code. Reuse the baseline `id`. Suppress from Quick wins. List at the bottom of the report under "Carried as won't-fix" with the prior reason quoted.
-5. **Compute resolved.** Findings present in baseline (open) with no match in this run are tagged `RESOLVED`. List them in a "Resolved since last run" section before "Things that look bad but are actually fine":
-
-```
-## Resolved since last run (X)
-- F003 — src/auth/middleware.ts monolith (was 612 lines, now 287; split landed)
-- F012 — src/auth/utils.ts dead `parseExpiry` export (removed)
-```
-
-Resolved findings are not silently dropped — surfacing them is half the point of repeat mode.
-
-When no `latest.md` exists, set Run mode = fresh, skip this step, and proceed to §5 with all IDs assigned in scan order from F001.
-
-If the baseline is malformed (unparseable findings table, frontmatter missing required fields), log a one-line warning in the report header ("baseline at `<path>` malformed; treating run as fresh") and proceed as fresh — never delete or rewrite a malformed baseline automatically.
+Full matching rules, tagging semantics, and the resolved-section shape: [reconciliation.md](reconciliation.md).
 
 ### 5. Report
 
@@ -189,6 +166,8 @@ Findings: T total (C critical, H high, M medium, L low)
 
 ## Per-file findings
 
+> This per-file render **intentionally extends** the output contract's §1 shape — it adds the header stats (line count, commit count, hot flag) and the ID-prefixed bullet form. Everything else follows the contract; on any other divergence the contract wins.
+
 ### src/auth/middleware.ts (612 lines, 18 commits — hot)
 - F001 [High/L]  Monolithic files       L1     — 612-line file mixing 4 concerns. Suggested split: <sketch>.
 - …
@@ -210,7 +189,7 @@ Findings: T total (C critical, H high, M medium, L low)
 
 ----
 Apply proposed fixes? Choose per finding:
-  1. Apply  2. Skip  3. Edit  4. View detail
+  1. Apply  2. Skip  3. Edit  4. View detail  5. Won't fix (reason)
 ```
 
 **Rules for the report sections:**
@@ -220,7 +199,7 @@ Apply proposed fixes? Choose per finding:
 - **Per-file sections are the primary structure.** Sorted by Severity (Critical → Low) then Effort (S → L) within each file; Category is a column on the finding line, not a section header. Bullets capped at top 5 per file.
 - **Severity × Category roll-up table** always present when T > 0. Rows with all zeros may be omitted.
 - **Diagram section (§5b) is mandatory.**
-- If T = 0, skip per-file sections, the table, and Quick wins; still emit the diagram (or its N/A justification) and the "looks bad but fine" section, then skip straight to §8.
+- If T = 0, skip per-file sections and the table; still emit the explicit `## Quick wins` heading with a `None` line (the contract requires the line, not the content), the diagram (or its N/A justification), and the "looks bad but fine" section, then skip straight to §8.
 
 ### 5b. Diagram (mandatory)
 
@@ -266,59 +245,9 @@ Omit the suppressed line when S = 0. Omit the repeat-mode line for fresh runs.
 
 ### 7b. Persist artefact
 
-After §7, write the run's results to `<project-root>/.claude/reviews/<scope-slug>/`. This is the substrate the next repeat run reads (§4b).
+After §7, write the run's results to `<project-root>/.claude/reviews/<scope-slug>/` — the substrate the next repeat run reads (§4b). `--since` runs are **not** persisted (no stable scope to baseline against). Versioning appends: `latest.md` plus a numbered `v<N>.md`, written atomically, never overwriting in place. A write failure is reported but never blocks §8.
 
-**Slug derivation** (from the resolved scope):
-- `/review` → `slug = project` (whole-project default).
-- `/review src/auth/` → `slug = src-auth` (path with separators → kebab; trailing slash dropped).
-- `/review src/auth/middleware.ts` → `slug = src-auth-middleware-ts` (extension included for single-file slugs).
-- `/review --since HEAD~5` → **do not persist.** `--since` runs are ephemeral by nature; the file set is git-state-dependent and there is no stable scope to baseline against. Skip §7b for `--since` invocations.
-
-**Versioning** (per the version-evolving-artefacts decision):
-- If `latest.md` exists: rename to `v<N>.md` where `N` = highest existing `v<N>.md` + 1 (or 1 if none).
-- Write the new run as both `latest.md` and `v<N+1>.md`. Identical content; two paths for cheap "is there a baseline?" lookup + stable per-version archival.
-- The new file's frontmatter sets `supersedes: v<N>.md` when a prior version exists; omit on the first run.
-
-**File shape:**
-
-```markdown
----
-date: YYYY-MM-DD
-scope: <resolved scope as the user passed it>
-scope_slug: <slug>
-run_mode: fresh | repeat
-baseline: v<N>.md       # repeat only; omit on fresh
-supersedes: v<N>.md     # repeat only; omit on fresh
-findings_total: T
-counts:
-  critical: C
-  high: H
-  medium: M
-  low: L
-resolutions:
-  applied: N
-  skipped: M
-  edited: K
-  wont_fix: W
-  suppressed: S
----
-
-<full §5 report body verbatim — orientation, bullets, table, quick wins, looks-bad-but-fine, plus repeat-run sections (Resolved / Carried as won't-fix) when applicable>
-```
-
-**Per-finding state in the table** (used by §4b on the next run): the table's rightmost column gains a `Status` field for repeat-mode artefacts:
-
-| ID    | … | Status        |
-|-------|---|---------------|
-| F003  | … | applied       |
-| F012  | … | wont_fix: <reason> |
-| F021  | … | open          |
-
-`open` covers findings the user neither resolved nor declined; they are the default carry-forward signal for the next run.
-
-**Atomicity:** write `v<N+1>.md` first, then rename `latest.md` → `v<N>.md` (if it exists), then copy `v<N+1>.md` → `latest.md`. If any step fails, leave the tree as-is and report the failure in the run summary; do not partially overwrite. Do not block §8 on write failure — the report has already been delivered to the user; the persistence step is a side effect.
-
-The artefact is committable — the version-to-version diff is a substrate for tracking architectural debt trends, not a substitute for fixing things.
+Full slug derivation, frontmatter shape, per-finding Status column, and the atomic write order: [reconciliation.md](reconciliation.md).
 
 ### 7c. Obsidian vault output (opt-in)
 
@@ -396,7 +325,7 @@ All three require a rule citation. If no rule supports a suspected SoC violation
 
 - **SRP obvious case.** A class / module exposing public surface across ≥3 unrelated concerns. Example: `UserManager` handling auth + profile + preferences + billing.
 - **Open/Closed edit-core-to-extend pattern.** Recent commits (last ~10) repeatedly edit the same switch / if-tree in a core file to handle new cases. Requires git history.
-- Liskov / ISP / DIP — lower priority for v1. Only flag when a specific rule targets one of these.
+- Liskov / ISP / DIP — lower priority. Only flag when a specific rule targets one of these.
 
 All require rule citation (the universal SOLID rule, typically).
 
@@ -460,6 +389,7 @@ Catches identifiers and comments that are **technically correct but read badly**
 - **capture** — feedback-loop writeback. Sharpen / add / retag / adjust-threshold all route through capture where they involve writing to the memory tree.
 - **prep** — complementary. When review keeps finding the same drift in an area prep should have covered, the prep rule for that scope needs sharpening. The feedback loop routes that change.
 - **architectural-rules tree** — the corpus. Review's quality is bounded by the corpus's quality. Feedback loop is how the corpus improves.
+- **retrospect-core** — runs the same orient / baseline-diff / render / persist machinery this skill keeps inlined. Deliberate duplication: review is the code-facing original, retrospect-core the generalised engine for the meta-review passes. When one changes, check the other.
 - **recap** — review findings are not automatically captured; the user can ask `/recap` separately after a review if the run produced notable learnings.
 
 See [`docs/review-organ.md`](../../docs/review-organ.md) for the scope map and rationales.

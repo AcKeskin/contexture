@@ -1,6 +1,6 @@
 ---
 name: update-changelog
-description: Append a dated line to the project's canonical CHANGELOG.md — the "what shipped, newest first" ship-record — via propose-confirm. Use when the user types /update-changelog, says "log this ship" / "record what shipped" / "add to the changelog", or when a caller skill (recap, checkpoint, execute, spec, draft-plan) offers it on a shipped unit of work or a significant planning-artifact change. One line per shipped unit, not per commit. Mode A — never auto-fires, never auto-writes; every line goes through accept/edit/reject.
+description: "Append one dated line per shipped unit to the canonical CHANGELOG.md via propose-confirm — never auto-writes. Use on /update-changelog, \"log this ship\", or when a caller organ offers it on shipped work or a significant planning-artifact change. One line per unit, not per commit. Mode A — never auto-fires."
 ---
 
 # update-changelog
@@ -32,7 +32,7 @@ Per the contract §1:
 - Project root `CHANGELOG.md` if it exists, or the project plainly declares one → use it.
 - Else `.claude/CHANGELOG.md` (create lazily on first accepted write).
 - **State which file** you will write to before proposing.
-- If the root `CHANGELOG.md` would be swallowed by a bare/global `.gitignore` rule (`git check-ignore` it), **surface that to the user** — do not edit `.gitignore` to force-track (`sync_is_user_choice`).
+- If the root `CHANGELOG.md` would be swallowed by a bare/global `.gitignore` rule (`git check-ignore` it), **surface that to the user** — do not edit `.gitignore` to force-track; syncing is the user's choice.
 
 ### 2. Classify the line-type and compose
 
@@ -63,7 +63,7 @@ Show the user, exactly:
 Then write:
 - If today's dated section (`## YYYY-MM-DD`) exists, prepend the line within it (newest first).
 - Else open a new dated section at the **top** of the file, above the previous newest section.
-- Preserve everything else verbatim. The changelog is an **append-only log** (`version-evolving-artefacts-not-refuse` — append-only logs are explicitly *not* versioned folders; a flat file is correct). Append-only governs *storage shape* (flat file, prepend), not *blind duplication* — the dedup check above still applies.
+- Preserve everything else verbatim. The changelog is an **append-only log** — append-only logs are explicitly *not* versioned folders; a flat file is correct. Append-only governs *storage shape* (flat file, prepend), not *blind duplication* — the dedup check above still applies.
 
 ### 5. Offer the BACKLOG-row sync (optional)
 
@@ -73,7 +73,7 @@ If the shipped unit has a row in this project's `BACKLOG.md` priority queue (pro
 
 > Logged to `<CHANGELOG path>` under `## <date>`. <ship/decision> line added.
 
-Do not commit (the user's call). Do not touch build_progress or the CLAUDE.md coverage map — those stay their own records (contract §6).
+Do not commit (the user's call). Do not touch the project's ship-narrative record (a build-progress memory or equivalent), if it keeps one, or the CLAUDE.md coverage map — those stay their own records (contract §6).
 
 ## What update-changelog does NOT do
 
@@ -81,8 +81,8 @@ Do not commit (the user's call). Do not touch build_progress or the CLAUDE.md co
 - **Does not auto-fire.** No session-start / per-turn / hook trigger. Callers *offer*; the user *invokes*.
 - **Does not log per-commit.** One line per shipped unit (contract §3). Git owns the commit log.
 - **Does not log routine planning churn.** Decision lines fire only on significant changes (contract §5); the gate filters the rest.
-- **Does not replace build_progress, recap, or the BACKLOG forward queue** — only BACKLOG's "Recently shipped" prose section (contract §6).
-- **Does not edit `.gitignore`** to force-track a changelog (`sync_is_user_choice`).
+- **Does not replace the ship-narrative record, recap, or the BACKLOG forward queue** — only BACKLOG's "Recently shipped" prose section (contract §6).
+- **Does not edit `.gitignore`** to force-track a changelog — syncing is the user's choice.
 - **Does not commit** the changelog change.
 
 ## Relationship to other organs
@@ -94,4 +94,4 @@ Do not commit (the user's call). Do not touch build_progress or the CLAUDE.md co
 - **spec / draft-plan / envision** — offer a *decision* line on a significant planning-artifact change (significant-change-gated).
 - **[close-out](../close-out/SKILL.md)** — the scope chain's terminus; its *record* step calls this writer as the chain's single ledger write (the close-out→changelog seam). close-out is a doorway, update-changelog is the writer.
 - **BACKLOG.md** — the forward queue (unchanged); its "Recently shipped" section is replaced by a pointer to the changelog, and §5 offers to retire a shipped row.
-- **build_progress memory** — the narrative ship-record (hashes/deviations/lessons), untouched; the changelog is the index, build_progress is the story.
+- **the project's ship-narrative record** (a build-progress memory or equivalent), if it keeps one — the narrative ship-record (hashes/deviations/lessons), untouched; the changelog is the index, the narrative record is the story.
