@@ -1,6 +1,6 @@
 ---
 name: execute
-description: "Run a plan step-by-step with verification gates — pick a strategy up front (sequential / subtask / multi-agent→/orchestrate), read the interrupt cadence from the autonomy contract, advance only on pass, stop on any failure — never advance silently. Re-preps on module-boundary crossings; delegation asks first; prompts /review after. User-invoked: /execute [slug | path] [--from N] [--strategy …]. Never auto-fires."
+description: "Run a plan step-by-step with verification gates, honoring the autonomy contract — never advances silently past a failure. Use when a drafted plan is ready to implement. User-invoked: /execute [slug | path] [--from N] [--strategy sequential|subtask|multi-agent]. Never auto-fires."
 ---
 
 # execute
@@ -104,7 +104,7 @@ Delegating a step to a fresh subagent and routing it to a cheaper model tier are
 
 If a `[mechanical]` step fails either criterion, it does not route — say which criterion failed and run it in the main context. A `[judgment]` step always runs in the main context regardless of its other properties.
 
-The cheap tier resolves from configuration, never from a model name written into a plan or a skill. Cheap executors inherit the subagent recursion caps: a capped-tier executor does not spawn further agents.
+The cheap tier resolves from configuration, never from a model name written into a plan or a skill; absent an explicit config entry, dispatch's *Tier and effort selection* table is the resolution (bulk mechanical → lowest tier). Cheap executors inherit the subagent recursion caps: a capped-tier executor does not spawn further agents.
 
 **Subagent delegation (`[delegate]` / `[research]` steps).** When a step is tagged `[delegate]` or `[research]`, ask the user:
 
@@ -155,6 +155,8 @@ Run the step's Verification. Three kinds:
 
   **Never self-attest** a user-attested verification. If you wrote UI code and the verification is "button is red" — that's not yours to call. Ask.
 
+**Audible skip.** If a check is skipped or downgraded because the change cannot affect it (docs-only, types-only, config-only), say so in the step's result line — a silent skip and a passed check look identical in a result trail, and the one-line say-so is what keeps the gate honest.
+
 #### 3d.1 Record the outcome to scratch
 
 After the verification resolves — **every outcome, pass and fail, all three kinds** — write one scratch entry via the `write_memory` MCP tool (`tier: scratch`, with the current `session_id`). Silent: no prompt, no interruption.
@@ -195,11 +197,19 @@ Scratch writes are **best-effort and never block the loop**: if the tool errors 
 
 Wait for the user's choice. Never advance on a `fail`.
 
-**Escalate, never loop.** If a step that ran outside this context (cheap tier or subagent) fails verification a **second** time, do not retry it there again — run the retry in the main context and say so:
+**Guidance round, then escalate, never blind-retry.** For a step that ran outside this context (cheap tier or subagent), a first verification failure does not bring the step home yet — redoing it here costs the whole step at main-context prices, while a guidance round costs a few sentences. When the user picks "fix and retry" for such a step, review the executor's returned diff and output against the step's contract, then re-dispatch the same step to the same tier **once** with a short guidance note: what broke, which constraint it missed, what to do differently. Terse direction, not a rewritten step — if the guidance needs more than a few sentences, the step wasn't mechanical after all; take it over instead.
+
+**Retry session-safety.** Continue the same executor session (where the platform supports continuing a spawned agent) only if nothing else has touched the step's files since it was dispatched; otherwise dispatch fresh with the failing output appended — a resumed session is repairing against a stale world. State which of the two happened in the retry line, so the choice is visible in the result trail.
+
+> Step N failed verification on the <cheap tier | a subagent>. Retrying there once with guidance rather than taking the step over.
+
+If the step fails verification a **second** time, do not retry it there again — run the retry in the main context and say so:
 
 > Step N failed verification twice on the <cheap tier | a subagent>. Escalating to the main context rather than retrying at the same tier.
 
-Two failures on the same step is evidence that the executor cannot do it, not that it needs another attempt. Retrying identically is how a loop burns turns and ends in a worse diff than the first attempt.
+Two failures on the same step is evidence that the executor cannot do it, not that it needs another attempt. And a retry must always carry new guidance — retrying identically is how a loop burns turns and ends in a worse diff than the first attempt. When the main-context retry *also* struggles, the diagnosis is usually that the step was mis-scoped: **re-decompose it** (split it, or re-draft the step against what the failures revealed) rather than grinding a third attempt — the same diagnosis the consult cap reaches from the other side.
+
+(A stale Current-state excerpt is *not* a consult case — reconciling plan-vs-repo drift is a judgment call, exactly what does not route down. 3b.1's straight escalation stands.)
 
 ### 4. After all steps complete
 

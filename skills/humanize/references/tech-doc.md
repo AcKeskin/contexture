@@ -1,6 +1,6 @@
 # Register module — technical / developer docs
 
-README, API docs, guides, changelogs, design docs. Imports the catalogue (`ai-vocabulary.v1.md`) + carve-out (`false-positives.md`); this module adds register specifics.
+README, API docs, guides, changelogs, design docs. Imports the catalogue (`ai-vocabulary.v2.md`) + carve-out (`false-positives.md`); this module adds register specifics.
 
 ## Register-specific tells (flag by density)
 

@@ -25,14 +25,14 @@ When creating 2+ children of the same parent (menu buttons, HUD widgets, list ro
 
 ## Hierarchy
 
-- One Canvas per logical UI layer (HUD, Menus, Popups, WorldSpace).
-- Set `Canvas.sortingOrder` explicitly. Don't rely on hierarchy order for cross-Canvas stacking.
-- Static UI (background frames, labels) goes on a separate Canvas from dynamic UI (health bars, timers). One changing element dirties its entire Canvas for rebuild.
-- Disable `Raycast Target` on non-interactive `Image` / `Text` elements. Default-on raycasts are a measurable hot-path cost on mobile.
+- <!-- id: one-canvas-per-layer --> One Canvas per logical UI layer (HUD, Menus, Popups, WorldSpace).
+- <!-- id: canvas-sorting-order --> Set `Canvas.sortingOrder` explicitly. Don't rely on hierarchy order for cross-Canvas stacking.
+- <!-- id: separate-static-dynamic --> Static UI (background frames, labels) goes on a separate Canvas from dynamic UI (health bars, timers). One changing element dirties its entire Canvas for rebuild.
+- <!-- id: disable-raycast-target --> Disable `Raycast Target` on non-interactive `Image` / `Text` elements. Default-on raycasts are a measurable hot-path cost on mobile.
 
 ## Text
 
-- Text creation should auto-detect TextMeshPro and prefer `TextMeshProUGUI` over legacy `Text`. Legacy `Text` only as a fallback when TMP is not in the project.
-- Don't mix TMP and legacy Text in the same screen unless there's a reason — they have different metrics, line-height, and atlas paths.
+- <!-- id: text-prefer-tmp --> Text creation should auto-detect TextMeshPro and prefer `TextMeshProUGUI` over legacy `Text`. Legacy `Text` only as a fallback when TMP is not in the project.
+- <!-- id: no-mix-tmp-legacy --> Don't mix TMP and legacy Text in the same screen unless there's a reason — they have different metrics, line-height, and atlas paths.
 
 **Why:** UGUI's create skills are intentionally position-agnostic so anchors and layouts stay authoritative. Hand-positioning bypasses both, producing UIs that work at one resolution and break at every other one.

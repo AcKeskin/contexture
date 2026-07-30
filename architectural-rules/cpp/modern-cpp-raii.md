@@ -7,9 +7,9 @@ scope: [cpp, raii, modern-cpp]
 relevance: when-language-cpp
 ---
 
-- Target C++20 or newer unless the project explicitly constrains to older; prefer C++23 where the toolchain allows.
-- RAII mandatory. Every resource (memory, file handle, lock, socket, GPU resource) is owned by an object whose destructor releases it.
-- No manual `new` / `delete` pairs at call sites. If you write `new`, wrap it in a smart pointer or RAII type immediately.
-- No raw `malloc` / `free` in application code.
+- <!-- id: cpp-target-modern-cpp --> Target C++20 or newer unless the project explicitly constrains to older; prefer C++23 where the toolchain allows.
+- <!-- id: cpp-mandatory-raii --> RAII mandatory. Every resource (memory, file handle, lock, socket, GPU resource) is owned by an object whose destructor releases it.
+- <!-- id: cpp-no-manual-new-delete --> No manual `new` / `delete` pairs at call sites. If you write `new`, wrap it in a smart pointer or RAII type immediately.
+- <!-- id: cpp-no-malloc-free --> No raw `malloc` / `free` in application code.
 
 **Why:** resource leaks in C++ are the dominant source of bugs, and they are entirely preventable by construction. Source: C++ Core Guidelines (R.1, R.3, R.11, R.12).

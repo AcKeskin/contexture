@@ -126,7 +126,7 @@ function mk(name, kind, { extends: ext = [], implements: impl = [], fields = [],
   return { name, kind, extends: ext, implements: impl, fields, namespace, attributes, methods };
 }
 
-// Method names declared directly in a class/interface body node, for the 087 cross-file
+// Method names declared directly in a class/interface body node, for the type-resolution cross-file
 // type registry (Type → methods). Generic over the body node + the method node types +
 // the name-node types a language uses. Best-effort; only used to confirm an imported
 // receiver's method exists on the imported type.

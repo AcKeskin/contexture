@@ -1,6 +1,6 @@
 # Register module — project / internal docs
 
-PR descriptions, proposals, issue bodies, RFCs. Imports the catalogue (`ai-vocabulary.v1.md`) + carve-out (`false-positives.md`). Short PR descriptions may fall below the length floor — score conservatively.
+PR descriptions, proposals, issue bodies, RFCs. Imports the catalogue (`ai-vocabulary.v2.md`) + carve-out (`false-positives.md`). Short PR descriptions may fall below the length floor — score conservatively.
 
 ## Register-specific tells (flag by density)
 

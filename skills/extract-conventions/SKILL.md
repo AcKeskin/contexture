@@ -1,6 +1,6 @@
 ---
 name: extract-conventions
-description: "Observe a scope's dominant code conventions and write a project-tier conventions.md rule overriding universal defaults — mechanical patterns detected deterministically, semantic ones flagged lower-confidence; per-category confirm gate; conflicts with shipped rules surfaced, never silently overridden. Use on /extract-conventions or \"codify the house style\". Mode A — never auto-fires."
+description: "Observe a scope's dominant code conventions and write a project-tier conventions.md rule overriding universal defaults; conflicts with shipped rules are surfaced, never silently overridden. Use on /extract-conventions or \"codify the house style\". Mode A — never auto-fires."
 ---
 
 # extract-conventions

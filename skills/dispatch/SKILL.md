@@ -93,6 +93,18 @@ Good agent prompts are:
 5. **Budgeted** — carries a `maxTurns` scaled to the autonomy contract's `effort` (see "Autonomy contract at dispatch" below).
 6. **Ask-postured** — carries the contract's `ask` posture, so the unit knows whether to return BLOCKED on a fork or run to its budget.
 
+### The delegation brief
+
+A delegated unit's prompt carries five fields — the standing shape of a dispatch, not a suggested outline:
+
+- **Goal** — what done looks like, one or two sentences.
+- **Files** — exact `path:line` pointers to where the work happens.
+- **Constraints** — the conventions and boundaries that bind this unit.
+- **Acceptance** — the observable criteria the result must meet.
+- **Verify** — exact commands. For a below-parent-tier dispatch this field is required, not advisory: a unit routes below the parent's tier only when a command can catch it being wrong, and the brief is where that command becomes visible to the executor.
+
+**Pointers, not pastes.** Paste only what the executor cannot cheaply derive itself — error output, cross-package signatures. Everything else travels as a `path:line` pointer; a pasted file body is paid for twice, once in the parent's context to produce and once in the child's to receive. And **explore before dispatching**: the parent has already paid for orientation, so resolve the pointers yourself (or via a scout) rather than making the executor re-discover context you already have. Explore only what the units *share* — per-unit discovery belongs in the unit.
+
 The depth annotation is a single line at the top of the subagent's prompt:
 
 ```
@@ -138,6 +150,23 @@ Read the effective autonomy contract once per dispatch batch — `.claude/autono
 No contract set and no rule-tier default → dispatch as `balanced` / `forks-only`.
 
 This section is the single owner of contract-to-dispatch wiring; orchestrate's Q3 references it rather than restating it.
+
+## Consult returns (below-parent-tier units)
+
+A unit dispatched below the parent's tier trades judgment for cost — so give it a channel to borrow judgment back instead of guessing. The mechanism is the existing return posture, not new machinery: a consult is a BLOCKED-shaped return carrying one specific question plus the evidence that raised it. The parent answers tersely and re-dispatches the same unit with the answer appended (or continues the agent, where the platform supports continuing a spawned agent). **Continue or resume a unit only if nothing else has touched that unit's files since it was dispatched** — otherwise dispatch fresh; a resumed session is repairing against a stale world. For serialized units the condition holds trivially; for concurrent ones a violation means two units shared files that shouldn't have — a placement bug surfacing late, worth naming aloud rather than silently repairing around.
+
+For every below-parent-tier dispatch, add these lines to the unit's prompt (alongside the depth annotation and the harvest invitation):
+
+> If you hit any of these, stop and return a consult — one short, specific question plus the evidence that raised it — rather than pushing through: (1) you are about to take your first state-changing action and the approach wasn't fully specified; (2) you are stuck — the same error twice, or results that don't fit; (3) you are about to switch approach. Before returning a consult or a done result, make your work durable first — write the file, commit in your worktree; a durable partial survives, an unwritten one doesn't. If your own evidence contradicts guidance you were given, don't silently pick a side — return the conflict: "found X, was advised Y — which constraint wins?"
+
+Parent side, two rules:
+
+- **Answer tersely.** A consult answer is direction — a few sentences naming the constraint that breaks the tie — never a redo of the unit's work. If answering properly requires doing the work, the unit was mis-tiered; take it over.
+- **Cap at two consults per unit.** A unit that needs a third consult isn't mechanical — it was mis-scoped or mis-tiered. Split it or run it at parent tier.
+
+Do not add the consult lines to parent-tier dispatches: an executor already at the parent's tier gains nothing from consulting the parent, and a mandated consult there produces ceremony instead of judgment. Lower tiers under-consult by default and need the triggers stated explicitly; that asymmetry is the point.
+
+For **lowest-tier** executors, soft triggers are not enough — observed behavior is that they resolve convention conflicts with silent local judgment rather than consulting. Phrase the deviation trigger as a hard rule on those dispatches: *"Hard rule: if the instructions' conventions do not fit what you find in a file — wrong structure, a case the conventions never mention — you MUST stop and return a consult before editing that file. Deciding the exception yourself is the one thing you may not do."*
 
 ## Output contract (for agents that declare one)
 
@@ -211,8 +240,9 @@ The gates below only prevent bad dispatches; they don't pick good ones. Before w
 | Scoped implementation with a known approach — write/fix code in one module, make failing tests pass, apply a described refactor | `sonnet` (or the matching `-pro` agent) | inherit |
 | Judgment-heavy work — design decisions, cross-module synthesis, review verdicts, root-cause analysis | inherit the parent model (no override) | inherit; raise only for the hardest verify/judge units |
 
-Two rules ride on the table:
+Three rules ride on the table:
 
+- **Tier zero is a script.** If the unit is fully deterministic — a rename sweep, a format conversion, grep-and-collect, fixture generation from a template — write and run a script instead of dispatching any model. A script is cheaper than any tier, exactly repeatable, and reviewable as an artifact. The general rule: pick the cheapest executor sufficient for the unit's *nature* — script, then cheap model, then parent model — never its size.
 - **Downgrade is the default question.** For every unit, ask "what judgment does this actually need?" before dispatching at parent tier. Parent-tier-for-everything is the silent cost failure the gates cannot catch — they cap escalation, not waste.
 - **A unit that mixes shapes is two units.** A mechanical sweep plus a judgment call is two dispatches at two tiers, not one dispatch at the higher tier.
 

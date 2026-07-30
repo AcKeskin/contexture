@@ -7,9 +7,8 @@ scope: [solid, responsibilities, universal]
 relevance: always
 ---
 
-- One responsibility per class / function. Split as soon as a second concern creeps in.
-- Composition over inheritance. Inheritance only when the "is-a" is durable and substitutable; otherwise compose.
-- Explicit ownership, lifetimes, responsibilities. If "who owns this" is unclear, the design is wrong.
-- Clear layering. Dependencies point inward (domain ← services ← transport / UI). Never the reverse.
+- <!-- id: one-responsibility --> One responsibility per class / function. Split as soon as a second concern creeps in.
+- <!-- id: composition-over-inheritance --> Composition over inheritance. Inheritance only when the "is-a" is durable and substitutable; otherwise compose.
+- <!-- id: explicit-ownership --> Explicit ownership, lifetimes, responsibilities. If "who owns this" is unclear, the design is wrong.
 
 **Why:** the cost of these rules is paid once at design time; the cost of ignoring them compounds forever.

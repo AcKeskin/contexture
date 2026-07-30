@@ -11,7 +11,7 @@ const { execFileSync } = require('child_process');
 const { detect } = require('./lib/platform');
 const { linkDir, linkItems, pruneOrphans } = require('./lib/link');
 const { resolveSettings, writeSettings } = require('./lib/settings');
-const { verifyAll, formatReport, scanLeaks, formatLeakReport, planLeakFixes, verifyInstructionGlobs, formatInstructionGlobReport } = require('./lib/verify');
+const { verifyAll, formatReport, scanLeaks, formatLeakReport, planLeakFixes, verifyInstructionGlobs, formatInstructionGlobReport, verifyProjections, formatProjectionReport } = require('./lib/verify');
 const { loadEnablement, excludeFor, isFilterable } = require('./lib/enablement');
 const { loadManifest } = require('./lib/copy-manifest');
 const { makeBackupSession } = require('./lib/backup');
@@ -74,6 +74,10 @@ async function main(argv) {
       verifyInstructionGlobs({ repoRoot, homeClaude: env.homeClaude })
     );
     if (globReport) log(globReport);
+    // Cross-tool projection drift check — ADVISORY. bootstrap does not run the
+    // projector, so a rules change can silently strand AGENTS.md and the
+    // .github projections; reported here, never changes the exit code.
+    log(formatProjectionReport(verifyProjections({ repoRoot })));
     // Rules lint — BLOCKING. A rule whose frontmatter fails strict YAML or uses
     // an unrecognized relevance token silently drops out of priming/resolution;
     // that must fail the audit, not pass quietly.

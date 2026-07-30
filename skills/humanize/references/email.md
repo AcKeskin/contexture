@@ -1,6 +1,6 @@
 # Register module — email & messaging
 
-Professional email and chat (Slack-style). Imports the catalogue (`ai-vocabulary.v1.md`) + carve-out (`false-positives.md`). **Length caveat: most chat messages fall below the ~120-word detection floor — score conservatively or aggregate across a sender's recent messages; never a confident per-message verdict.**
+Professional email and chat (Slack-style). Imports the catalogue (`ai-vocabulary.v2.md`) + carve-out (`false-positives.md`). **Length caveat: most chat messages fall below the ~120-word detection floor — score conservatively or aggregate across a sender's recent messages; never a confident per-message verdict.**
 
 ## Register-specific tells (flag by density)
 

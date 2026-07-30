@@ -116,9 +116,9 @@ function languageCensus(root, { fileCap = 4000 } = {}) {
 }
 
 // --- Budget guard -----------------------------------------------------------
-// The always-tier is paid on every task, so 046/047 cap it at ~1k tokens. The
+// The always-tier is paid on every task, so the corpus budget caps it at ~1k tokens. The
 // hook enforces that ceiling: it injects up to the cap and, on overflow, logs an
-// advisory (surfacing the 063 scoreboard concern mechanically). Never exceeds
+// advisory (surfacing the budget-scoreboard concern mechanically). Never exceeds
 // the budget, never blocks the turn, never hard-fails.
 //
 // Token estimate uses a chars/4 heuristic — deterministic, no tokenizer
@@ -134,7 +134,7 @@ function estimateTokens(text) {
 // Cap a list of rendered rule entries to a token budget. Eviction is by tier
 // PRECEDENCE, not input order: when over budget, drop the lowest-precedence
 // rules first (shipped < company < user < project) so a higher-tier override —
-// the whole point of the 047 overlay — is never evicted ahead of a plain
+// the whole point of the rule overlay — is never evicted ahead of a plain
 // shipped rule. Within a tier, drop later-keyed rules first (stable, arbitrary
 // but deterministic). Output preserves the caller's original order for
 // readability. Returns { kept, dropped, tokens, overflowed }.
@@ -173,7 +173,7 @@ function capToBudget(rules, renderOne, tokenCap) {
 }
 
 // Advisory goes to stderr → the hook debug log on exit 0 (NOT model context,
-// which would itself cost the budget we are guarding). Mirrors the 063
+// which would itself cost the budget we are guarding). Mirrors the budget-scoreboard
 // scoreboard concern: surface always-tier growth where the user/operator sees
 // it, mechanically, without paying context for the warning.
 function logBudgetAdvisory(detail) {
@@ -223,7 +223,7 @@ function sessionStart(payload) {
   // The floor rules' scopes are all "primed" for watermark purposes.
   for (const r of floor.rules) for (const s of r.scope) primedScopes.add(s);
 
-  // Budget guard: cap the always-tier (the per-task cost) at the 046/047 floor.
+  // Budget guard: cap the always-tier (the per-task cost) at the always-tier floor.
   // Project-tier rules are not always-on, but they ride the same SessionStart
   // injection, so we guard the combined floor block and drop lowest-priority
   // (resolver returns them key-sorted) rules on overflow rather than blocking.

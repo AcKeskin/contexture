@@ -11,21 +11,21 @@ relations:
     note: pinned commands must be safe to ship — no embedded tokens, machine paths, or owner identity. Platform-specific commands are tagged, not hardcoded to one OS.
 ---
 
-Pin the **command** next to the **verb**, not just the verb. The verb is the
+<!-- id: pin-command-next-to-verb --> Pin the **command** next to the **verb**, not just the verb. The verb is the
 policy ("read PR comments"); the command is the implementation. Re-deriving the
 flags every session is a tax that pays nothing — the answer is the same each
 time, and a wrong improvisation (missing `--paginate`, truncated output) is a
 silent failure the agent won't notice.
 
-**Resolution order:** a project's `CLAUDE.md` `## Canonical commands` section (or
+<!-- id: pin-resolution-order --> **Resolution order:** a project's `CLAUDE.md` `## Canonical commands` section (or
 `<repo>/.claude/canonical-commands.md`) wins; these universal pins fill in; if no
 pin exists, improvise as usual — no degradation.
 
-The `Why` line is mandatory. It's what lets the agent adapt when the situation is
+<!-- id: pin-why-mandatory --> The `Why` line is mandatory. It's what lets the agent adapt when the situation is
 *almost* the canonical one (same way `Why:` lines work in feedback/decision
 memories). A pin without a rationale is the slop case.
 
-### git: read all PR comments
+### <!-- id: pin-read-pr-comments --> git: read all PR comments
 
 ```bash
 gh pr view <PR>
@@ -36,7 +36,7 @@ gh api repos/<owner>/<repo>/pulls/<PR>/comments --paginate
 signal it did. `gh api .../comments --paginate` is the only reliable way to read
 every comment — without `--paginate` the agent silently misses page 2+.
 
-### git: active PR summary
+### <!-- id: pin-pr-summary --> git: active PR summary
 
 ```bash
 gh pr view --json number,title,url --jq '"PR #\(.number): \(.title)\n\(.url)"'
@@ -45,7 +45,7 @@ gh pr view --json number,title,url --jq '"PR #\(.number): \(.title)\n\(.url)"'
 **Why:** single-line summary for status messages. The JSON projection is stable
 across `gh`'s UI changes, which the human-readable default is not.
 
-### filesystem: reversible delete
+### <!-- id: pin-reversible-delete --> filesystem: reversible delete
 
 ```bash
 # macOS / Linux (trash-cli):
@@ -60,7 +60,7 @@ as policy so the agent reaches for the recycle path, not a hard `rm`/`Remove-Ite
 Platform-forked because there is no single cross-OS trash command — pick the line
 matching the running platform.
 
-### library docs: look up current API / config
+### <!-- id: pin-library-docs --> library docs: look up current API / config
 
 ```text
 # via MCP, not bash:

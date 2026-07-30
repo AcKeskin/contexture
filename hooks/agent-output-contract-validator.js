@@ -23,7 +23,7 @@
 //
 // The checks are independent: harvest is recognised even for agents with no
 // `## Output contract`, and a response may legitimately carry BOTH a contract
-// block and a harvest block (OQ1 — separately keyed, scanned independently).
+// block and a harvest block (separately keyed, scanned independently).
 // Their advisories are concatenated into one message.
 //
 // Spec:  .claude/specs/agent-output-contracts/v1.md
@@ -84,7 +84,7 @@ function checkOutputContract(subagentType, responseText) {
   // Non-pilot agents (and any agent that hasn't been migrated) skip validation.
   if (!hasContractSection(agentDef)) return null;
 
-  // Validate the last NON-harvest yaml block as the contract (OQ1): a response
+  // Validate the last NON-harvest yaml block as the contract: a response
   // may carry both a contract block and a `harvest:` block. Skipping harvest
   // blocks keeps the two independent — a trailing harvest block must not be
   // mistaken for the contract return and fail it spuriously.

@@ -1,6 +1,6 @@
 ---
 name: pr-review
-description: "Review a GitHub PR — fetch the diff via gh, analyze correctness / design / hygiene / security, present structured findings; no GitHub posting. User-invoked: /pr-review [number] or \"review PR 123\". Reviews an incoming external diff — not your local code (use review), not bug-hunting your own change (use code-review); does not auto-fire."
+description: "Review a GitHub PR — structured findings on correctness / design / hygiene / security; no GitHub posting. User-invoked: /pr-review [number] or \"review PR 123\". Reviews an incoming external diff — not your local code (use review), not bug-hunting your own change (use code-review); does not auto-fire."
 ---
 
 # pr-review

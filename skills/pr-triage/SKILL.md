@@ -1,6 +1,6 @@
 ---
 name: pr-triage
-description: "Triage a PR's unresolved review comments into a checklist, then walk each with you to one of three outcomes — Act (route the code change to /dispatch or /orchestrate), Skip/defer (leave it unhandled), or Note (capture your decision for the reply YOU will write). Never drafts or posts replies, never touches GitHub beyond the read-only comment fetch. Manual trigger only: /pr-triage [PR]. Skip on a single directed comment (\"just fix #3\")."
+description: "Triage a PR's unresolved review comments with you, deciding per comment whether to act on it, defer it, or record your reasoning for the reply YOU will write. Never drafts or posts replies; read-only GitHub access. Manual trigger only: /pr-triage [PR]. Skip on a single directed comment (\"just fix #3\")."
 ---
 
 # pr-triage

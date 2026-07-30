@@ -1,6 +1,6 @@
 ---
 name: wrap
-description: "Session-terminus driver — one /wrap runs the closing ceremony in order (coordinate teardown → checkpoint if warranted → recap → close-out → changelog → backlog sweep → build progress), driving the existing organs. Auto-runs the reversible spine; every canonical write gated accept/edit/reject. Use on /wrap or \"wrap up the session\". Mode A — never auto-fires."
+description: "Session-terminus driver — one /wrap runs the full closing ceremony by driving the existing organs, from coordination teardown through changelog and build progress. Auto-runs only the reversible spine; every canonical write gated accept/edit/reject. Use on /wrap or \"wrap up the session\". Mode A — never auto-fires."
 ---
 
 # wrap

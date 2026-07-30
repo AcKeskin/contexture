@@ -101,7 +101,7 @@ needs canonical pinning a second time (promote-on-second-occurrence).
 - Small, testable units. If a function needs prose to explain, it is too big.
 - Deterministic behavior. No hidden time / random / env dependencies in pure logic.
 - Explicit error handling. No silent catch-and-ignore. Every error path is intentional.
-- No dead code. No commented-out code. Delete it — git remembers.
+- No dead code. No commented-out code in the code you write — delete it, git remembers. (Pre-existing: change-discipline.)
 - No speculative abstractions. Build for the concrete requirement; generalise when the second use case arrives, not the first.
 - No "temporary" solutions. Temporary code outlives permanent code.
 
@@ -187,6 +187,14 @@ A comment must answer "what non-obvious thing does this do?" or "why isn't the o
 
 **Why:** comments and docs share a failure mode — both rot silently when written by habit instead of need. The discipline is the same: trigger on non-obviousness, keep terse, delete when stale.
 
+## Escape hatches are exceptions
+
+- Prefer making the checker *prove* it: narrow with a guard, restructure so the value is provably present, tighten the type. An escape hatch (`!`, a cast, `any`/`Any`/`dynamic`, `unsafe`, a suppression comment) is the last resort, not the first reach.
+- Every escape hatch that ships carries the reason it is safe — a one-line comment naming the invariant the checker can't see. A hatch with no reason is a finding.
+- A suppressed warning is a named debt: it either has a removal condition or it is accepted explicitly, never accumulated silently.
+
+**Why:** each hatch disables exactly the check that justifies using a typed language at all, and hatches spread by imitation — one unexplained `!` licenses the next ten. Language scopes state the local form (`typescript/type-system`, `csharp/nullable`, `python/typing`); this rule is the floor for the rest. Source: TypeScript Handbook, .NET nullable-reference guidance, PEP 484.
+
 ## Focused execution
 
 - Act on established context. When the session has already settled a fact or a decision, use it — don't re-read files already read, re-derive conclusions already reached, or re-open decisions the user has made. Re-opening requires new evidence, named as such.
@@ -253,9 +261,9 @@ Abbreviate **only where idiomatic** to the surrounding code and domain (`ctx`, `
 
 ## Naming (universal)
 
-- One type per file. Filename matches type name exactly.
+- One type per file, filename matches the type — where the language's file idiom supports it.
 - No versioning suffixes in names: `New`, `V2`, `Final`, `Redesigned`. If an old version must coexist, rename the old one to `<Name>_OLD` and delete once the new one is proven.
-- Language-specific casing conventions (PascalCase, camelCase, snake_case) live in per-language rules under `<lang>/naming.md`.
+- Language-specific casing and file-layout idioms live in per-language rules under `<lang>/naming.md` and win.
 
 **Why:** suffixes like `V2` become permanent; `_OLD` is a visible debt you cannot ignore.
 
@@ -308,9 +316,17 @@ Commit messages are out of scope — they have their own hygiene rule.
 
 ## Catalogue (source of truth — imported, not inlined)
 
-- Tells + lexicon: `skills/humanize/references/ai-vocabulary.v1.md`
+- Tells + lexicon: `skills/humanize/references/ai-vocabulary.v2.md`
 - The refuted/false-positive carve-out: `skills/humanize/references/false-positives.md`
 - Active organ: `/humanize` (detect → score → rewrite, voice-calibrated per run). When this rule catches a miss the catalogue lacks, route it through `/capture` — never self-edit.
+
+## Deterministic resource release
+
+- Acquire scarce resources behind the language's scoped-release idiom — RAII, `using`/`IDisposable`, `with`, `defer`, try-with-resources, `finally` — so release happens at a deterministic point the reader can see, not whenever a collector runs.
+- Every resource has one visible owner responsible for releasing it. A resource that escapes its acquiring scope travels *with* its ownership — the receiver's release duty is stated, not assumed.
+- Release holds on error paths too: the scoped idiom, not a manual call after the happy path, is what guarantees it.
+
+**Why:** finalizer and GC timing are nondeterministic, so a leaked handle, connection, or lock fails far from the leak — under load, in production, as exhaustion rather than as a stack trace. Language scopes state the local mechanism (`csharp/disposal`, `cpp/modern-cpp-raii`, `python/errors-and-resources`, `rust/dependability`); this rule is the floor for languages without one. Source: C++ Core Guidelines R.1/E.6, .NET IDisposable guidance, PEP 343.
 
 ## Session scope-boundary guard
 
@@ -336,13 +352,12 @@ This rule shapes intent. It resolves through `/prep` and `/discover` relevance m
 - One responsibility per class / function. Split as soon as a second concern creeps in.
 - Composition over inheritance. Inheritance only when the "is-a" is durable and substitutable; otherwise compose.
 - Explicit ownership, lifetimes, responsibilities. If "who owns this" is unclear, the design is wrong.
-- Clear layering. Dependencies point inward (domain ← services ← transport / UI). Never the reverse.
 
 **Why:** the cost of these rules is paid once at design time; the cost of ignoring them compounds forever.
 
 ## Test quality (universal)
 
-The standard a test suite is authored and audited against. The *test* side of test quality; the *code* side (designing code to be testable — seams, injected dependencies, pure cores) is the testability rule. `/write-tests` writes to this standard; `/review` audits against it.
+The standard a test suite is authored and audited against. The *test* side of test quality; the *code* side (designing code to be testable — seams, injected dependencies, pure cores) is a design property of the code itself, not a separate rule here. `/write-tests` writes to this standard; `/review` audits against it.
 
 Tests assert **observable behavior**, not implementation. Assert what the unit *does* (return value, emitted event, state transition a caller can see), never how it does it (private fields, call order of internals). A test coupled to implementation breaks on every refactor and protects nothing.
 Test names **reveal intention** — what behavior, under what condition, expecting what. `Withdraw_InsufficientFunds_Throws` over `Test3`. The name is the spec a reader scans first.
@@ -358,4 +373,4 @@ Mock at **seams, not internals** — substitute true external dependencies (netw
 - **Test interdependence** — order-dependent or shared-state-dependent tests.
 - **One giant test** — a single test asserting a dozen unrelated behaviors; a failure tells you nothing about which broke.
 
-**Why:** tests exist to let you change code with confidence. A test coupled to implementation, dependent on order, or mocking its own subject inverts that — it breaks on safe refactors and stays green on real regressions, training the team to ignore or delete it. The standard above is what keeps a suite a safety net rather than a maintenance tax. Pairs with the testability design rule: when authoring to this standard hits friction (can't test without reaching into internals), that's a *testability* signal in the code, surfaced — not a reason to lower the test standard.
+**Why:** tests exist to let you change code with confidence. A test coupled to implementation, dependent on order, or mocking its own subject inverts that — it breaks on safe refactors and stays green on real regressions, training the team to ignore or delete it. The standard above is what keeps a suite a safety net rather than a maintenance tax. When authoring to this standard hits friction (can't test without reaching into internals), that's a *testability* signal in the code, surfaced as a finding — not a reason to lower the test standard.

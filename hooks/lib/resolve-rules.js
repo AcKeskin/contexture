@@ -7,9 +7,9 @@
 // by a trigger (the rule-prime hook) instead of by a model turn.
 //
 // Why this lives here and not in the discover skill: a skill is model-driven
-// prose, not callable code. The 047 algorithm was specified in
+// prose, not callable code. The overlay-resolution algorithm was specified in
 // docs/architectural-rules-overlay.md but never implemented as a subroutine.
-// 077's hook needs to *call* it on the critical path, so it is implemented
+// the rule-prime hook needs to *call* it on the critical path, so it is implemented
 // once here and consumed by the hook. Future MCP / agent-side callers
 // reuse this module rather than re-deriving the algorithm.
 //
@@ -434,6 +434,9 @@ function resolveRules({ cwd, scopes, relevancePhases } = {}) {
         scope: Array.isArray(fm.scope) ? fm.scope : fm.scope ? [fm.scope] : [],
         relevance: fm.relevance || '',
         kind: fm.kind || 'architectural-rule',
+        // `floor-priority: high` marks irreversible-action landmines the budget
+        // cap must keep ahead of same-tier peers (consumed by capToBudget).
+        floorPriority: fm['floor-priority'] || '',
         body: stripped,
         tier: winner.tier,
         nonDefault,

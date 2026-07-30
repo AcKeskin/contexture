@@ -22,10 +22,10 @@ From Ousterhout, *A Philosophy of Software Design*. Use these terms exactly. Don
 
 ## Operational rules
 
-- **The deletion test.** Imagine deleting the module. If complexity vanishes, it was a pass-through — delete it. If complexity reappears spread across N callers, it was earning its keep — keep it.
-- **The interface is the test surface.** Callers and tests cross the same seam. If you want to test *past* the interface, the module is the wrong shape — redesign before adding a back door.
-- **One adapter = hypothetical seam. Two adapters = real seam.** Don't introduce a seam unless something actually varies across it.
-- **Depth is a property of the interface, not the implementation.** A deep module can be internally composed of small swappable parts — they just aren't part of its interface.
+- <!-- id: deletion-test --> **The deletion test.** Imagine deleting the module. If complexity vanishes, it was a pass-through — delete it. If complexity reappears spread across N callers, it was earning its keep — keep it.
+- <!-- id: interface-is-test-surface --> **The interface is the test surface.** Callers and tests cross the same seam. If you want to test *past* the interface, the module is the wrong shape — redesign before adding a back door.
+- <!-- id: two-adapter-real-seam --> **One adapter = hypothetical seam. Two adapters = real seam.** Don't introduce a seam unless something actually varies across it.
+- <!-- id: depth-interface-property --> **Depth is a property of the interface, not the implementation.** A deep module can be internally composed of small swappable parts — they just aren't part of its interface.
 
 **Why:** these primitives unify several otherwise-separate disciplines (SRP, layering, testability, refactor cost). The deletion test is the cheapest signal you have for "is this abstraction earning its keep." The two-adapter rule prevents premature seams that pretend to be flexibility but cost real complexity.
 

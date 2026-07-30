@@ -1,6 +1,6 @@
 ---
 name: draft-plan
-description: Produce a versioned plan under `.claude/plans/<slug>/v<N>.md` from the active spec for that slug. Each step has a goal, files, expected outcome, and verification criteria; plans pin to a specific spec version. The drafted plan is presented for review (accept / edit / reject) before it is written to disk. Use when the user types /draft-plan or asks to plan out the implementation of a specced feature. Mode A only — never auto-fires.
+description: "Produce a versioned plan under `.claude/plans/<slug>/v<N>.md` from the active spec for that slug, pinned to a specific spec version and presented for review (accept / edit / reject) before it is written to disk. Use when the user types /draft-plan or asks to plan out the implementation of a specced feature. Mode A only — never auto-fires."
 ---
 
 # draft-plan

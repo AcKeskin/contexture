@@ -23,10 +23,10 @@ For pointer/touch input in Unity (Input System 1.x+), the default approach is `I
 
 **How to apply:**
 
-- Create an `InputActionAsset` (`*.inputactions`) with at least a Gameplay map containing `Press` (Button → `<Pointer>/press`) and `Position` (Value/Vector2 → `<Pointer>/position`).
-- Components that need input take `[SerializeField] InputActionAsset _actions` and look up the map + actions in `Awake`.
-- Subscribe in `OnEnable` (`action.performed += handler`), unsubscribe in `OnDisable`. Call `map.Enable()` / `map.Disable()` to gate.
-- Read companion values inside the callback via `otherAction.ReadValue<T>()` rather than caching them in `Update`.
+- <!-- id: input-action-asset-setup --> Create an `InputActionAsset` (`*.inputactions`) with at least a Gameplay map containing `Press` (Button → `<Pointer>/press`) and `Position` (Value/Vector2 → `<Pointer>/position`).
+- <!-- id: component-input-field --> Components that need input take `[SerializeField] InputActionAsset _actions` and look up the map + actions in `Awake`.
+- <!-- id: subscribe-on-enable --> Subscribe in `OnEnable` (`action.performed += handler`), unsubscribe in `OnDisable`. Call `map.Enable()` / `map.Disable()` to gate.
+- <!-- id: read-action-values --> Read companion values inside the callback via `otherAction.ReadValue<T>()` rather than caching them in `Update`.
 
 **When to deviate:**
 

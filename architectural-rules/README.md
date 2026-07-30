@@ -12,7 +12,7 @@ Unlike `claude-md/`, no `@import` line is needed in `~/.claude/CLAUDE.md` — th
 
 ```
 architectural-rules/
-├── universal/           scope: [universal],        relevance: mixed — 7 files form the always-on floor; the other 15 are phase- or surface-gated
+├── universal/           scope: [universal],        relevance: mixed — 6 files form the always-on floor; the other 18 are phase- or surface-gated
 ├── config-authoring/    scope: [config-authoring], relevance: when-touching-{skills,agents,rules,hooks}
 │   # language scopes — gate on the language of the file in scope
 ├── bash/                scope: [bash],       relevance: when-language-bash
@@ -38,7 +38,7 @@ architectural-rules/
 
 New languages / domains: create a new sub-folder. Do not nest further.
 
-**After changing any rule, re-run the cross-tool projector** — `node skills/project-instructions/project-instructions.mjs`. Every scope in this tree is also projected into `.github/instructions/<scope>.instructions.md` for non-Claude agents, and those copies are generated, never hand-edited. `bootstrap` does *not* run the projector; they are separate mechanisms, so a rule edit that skips this step leaves the other agents reading the old rule. `--dry-run` previews without writing.
+**After changing any rule, re-run the cross-tool projector** — `node skills/project-instructions/project-instructions.mjs`. Every scope in this tree is also projected into `.github/instructions/<scope>.instructions.md` for non-Claude agents, and those copies are generated, never hand-edited. `bootstrap` does *not* run the projector; they are separate mechanisms, so a rule edit that skips this step leaves the other agents reading the old rule. `--dry-run` previews without writing; `--check` reports drift without writing, and `bootstrap --verify` runs that check automatically (advisory), so a skipped re-run no longer goes unnoticed.
 
 **Relevance gate verbs.** A scope's `relevance` tag declares *what kind of fact* makes it fire — four verbs, one family:
 
@@ -73,6 +73,8 @@ relevance: <always | when-language-X | when-engine-X | when-platform-X | when-do
 ```
 
 Body: rule + why + scope. Compression discipline applies — no ceremony, no restating obvious context.
+
+One optional key: `floor-priority: high` marks an irreversible-action landmine (e.g. the no-AI-attribution rule) that the always-tier budget cap must keep ahead of same-tier peers when over budget. Use sparingly — a floor where everything is high-priority has no priority.
 
 ## Relationship to `~/.claude/CLAUDE.md`
 

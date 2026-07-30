@@ -17,15 +17,15 @@ For any tool with both (a) a config file and (b) an install/setup surface, the c
 
 **How to apply:**
 
-- When designing an install/setup surface, the first question is "what config does this write." The setup is just "write that config (with sensible defaults if missing) and run normal startup."
-- Resist install-time questions. If a question would be answered the same way by 90% of users, it's a default. If a question must be answered differently per-user, it's a config field. Either way, the install ceremony is unnecessary.
-- Resist role-encoding flags (`--friend-defaults`, `--team-mode`, `--developer-mode`). They imply you know who the user is; you don't, and you don't need to. Every default is a default for *everyone*; users who want different opt in by editing the config.
-- Make the steady-state code idempotent in both directions — turning a thing on and turning it back off should both be one-edit-then-re-run-the-tool. If "turning it off" requires a separate uninstall flow, the asymmetry will rot.
-- First-run reporting: surface clearly that defaults were seeded ("seeded enabled block with solo defaults") so the user knows the config now exists and can be edited.
+- <!-- id: install-surface-config --> When designing an install/setup surface, the first question is "what config does this write." The setup is just "write that config (with sensible defaults if missing) and run normal startup."
+- <!-- id: resist-install-questions --> Resist install-time questions. If a question would be answered the same way by 90% of users, it's a default. If a question must be answered differently per-user, it's a config field. Either way, the install ceremony is unnecessary.
+- <!-- id: resist-role-flags --> Resist role-encoding flags (`--friend-defaults`, `--team-mode`, `--developer-mode`). They imply you know who the user is; you don't, and you don't need to. Every default is a default for *everyone*; users who want different opt in by editing the config.
+- <!-- id: idempotent-steady-state --> Make the steady-state code idempotent in both directions — turning a thing on and turning it back off should both be one-edit-then-re-run-the-tool. If "turning it off" requires a separate uninstall flow, the asymmetry will rot.
+- <!-- id: first-run-reporting --> First-run reporting: surface clearly that defaults were seeded ("seeded enabled block with solo defaults") so the user knows the config now exists and can be edited.
 
 **Counter-cases (when an installer flow is appropriate):**
 
-- Operations that are *not safely re-runnable* — partitioning a disk, allocating cloud resources, generating cryptographic identities. These genuinely have first-time-only semantics and a wizard can be the right shape.
-- Onboarding flows that gather information the tool *can't compute defaults for* — e.g. the user's API key. Even then, prefer "leave the field empty in the seeded config and surface a clear error pointing at the file" over a blocking interactive prompt.
+- <!-- id: non-rerunnable-operations --> Operations that are *not safely re-runnable* — partitioning a disk, allocating cloud resources, generating cryptographic identities. These genuinely have first-time-only semantics and a wizard can be the right shape.
+- <!-- id: gather-information-onboarding --> Onboarding flows that gather information the tool *can't compute defaults for* — e.g. the user's API key. Even then, prefer "leave the field empty in the seeded config and surface a clear error pointing at the file" over a blocking interactive prompt.
 
 The rule isn't "no install scripts ever" — it's "don't *fake* an install ceremony for a steady-state config tool." Bootstrap that links files and writes a config? Steady-state. A wizard there is friction, not value.

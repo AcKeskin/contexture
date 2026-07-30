@@ -1,13 +1,13 @@
 ---
 name: Test quality (universal)
-description: Tests assert behavior not implementation; intention-revealing names; systematic edge/boundary/error coverage; mock at seams not internals; AAA clarity; no test interdependence. Plus the anti-pattern list. Pairs with the testability design rule (code side).
+description: "Tests assert behavior not implementation; intention-revealing names; systematic edge/boundary/error coverage; mock at seams not internals; AAA clarity; no test interdependence. Plus the anti-pattern list."
 type: user
 kind: architectural-rule
 scope: [testing, universal]
 relevance: during-review, when-writing-tests
 ---
 
-The standard a test suite is authored and audited against. The *test* side of test quality; the *code* side (designing code to be testable — seams, injected dependencies, pure cores) is the testability rule. `/write-tests` writes to this standard; `/review` audits against it.
+The standard a test suite is authored and audited against. The *test* side of test quality; the *code* side (designing code to be testable — seams, injected dependencies, pure cores) is a design property of the code itself, not a separate rule here. `/write-tests` writes to this standard; `/review` audits against it.
 
 <!-- id: behavior-not-impl --> Tests assert **observable behavior**, not implementation. Assert what the unit *does* (return value, emitted event, state transition a caller can see), never how it does it (private fields, call order of internals). A test coupled to implementation breaks on every refactor and protects nothing.
 <!-- id: intention-names --> Test names **reveal intention** — what behavior, under what condition, expecting what. `Withdraw_InsufficientFunds_Throws` over `Test3`. The name is the spec a reader scans first.
@@ -23,4 +23,4 @@ The standard a test suite is authored and audited against. The *test* side of te
 - **Test interdependence** — order-dependent or shared-state-dependent tests.
 - **One giant test** — a single test asserting a dozen unrelated behaviors; a failure tells you nothing about which broke.
 
-**Why:** tests exist to let you change code with confidence. A test coupled to implementation, dependent on order, or mocking its own subject inverts that — it breaks on safe refactors and stays green on real regressions, training the team to ignore or delete it. The standard above is what keeps a suite a safety net rather than a maintenance tax. Pairs with the testability design rule: when authoring to this standard hits friction (can't test without reaching into internals), that's a *testability* signal in the code, surfaced — not a reason to lower the test standard.
+**Why:** tests exist to let you change code with confidence. A test coupled to implementation, dependent on order, or mocking its own subject inverts that — it breaks on safe refactors and stays green on real regressions, training the team to ignore or delete it. The standard above is what keeps a suite a safety net rather than a maintenance tax. When authoring to this standard hits friction (can't test without reaching into internals), that's a *testability* signal in the code, surfaced as a finding — not a reason to lower the test standard.

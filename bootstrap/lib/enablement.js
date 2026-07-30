@@ -37,7 +37,7 @@ const DEFAULT_ENABLED = {
     codemapDirty: true,
     sessionGuard: true,
     rulePrime: true,
-    // Autonomy opt-ins (proposals 100/101) — off by default per the governing
+    // Autonomy opt-ins — off by default per the governing
     // decision (autonomy is opt-in per-organ; the user turns each on once trusted).
     wrapTerminus: false,
     coordinateAuto: false,

@@ -1,6 +1,6 @@
 ---
 name: write-tests
-description: "Author a quality test suite for EXISTING code — detects framework + conventions, proposes a confirmable test plan before writing, delegates idiomatic authoring to the scope's language-pro agent, pins current behavior but flags suspicious-as-bug. Use on /write-tests or \"write / add tests for existing code\". Mode A — never auto-fires."
+description: "Author a quality test suite for EXISTING code — convention-matching, test plan confirmed before any writing, pins current behavior but flags suspicious-as-bug. Use on /write-tests or \"write / add tests for existing code\". Mode A — never auto-fires."
 ---
 
 # write-tests

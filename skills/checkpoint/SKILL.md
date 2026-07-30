@@ -1,6 +1,6 @@
 ---
 name: checkpoint
-description: "Scope-dialed fit-and-intent audit — \"does this serve the original point + cohere with the whole + what did I learn?\" — at diff / module / corpus zoom. Auto-detects scope (--scope overrides); diff scope composes /code-review + a fit-pass; batches findings and routes them. Use on /checkpoint, \"does this fit\", \"did I drift\". Never auto-fires."
+description: "Scope-dialed fit-and-intent audit — \"does this serve the original point + cohere with the whole + what did I learn?\" — at diff / module / corpus zoom (--scope overrides auto-detection). Use on /checkpoint, \"does this fit\", \"did I drift\". Never auto-fires."
 ---
 
 # checkpoint

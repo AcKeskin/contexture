@@ -43,6 +43,18 @@ const WATERMARK_KEY = 'rulePrime';
 // Map file extensions → the architectural-rules scope folder for that language.
 // Only languages with a shipped rule tier need an entry; everything else is
 // "uncounted" and does not vote for a language tier.
+//
+// DELIBERATE BOUNDARY: the mechanical maps (here and KEYWORD_TO_SCOPE) carry
+// only scopes an unambiguous file/keyword signal can witness — the language
+// scopes plus godot (.gd is engine-unique). The domain/platform/engine scopes
+// (unity, web, android, linux, openxr, rendering, webrtc, codecs) are absent
+// ON PURPOSE: membership there is a task property no extension can witness
+// (.cs cannot distinguish Unity from plain C#; .tsx always means typescript,
+// never "web-architecture"; .kt has no language scope, and android ≠ Kotlin),
+// so those scopes reach context via /prep's model-side inference instead.
+// Adding them here would misfire on every ambiguous file. If a new scope has
+// a genuinely unique extension (like .gd), it may join; otherwise it stays
+// /prep-resolved.
 
 const EXT_TO_SCOPE = {
   '.cpp': 'cpp', '.cc': 'cpp', '.cxx': 'cpp', '.hpp': 'cpp', '.h': 'cpp', '.hh': 'cpp',
@@ -118,9 +130,9 @@ function languageCensus(root, { fileCap = 4000 } = {}) {
 }
 
 // --- Budget guard -----------------------------------------------------------
-// The always-tier is paid on every task, so 046/047 cap it at ~1k tokens. The
+// The always-tier is paid on every task, so the corpus budget caps it at ~1k tokens. The
 // hook enforces that ceiling: it injects up to the cap and, on overflow, logs an
-// advisory (surfacing the 063 scoreboard concern mechanically). Never exceeds
+// advisory (surfacing the budget-scoreboard concern mechanically). Never exceeds
 // the budget, never blocks the turn, never hard-fails.
 //
 // Token estimate uses a chars/4 heuristic — deterministic, no tokenizer
@@ -136,23 +148,31 @@ function estimateTokens(text) {
 // Cap a list of rendered rule entries to a token budget. Eviction is by tier
 // PRECEDENCE, not input order: when over budget, drop the lowest-precedence
 // rules first (shipped < company < user < project) so a higher-tier override —
-// the whole point of the 047 overlay — is never evicted ahead of a plain
-// shipped rule. Within a tier, drop later-keyed rules first (stable, arbitrary
-// but deterministic). Output preserves the caller's original order for
-// readability. Returns { kept, dropped, tokens, overflowed } where `dropped` is
-// the evicted rule objects themselves — callers must be able to name what was
-// withheld (watermark honesty + the visible overflow line), not just count it.
+// the whole point of the rule overlay — is never evicted ahead of a plain
+// shipped rule. Within a tier, rules marked `floor-priority: high`
+// (irreversible-action landmines, e.g. the no-AI-attribution rule) are kept
+// ahead of unmarked peers — an evicted landmine fails silently and the damage
+// is irreversible, so alphabetical luck must never decide its fate. Remaining
+// ties drop later-keyed rules first (stable, arbitrary but deterministic).
+// Output preserves the caller's original order for readability. Returns
+// { kept, dropped, tokens, overflowed } where `dropped` is the evicted rule
+// objects themselves — callers must be able to name what was withheld
+// (watermark honesty + the visible overflow line), not just count it.
 function capToBudget(rules, renderOne, tokenCap) {
   // Higher number = higher precedence = kept longer under pressure.
   const tierRank = { shipped: 0, company: 1, user: 2, project: 3 };
   const indexed = rules.map((r, i) => ({ r, i, t: estimateTokens(renderOne(r)) }));
 
-  // Keep-priority order: highest tier first; ties broken by original order so
-  // eviction is deterministic and bottom-up within a tier.
+  // Keep-priority order: highest tier first; within a tier, floor-priority
+  // landmines first; remaining ties broken by original order so eviction is
+  // deterministic and bottom-up within a tier.
   const byKeepPriority = indexed.slice().sort((a, b) => {
     const ra = tierRank[a.r.tier] ?? 0;
     const rb = tierRank[b.r.tier] ?? 0;
     if (ra !== rb) return rb - ra; // higher tier kept first
+    const pa = a.r.floorPriority === 'high' ? 1 : 0;
+    const pb = b.r.floorPriority === 'high' ? 1 : 0;
+    if (pa !== pb) return pb - pa; // landmines kept first within a tier
     return a.i - b.i; // earlier original index kept first within a tier
   });
 
@@ -178,7 +198,7 @@ function capToBudget(rules, renderOne, tokenCap) {
 }
 
 // Advisory goes to stderr → the hook debug log on exit 0 (NOT model context,
-// which would itself cost the budget we are guarding). Mirrors the 063
+// which would itself cost the budget we are guarding). Mirrors the budget-scoreboard
 // scoreboard concern: surface always-tier growth where the user/operator sees
 // it, mechanically, without paying context for the warning.
 function logBudgetAdvisory(detail) {
@@ -270,7 +290,7 @@ function loadInstructionSources(cwd) {
 // True when an implicated path-or-scope set intersects a declared subtree. The
 // hot-path scope gate for deep instruction files: a packages/web/AGENTS.md primes
 // only when the turn touches packages/web/. v1 gate = substring/segment-prefix
-// intersection against the prompt text + recent files (the 035/037 resolver is
+// intersection against the prompt text + recent files (the scope-resolution resolver is
 // the fuller answer; this is the pragmatic subtree-intersection it documents).
 function subtreeImplicated(subtree, prompt, payload) {
   if (!subtree) return false;
@@ -292,7 +312,7 @@ function subtreeImplicated(subtree, prompt, payload) {
 // turn a question would fire. At default → inject NOTHING (zero cost in the
 // common case). The contract VALUES live in the `autonomy:` frontmatter of the
 // session file `.claude/autonomy/active.md` (highest precedence) or, absent it,
-// the resolved 047 `autonomy-default.md` rule. Fail-open: any parse/IO error
+// the resolved overlay `autonomy-default.md` rule. Fail-open: any parse/IO error
 // returns null (no line) — a priming hook never blocks a turn.
 
 const IMPLICIT_AUTONOMY = { effort: 'balanced', stopping: 'criteria-met', ask: 'forks-only' };
@@ -318,7 +338,7 @@ function parseAutonomyBlock(text) {
   return out;
 }
 
-// The 047 tier directories that can hold an autonomy-default.md, in precedence
+// The overlay tier directories that can hold an autonomy-default.md, in precedence
 // order (highest first). Mirrors resolve-rules.js `tierDir` — kept local because
 // that function is not exported and the set is small + stable. We deliberately
 // duplicate WHICH directories exist (cheap, stable) rather than couple to the
@@ -335,7 +355,7 @@ function autonomyDefaultCandidates(cwd) {
 }
 
 // Resolve the effective contract: session active.md first, else the highest-
-// precedence 047 autonomy-default.md rule (read directly for its `autonomy:`
+// precedence overlay autonomy-default.md rule (read directly for its `autonomy:`
 // frontmatter — resolveRules emits bodies, not custom frontmatter keys, and
 // exposes no file path). Returns the merged posture over the implicit default.
 // Pure read; no model turn.

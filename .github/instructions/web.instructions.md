@@ -25,6 +25,7 @@ applyTo: "**/*.{html,css,jsx,tsx}"
 - Domain must have no React / Vue / Angular / framework imports.
 - UI talks to State; State talks to Transport; Transport talks to Domain types (not the other way).
 - Avoid magic globals. No module-level mutable state.
+- This vocabulary refines universal/layering for web apps: Domain = Core, Transport = Integration, UI = UI; State is web's extra layer between UI and Transport (Platform rarely appears). Universal/layering owns the base vocabulary.
 
 **Why:** frameworks churn. Domain logic bound to framework primitives dies with the framework. Source: ports-and-adapters / clean-architecture layering.
 

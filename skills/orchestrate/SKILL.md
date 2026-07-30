@@ -1,6 +1,6 @@
 ---
 name: orchestrate
-description: Goal-directed orchestration & convergence for concurrent work — decompose a single goal into units, place each (shared tree / worktree / serialize), fan out via dispatch, keep on track at dispatch, then verify-and-converge into one result. Use when the user types /orchestrate or says "split this across agents", "set up worktrees for these branches", "fan this goal out". Mode A only — never auto-fires.
+description: "Goal-directed orchestration and convergence for concurrent work — turns a single goal into parallel agent work and verifies it back into one result. Use when the user types /orchestrate or says \"split this across agents\", \"set up worktrees for these branches\", \"fan this goal out\". Mode A only — never auto-fires."
 ---
 
 # Orchestrate
@@ -164,6 +164,10 @@ depth annotation):
    dispatch* section. Read at dispatch only (the platform has no model-visible mid-flight
    channel) — never streamed in.
 
+The unit's task content itself takes dispatch's *delegation brief* shape (Goal · Files ·
+Constraints · Acceptance · Verify, pointers not pastes) — dispatch owns that contract;
+these six elements ride alongside it.
+
 **Scope is stated positively and fenced by placement** — see Overview finding 2. Positive
 scope guides attention; the Q2 worktree/placement is the enforcement.
 
@@ -197,6 +201,13 @@ A dispatched unit runs in **isolated context with no mid-flight window** (Overvi
 so "keep on track" means **prevent drift at dispatch** and **catch it at the cheapest
 checkpoint** (Q4). Periodic mid-flight self-reporting ("step 2/4 done…") is **rejected as pure
 ceremony** — the parent cannot read it live.
+
+The waiting itself is zero-token: between dispatch and return the parent does not poll, check
+in, or narrate progress — unit completion (the harness's task notification) wakes it. A
+**consult return** is not mid-flight supervision and stays compatible with finding 1: it is a
+normal *return* (`produced.status: blocked` carrying one specific question + evidence, per
+dispatch's *Consult returns* section) that the parent answers tersely and re-dispatches — one
+guidance round at a time, capped at two per unit, never a streamed conversation.
 
 **Four drift modes, controlled in evidence-ranked order** (cheapest + most effective first):
 

@@ -10,7 +10,7 @@ import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 // A BACKLOG priority-queue data row: | rank | # | subsystem | title | ... |
-// Column 2 is the proposal id (e.g. "100", "053→v2", "035+037").
+// Column 2 is the proposal id (e.g. "42", "17-v2", "8+9").
 const BACKLOG_ROW = /^\|\s*\d+\s*\|\s*([^|]+?)\s*\|/;
 // A CHANGELOG shipped line: "- ✓ <id> <desc>" — id is the leading token(s).
 const CHANGELOG_SHIP = /^-\s*✓\s*([0-9]+(?:[+→][0-9a-z-]+)*)/u;
@@ -53,7 +53,7 @@ function sweep(backlogPath, shipped) {
     if (!m) return;
     const cell = m[1].trim();
     if (cell === '#' || cell === '') return; // header row
-    // A continuation marker (053→v2, 087-v2) means follow-on work beyond what
+    // A continuation marker (a "-v2"-suffixed id) means follow-on work beyond what
     // shipped — the base proposal's presence in CHANGELOG does NOT mean this row
     // is done. Never sweep these; leave them for human judgment.
     if (/[→-]\s*v\d/i.test(cell)) return;

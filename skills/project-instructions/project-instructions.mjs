@@ -13,7 +13,8 @@
 // No LLM in the path (research: LLM-generated AGENTS.md hurts performance). Pure projection.
 // Claude Code is untouched — it reads CLAUDE.md + the corpus, never these files.
 //
-// Usage: node skills/project-instructions/project-instructions.mjs [--root <dir>] [--dry-run] [--quiet]
+// Usage: node skills/project-instructions/project-instructions.mjs [--root <dir>] [--dry-run] [--check] [--quiet]
+//   --check  compare generated content against disk and report drift; writes nothing
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -38,14 +39,15 @@ const SCOPE_GLOBS = {
 };
 
 function parseArgs(argv) {
-  const args = { root: process.env.CLAUDE_PROJECT_DIR || process.cwd(), dryRun: false, quiet: false };
+  const args = { root: process.env.CLAUDE_PROJECT_DIR || process.cwd(), dryRun: false, quiet: false, check: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--dry-run') args.dryRun = true;
     else if (a === '--quiet') args.quiet = true;
+    else if (a === '--check') args.check = true;
     else if (a === '--root') args.root = argv[++i];
     else if (a === '--help' || a === '-h') {
-      console.log('usage: node skills/project-instructions/project-instructions.mjs [--root <dir>] [--dry-run] [--quiet]');
+      console.log('usage: node skills/project-instructions/project-instructions.mjs [--root <dir>] [--dry-run] [--check] [--quiet]');
       process.exit(0);
     }
   }
@@ -261,6 +263,33 @@ function main() {
       rel: path.join('.github', 'instructions', `${scope}.instructions.md`),
       content: buildScopedInstruction(scope, rules),
     });
+  }
+
+  // --check: compare generated content against what is on disk and report
+  // drift, writing nothing. Line endings are normalized before comparing so
+  // CRLF churn (git autocrlf vs the projector's LF output) never reads as
+  // drift. Exit 0 with a machine-greppable report either way — the caller
+  // (bootstrap --verify) decides what to do with it; this stays advisory.
+  if (args.check) {
+    const norm = (s) => s.replace(/\r\n/g, '\n');
+    const stale = [];
+    for (const o of outputs) {
+      const abs = path.join(args.root, o.rel);
+      let existing = null;
+      try {
+        existing = fs.readFileSync(abs, 'utf8');
+      } catch {}
+      if (existing === null) stale.push({ rel: o.rel, why: 'missing' });
+      else if (norm(existing) !== norm(o.content)) stale.push({ rel: o.rel, why: 'stale' });
+    }
+    for (const s of stale) log(args, `projection ${s.why}: ${s.rel}`);
+    log(
+      args,
+      stale.length
+        ? `projection-check: ${stale.length} of ${outputs.length} projection(s) out of date — re-run the projector`
+        : `projection-check: OK — ${outputs.length} projection(s) match the rule tree`
+    );
+    return;
   }
 
   // Report + write

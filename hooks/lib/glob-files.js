@@ -3,7 +3,7 @@
 // Path-aware instruction-glob expander.
 //
 // Expands the `rulePrime.instructions` declaration — an array of paths and globs
-// naming ADDITIONAL instruction files for 077's prime hook to load, beyond the
+// naming ADDITIONAL instruction files for the rule-prime hook to load, beyond the
 // fixed CLAUDE.md tree — into a concrete file list, tagged with the deepest
 // non-glob directory prefix (the "subtree") so the hook can scope-gate a
 // multi-match glob (packages/*/AGENTS.md) instead of loading every match at once.

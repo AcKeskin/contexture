@@ -2,10 +2,6 @@
 
 Fragments in this folder are designed to be pulled into `~/.claude/CLAUDE.md` via `@import`. Bootstrap links this folder to `~/.claude/claude-md/` but does **not** edit `~/.claude/CLAUDE.md` — too easy to clobber user content. Each fragment is added once, manually, on each machine.
 
-## Active fragments
-
-*(none currently imported always-on)*
-
 ## On-demand fragments (linked, NOT imported)
 
 | Fragment | Purpose | Consumer |

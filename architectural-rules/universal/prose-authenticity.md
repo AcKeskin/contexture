@@ -26,6 +26,6 @@ Commit messages are out of scope — they have their own hygiene rule.
 
 ## Catalogue (source of truth — imported, not inlined)
 
-- Tells + lexicon: `skills/humanize/references/ai-vocabulary.v1.md`
-- The refuted/false-positive carve-out: `skills/humanize/references/false-positives.md`
-- Active organ: `/humanize` (detect → score → rewrite, voice-calibrated per run). When this rule catches a miss the catalogue lacks, route it through `/capture` — never self-edit.
+- <!-- id: tells-lexicon --> Tells + lexicon: `skills/humanize/references/ai-vocabulary.v2.md`
+- <!-- id: false-positive-carve-out --> The refuted/false-positive carve-out: `skills/humanize/references/false-positives.md`
+- <!-- id: active-organ-humanize --> Active organ: `/humanize` (detect → score → rewrite, voice-calibrated per run). When this rule catches a miss the catalogue lacks, route it through `/capture` — never self-edit.

@@ -11,6 +11,13 @@
 // resolver's line parser reads), so a strict line-parser here matches what
 // actually consumes these files. A ": " inside an unquoted value is the specific
 // break that has silently dropped a rule before — that is checked explicitly.
+//
+// --anchors additionally checks the overlay's field-patch contract: every rule
+// file carries at least one `<!-- id: <slug> -->` bullet anchor, every anchor is
+// well-formed kebab-case, and no id is duplicated (per file or corpus-wide). A
+// file without anchors can only be overridden whole; a duplicate id makes a
+// patch ambiguous. The default run is unchanged without the flag:
+//   node scripts/lint-rules.js --anchors
 
 const fs = require('fs');
 const path = require('path');
@@ -77,13 +84,41 @@ function parseFrontmatter(text) {
   return { fields };
 }
 
+// Anchor checks (--anchors only). Any `<!-- id:` occurrence is examined: the
+// loose scan catches malformed variants the strict pattern would skip over.
+const ANCHOR_STRICT = /<!-- id: ([a-z0-9][a-z0-9-]*) -->/g;
+
+function checkAnchors(rel, text, seenIds, problems) {
+  const loose = text.match(/<!--\s*id:[^>]*-->/g) || [];
+  const strict = [...text.matchAll(ANCHOR_STRICT)];
+  if (loose.length === 0) {
+    problems.push(`${rel}: no <!-- id: --> anchors — file can only be overridden whole, never field-patched`);
+    return;
+  }
+  if (loose.length !== strict.length) {
+    problems.push(`${rel}: ${loose.length - strict.length} malformed anchor(s) — expected \`<!-- id: kebab-slug -->\``);
+  }
+  const fileIds = new Set();
+  for (const m of strict) {
+    const id = m[1];
+    if (fileIds.has(id)) problems.push(`${rel}: duplicate id "${id}" within file`);
+    fileIds.add(id);
+    if (seenIds.has(id)) problems.push(`${rel}: id "${id}" already used in ${seenIds.get(id)} — ids are unique corpus-wide`);
+    else seenIds.set(id, rel);
+  }
+}
+
 function main() {
   const files = ruleFiles(RULES_DIR);
   const problems = [];
+  const anchorsMode = process.argv.includes('--anchors');
+  const seenIds = new Map();
 
   for (const abs of files) {
     const rel = path.relative(REPO_ROOT, abs).split(path.sep).join('/');
-    const { fields, error } = parseFrontmatter(fs.readFileSync(abs, 'utf8'));
+    const text = fs.readFileSync(abs, 'utf8');
+    if (anchorsMode) checkAnchors(rel, text, seenIds, problems);
+    const { fields, error } = parseFrontmatter(text);
     if (error) { problems.push(`${rel}: ${error}`); continue; }
 
     for (const k of REQUIRED_KEYS) {

@@ -64,7 +64,7 @@ const CALL_EDGE_CAP_PER_MODULE = 60;
 const CALL_SEQ_CALLERS_PER_MODULE = 8;  // top-fan-out callers shown per module
 const CALL_SEQ_CALLEES_PER_CHAIN = 12;  // ordered callees shown per caller chain
 
-// 087 confidence floor: a type-resolved call edge replaces its syntactic name-match only when
+// Type-resolution confidence floor: a type-resolved call edge replaces its syntactic name-match only when
 // confidence ≥ this; below it the syntactic edge stands (flagged), never a low-confidence guess.
 const CALL_RESOLUTION_FLOOR = 0.6;
 
@@ -1386,7 +1386,7 @@ async function main() {
   const moduleImports = new Map();
   const fileCalls = new Map(); // rel → [{caller, callee}] (call edges)
   const fileCallSeq = new Map(); // rel → [{caller, callees: [...source order, deduped NOT]}] (call SEQUENCE, for sequence diagrams)
-  const fileCallResolution = new Map(); // rel → [{caller, callee, receiver, qualified, confidence}] (087 type-resolved edges)
+  const fileCallResolution = new Map(); // rel → [{caller, callee, receiver, qualified, confidence}] (type-resolved call edges)
   const projectDefines = new Set(); // union of all defined function/method names (project-symbol signal for call-graph precision)
   // Collected during the scan; feeds the C# namespace→file index that resolveImport
   // consults for `using` directives. Built after the loop so heads are read once.
@@ -1440,7 +1440,7 @@ async function main() {
     let astImports = null; // non-null when the tree-sitter engine supplied imports
     let calls = [];         // call edges; AST-only, empty for regex langs
     let callSeq = [];        // ordered per-caller call sequence (AST-only); raw material for sequence diagrams
-    let callResolution = []; // 087 type-resolved call edges (TS/C# only); empty otherwise
+    let callResolution = []; // type-resolved call edges (TS/C# only); empty otherwise
     let defines = [];        // function/method names defined in this file (project-symbol signal)
 
     const tsTag = TREE_SITTER_TAG[lang];
@@ -1718,7 +1718,7 @@ async function main() {
     }
   }
 
-  // 087 cross-file confirmation. The per-file resolvers (TS/C#) emit `unconfirmed` resolutions
+  // Cross-file confirmation for type resolution. The per-file resolvers (TS/C#) emit `unconfirmed` resolutions
   // when a receiver's TYPE is known (annotation / `new`) but its class is declared in ANOTHER
   // file (imported). Confirm those against the project Type→methods registry built from every
   // file's extracted class methods: keep the qualified edge only when the method actually exists
@@ -1747,7 +1747,7 @@ async function main() {
     else fileCallResolution.delete(rel);
   }
 
-  // 087 apply: build a lookup (file, caller, callee) → { qualified, confidence } for resolutions
+  // Apply type resolution: build a lookup (file, caller, callee) → { qualified, confidence } for resolutions
   // at/above the confidence floor. The call-graph emit consults this to render the resolved
   // `Type.method` in place of the bare callee; below-floor or absent → the syntactic edge stands.
   // A single syntactic edge (file, caller, callee) can resolve to MULTIPLE qualified targets
@@ -1821,7 +1821,7 @@ async function main() {
       if (!byModule.has(mod)) byModule.set(mod, []);
       const bucket = byModule.get(mod);
       for (const e of edges) {
-        // 087: attach the type-resolved qualified callee(s) (Type.method) when the resolver
+        // Attach the type-resolved qualified callee(s) (Type.method) when the resolver
         // produced them above the floor; one syntactic edge may expand into several resolved
         // ones (same method name, different typed receivers). Else the edge stays syntactic.
         const res = resolvedEdgeMap.get(`${rel} ${e.caller} ${e.callee}`);

@@ -61,7 +61,7 @@ Skip the interview entirely when the prompt is already well-specified and only n
 
 ### 4. Rewrite
 
-Apply the [techniques](#techniques-that-generalize). Keep it model-agnostic. Preserve the user's voice and intent — improve clarity and completeness, don't impose a different goal. Don't pad: a longer prompt is not automatically better.
+Apply the [techniques](#techniques-that-generalize). Keep it model-agnostic. Preserve the user's voice and intent — improve clarity and completeness, don't impose a different goal. Size the rewrite to the gaps found in step 2: every added line closes a named gap, and when the gaps are closed, stop — length is set by the gaps, not by thoroughness.
 
 ### 5. Explain
 

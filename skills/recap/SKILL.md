@@ -1,6 +1,6 @@
 ---
 name: recap
-description: Write a session recap — an episodic record of what a work session was about, what was investigated, learned, completed, and what's next. Use when the user types /recap, says "wrap up" / "write session notes" / "recap this session", or signals session closure ("done for today", PR merged, deliberate pause). Never auto-fires — Mode A user-confirmed only. Also triggers a promotion pass where Learned items can be captured as rule-tier memories via the capture skill.
+description: "Write a session recap — an episodic record of what a work session was about, what was investigated, learned, completed, and what's next; Learned items can be promoted to memories via /capture. Use on /recap, \"wrap up\" / \"write session notes\" / \"recap this session\", or session-closure signals (\"done for today\", PR merged, deliberate pause). Mode A — never auto-fires."
 ---
 
 # recap

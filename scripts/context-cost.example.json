@@ -1,0 +1,21 @@
+{
+  "task": "example: a C# implementation task — rule corpus arms (flat-resident vs hook-resolved floor+scope vs +follow-on reads)",
+  "turns": 12,
+  "arms": {
+    "resident": ["architectural-rules/**/*.md"],
+    "pulled": [
+      "architectural-rules/universal/change-discipline.md",
+      "architectural-rules/universal/code-standards.md",
+      "architectural-rules/universal/git.md",
+      "architectural-rules/universal/layering.md",
+      "architectural-rules/universal/naming.md",
+      "architectural-rules/universal/solid-and-responsibilities.md",
+      "architectural-rules/csharp/**/*.md"
+    ],
+    "followon": [
+      "architectural-rules/universal/focused-execution.md",
+      "architectural-rules/universal/planning-depth.md",
+      "architectural-rules/universal/test-quality.md"
+    ]
+  }
+}

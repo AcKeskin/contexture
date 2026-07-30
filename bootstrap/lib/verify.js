@@ -10,7 +10,7 @@
 //                  deleted. ADVISORY / non-blocking: a plain
 //                  bootstrap run self-heals it via link.js's pruneOrphans, so
 //                  it never fails the exit code — `--verify` only surfaces it,
-//                  answering 072 open-question 2.
+//                  the prune-on-rename behaviour.
 //
 // Mirrors link.js's two modes (whole-dir vs per-item) and its symlink/copy
 // fallback. The ~/.claude/ entry is "linked" if it's either:
@@ -416,7 +416,7 @@ function formatReport(verifyResult) {
 // The `rulePrime.instructions` glob-array (hook-config.json) names extra
 // instruction files for the prime hook to load. A glob that matches NOTHING is
 // almost always a typo or a stale path — surface it. ADVISORY: reported, never
-// alters the exit code (the 055 scanLeaks discipline). Reads the declaration
+// alters the exit code (the scanLeaks discipline). Reads the declaration
 // from the home hook-config.json; expands each glob against repoRoot via the
 // hook's own expander so the check and the runtime agree on semantics.
 function verifyInstructionGlobs({ repoRoot, homeClaude }) {
@@ -470,6 +470,49 @@ function formatInstructionGlobReport(globResult) {
   return lines.join('\n');
 }
 
+// Cross-tool projection drift check. bootstrap does NOT run the projector, so
+// a rules change can leave AGENTS.md / .github projections stale with nothing
+// surfacing it (found live twice). Advisory only — never alters the exit code
+// (the scanLeaks discipline). Delegates the comparison to the projector's own
+// --check mode so the check and the generator can never disagree on content.
+function verifyProjections({ repoRoot }) {
+  const projector = path.join(repoRoot, 'skills', 'project-instructions', 'project-instructions.mjs');
+  if (!fs.existsSync(projector)) return { ran: false, stale: [], out: '' };
+  let out = '';
+  try {
+    out = require('child_process').execFileSync(process.execPath, [projector, '--check', '--root', repoRoot], {
+      encoding: 'utf8',
+      timeout: 30000,
+    });
+  } catch (e) {
+    // The check itself failing is a finding, not a crash of --verify.
+    return { ran: false, stale: [], out: `projection-check failed to run: ${e.message}` };
+  }
+  const stale = out
+    .split(/\r?\n/)
+    .filter((l) => l.startsWith('projection stale:') || l.startsWith('projection missing:'))
+    .map((l) => l.trim());
+  return { ran: true, stale, out };
+}
+
+function formatProjectionReport(projResult) {
+  const lines = [''];
+  if (!projResult.ran) {
+    lines.push(projResult.out || 'projection-check: projector not found — skipped');
+    return lines.join('\n');
+  }
+  if (!projResult.stale.length) {
+    lines.push('projection-check: cross-tool projections match the rule tree — ok');
+    return lines.join('\n');
+  }
+  lines.push(
+    `projection-check: ADVISORY — ${projResult.stale.length} projection(s) out of date (non-blocking; exit code unchanged):`
+  );
+  for (const s of projResult.stale) lines.push(`  ⚠ ${s}`);
+  lines.push('  (re-run: node skills/project-instructions/project-instructions.mjs)');
+  return lines.join('\n');
+}
+
 module.exports = {
   verifyAll,
   formatReport,
@@ -478,5 +521,7 @@ module.exports = {
   classifyFix,
   verifyInstructionGlobs,
   formatInstructionGlobReport,
+  verifyProjections,
+  formatProjectionReport,
   planLeakFixes,
 };

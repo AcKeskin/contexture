@@ -1,6 +1,6 @@
 ---
 name: humanize
-description: "Detect, score, and rewrite AI-generated texture in user-facing prose — docs, professional email, PR/proposal/issue. Density-based flagging, advisory likelihood (never a binary verdict), voice-calibrated rewrite preserving every argument. Use on /humanize or \"make this sound human / does this read like AI\". Refuses the terse model corpus. Mode A — never auto-fires."
+description: "Detect, score, and rewrite AI-generated texture in user-facing prose — docs, professional email, PR/proposal/issue — preserving every argument; verdicts are advisory, never binary. Use on /humanize or \"make this sound human / does this read like AI\". Refuses the terse model corpus. Mode A — never auto-fires."
 ---
 
 # Humanize
@@ -35,7 +35,7 @@ Classify as **tech-doc**, **email**, or **project-internal**. State the detectio
 If under ~120 words (classifiers) / ~200 (GPT-4-class), say so and **score conservatively or aggregate** (e.g. across a sender's recent messages / a PR author's recent descriptions). **Never** a confident per-message verdict below the floor — it's a plateau, not a cliff, but short text is unreliable.
 
 ### 2. Detect (density)
-Scan against `ai-vocabulary.v1.md` (lexicon + structural patterns) and the active register module. Flag **clusters**, with exact quotes + the reason. Apply `false-positives.md` as a hard filter: do **not** flag em-dashes, single catchphrases, low-perplexity/diversity, or register-native structure (headers/bold/lists in doc registers). A lone marker is not a finding.
+Scan against `ai-vocabulary.v2.md` (lexicon + structural patterns) and the active register module. Flag **clusters**, with exact quotes + the reason. Apply `false-positives.md` as a hard filter: do **not** flag em-dashes, single catchphrases, low-perplexity/diversity, or register-native structure (headers/bold/lists in doc registers). A lone marker is not a finding.
 
 ### 3. Score (four dimensions)
 Each presented as advisory density with the "signs, not proof" caveat — not a verdict.
@@ -72,10 +72,10 @@ Ask for (or accept an in-context) **writing sample** — this run calibrates to 
 - Present the rewrite after the report. Tell the user: your edits on top are usually the best version.
 
 ### 6. Route misses
-If the run surfaces a tell the catalogue lacks, propose `/capture` to add it to a **new catalogue version** (`ai-vocabulary.v2.md`). **Never** self-edit the catalogue or this file — the catalogue grows through propose-confirm capture only.
+If the run surfaces a tell the catalogue lacks, propose `/capture` to add it to a **new catalogue version** (`ai-vocabulary.v3.md`). **Never** self-edit the catalogue or this file — the catalogue grows through propose-confirm capture only.
 
 ## References (imported, not inlined)
-- `references/ai-vocabulary.v1.md` — lexicon + structural patterns (versioned source of truth)
+- `references/ai-vocabulary.v2.md` — lexicon + structural patterns (versioned source of truth)
 - `references/false-positives.md` — the refuted / convention carve-out
 - `references/{tech-doc,email,project-internal}.md` — per-register tells + preserve-sets
 - `fixtures/` — labelled acceptance corpus (density LOW/HIGH pair, per-register samples, model-corpus negative)
