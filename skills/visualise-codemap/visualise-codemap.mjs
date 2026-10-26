@@ -1180,7 +1180,10 @@ function renderSequenceDiagrams(parsed, cfg) {
   // Declared class names + every module's exported surface are project symbols a call may target.
   for (const c of (parsed.classes || [])) if (c.name) projectSymbols.add(c.name);
   for (const g of (parsed.groups || [])) for (const f of (g.files || [])) for (const ex of (f.exports || [])) {
-    const bare = String(ex.name).replace(/^default:\s*/, '').replace(/\s+—\s+.*$/, '').replace(/\(.*$/, '').trim();
+    // parseCodemap stores exports as plain strings; tolerate an object shape too so this
+    // can't silently degrade to the literal "undefined" again.
+    const raw = typeof ex === 'string' ? ex : (ex && ex.name) || '';
+    const bare = String(raw).replace(/^default:\s*/, '').replace(/\s+—\s+.*$/, '').replace(/\(.*$/, '').trim();
     if (bare && !/\s/.test(bare)) projectSymbols.add(bare);
   }
 

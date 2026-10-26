@@ -1,6 +1,7 @@
 ---
 name: new-hook
-description: "Scaffold a new Claude Code hook end-to-end from a recipe — produces the hook file, payload fixtures, a Node-based runner, and the ~/.claude/settings.json registration (diff previewed). Use when the user types /new-hook or asks to create / scaffold / add a hook. Mode A only — never auto-fire."
+description: "Scaffold a new Claude Code hook end-to-end from a recipe — produces the hook file, payload fixtures, a Node-based runner, and the ~/.claude/settings.json registration (diff previewed). Use when the user types /new-hook or asks to create / scaffold / add a hook."
+disable-model-invocation: true
 ---
 
 # new-hook

@@ -1,0 +1,16 @@
+{
+  "critic": {
+    "scope": "touched+1",
+    "image_cap": 12
+  },
+  "tells": [
+    { "id": "gradient-text", "tell": "Text filled with a gradient (background-clip: text)." },
+    { "id": "purple-hero-gradient", "tell": "A purple-to-blue gradient behind a hero or header." },
+    { "id": "emoji-icons", "tell": "Emoji used as icons or section markers." },
+    { "id": "three-identical-cards", "tell": "A row of three cards with the same shape, icon slot and text length." },
+    { "id": "pure-black-white", "tell": "Pure #000 or #fff neutrals where the contract has tinted neutrals." },
+    { "id": "many-accents", "tell": "More than one accent hue competing on one screen." },
+    { "id": "everything-centered", "tell": "Every block centered, with no alignment edge." },
+    { "id": "uniform-cards", "tell": "The same radius and shadow on every block, so nothing stands out." }
+  ]
+}

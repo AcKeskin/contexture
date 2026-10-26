@@ -22,5 +22,6 @@ The standard a test suite is authored and audited against. The *test* side of te
 - **Testing privates** — reaching into private members / internal helpers instead of the public surface.
 - **Test interdependence** — order-dependent or shared-state-dependent tests.
 - **One giant test** — a single test asserting a dozen unrelated behaviors; a failure tells you nothing about which broke.
+- **Weakened to green** — an assertion loosened, a case skipped, or a test disabled so the suite passes. The change that made it green is the finding; the code it was protecting is still broken.
 
 **Why:** tests exist to let you change code with confidence. A test coupled to implementation, dependent on order, or mocking its own subject inverts that — it breaks on safe refactors and stays green on real regressions, training the team to ignore or delete it. The standard above is what keeps a suite a safety net rather than a maintenance tax. When authoring to this standard hits friction (can't test without reaching into internals), that's a *testability* signal in the code, surfaced as a finding — not a reason to lower the test standard.

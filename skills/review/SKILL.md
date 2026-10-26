@@ -1,6 +1,6 @@
 ---
 name: review
-description: "Audit code in scope against your architectural rules; report drift (dead code, SoC, monolith, missing-pattern, principle, comment-drift, naming-quality) with propose-confirm per fix; route misses to /capture. Triggers: /review [path | --since <ref> | --vault], \"review this\", \"audit the architecture\", \"check for drift\". User-invoked only. Not a linter, not a security audit (use security-reviewer), not a PR review (use pr-review)."
+description: "Audit code in scope against your architectural rules; report drift (dead code, SoC, monolith, missing-pattern, principle, comment-drift, naming-quality, over-delivery). Triggers: /review [path | --since <ref> | --vault], \"review this\", \"audit the architecture\", \"check for drift\". User-invoked only. Not a linter, not a security audit (use security-reviewer), not a PR review (use pr-review)."
 ---
 
 # review
@@ -99,7 +99,7 @@ The intersection list is non-empty unless the project is too small or too new �
 For each file in scope:
 
 1. Read the full content. Batch independent Reads — several files per message — and never re-read a file already in context.
-2. Run the six drift checks (see §"Drift checks" below).
+2. Run the eight drift checks (see §"Drift checks" below).
 3. Collect findings of shape `{id, file, line, category, severity, effort, what, rule_cited, proposed_fix}`. `id` is `F<NNN>` — assigned provisionally in scan order during this step, then reassigned in §4b for repeat runs (CARRIED findings reuse the baseline id; NEW findings continue numbering above the baseline's max). For fresh runs, the provisional id is the final id.
 4. **`file:line` citation is mandatory.** Every finding must cite `path/to/file.ext:LINE` or a `file.ext:START-END` range. A finding that cannot point at a specific line is not a finding — it is pattern-matching, and it is rejected before reaching §4. Vague claims like "the code generally..." or "this module tends to..." do not pass this gate. The orientation paragraph in §2c is exempt (it is synthesis, not a finding); every concrete entry under a category in §5 is not.
 5. A finding without a *rule* citation is only valid for the dead-code and comment-drift categories (self-evident). All other findings must cite a loaded rule — if the check triggers but no rule supports it, drop the finding rather than fabricating a rule name. (Independent of the `file:line` rule above; a finding needs both where applicable.)
@@ -127,7 +127,7 @@ Cap at top 5 findings per file in the per-file detail section (the run-wide find
 +3 more findings in this file — drill in with /review <path/to/file> for detail
 ```
 
-A roll-up "Severity × Category" matrix (Critical/High/Medium/Low × Dead code/Monolith/SoC/Pattern/Principle/Comment drift/Naming quality) is rendered once before the per-file sections so the category-level signal is not lost.
+A roll-up "Severity × Category" matrix (Critical/High/Medium/Low × Dead code/Monolith/SoC/Pattern/Principle/Comment drift/Naming quality/Over-delivery) is rendered once before the per-file sections so the category-level signal is not lost.
 
 ### 4b. Repeat-run reconciliation
 
@@ -160,6 +160,7 @@ Findings: T total (C critical, H high, M medium, L low)
 | Principle viol.    | 1        | 0    | 0      | 0   |
 | Comment drift      | 0        | 0    | 0      | 3   |
 | Naming quality     | 0        | 0    | 1      | 2   |
+| Over-delivery      | 0        | 0    | 1      | 0   |
 
 ## Diagram                                                      # see §5b — mandatory section
 <mermaid block, ASCII box-diagram, or one-line N/A justification>
@@ -361,6 +362,23 @@ Catches identifiers and comments that are **technically correct but read badly**
 - **Public / exported renames** are **suggest-only** — a public rename is *not localized* (it ripples across call sites), so it never auto-applies and never becomes a suggestion-fence. Flag it, propose the better name in prose, and note that sweeping the call sites is the user's call. Do not edit call sites.
 
 **Feedback loop.** When the user rejects a naming finding as wrong ("that's a domain term"), route to §9 so the universal rule **or** the project convention learns the exception.
+
+### 8. Over-delivery
+
+Catches work that was **not asked for** — an option, an abstraction, a guard, a paragraph, or a comment that the request did not call for. Cite [`universal/over-delivery-tells.md`](../../architectural-rules/universal/over-delivery-tells.md) on every finding (loaded via discover under `relevance: during-review`); read the tell lists there rather than restating them here.
+
+**Boundary vs `/simplify`.** The bundled `/simplify` reviews changed code for reuse, simplification, efficiency, and altitude, and applies the fixes. It answers *could this be simpler*. This class answers a narrower question — *did the request ask for this* — and the two diverge on the finding that matters most: an unrequested config option is not a complexity problem to be refactored, it is work that should not exist. Where a finding is purely "this could be tidier", it belongs to `/simplify`, not here.
+
+**Boundary vs check 5 (principle violations).** A speculative abstraction violates the no-speculative-abstractions principle *and* is an over-delivery tell. Report it under check 5 with its rule cited; a single construct generates **at most one** finding.
+
+**Scope gate.** This class needs to know what was asked. It runs on `/review --since <ref>` and on an explicit path where the request is known from the session. On a whole-project `/review` with no diff and no stated request there is no baseline to judge against — **skip the class and say so in the report header** rather than guessing at intent from the code.
+
+**Calibration — CONSERVATIVE.** Lower confidence than check 7, because the evidence lives outside the code.
+- **Confident** (a construct with no caller, no stated requirement, and no convention endorsing it) → finding, low/medium severity.
+- **Borderline** → the **"Things that look bad but are actually fine"** section with reasoning, never a finding. The legitimate forms named in the cited rule — an imminent named second case, a guard on a boundary the code owns, a comment carrying a *why* — all land here.
+- **Conformance outranks the tell.** A pattern the surrounding code already establishes is not over-delivery, it is consistency.
+
+**Apply policy — suggest-only.** Deleting work is not localized: the author may know a requirement the diff does not show. Flag, propose, and let the user decide. Never auto-apply a deletion, and never emit one as a suggestion fence.
 
 ## Failure modes
 

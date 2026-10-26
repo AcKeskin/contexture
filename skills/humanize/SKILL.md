@@ -1,6 +1,7 @@
 ---
 name: humanize
-description: "Detect, score, and rewrite AI-generated texture in user-facing prose — docs, professional email, PR/proposal/issue — preserving every argument; verdicts are advisory, never binary. Use on /humanize or \"make this sound human / does this read like AI\". Refuses the terse model corpus. Mode A — never auto-fires."
+description: "Detect, score, and rewrite AI-generated texture in user-facing prose — docs, professional email, PR/proposal/issue — preserving every argument; verdicts are advisory, never binary. Use on /humanize or \"make this sound human / does this read like AI\". Refuses the terse model corpus."
+disable-model-invocation: true
 ---
 
 # Humanize

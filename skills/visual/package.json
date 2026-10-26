@@ -1,0 +1,11 @@
+{
+  "name": "visual-organ",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "visual skill engine. pngjs + pixelmatch power the pixel diff; everything else is plain node.",
+  "dependencies": {
+    "pixelmatch": "5.3.0",
+    "pngjs": "7.0.0"
+  }
+}

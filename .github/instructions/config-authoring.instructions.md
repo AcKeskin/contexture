@@ -6,6 +6,16 @@ applyTo: "skills/**,agents/**,architectural-rules/**,hooks/**,commands/**"
 
 > Auto-loaded by Copilot when editing files matching `skills/**,agents/**,architectural-rules/**,hooks/**,commands/**`. Generated from `architectural-rules/config-authoring/` — do not hand-edit.
 
+## Contract enforcement
+
+- **A body-stated contract that a script could evaluate ships with the script.** If the contract is a property of a file on disk — a required frontmatter key, a byte or word cap, a cross-reference that must resolve, a generated copy that must match its source — prose alone will not hold it. A rule that only lives in prose ships broken examples, and they pass every gate that does not read the thing the rule is about.
+- **A checker carries fixtures on both polarities.** A violating case must be reported *and* the legal cases must not be. A checker tested only on violations is a false-positive generator waiting for its first real run; one tested only on clean input proves nothing.
+- **State what the checker does not cover.** Where a contract has a checkable part and a judgment part, gate the first and leave the second an explicit checklist item. Silence reads as coverage, and a partly-gated contract that looks fully gated is worse than an ungated one nobody trusted.
+- **Put the gate where the defect is authored, not where it is discovered.** A contract enforced only at consumption time — a plan step missing its verification, caught when execution reaches it — is found at the most expensive moment. The runtime gate stays; add the authoring-time one.
+- **A contract that cannot be checked says so.** "Surface assumptions before coding" and "every changed line traces to the request" are judgment and always will be. Label them, rather than letting them sit in the same voice as the enforced ones — a reader cannot tell a gate from an aspiration by tone.
+
+**Why:** the corpus already does this eight times over (leak scan, residue check, projection drift, byte and token budgets, symlink drift, stale spec pins, agent output contract) without ever having named it, so new contracts get written as prose by default and the pattern is rediscovered per-case. Naming it makes the check the default question when a contract is authored: is this a gate or a checklist, and which am I about to imply?
+
 ## Cross-tool core — the always-on discipline that travels to every agent
 
 This is the **always-on discipline core** — the irreducible loop + pointers every agent follows on every request. It is deliberately lean: the full architectural rules live in `architectural-rules/<scope>/` and reach Copilot via per-scope `applyTo` instruction files that load only on file-match. Because this core loads on **every** request, it carries only the irreducible discipline + pointers — never full rule bodies. (Anti-bloat budget: target ~1k tokens.)
@@ -46,6 +56,17 @@ If `.claude/architecture.md` exists in the workspace, read it for project-specif
 
 **Why:** a corpus can be refactored for disclosure, end up more complex than a flat one, and not be cheaper — and nothing detects that unless claims carry numbers. Stating "untested" is honest; implying measurement that never happened is how structural drift hides.
 
+## Invocation control
+
+- **"Never auto-fires" is two contracts, not one.** *Does-not-self-start*: the skill never decides on its own that now is the moment, but another organ may still drive it (everything the closing ceremony sequences is this). *User-only*: the model cannot invoke it at all, by any path. Name which one a skill means. Writing one phrase for both hides the difference until something breaks.
+- **The platform enforces the second, not the first.** `disable-model-invocation: true` makes a skill user-only. `user-invocable: false` makes it model-only (a library skill other skills call, absent from the `/` menu). Does-not-self-start has no field; it stays prose, and the prose should say so rather than implying a gate exists.
+- When a skill is user-only, **the frontmatter field is the contract and the description does not repeat it.** Two statements of one contract drift, and the field is the one the host reads.
+- **An unannotated "never auto-fires" in a description means does-not-self-start.** User-only is declared by the frontmatter field and nowhere else. So a description carrying the phrase with no field is correct as written, not an omission — and a description carrying both is the drift to fix.
+- **`disable-model-invocation: true` also removes the description from context.** That is the point for a skill with side effects — the model should not know enough to want to run it. It is a real loss for a skill whose value includes being offered mid-conversation ("want me to run this on that draft?"). Choose per skill, on that question, not on tidiness.
+- **Before setting the field, check who drives the skill.** Grep the skills tree for `/name` and read the hits: a driver that invokes it breaks, a document that merely names it does not. A skill any ceremony sequences cannot be user-only.
+
+**Why:** these contracts were interchangeable for as long as neither was enforced, so one phrase covered both and nobody noticed. Once one of them is a field the host obeys, the difference is the difference between a skill that stays out of the way and a ceremony that silently stops running. Related: `universal/skill-auto-fire.md` covers *when* a model-invocable skill fires; this rule covers *whether* it can be model-invoked at all.
+
 ## Prohibitions and guidance forms
 
 - A prohibition is one of four classes; classify before rewriting or adding one. **Tripwires** (concrete token-level self-checks) work. **Recognition tables** (red-flag patterns caught at review time) work. **Discrete prohibitions** ("do not ask X to do Y", no competing incentive) work. **Composition prohibitions** — where the model has its own agenda for the output (restating a spec feels helpful to it) — backfire: naming the banned behaviour makes it more available. Only the fourth class needs rewriting, as a positive recipe stating what the output IS.
@@ -74,11 +95,13 @@ When a config value is absent, **surface a "configure this" message** naming the
 
 This rule governs **authoring the harness itself** (skills / agents / rules / hooks), not a user's project code. Business logic is full of legitimate domain constants; this is about numbers that appear in *instructions*, where they stand in for a decision.
 
-Every numeric threshold in an instruction belongs to one of three classes, and only two of them are legitimate:
+Every numeric threshold in an instruction belongs to one of four classes, and only one of them is illegitimate:
 **Resource guard** — the number proxies a real, measurable cost: a token budget, a context ceiling, a file-count ceiling above which the work no longer fits. Keep these hard and deterministic. Re-deriving a budget per invocation is worse than stating it, and a guard that bends on request is not a guard.
 **Presentation picker** — the number chooses how output is displayed (render inline vs. render an outline). It decides nothing about the work, so it needs no justification beyond fitting the reader.
 **Decision gate — forbidden.** The number stands in for a judgment the author didn't want to specify ("more than N files, so delegate"). It reads as precision and carries none: the count is not what makes the decision right or wrong, so it is right only by coincidence. Replace it with the criteria it was proxying, and if those criteria are hard to state, that difficulty *is* the finding — the decision was never understood well enough to encode.
 In genuine judgment territory, a number may still appear as a **tripwire**: it carries its rationale in place, and crossing it **surfaces the situational question** rather than resolving it. A partition check that flags "this many modules usually means the boundaries aren't earning their keep — do they here?" is auditable and correct even when the count is wrong, because the count only decides *when to ask*, never *what the answer is*.
+**Cadence guard** — a fourth legitimate class, distinct from the other three: the number decides **when a recurring action next fires**, not whether it is allowed. "Ten turns or two hours since the last run, whichever comes first." A resource guard says *too big, stop*; a cadence guard says *not yet, later*. Pair the two dimensions (a count **and** an elapsed time) rather than picking one — a count alone starves a slow session, a timer alone fires on an idle one.
+**A cadence guard needs a visible no-op**, because its failure mode is silence. A debounce that never fires and an organ with nothing to report look identical from the outside, and the broken case is the one that stays broken longest. Give the quiet path an explicit, fixed output — a single stated line meaning *ran, found nothing* — so "no output" always means "did not run" and is diagnosable. Optionally ramp: a looser threshold for the first day after install lets the thing be seen working before it goes quiet.
 A threshold that cannot state what it proxies is a smell. Write the rationale next to the number, in the artefact — not in the commit message, not in the design doc. A reader deciding whether to follow a threshold needs to know what it was protecting.
 
 **Why:** the failure mode is quiet. A bare count reads as measured and considered, so nobody revisits it, and the judgment it replaced stays unmade for as long as the artefact lives. Meanwhile the artefact's *legitimate* budgets get treated as equally arbitrary — one made-up number devalues the ones that were computed. Pure judgment is not the alternative: unanchored judgment drifts between sessions and models and cannot be audited. The tripwire keeps the determinism where it belongs (*when do we stop and ask*) and puts the judgment where it belongs (*what do we do about it*).

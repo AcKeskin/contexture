@@ -1,6 +1,7 @@
 ---
 name: new-mcp
-description: "Scaffold a new MCP server project under mcps/ — interview-driven, supports TypeScript and Python, simple tool servers and API wrappers; delivers a built, dependency-installed project registered in ~/.claude.json. Use when the user types /new-mcp or asks to create / scaffold / add an MCP server. Mode A only — never auto-fire."
+description: "Scaffold a new MCP server project under mcps/ — interview-driven, supports TypeScript and Python, simple tool servers and API wrappers; delivers a built, dependency-installed project registered in ~/.claude.json. Use when the user types /new-mcp or asks to create / scaffold / add an MCP server."
+disable-model-invocation: true
 ---
 
 # new-mcp

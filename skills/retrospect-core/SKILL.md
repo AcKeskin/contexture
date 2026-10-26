@@ -1,6 +1,7 @@
 ---
 name: retrospect-core
 description: Shared engine for the meta-review organs — orientation pass, NEW/CARRIED/RESOLVED baseline diffing, propose-confirm-commit-with-routing, and review-output-contract report rendering. Library-only — callable by checkpoint (and any future meta-review skill), not user-invoked. There is no /retrospect-core command. Stateless per call except for the report artefacts it persists.
+user-invocable: false
 ---
 
 # retrospect-core

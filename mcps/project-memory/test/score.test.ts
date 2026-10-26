@@ -229,6 +229,21 @@ describe("scoreMemories", () => {
     assert.ok(byName.some((r) => r.memory.frontmatter.name === "old"));
   });
 
+  it("suppresses a retired memory that has no successor", () => {
+    const memories = [
+      mem("wrong", { scope: ["auth"], superseded_by: "retired" }),
+      mem("other", { scope: ["auth"] }),
+    ];
+    const result = scoreMemories(memories, {
+      scopes: ["auth"],
+      includeRecaps: false,
+    });
+    assert.deepEqual(
+      result.map((r) => r.memory.frontmatter.name),
+      ["other"],
+    );
+  });
+
   it("recap recency: +2 within 7d, +1 within 8-30d, 0 beyond", () => {
     const memories = [
       mem("fresh", { scope: ["x"], type: "session-recap", date: "2026-06-04" }),

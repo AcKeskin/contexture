@@ -1,0 +1,194 @@
+<title>DESIGN_NAME proposal</title>
+<!-- FONTS: replace with the project's brand fonts from Google Fonts; keep the fallbacks in --f-* below. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: brand header band with page tabs over a light reading column; the plan color marks each Plan box, the accent marks calls and links */
+/* BRAND: replace --brand, --accent, --plan (and their soft/dark variants) with the project's own tokens. Defaults are neutral. */
+:root{
+  --brand:#24324A;--on-brand:#FFFFFF;--on-brand-muted:#B4BED0;
+  --bg:#F5F6F8;--surface:#FFFFFF;--sunk:#EBEEF3;--ink:#1D2433;--text:#3D4757;--muted:#7A8496;--rule:#DFE3EA;
+  --accent:#2F6FB3;--strong:#24324A;--plan:#C2410C;--plan-soft:#FFF1E8;--fail:#C62828;
+  --code-bg:#F8F9FB;--c-fn:#2F6FB3;--c-type:#5B3E99;--c-mac:#B4470F;--c-kw:#3D4757;--c-str:#2E7D4F;--c-com:#8792A2;
+  --f-body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  color-scheme:dark;--brand:#121A2A;--on-brand:#FFFFFF;--on-brand-muted:#8E99B0;
+  --bg:#0F1522;--surface:#172033;--sunk:#1F2A40;--ink:#EDF0F6;--text:#CFD6E2;--muted:#8C97AC;--rule:#2C3A55;
+  --accent:#7DB2EC;--strong:#9DB4E6;--plan:#FF9A5C;--plan-soft:#33241A;--fail:#FF7B72;
+  --code-bg:#121A2A;--c-fn:#7DB2EC;--c-type:#C2B1F0;--c-mac:#FFA36B;--c-kw:#CFD6E2;--c-str:#7FD39A;--c-com:#7B879E;}}
+:root[data-theme="dark"]{
+  color-scheme:dark;--brand:#121A2A;--on-brand:#FFFFFF;--on-brand-muted:#8E99B0;
+  --bg:#0F1522;--surface:#172033;--sunk:#1F2A40;--ink:#EDF0F6;--text:#CFD6E2;--muted:#8C97AC;--rule:#2C3A55;
+  --accent:#7DB2EC;--strong:#9DB4E6;--plan:#FF9A5C;--plan-soft:#33241A;--fail:#FF7B72;
+  --code-bg:#121A2A;--c-fn:#7DB2EC;--c-type:#C2B1F0;--c-mac:#FFA36B;--c-kw:#CFD6E2;--c-str:#7FD39A;--c-com:#7B879E;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16.5px/1.6 var(--f-body);padding-inline:16px;padding-block:0 72px}
+a{color:var(--accent)}
+code,pre{font-family:var(--f-mono)}
+code{font-size:.84em;background:var(--sunk);color:var(--ink);padding:.05em .35em;border-radius:3px;overflow-wrap:anywhere}
+h1,h2,h3,h4{font-family:var(--f-body);color:var(--ink);line-height:1.2;text-wrap:balance;margin:0}
+h2{font-size:clamp(28px,4vw,36px);font-weight:700;margin-bottom:8px}
+h3{font-size:20px;font-weight:700;margin-bottom:10px}
+h4{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-block:26px 8px}
+p{margin-block:0 12px;max-width:70ch}
+ul{margin-block:0 12px;padding-left:20px;max-width:72ch}
+b{color:var(--ink)}
+.muted{color:var(--muted)}
+:focus-visible{outline:2px solid var(--plan);outline-offset:2px}
+
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:var(--brand);margin-inline:-16px;padding:14px 16px 0}
+.bar-in{max-width:980px;margin:0 auto}
+.brand{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.brand b{color:var(--on-brand);font:600 17px var(--f-mono)}
+.brand span{color:var(--on-brand-muted);font-size:14px}
+.tabs{display:flex;gap:4px;overflow-x:auto;margin-top:10px;scrollbar-width:none}
+.tabs a{flex:none;padding:8px 12px 10px;color:var(--on-brand-muted);text-decoration:none;font-size:15px;font-weight:600;border-bottom:3px solid transparent;white-space:nowrap}
+.tabs a:hover{color:var(--on-brand)}
+.tabs a[aria-current="page"]{color:var(--on-brand);border-bottom-color:var(--plan)}
+
+main{max-width:980px;margin:0 auto}
+.page{padding-top:36px}
+.eyebrow{display:block;font:600 12px/1 var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--plan);margin-bottom:10px}
+.lede{font-size:18.5px;max-width:62ch}
+
+.tw{overflow-x:auto;margin-block:8px 16px;border:1px solid var(--rule);border-radius:6px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th,td{text-align:left;vertical-align:top;padding:9px 12px;border-bottom:1px solid var(--rule)}
+th{font:700 12px/1.3 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:var(--sunk)}
+tr:last-child td{border-bottom:0}
+td.nm{font:600 13px var(--f-mono);color:var(--ink);white-space:nowrap}
+td.way{width:42%}
+
+pre.sig{margin:8px 0 16px;font-size:13px;line-height:1.65;background:var(--code-bg);color:var(--text);border:1px solid var(--rule);border-left:3px solid var(--strong);border-radius:6px;padding:12px 14px;overflow-x:auto;tab-size:4}
+pre.sig .fn{color:var(--c-fn);font-weight:600}
+pre.sig .ty{color:var(--c-type)}
+pre.sig .mc{color:var(--c-mac)}
+pre.sig .kw{color:var(--c-kw);font-weight:600}
+pre.sig .st{color:var(--c-str)}
+pre.sig .cm{color:var(--c-com);font-style:italic}
+
+figure{margin:16px 0 20px}
+figure .fw{overflow-x:auto;border:1px solid var(--rule);border-radius:6px;background:var(--surface);padding:12px}
+figure svg{display:block;width:100%;height:auto;min-width:560px;color:var(--ink)}
+figcaption{font-size:15px;color:var(--muted);margin-top:8px;max-width:72ch}
+svg text{font-family:var(--f-body);fill:currentColor}
+svg .t{font:600 12.5px var(--f-mono)}
+svg .m{font:600 11.5px var(--f-mono);fill:currentColor}
+svg .s{font-size:12px;fill:var(--muted)}
+svg .lbl{font-size:12px;fill:var(--muted)}
+svg .box{fill:var(--surface);stroke:var(--rule);stroke-width:1.4}
+svg .box.k{fill:var(--sunk);stroke:var(--strong);stroke-width:1.8}
+svg .box.o{fill:var(--plan-soft);stroke:var(--plan);stroke-width:1.8}
+svg .box.f{stroke:var(--fail)}
+svg .edge{stroke:var(--muted);stroke-width:1.3;fill:none}
+svg .edge.d{stroke-dasharray:5 4}
+svg .edge.o{stroke:var(--plan)}
+svg .life{stroke:var(--rule);stroke-width:1.2;stroke-dasharray:3 4}
+svg .note{fill:var(--plan-soft);stroke:var(--plan);stroke-width:1}
+svg .grp{fill:none;stroke:var(--rule);stroke-width:1.2;stroke-dasharray:4 3}
+svg .bar{fill:var(--strong)}
+svg .bar.o{fill:var(--plan)}
+svg .x{stroke:var(--fail);stroke-width:2.5}
+
+.topic{background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:18px 20px 6px;margin-block:16px;scroll-margin-top:120px}
+.plan{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;align-items:baseline;border-left:3px solid var(--plan);background:var(--plan-soft);border-radius:0 6px 6px 0;padding:10px 14px;margin-bottom:14px;max-width:none}
+.plan .k,.others .k{font:700 11.5px var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--plan)}
+.others .k{display:block;color:var(--muted);margin-bottom:2px}
+.topic .tw{margin-block:6px 14px}
+.topic p.lim{font-size:15.5px}
+
+@media (max-width:560px){.plan{grid-template-columns:minmax(0,1fr)}}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+
+<div class="bar"><div class="bar-in">
+  <div class="brand"><b>DESIGN_NAME</b><span>SUBTITLE</span></div>
+  <nav class="tabs" aria-label="Pages">
+    <a href="#overview">Overview</a>
+    <a href="#area-one">AREA_ONE</a>
+  </nav>
+</div></div>
+
+<main>
+
+<!-- ============ OVERVIEW ============ -->
+<section class="page" id="overview">
+  <span class="eyebrow">Overview</span>
+  <h2>OVERVIEW_TITLE</h2>
+  <p class="lede">ONE_LINE_LEDE</p>
+
+  <!-- DIAGRAM: one figure of the whole; replace the SVG body. Markers need an id unique on the page. -->
+  <figure><div class="fw"><svg viewBox="0 0 760 200" role="img" aria-label="DIAGRAM_CLAIM">
+    <defs><marker id="a-ov" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker></defs>
+  </svg></div><figcaption>DIAGRAM_CAPTION</figcaption></figure>
+
+  <h4>Parts</h4>
+  <div class="tw"><table>
+    <thead><tr><th>Name</th><th>Side</th><th>Attaches to</th><th>Does</th></tr></thead>
+    <tbody>
+      <tr><td class="nm">PART_NAME</td><td>SIDE</td><td>ATTACH_POINT</td><td>WHAT_IT_DOES</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============ AREA ============ -->
+<section class="page" id="area-one" hidden>
+  <span class="eyebrow">AREA_EYEBROW</span>
+  <h2>AREA_TITLE</h2>
+  <p class="lede">ONE_LINE_LEDE</p>
+
+  <!-- DIAGRAM: the mechanism of this area -->
+
+  <h4>Interfaces</h4>
+<pre class="sig">// SIGNATURES_IN_THE_DESIGN'S_NOTATION</pre>
+
+  <!-- TOPIC: copy this block per choice -->
+  <article class="topic" id="t-choice">
+    <h3>CHOICE_NAME</h3>
+    <p class="plan"><span class="k">Plan</span><span>THE_PLAN</span></p>
+    <p class="lim">The catch: KNOWN_COST_OF_THE_PLAN</p>
+    <div class="others"><span class="k">Other ways</span></div>
+    <div class="tw"><table><tbody>
+      <tr><td class="way">ALTERNATIVE</td><td>ITS_LIMITATION</td></tr>
+    </tbody></table></div>
+  </article>
+</section>
+</main>
+
+<script>
+(function(){
+"use strict";
+const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+
+/* Generic signature highlighting: comments, strings, calls, PascalCase types, UPPER_CASE constants, common keywords. */
+const KW="typedef|struct|enum|union|const|void|char|bool|int|float|double|uint8_t|uint16_t|uint32_t|uint64_t|int32_t|int64_t|class|interface|type|func|fn|def|return|async|await|public|private|let|var|static";
+const tok=new RegExp('(\\/\\/[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/|^\\s*#\\s[^\\n]*)|("(?:[^"\\\\\\n]|\\\\.)*")|\\b('+KW+')\\b|\\b([A-Za-z_]\\w*)(?=\\s*\\()|\\b([A-Z][a-z0-9]+[A-Za-z0-9]*)\\b|\\b([A-Z][A-Z0-9]*_[A-Z0-9_]+)\\b',"gm");
+const esc=s=>s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+$$("pre.sig").forEach(pre=>{
+  const src=pre.textContent;let out="",i=0,m;tok.lastIndex=0;
+  while((m=tok.exec(src))){
+    if(!m[0].length){tok.lastIndex++;continue;}
+    out+=esc(src.slice(i,m.index));
+    const cls=m[1]?"cm":m[2]?"st":m[3]?"kw":m[4]?"fn":m[5]?"ty":"mc";
+    out+='<span class="'+cls+'">'+esc(m[0])+"</span>";i=m.index+m[0].length;
+  }
+  pre.innerHTML=out+esc(src.slice(i));
+});
+
+/* Tabs: a hash names a page or any element inside one. */
+const pages=$$(".page"), tabs=$$(".tabs a");
+function route(){
+  const h=decodeURIComponent(location.hash.slice(1));
+  const el=h?document.getElementById(h):null;
+  const page=(el&&el.closest(".page"))||pages[0];
+  pages.forEach(p=>{p.hidden=p!==page;});
+  tabs.forEach(a=>{if(a.getAttribute("href")==="#"+page.id)a.setAttribute("aria-current","page");else a.removeAttribute("aria-current");});
+  if(el&&el!==page)requestAnimationFrame(()=>el.scrollIntoView({block:"start"}));
+  else window.scrollTo(0,0);
+}
+window.addEventListener("hashchange",route);route();
+})();
+</script>

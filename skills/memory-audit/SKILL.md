@@ -61,6 +61,7 @@ Ten dimensions, run in parallel where possible. Each dimension produces zero or 
 - `kind` (when present) not in `{architectural-rule | decision | lesson | preference | warning}` → flag.
 - `scope` empty AND body is clearly domain-specific (heuristic: body mentions a specific module, language, or domain in the first paragraph) → flag for user judgment, suggest a more specific scope. Don't auto-fix — scope is judgment-laden.
 - `relevance` missing or empty → flag.
+- `superseded_by: retired` without a `retired_reason:` → flag "retired without reason" (suggest: add one line on why it was wrong).
 
 #### Dimension 3 — Broken `relations:` links
 
@@ -69,7 +70,7 @@ Skip silently when no memory file in the inventory has `relations:` populated (l
 For every `relations:` entry across all files:
 - Target file does not exist → flag "broken relation link" (suggest: remove the relation, or confirm the target was moved and update the path).
 - `relations.type` not in `{supersedes | contradicts | supports | related_to}` → flag.
-- `supersedes: target` but target doesn't have `superseded_by: <this-file>` (or vice versa) → flag "bidirectional integrity broken" (suggest: add the missing back-pointer).
+- `supersedes: target` but target doesn't have `superseded_by: <this-file>` (or vice versa) → flag "bidirectional integrity broken" (suggest: add the missing back-pointer). `superseded_by: retired` has no target by design; skip it here.
 
 #### Dimension 4 — Duplicate detection
 
@@ -147,7 +148,7 @@ The corpus grows unbounded; dimensions 4/6 catch duplicates/orphans but not *dea
 - A `warning` for a **tool / plugin / path that no longer exists** (cross-check the cited artefact still resolves).
 - `relevance: always` on a memory that is **not actually always-relevant** — finished-work facts riding the always-on floor are the prime offender (this is the always-on injection cost). Suggest demoting to a phase/scope relevance, or off the floor entirely.
 
-Resolution per finding: **demote** (drop `relevance: always`, or set `superseded_by` to archive it from discovery — file stays on disk), **trim** (cut the finished-work history, keep the live frontier), **delete** (only on explicit user confirm), or **skip**.
+Resolution per finding: **demote** (drop `relevance: always`, or retire it with `superseded_by: retired` plus a one-line `retired_reason:`; hidden from discovery, file stays on disk), **trim** (cut the finished-work history, keep the live frontier), **delete** (only on explicit user confirm), or **skip**.
 
 **10b — Uncompressed bodies.** Per [`../../docs/memory-compression-spec.md`](../../docs/memory-compression-spec.md), flag:
 - Body > ~400 B with narrative markers ("this session", "it turned out", "we found", long subordinate clauses).

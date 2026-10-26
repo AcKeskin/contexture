@@ -79,6 +79,7 @@ Apply covariance (`out`) and contravariance (`in`) only on generic interface and
 | Constants | `PascalCase` |
 | Parameters | `camelCase` |
 | Events | `OnEventName` (house convention) |
+| Booleans | `IsReady`, `HasItems`, `CanRetry` — never `Ready`, `Flag`, `IsNotReady` |
 
 **Why:** consistency across the surface makes intent visible. Private vs public vs local at a glance. Source: Microsoft .NET naming guidelines; .editorconfig naming defaults. The two rows marked *house convention* are this corpus's choice, not Microsoft guidance.
 

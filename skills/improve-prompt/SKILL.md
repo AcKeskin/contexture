@@ -1,6 +1,7 @@
 ---
 name: improve-prompt
-description: Improve any prompt — for LLMs/chat/agents or for generative image/video/audio models — so it produces more reliable, on-target output. Model-agnostic; uses techniques that hold across vendors. Interviews to fill real gaps, then returns a rewritten prompt plus a short rationale. Use when the user types /improve-prompt, pastes a prompt and asks to "make this better / sharpen / fix this prompt", or wants help phrasing a request to any AI model. Mode A only — never auto-fires.
+description: Improve any prompt — for LLMs/chat/agents or for generative image/video/audio models — so it produces more reliable, on-target output. Model-agnostic; uses techniques that hold across vendors. Interviews to fill real gaps, then returns a rewritten prompt plus a short rationale. Use when the user types /improve-prompt, pastes a prompt and asks to "make this better / sharpen / fix this prompt", or wants help phrasing a request to any AI model.
+disable-model-invocation: true
 ---
 
 # Improve Prompt

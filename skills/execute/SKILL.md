@@ -157,6 +157,8 @@ Run the step's Verification. Three kinds:
 
 **Audible skip.** If a check is skipped or downgraded because the change cannot affect it (docs-only, types-only, config-only), say so in the step's result line — a silent skip and a passed check look identical in a result trail, and the one-line say-so is what keeps the gate honest.
 
+**Make the check pass by changing the code it checks.** A verification gate is only worth the work it forces. When a check fails, the fix goes in the thing under test. If a candidate fix instead edits the check itself — disabling or skipping a test, adding a suppression comment or an ignore entry, lowering a severity or a threshold, widening a type or casting past it, loosening an assertion, or excluding the file from the run — that edit **is part of the finding**, not the fix. Stop and report it as the failure it is: say which check was about to be weakened and what it was protecting, then take option 2 or 4. The one legitimate case is a check that is itself wrong, and that is a claim to state out loud and get confirmed, never a change to slip in alongside a fix.
+
 #### 3d.1 Record the outcome to scratch
 
 After the verification resolves — **every outcome, pass and fail, all three kinds** — write one scratch entry via the `write_memory` MCP tool (`tier: scratch`, with the current `session_id`). Silent: no prompt, no interruption.

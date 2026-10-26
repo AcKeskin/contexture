@@ -47,6 +47,8 @@ Memory entries can reference each other via the `relations:` frontmatter field. 
 - **`supports`** — this memory reinforces the target with a concrete instance or corroboration. Increases the target's effective weight when both are surfaced.
 - **`related_to`** — soft pointer. Two memories live in similar territory; pulling one should hint that the other exists. Single-hop only — discovery does not follow `related_to` chains transitively.
 
+**Retiring a wrong memory with no successor.** When a memory turns out to be wrong and nothing replaces it, set `superseded_by: retired` and a one-line `retired_reason:` instead of deleting the file. Discovery hides it like any superseded memory, the file keeps the record of what was believed and why it was dropped, and its MEMORY.md index line is removed. Delete only when the user asks.
+
 `relations:` is optional. Most memories have none and stay unchanged. Use it when:
 - You're capturing something that obsoletes an existing memory (`supersedes` — capture skill prompts for this).
 - You're capturing something that disagrees with an existing memory (`contradicts`).

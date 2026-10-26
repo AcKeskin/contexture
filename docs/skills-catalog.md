@@ -96,6 +96,8 @@ The main pipeline. Each stage writes a versioned artefact the next stage reads.
 | Skill | Mode | What it does |
 |---|---|---|
 | `wrap` | Manual | Session-terminus driver. One invocation runs the whole closing ceremony in order — coordinate teardown → checkpoint if warranted → recap → close-out → changelog → backlog sweep → progress record — by driving the existing organs rather than reimplementing them. Every canonical write passes accept/edit/reject. |
+| `cycle` | Manual | Unattended dev-cycle loop. One setup conversation (tools, limits, never-touch list, GitHub choice, notifications), then `cycle-loop.mjs` runs cycle after cycle while you are away: audit with online prior art, a slice picked by the script, plan, implement, review/fix, and a draft PR when allowed. Watch through `/cycle status`, `/cycle watch`, a localhost status page and notifications; jump in by answering cards. |
+| `visual` | Manual | Visual organ for UI projects. `/visual setup` writes one design contract (canonical tokens, references, screen states and their capture commands); `/cycle` then captures what each change touched, runs pixel and style checks, and starts a fresh critic session that approves, asks for a revision, or settles a taste call within the contract. You review its decisions afterwards on the status page, agree or disagree, and roll a baseline back. |
 | `update-changelog` | Manual + callable | Appends one dated line per shipped unit to the canonical `CHANGELOG.md`. Offered by `recap`, `checkpoint`, `execute`, `spec`, `draft-plan`. One line per shipped unit, not per commit. |
 
 ## Library-only

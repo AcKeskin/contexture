@@ -2,6 +2,106 @@
 
 File-level changes per public snapshot. Curate freely — this is the human-facing history.
 
+
+## 2026-10-26 — Added /cycle, an unattended dev loop from audit to PR, the visual organ for design captures and checks, and design-proposal pages; a citation check in the agent-output hook, a refuting verifier in pr-review, and new rules for contract enforcement, invocation control, C++ naming and over-delivery.
+
+_37 added, 37 changed, 1 removed._
+
+### Agents
+- changed `agents/security-reviewer.md`
+
+### Architectural rules
+- added `architectural-rules/config-authoring/contract-enforcement.md`
+- added `architectural-rules/config-authoring/invocation-control.md`
+- added `architectural-rules/cpp/naming.md`
+- added `architectural-rules/universal/over-delivery-tells.md`
+- changed `architectural-rules/config-authoring/thresholds.md`
+- changed `architectural-rules/csharp/naming.md`
+- changed `architectural-rules/universal/naming.md`
+- changed `architectural-rules/universal/skill-auto-fire.md`
+- changed `architectural-rules/universal/test-quality.md`
+
+### CLAUDE.md imports
+- changed `claude-md/memory-capture.md`
+
+### Commands
+- added `commands/cycle.md`
+- added `commands/visual.md`
+- changed `commands/humanize.md`
+- changed `commands/improve-prompt.md`
+- changed `commands/new-hook.md`
+- changed `commands/new-mcp.md`
+- changed `commands/visualise-codemap.md`
+
+### Cross-tool instructions
+- changed `.github/instructions/config-authoring.instructions.md`
+- changed `.github/instructions/cpp.instructions.md`
+- changed `.github/instructions/csharp.instructions.md`
+- changed `.github/instructions/universal.instructions.md`
+
+### Docs
+- added `docs/cycle-contract.md`
+- changed `docs/reference.md`
+- changed `docs/skills-catalog.md`
+
+### Hooks
+- added `hooks/lib/cite-check.js`
+- added `hooks/tests/agent-output-cite-check.test.js`
+- changed `hooks/agent-output-contract-validator.js`
+
+### MCP servers
+- changed `mcps/project-memory/test/score.test.ts`
+
+### Other
+- added `scripts/update-config.ps1`
+- changed `.githooks/post-checkout`
+- changed `.githooks/post-merge`
+- changed `.githooks/post-rewrite`
+- removed `.githooks/commit-msg`
+
+### Skills
+- added `skills/cycle/SKILL.md`
+- added `skills/cycle/config-defaults.md`
+- added `skills/cycle/contract-defaults.md`
+- added `skills/cycle/cycle-contract.md`
+- added `skills/cycle/cycle-loop.mjs`
+- added `skills/cycle/cycle-state.mjs`
+- added `skills/cycle/projects-template.md`
+- added `skills/cycle/status-page.html`
+- added `skills/cycle/test/cycle-loop.test.mjs`
+- added `skills/cycle/test/cycle-state.test.mjs`
+- added `skills/cycle/test/fixtures/draw-tree.mjs`
+- added `skills/cycle/test/fixtures/setup-missing-engine.md`
+- added `skills/cycle/test/fixtures/stub-claude.mjs`
+- added `skills/cycle/test/fixtures/stub-gh.mjs`
+- added `skills/cycle/test/fixtures/stub-tamper.mjs`
+- added `skills/design-proposal/SKILL.md`
+- added `skills/design-proposal/assets/annotation-layer.css`
+- added `skills/design-proposal/assets/annotation-layer.js`
+- added `skills/design-proposal/assets/page-shell.html`
+- added `skills/design-proposal/references/page-recipe.md`
+- added `skills/visual/SKILL.md`
+- added `skills/visual/contract-defaults.json`
+- added `skills/visual/package-lock.json`
+- added `skills/visual/package.json`
+- added `skills/visual/test/fixtures/draw.mjs`
+- added `skills/visual/test/visual.test.mjs`
+- added `skills/visual/visual.mjs`
+- changed `skills/deliver/SKILL.md`
+- changed `skills/execute/SKILL.md`
+- changed `skills/humanize/SKILL.md`
+- changed `skills/improve-prompt/SKILL.md`
+- changed `skills/memory-audit/SKILL.md`
+- changed `skills/new-hook/SKILL.md`
+- changed `skills/new-mcp/SKILL.md`
+- changed `skills/pr-review/SKILL.md`
+- changed `skills/project-instructions/project-instructions.mjs`
+- changed `skills/retrospect-core/SKILL.md`
+- changed `skills/review/SKILL.md`
+- changed `skills/update-codemap/treesitter.mjs`
+- changed `skills/visualise-codemap/SKILL.md`
+- changed `skills/visualise-codemap/visualise-codemap.mjs`
+
 ## 2026-07-30 — Advisor-style delegation hardened into a standing brief contract (five fields, pointers not pastes, bounded repair with session-safe retries), the always-on floor fitted back under its budget with landmine-first eviction, a four-class prohibition doctrine with the corpus audited to it and skill descriptions cut to triggers-only, a context-cost instrument so disclosure claims cite numbers, an authoritative session-liveness check, two new universal rules (deterministic resource release, escape hatches as exceptions), and a cross-tool projection drift check in verify.
 
 _7 added, 81 changed, 1 removed._

@@ -1,6 +1,6 @@
 ---
 name: C# naming
-description: Types/methods/props/constants PascalCase. Private fields _camelCase. Locals/params camelCase. Events OnEventName.
+description: Types/methods/props/constants PascalCase. Private fields _camelCase. Locals/params camelCase. Events OnEventName. Booleans IsX/HasX.
 type: user
 kind: architectural-rule
 scope: [csharp, naming]
@@ -16,5 +16,6 @@ relevance: when-language-csharp
 | <!-- id: csharp-constants-pascal --> Constants | `PascalCase` |
 | <!-- id: csharp-parameters-camel --> Parameters | `camelCase` |
 | <!-- id: csharp-events-on --> Events | `OnEventName` (house convention) |
+| <!-- id: csharp-booleans-predicate --> Booleans | `IsReady`, `HasItems`, `CanRetry` — never `Ready`, `Flag`, `IsNotReady` |
 
 **Why:** consistency across the surface makes intent visible. Private vs public vs local at a glance. Source: Microsoft .NET naming guidelines; .editorconfig naming defaults. The two rows marked *house convention* are this corpus's choice, not Microsoft guidance.

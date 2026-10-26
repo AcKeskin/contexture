@@ -1,5 +1,6 @@
 ---
 description: Improve any prompt — for LLMs/chat/agents or generative image/video/audio models. Model-agnostic; interviews to fill real gaps, then returns a rewritten prompt plus a short rationale
+disable-model-invocation: true
 ---
 
 Run the `improve-prompt` skill for the current context.

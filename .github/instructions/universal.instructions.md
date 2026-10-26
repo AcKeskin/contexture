@@ -263,9 +263,10 @@ Abbreviate **only where idiomatic** to the surrounding code and domain (`ctx`, `
 
 - One type per file, filename matches the type — where the language's file idiom supports it.
 - No versioning suffixes in names: `New`, `V2`, `Final`, `Redesigned`. If an old version must coexist, rename the old one to `<Name>_OLD` and delete once the new one is proven.
+- Booleans read as a predicate. Prefix `Is` / `Has` (or `Can` / `Should` where it reads better) on boolean members, properties, and functions returning a boolean: `IsReady`, `HasPendingWrites`, `CanRetry`. Not `ready`, `pending`, `flag`, `status`. Applies to the language's casing — `is_ready` in snake_case languages. Negated names are banned: `IsNotReady` inverts at every call site.
 - Language-specific casing and file-layout idioms live in per-language rules under `<lang>/naming.md` and win.
 
-**Why:** suffixes like `V2` become permanent; `_OLD` is a visible debt you cannot ignore.
+**Why:** suffixes like `V2` become permanent; `_OLD` is a visible debt you cannot ignore. A bare `ready` reads as a noun at the call site, so `if (thing.ready)` is ambiguous between a state object and a boolean — the predicate prefix removes the guess.
 
 ## No hardcoded machine-specific paths in skills or code
 
@@ -276,6 +277,46 @@ When the config key is absent, **surface a "configure this" message** naming the
 **Why:** a literal like `C:/Users/SomeName/Documents/Obsidian/...` baked into a skill is correct on exactly one machine. The same user on a second PC, and every other user, gets a path that doesn't exist — the skill either fails or writes to the wrong place. Paths are environment, not logic; environment belongs in config. This is [[config-is-truth]] applied to the filesystem.
 
 **Smell:** grepping the skills/ or src/ tree for a username, a specific drive letter, or `Documents/` returns hits. Each hit is a portability defect waiting for the second machine.
+
+## Over-delivery tells
+
+The recipe, and the only composition instruction here:
+
+> **Write the version that would be correct if this were the only case, and add the second case when it arrives.**
+
+The rest of this file is a recognition list, for reading finished output rather than for holding in mind while producing it. A tell is a prompt to look, not a verdict — each one has a legitimate form, named in the last section.
+
+**Code tells.**
+- A parameter, flag, or config option nobody asked for.
+- An interface, base class, or abstraction with exactly one implementation.
+- A helper extracted on its first use.
+- `try`/`catch` around a trusted internal call, or a null check on a value the caller controls.
+- An error-class hierarchy for something that is a script.
+- A new file where an edit to an existing one would do.
+- Retries, caching, or a timeout on a path with no stated reliability requirement.
+- Tests that exercise the framework rather than the change.
+
+**Prose tells.**
+- Restating the question before answering it.
+- A closing summary of what was just said.
+- Options enumerated and then not pursued.
+- Headers, bullets, or a table imposed on a three-sentence answer.
+- A caveat paragraph that changes no decision.
+- Hedging that carries no information.
+
+**Comment tells.**
+- A comment restating what the line does.
+- A docstring on an obvious private helper.
+- Section banners inside a short file.
+- A comment explaining why the code is written the way any reader would write it.
+
+**When each is fine.** A second implementation that is genuinely imminent and named. A guard on a boundary the code actually owns. Retries where a reliability requirement exists and is stated. A caveat that changes what the reader will do next. Structure on an answer a reader will scan rather than read. A comment carrying a *why* the code cannot: a workaround, a constraint, a rejected alternative. Conformance to a convention the surrounding code already sets outranks every tell here.
+
+**The distinguishing question is scope, not taste.** "Could this be simpler?" is a different audit and has its own tools. The question here is narrower: *did the request ask for this?* An option nobody requested is not a complexity problem to be refactored away, it is work that should not exist.
+
+**Why:** this failure is a composition prohibition — the model has a competing goal, because thoroughness reads as helpfulness, so telling it not to over-build during composition is the form measured to hold least well. A recognition list read against finished output is the form that works. See `config-authoring/prohibitions-and-guidance-forms.md` for the classification.
+
+**Calibration stamp.** Written 2026-08-15 against the Claude 5 generation. The tells are derived from prior corpus findings and from two contemporaneous tools attacking the same defect (one as lint, one as a review skill); the cross-tool half of the motivation is **user-reported, not sampled** — no output from those tools was measured. Corrective direction for eagerness is **not** monotonic across model generations — a later model may need the opposite push, at which point this file corrects a behaviour that no longer exists and makes things worse. **Re-check trigger: the default model generation changes.** Re-read the tells against real output before carrying them forward.
 
 ## Persist decisions before discarding context
 
@@ -347,6 +388,8 @@ This rule shapes intent. It resolves through `/prep` and `/discover` relevance m
 
 **Why:** For `/prep`, the right firing moment is "first substantive task" — a concept that only exists *after* the user sends a message. SessionStart would fire against nothing. Description-based firing lets Claude recognise the moment, not the clock.
 
+This rule covers *when* a model-invocable skill fires. Whether a skill may be model-invoked at all is `config-authoring/invocation-control.md`.
+
 ## SOLID and responsibilities
 
 - One responsibility per class / function. Split as soon as a second concern creeps in.
@@ -372,5 +415,6 @@ Mock at **seams, not internals** — substitute true external dependencies (netw
 - **Testing privates** — reaching into private members / internal helpers instead of the public surface.
 - **Test interdependence** — order-dependent or shared-state-dependent tests.
 - **One giant test** — a single test asserting a dozen unrelated behaviors; a failure tells you nothing about which broke.
+- **Weakened to green** — an assertion loosened, a case skipped, or a test disabled so the suite passes. The change that made it green is the finding; the code it was protecting is still broken.
 
 **Why:** tests exist to let you change code with confidence. A test coupled to implementation, dependent on order, or mocking its own subject inverts that — it breaks on safe refactors and stays green on real regressions, training the team to ignore or delete it. The standard above is what keeps a suite a safety net rather than a maintenance tax. When authoring to this standard hits friction (can't test without reaching into internals), that's a *testability* signal in the code, surfaced as a finding — not a reason to lower the test standard.

@@ -1,6 +1,7 @@
 ---
 name: visualise-codemap
-description: "Render .claude/codemap.md into a UML-heavy document — layered module map, per-module class/file graphs, cross-module relations, call graphs, sequence diagrams — written to .claude/codemap.diagrams.md and the vault. Consumes the existing codemap, never rescans. Use on /visualise-codemap or \"diagram the codemap\". Mode A — never auto-fires."
+description: "Render .claude/codemap.md into a UML-heavy document — layered module map, per-module class/file graphs, cross-module relations, call graphs, sequence diagrams — written to .claude/codemap.diagrams.md and the vault. Consumes the existing codemap, never rescans. Use on /visualise-codemap or \"diagram the codemap\"."
+disable-model-invocation: true
 ---
 
 # visualise-codemap

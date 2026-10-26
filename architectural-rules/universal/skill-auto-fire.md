@@ -13,3 +13,5 @@ relevance: during-planning, when-touching-skills
 - <!-- id: reserve-hooks-session-open --> Reserve hooks for true session-open concerns (statusline, observability, bootstrap checks).
 
 **Why:** For `/prep`, the right firing moment is "first substantive task" — a concept that only exists *after* the user sends a message. SessionStart would fire against nothing. Description-based firing lets Claude recognise the moment, not the clock.
+
+This rule covers *when* a model-invocable skill fires. Whether a skill may be model-invoked at all is `config-authoring/invocation-control.md`.

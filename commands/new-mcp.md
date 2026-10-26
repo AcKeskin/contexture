@@ -1,5 +1,6 @@
 ---
 description: Scaffold a new MCP server project under mcps/ — interview-driven, supports TypeScript and Python, simple tool servers and API wrappers. Writes project files, installs dependencies, builds, and registers in ~/.claude.json with diff preview.
+disable-model-invocation: true
 ---
 
 Run the `new-mcp` skill for the current context.

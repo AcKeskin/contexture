@@ -1,5 +1,6 @@
 ---
 description: Detect, score, and rewrite AI-generated texture in user-facing prose (tech docs / email & messaging / PR-proposal-issue). Density-not-instance, advisory likelihood not a verdict, voice-calibrated rewrite. Refuses the terse model corpus.
+disable-model-invocation: true
 ---
 
 Run the `humanize` skill for the current context.

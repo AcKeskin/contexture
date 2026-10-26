@@ -137,7 +137,8 @@ For each file in scope:
   file: string,
   line: number | range,
   category: "correctness" | "design" | "hygiene" | "security",
-  severity: "critical" | "high" | "medium" | "low",
+  severity: "critical" | "high" | "medium" | "low" | null,   // null once a verifier marks it plausible
+  verdict: "confirmed" | "plausible" | "unverified",          // set in §6a; Medium/Low stay "unverified"
   what: string,
   suggestion: string,          // prose, OR a ```suggestion block when the §6.7 conditions hold
   rule_cited: string | null
@@ -147,6 +148,24 @@ For each file in scope:
 5. **`file:line` citation is mandatory.** Every finding must cite `path/to/file.ext:LINE` or a `file.ext:START-END` range. The line number refers to the **new file's** line number (post-change). A finding that cannot point at a specific line is not a finding — drop it.
 6. `rule_cited` is populated only when architectural rules were loaded (step 4, Q1 = yes) and a loaded rule supports the finding. For correctness, hygiene, and security findings that are self-evident, `rule_cited` may be null.
 7. **`suggestion` field — GitHub suggestion block when the fix fits.** When the finding's fix is a concrete code change that is **≤10 lines, localised to one contiguous range in one file, and mechanically actionable** (no "you'll also need to update X elsewhere" caveats), populate `suggestion` as a GitHub ` ```suggestion ` block — the literal replacement lines for the cited range, indentation matched to the new file's lines (read them via the diff hunk or `git show <head>:<path>`), no explanatory comments inside the block. When any condition fails, leave `suggestion` as prose ([review output contract](../../docs/review-output-contract.md) §3).
+
+### 6a. Verify Critical and High findings
+
+A finding you raised is a claim, and you are the worst judge of it. Before aggregating, send each **Critical** and **High** finding to a fresh verifier whose job is to refute it. Medium and Low findings skip this step; their cost of being wrong is low.
+
+- **One verifier per finding, in parallel.** Security findings go to the `security-reviewer` agent in Verify mode. Every other finding goes to a general-purpose agent.
+- **The verifier gets the claim, not your reasoning.** Pass only: the PR number, `file:line`, the one-line claim, the failure you expect, and the base and head refs so it can read the code with `git show`. Never pass your analysis or another verifier's verdict.
+- **The brief asks it to refute.** "Try to refute this finding from the source. Re-read the cited lines. Look for a guard, a caller, or a type that makes it impossible. Return `verdict: confirmed | plausible | rejected`, the `file:line` evidence, and one sentence of reason."
+
+Apply the verdict:
+
+| Verdict | Effect |
+| --- | --- |
+| **confirmed** | Keep it. Lower the severity if the verifier showed less impact than you claimed. Never raise it. |
+| **plausible** | Drop the severity. Move it to **Needs validation** with the verifier's gap and what would settle it. |
+| **rejected** | Remove it from findings. Add it to "Looks bad but actually fine" with the verifier's reason. |
+
+A verifier reply without a parseable `verdict:` line is discarded and re-run once. If the second reply is also unusable, the finding becomes **plausible**. A finding never becomes confirmed without a verdict.
 
 ### 7. Aggregate and structure findings
 
@@ -220,6 +239,12 @@ Supplementary context: loaded | none
 - [ ] #1 [Critical/Security] src/auth/login.ts:42 — SQL injection
 - [ ] #2 [High/Correctness] src/auth/login.ts:67 — null check
 
+## Needs validation
+
+- src/api/export.ts:88: possible path traversal in `filename`
+  Gap: the caller in `routes/files.ts` was not in the diff
+  To settle: check whether `routes/files.ts` sanitizes `filename` before the call
+
 Verdict: <APPROVE | REQUEST_CHANGES | COMMENT>
 Reasoning: <1-2 sentence summary of overall assessment>
 ```
@@ -231,6 +256,8 @@ Reasoning: <1-2 sentence summary of overall assessment>
 - The Key findings table lists all findings across all files, sorted by severity (Critical first).
 - The Review checklist is always present when total findings > 0 — this is the actionable output the user takes to GitHub.
 - The Verdict is a recommendation, not an action. The user decides whether to approve, request changes, or comment.
+- Only confirmed Critical or High findings can drive `REQUEST_CHANGES`. Needs-validation items lead to `COMMENT` at most.
+- **Needs validation** lists the plausible findings from §6a, without severity, after the checklist. Omit the section when there are none. These items stay out of the Summary and Key findings tables, which count only findings with a severity.
 - When total findings = 0, skip per-file detail, summary table, key findings, and checklist. Render:
 
 ```
@@ -380,6 +407,8 @@ Self-evident for most security findings. Cite loaded architectural rules when ap
 - **Network failure during `gh` commands.** Report the `gh` error output verbatim. Suggest retrying or checking connectivity.
 
 - **Binary files in diff.** Skip silently. Note count in report header.
+
+- **Verifier unavailable** (agent dispatch fails or is refused). Do not skip silently. Render Critical and High findings as `unverified` and say so in the report header: `Verification: skipped (<reason>)`.
 
 - **Empty diff.** Report:
   > PR #N has no file changes. Nothing to review.

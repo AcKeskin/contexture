@@ -16,6 +16,7 @@
 // Usage: node skills/project-instructions/project-instructions.mjs [--root <dir>] [--dry-run] [--check] [--quiet]
 //   --check  compare generated content against disk and report drift; writes nothing
 
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -270,23 +271,70 @@ function main() {
   // CRLF churn (git autocrlf vs the projector's LF output) never reads as
   // drift. Exit 0 with a machine-greppable report either way — the caller
   // (bootstrap --verify) decides what to do with it; this stays advisory.
+  //
+  // Drift is reported by direction, because the two directions have opposite
+  // fixes. `stale` means the rule tree moved ahead and re-running the
+  // projector is correct. `hand-edited` means the file on disk holds content
+  // that appears nowhere in the regenerated output — re-running would delete
+  // it, so the fix is to move that content into the rule tree first. A check
+  // that reported both as "stale, re-run the projector" would invite the
+  // caller to destroy the second case.
   if (args.check) {
     const norm = (s) => s.replace(/\r\n/g, '\n');
-    const stale = [];
+    // Untracked path or no git → false, keeping the cautious hand-edited read.
+    const matchesHead = (rel, existing, n) => {
+      try {
+        const committed = execFileSync('git', ['show', `HEAD:${rel.replace(/\\/g, '/')}`], {
+          cwd: args.root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
+        });
+        return n(committed) === n(existing);
+      } catch {
+        return false;
+      }
+    };
+    // Lines on disk that appear nowhere in the generated output. Membership,
+    // not position, so a line the projector merely moved is not flagged.
+    const orphanLines = (existing, generated) => {
+      const produced = new Set(norm(generated).split('\n').map((l) => l.trim()));
+      return norm(existing)
+        .split('\n')
+        .map((l) => l.trim())
+        .filter((l) => l && !produced.has(l));
+    };
+    const drift = [];
     for (const o of outputs) {
       const abs = path.join(args.root, o.rel);
       let existing = null;
       try {
         existing = fs.readFileSync(abs, 'utf8');
       } catch {}
-      if (existing === null) stale.push({ rel: o.rel, why: 'missing' });
-      else if (norm(existing) !== norm(o.content)) stale.push({ rel: o.rel, why: 'stale' });
+      if (existing === null) {
+        drift.push({ rel: o.rel, why: 'missing', detail: '' });
+        continue;
+      }
+      if (norm(existing) === norm(o.content)) continue;
+      // Orphan lines alone can't tell a hand-edit from a deleted source rule.
+      // Git can: matching HEAD means nobody edited it, so the drift is source-side.
+      const orphans = orphanLines(existing, o.content);
+      if (orphans.length && !matchesHead(o.rel, existing, norm)) {
+        drift.push({
+          rel: o.rel,
+          why: 'hand-edited',
+          detail: ` — ${orphans.length} line(s) on disk are not produced by the rule tree; re-running deletes them. First: ${JSON.stringify(orphans[0].slice(0, 80))}`,
+        });
+      } else {
+        drift.push({ rel: o.rel, why: 'stale', detail: '' });
+      }
     }
-    for (const s of stale) log(args, `projection ${s.why}: ${s.rel}`);
+    for (const d of drift) log(args, `projection ${d.why}: ${d.rel}${d.detail}`);
+    const handEdited = drift.filter((d) => d.why === 'hand-edited').length;
     log(
       args,
-      stale.length
-        ? `projection-check: ${stale.length} of ${outputs.length} projection(s) out of date — re-run the projector`
+      drift.length
+        ? `projection-check: ${drift.length} of ${outputs.length} projection(s) out of date` +
+            (handEdited
+              ? ` — ${handEdited} hand-edited (move the content into the rule tree first; do NOT just re-run)`
+              : ' — re-run the projector')
         : `projection-check: OK — ${outputs.length} projection(s) match the rule tree`
     );
     return;

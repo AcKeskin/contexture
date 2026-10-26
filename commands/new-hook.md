@@ -1,5 +1,6 @@
 ---
 description: Scaffold a new Claude Code hook end-to-end — recipe-driven hook file, payload fixtures, runner, and settings.json registration with diff preview
+disable-model-invocation: true
 ---
 
 Run the `new-hook` skill for the current context.

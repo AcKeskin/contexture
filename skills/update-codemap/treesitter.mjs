@@ -418,18 +418,73 @@ const EXTRACTORS = {
         const ext = [];
         const base = firstOfType(n, 'base_class_clause');
         if (base) for (const t of collectShallow(base, 'type_identifier', ['field_declaration_list'])) ext.push(t.text);
+        // `Foo* Bar()` nests as pointer_declarator > function_declarator, so unwrap to find the
+        // function_declarator rather than testing the outermost declarator's type. Without this
+        // a pointer-returning method reads as a data member.
+        const asFunctionDeclarator = (d) => {
+          for (let cur = d, hops = 0; cur && hops < 4; hops++) {
+            if (cur.type === 'function_declarator') return cur;
+            // pointer_declarator exposes a `declarator` field; reference_declarator holds its
+            // inner declarator positionally, so fall back to the first *_declarator child.
+            let next = childField(cur, 'declarator');
+            if (!next) {
+              for (let i = 0; i < cur.namedChildCount; i++) {
+                const c = cur.namedChild(i);
+                if (c.type.endsWith('_declarator')) { next = c; break; }
+              }
+            }
+            cur = next;
+          }
+          return null;
+        };
         const fields = [];
         const body = childField(n, 'body') || firstOfType(n, 'field_declaration_list');
         if (body) for (const fd of collectShallow(body, 'field_declaration', ['field_declaration_list'])) {
           const decl = childField(fd, 'declarator');
-          // Method (function_declarator) vs data member (field_identifier).
-          if (decl && decl.type === 'function_declarator') continue;
+          // Method vs data member.
+          if (asFunctionDeclarator(decl)) continue;
           const fid = decl && decl.type === 'field_identifier' ? decl : firstOfType(fd, 'field_identifier');
           const type = childField(fd, 'type')?.text || '';
           if (fid && fid.type === 'field_identifier') fields.push({ name: fid.text, type });
         }
-        classes.push(mk(name, n.type === 'struct_specifier' ? 'struct' : 'class', { extends: ext, fields }));
+        // Public methods are part of a C++ type's contract, so they belong in `exports` (the
+        // symbol index and the visualiser's project-symbol set both read it) and in `methods`
+        // (the registry that upgrades a call edge to `Type.method`). Access runs top-down from
+        // the kind's default until an access_specifier flips it, so walk members in order
+        // rather than collecting them, and carry access across preproc branches, which is
+        // where platform-gated members live.
+        const methods = [];
+        if (body) {
+          // The name is the function_declarator's OWN declarator field. A deep search would
+          // find a parameter's identifier first, since the method name is a field_identifier.
+          const declaredName = (fnDecl) => {
+            const id = childField(fnDecl, 'declarator');
+            if (!id) return null;
+            if (id.type !== 'field_identifier' && id.type !== 'identifier' && id.type !== 'qualified_identifier') return null;
+            return id.text.split('::').pop();
+          };
+          let isPublic = n.type === 'struct_specifier';
+          const walkMembers = (parent) => {
+            for (let i = 0; i < parent.namedChildCount; i++) {
+              const m = parent.namedChild(i);
+              if (m.type === 'access_specifier') { isPublic = /public/.test(m.text); continue; }
+              if (m.type.startsWith('preproc_')) { walkMembers(m); continue; }
+              // A nested type's members are its own surface, not this one's.
+              if (m.type === 'class_specifier' || m.type === 'struct_specifier') continue;
+              if (m.type !== 'function_definition' && m.type !== 'field_declaration') continue;
+              const fnDecl = asFunctionDeclarator(childField(m, 'declarator'));
+              if (!fnDecl || !isPublic) continue;
+              const mName = declaredName(fnDecl);
+              // Constructors and the destructor carry the type's name, already exported as the type.
+              if (!mName || mName === name || mName === `~${name}` || methods.includes(mName)) continue;
+              methods.push(mName);
+            }
+          };
+          walkMembers(body);
+        }
+        classes.push(mk(name, n.type === 'struct_specifier' ? 'struct' : 'class', { extends: ext, fields, methods }));
         exports.push({ name });
+        for (const mName of methods) exports.push({ name: mName });
       }
     }
     return { classes, exports, imports };

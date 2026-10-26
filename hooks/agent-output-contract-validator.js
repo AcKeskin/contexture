@@ -21,6 +21,11 @@
 //     /recap on the user's confirmation. The hook never auto-captures and
 //     never rejects — capture stays Mode A (collaborator, not auto-learner).
 //
+//  3. Citation check. ANY subagent's `path:line` citations are resolved against
+//     the cwd, the project root, and folders named in the dispatch prompt. A
+//     line past the end of a real file, or a missing file in a folder that
+//     does exist, is listed so the parent re-reads it before relying on it.
+//
 // The checks are independent: harvest is recognised even for agents with no
 // `## Output contract`, and a response may legitimately carry BOTH a contract
 // block and a harvest block (separately keyed, scanned independently).
@@ -32,6 +37,7 @@
 const fs = require('fs');
 const path = require('path');
 const io = require('./lib/hook-io');
+const { findBrokenCitations } = require('./lib/cite-check');
 
 const AGENT_TOOL_NAME = 'Agent';
 const AGENT_DIR = 'agents';
@@ -61,6 +67,10 @@ async function main() {
   // Check 2 — harvest recognition (universal, optional, additive).
   const harvestAdvisory = checkHarvest(subagentType, responseText);
   if (harvestAdvisory) advisories.push(harvestAdvisory);
+
+  // Check 3 — citation check (universal).
+  const citeWarning = checkCitations(subagentType, responseText, payload);
+  if (citeWarning) advisories.push(citeWarning);
 
   if (advisories.length === 0) return io.allow();
   io.advise(advisories.join('\n\n'));
@@ -110,6 +120,27 @@ function checkHarvest(subagentType, responseText) {
   const total = counts.decisions + counts.lessons + counts.open_questions;
   if (total === 0) return null;                   // present but empty — nothing to route
   return formatHarvestAdvisory(subagentType, counts);
+}
+
+const MAX_LISTED_CITATIONS = 5;
+
+function checkCitations(subagentType, responseText, payload) {
+  const broken = findBrokenCitations(responseText, {
+    cwd: payload.cwd,
+    projectRoot: io.projectRoot(),
+    promptText: payload.tool_input && payload.tool_input.prompt,
+  });
+  if (broken.length === 0) return null;
+  const listed = broken
+    .slice(0, MAX_LISTED_CITATIONS)
+    .map((b) => b.raw + ' (' + b.reason + ')')
+    .join('; ');
+  const more = broken.length > MAX_LISTED_CITATIONS ? '; +' + (broken.length - MAX_LISTED_CITATIONS) + ' more' : '';
+  return (
+    '[' + HOOK_NAME + '] CITE - ' + subagentType + ' cited ' + broken.length +
+    " file:line reference(s) that don't resolve: " + listed + more +
+    '. Re-read those lines before relying on the findings that cite them.'
+  );
 }
 
 function hasContractSection(text) {

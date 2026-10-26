@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cycle status</title>
+<style>
+  :root {
+    --bg: #f6f5f2; --panel: #ffffff; --fg: #1c1b19; --muted: #6d6a64; --faint: #9a968e; --line: #e4e1da; --track: #ecebe6;
+    --accent: #3b6fd8; --ok: #2e7d4f; --ok-bg: #e5f3ea; --warn: #9a5b00; --warn-bg: #fbefdc; --bad: #b3261e; --bad-bg: #fbe5e3;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141413; --panel: #1d1c1a; --fg: #ecebe7; --muted: #a4a097; --faint: #77736b; --line: #2f2e2b; --track: #2a2926;
+      --accent: #7aa2f7; --ok: #6cc28f; --ok-bg: #1c3326; --warn: #e3a54d; --warn-bg: #3a2c16; --bad: #f08a80; --bad-bg: #3d1f1c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1680px; margin: 0 auto; padding: 20px max(16px, env(safe-area-inset-right, 0px)) 40px max(16px, env(safe-area-inset-left, 0px)); display: grid; gap: 14px; }
+  /* Wide screens: the run, meters, needs and runs on the left; the live feed, decisions and visual review on the right. */
+  .layout { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+  .col { display: grid; gap: 14px; min-width: 0; align-content: start; }
+  @media (min-width: 1200px) {
+    .layout { grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); }
+    .layout .col:last-child pre { max-height: 62vh; }
+  }
+  .hint { text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--faint); margin-left: 6px; }
+  .count { font-size: 12px; color: var(--muted); font-weight: 600; }
+  tr.runrow { cursor: pointer; } tr.runrow:hover td { background: var(--track); }
+  tr.detail td { background: var(--bg); padding: 10px 12px; }
+  table.stages { width: 100%; font-size: 13px; }
+  table.stages td, table.stages th { border-top: 1px solid var(--line); padding: 5px 10px 5px 0; }
+  .prstate { font-size: 12px; color: var(--muted); margin-left: 6px; white-space: nowrap; }
+  .prstate.merged { color: var(--ok); } .prstate.closed { color: var(--faint); } .prstate.fail { color: var(--bad); }
+  a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 0; }
+  .label { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+  .muted { color: var(--muted); } .faint { color: var(--faint); }
+  .mono { font-family: var(--mono); font-size: 12.5px; }
+
+  header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  header h1 { font-size: 18px; margin: 0; font-weight: 650; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 600; }
+  .pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .pill.ok { color: var(--ok); background: var(--ok-bg); } .pill.warn { color: var(--warn); background: var(--warn-bg); } .pill.bad { color: var(--bad); background: var(--bad-bg); }
+  .pill.ok::before { animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .3; } }
+  header .updated { margin-left: auto; font-size: 12.5px; }
+  .banner { margin-top: 12px; padding: 8px 12px; border-radius: 8px; font-size: 13.5px; }
+  .banner.warn { background: var(--warn-bg); color: var(--warn); } .banner.bad { background: var(--bad-bg); color: var(--bad); }
+
+  .hero-top { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .hero-top .run { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+  .slice { font-size: 17px; font-weight: 600; margin: 4px 0 16px; overflow-wrap: anywhere; }
+  .slice .tag { vertical-align: 2px; }
+  .slice .path { font-weight: 400; margin-top: 4px; }
+  .stepper { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+  .step { border-top: 4px solid var(--track); padding-top: 8px; min-width: 0; }
+  .step .name { font-weight: 600; font-size: 13px; }
+  .step .meta { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+  .step.done { border-color: var(--ok); } .step.running { border-color: var(--accent); }
+  .step.blocked, .step.stuck, .step.budget, .step.error { border-color: var(--bad); }
+  .step.idle { border-color: var(--faint); }
+  .step.pending .name { color: var(--faint); }
+  .step.running .name::after { content: " ●"; color: var(--accent); animation: pulse 1.6s ease-in-out infinite; }
+
+  .meters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+  .meter .value { font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .meter .of { font-size: 12.5px; color: var(--muted); }
+  .bar { position: relative; height: 6px; background: var(--track); border-radius: 3px; margin-top: 8px; }
+  .bar .fill { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--ok); }
+  .bar .fill.warn { background: var(--warn); } .bar .fill.bad { background: var(--bad); }
+  .bar .cap { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--fg); opacity: .55; }
+
+  ul.items { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  ul.items li { display: flex; gap: 10px; align-items: baseline; min-width: 0; }
+  ul.items li > div { min-width: 0; overflow-wrap: anywhere; }
+  .tag { flex: none; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 1px 6px; border-radius: 4px; background: var(--track); color: var(--muted); }
+  .tag.block, .tag.parked { background: var(--bad-bg); color: var(--bad); } .tag.pr { background: var(--ok-bg); color: var(--ok); }
+  .path { display: block; font-family: var(--mono); font-size: 12px; color: var(--faint); }
+  details > summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  details.older { margin-top: 10px; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 600; padding: 0 10px 6px 0; }
+  td { padding: 8px 10px 8px 0; border-top: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.mono { white-space: nowrap; }
+  .dots { display: inline-flex; gap: 3px; }
+  .dot { width: 9px; height: 9px; border-radius: 2px; background: var(--track); }
+  .dot.done { background: var(--ok); } .dot.running { background: var(--accent); } .dot.bad { background: var(--bad); }
+
+  .feed summary { display: flex; gap: 10px; align-items: baseline; list-style: none; }
+  .feed summary::-webkit-details-marker { display: none; }
+  .feed summary .last { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: var(--mono); font-size: 12.5px; color: var(--faint); }
+  .feed summary .toggle { flex: none; color: var(--accent); }
+  .feed[open] summary .last { display: none; }
+  pre { margin: 12px 0 0; max-height: 460px; overflow: auto; font: 12.5px/1.5 var(--mono); white-space: pre-wrap; word-break: break-word; }
+  pre .h { color: var(--accent); font-weight: 600; } pre .t { color: var(--fg); } pre .r { color: var(--ok); } pre .w { color: var(--warn); } pre .s { color: var(--muted); }
+
+  .vhead { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .vhead .label { margin: 0; }
+  .vrate { font-size: 13px; color: var(--muted); }
+  .vlist { display: grid; gap: 12px; }
+  .vdec { border: 1px solid var(--line); border-radius: 8px; padding: 12px; display: grid; gap: 10px; min-width: 0; }
+  .vdec.rated { opacity: .72; }
+  .vtop { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .vtop .state { font-weight: 600; }
+  .vtop .when { margin-left: auto; font-size: 12px; color: var(--faint); }
+  .tag.consistent { background: var(--ok-bg); color: var(--ok); } .tag.needs-revision { background: var(--bad-bg); color: var(--bad); } .tag.taste { background: var(--warn-bg); color: var(--warn); }
+  .vwhy { font-size: 13.5px; overflow-wrap: anywhere; }
+  .vimgs { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 280px)); gap: 8px; }
+  .vimgs a { display: block; }
+  .vimgs figure { margin: 0; min-width: 0; }
+  .vimgs img { width: 100%; height: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--track); display: block; }
+  .vimgs figcaption { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .vact { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .vact button { font: inherit; font-size: 13px; padding: 4px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; }
+  .vact button:hover { border-color: var(--accent); }
+  .vact button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .vact .you { font-size: 12.5px; color: var(--muted); }
+
+  @media (max-width: 760px) {
+    .meters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .stepper { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 12px; }
+    .hide-sm { display: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1 id="title">Cycle</h1>
+    <span id="state" class="pill warn">loading</span>
+    <span id="updated" class="updated faint"></span>
+  </header>
+
+  <div class="layout">
+  <div class="col">
+  <section class="panel" id="hero">
+    <div class="hero-top"><span class="label" style="margin:0">Current run</span><span class="run" id="run-id"></span></div>
+    <div class="slice" id="slice">-</div>
+    <div class="stepper" id="stepper"></div>
+    <div id="banner"></div>
+  </section>
+
+  <section class="panel">
+    <div class="meters" id="meters"></div>
+  </section>
+
+  <section class="panel">
+    <div class="label">Needs you</div>
+    <ul class="items" id="needs"></ul>
+  </section>
+
+  <section class="panel">
+    <div class="label">Runs <span class="hint">click a run for its stages</span></div>
+    <table>
+      <thead><tr><th>Run</th><th>Slice</th><th class="hide-sm">Stages</th><th>Result</th><th class="num">Cost</th></tr></thead>
+      <tbody id="runs"></tbody>
+    </table>
+  </section>
+  </div>
+
+  <div class="col">
+  <section class="panel">
+    <details class="feed" id="feed-box">
+      <summary><span class="label" style="margin:0">Live stage feed</span><span class="last" id="feed-last"></span><span class="toggle">show</span></summary>
+      <pre id="feed"></pre>
+    </details>
+  </section>
+
+  <section class="panel">
+    <div class="label">Open decisions <span class="hint">each has a default; answer in its card file</span></div>
+    <ul class="items" id="cards"></ul>
+    <div id="older"></div>
+  </section>
+
+  <section class="panel" id="visual" hidden>
+    <div class="vhead"><span class="label">Visual decisions</span><span class="vrate" id="vrate"></span></div>
+    <div class="vlist" id="vlist"></div>
+  </section>
+  </div>
+  </div>
+</main>
+<script>
+const STAGES = ['Setup', 'Audit', 'Plan', 'Implement', 'Review', 'Finalize'];
+const BAD = ['blocked', 'stuck', 'budget', 'error'];
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const money = (n) => `$${(n || 0).toFixed(2)}`;
+const pct = (u) => Math.round(u * 100);
+
+function ago(iso) {
+  if (!iso) return '';
+  const s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
+  if (s < 60) return `${Math.round(s)}s`;
+  if (s < 3600) return `${Math.round(s / 60)} min`;
+  return `${(s / 3600).toFixed(1)} h`;
+}
+
+function span(from, to) {
+  if (!from || !to) return '';
+  const s = Math.max(0, (Date.parse(to) - Date.parse(from)) / 1000);
+  return s < 60 ? `${Math.round(s)}s` : `${Math.round(s / 60)} min`;
+}
+
+/** The stage now running in this run: the loop says so, or else the first stage without an outcome. */
+function runningStage(loop, id, run) {
+  // The visual critic ('4v') runs inside the Review step.
+  if (loop.current_stage) return loop.current_stage.run === id ? (loop.current_stage.stage === '4v' ? 4 : loop.current_stage.stage) : -1;
+  if (loop.stop || run.finished || id !== loop.current_run) return -1;
+  for (let n = 0; n < 6; n++) if (!run.stages?.[n]) return n;
+  return -1;
+}
+
+function prLink(published) {
+  const url = String(published || '').match(/https?:\/\/\S+/)?.[0];
+  if (!url) return null;
+  return { url, num: url.match(/\/pull\/(\d+)/)?.[1] };
+}
+
+function renderState(loop) {
+  const silent = loop.heartbeat ? (Date.now() - Date.parse(loop.heartbeat)) / 60000 : Infinity;
+  const [cls, text] = loop.stop ? ['bad', 'Stopped']
+    : silent > 5 ? ['warn', `Silent ${Math.round(silent)} min`]
+    : loop.waiting ? ['warn', 'Waiting']
+    : ['ok', 'Running'];
+  $('state').className = `pill ${cls}`;
+  $('state').textContent = text;
+  $('updated').textContent = loop.heartbeat ? `heartbeat ${ago(loop.heartbeat)} ago` : '';
+  const banner = loop.stop ? ['bad', `Stopped: ${loop.stop}`] : loop.waiting ? ['warn', `Waiting: ${loop.waiting}`] : null;
+  $('banner').innerHTML = banner ? `<div class="banner ${banner[0]}">${esc(banner[1])}</div>` : '';
+}
+
+/** "A7: gap text (effort S, files a.ts, b.ts)" -> { id, gap, effort, files }. */
+function parseSlice(line) {
+  const m = String(line || '').match(/^\s*([A-Za-z]+\d+):\s*(.*?)\s*(?:\(effort (\w+)(?:, files (.*))?\))?\s*$/);
+  return m ? { id: m[1], gap: m[2], effort: m[3] || '', files: (m[4] || '').replace(/^n\/a$/, '') } : { id: '', gap: String(line || ''), effort: '', files: '' };
+}
+
+const sliceName = (slices, id, r) => (slices[id] ? parseSlice(slices[id]).gap : r?.slice || '');
+
+function renderHero(loop, slices) {
+  const id = loop.current_run;
+  const run = loop.runs?.[id] || { stages: {} };
+  $('run-id').textContent = id || 'no run yet';
+  const s = parseSlice(slices[id]);
+  $('slice').innerHTML = slices[id]
+    ? `${s.id ? `<span class="tag">${esc(s.id)}</span> ` : ''}${s.effort ? `<span class="tag">effort ${esc(s.effort)}</span> ` : ''}${esc(s.gap)}${s.files ? `<span class="path">${esc(s.files)}</span>` : ''}`
+    : esc(run.slice ? `Slice ${run.slice}` : run.stages?.[1] ? 'Picking a slice' : 'Auditing for the next slice');
+  const now = runningStage(loop, id, run);
+  $('stepper').innerHTML = STAGES.map((name, n) => {
+    const s = run.stages?.[n];
+    const state = n === now ? 'running' : s ? s.outcome : 'pending';
+    const prev = run.stages?.[n - 1]?.at;
+    const bits = [];
+    if (n === now) bits.push(`running ${ago(loop.current_stage?.started || prev)}`);
+    else if (s) bits.push(BAD.includes(s.outcome) ? s.outcome : span(prev, s.at) || s.outcome);
+    const model = n === now ? loop.current_stage?.model : s?.model;
+    if (model) bits.push(model);
+    if (s?.cost) bits.push(money(s.cost));
+    const title = s?.note ? ` title="${esc(s.note)}"` : '';
+    return `<div class="step ${state}"${title}><div class="name">${name}</div><div class="meta">${esc(bits.join(' · ')) || '&nbsp;'}</div></div>`;
+  }).join('');
+}
+
+function meter(label, value, of, frac, cap) {
+  const f = Math.min(1, Math.max(0, frac ?? 0));
+  const tone = cap != null && f >= cap ? 'bad' : cap != null && f >= cap * 0.8 ? 'warn' : '';
+  const capMark = cap != null ? `<span class="cap" style="left:${Math.min(100, cap * 100)}%"></span>` : '';
+  return `<div class="meter"><div class="label" style="margin-bottom:4px">${label}</div>
+    <div><span class="value">${value}</span> <span class="of">${of}</span></div>
+    <div class="bar"><span class="fill ${tone}" style="width:${f * 100}%"></span>${capMark}</div></div>`;
+}
+
+function renderMeters(loop, limits) {
+  const u5 = loop.usage?.five_hour, u7 = loop.usage?.seven_day;
+  const cap5 = limits.max_usage_5h ? limits.max_usage_5h / 100 : null;
+  const cap7 = limits.max_usage_7d ? limits.max_usage_7d / 100 : null;
+  const hours = loop.started ? (Date.now() - Date.parse(loop.started)) / 3600000 : 0;
+  const budget = limits.total_budget_usd;
+  $('meters').innerHTML = [
+    meter('5-hour usage', u5 ? `${pct(u5.utilization)}%` : '-', cap5 ? `cap ${limits.max_usage_5h}%` : 'whole account', u5?.utilization, cap5),
+    meter('Weekly usage', u7 ? `${pct(u7.utilization)}%` : '-', cap7 ? `cap ${limits.max_usage_7d}%` : 'whole account', u7?.utilization, cap7),
+    meter('Cost this start', money(loop.session_cost), budget ? `of ${money(budget)}` : `total ${money(loop.total_cost)}`, budget ? (loop.session_cost || 0) / budget : null, budget ? 1 : null),
+    meter('Time', `${hours.toFixed(1)} h`, limits.max_hours ? `of ${limits.max_hours} h` : '', limits.max_hours ? hours / limits.max_hours : null, limits.max_hours ? 1 : null),
+  ].join('');
+}
+
+// Live PR state from /prs.json (read-only gh on the loop's side, cached a minute there).
+let prs = {};
+
+function prStateText(url) {
+  const s = prs[url];
+  if (!s) return '';
+  if (s.error) return `<span class="prstate">state unknown</span>`;
+  if (s.merged) return '<span class="prstate merged">merged</span>';
+  if (s.state === 'closed') return '<span class="prstate closed">closed</span>';
+  const c = s.checks || {};
+  const checks = c.fail ? `${c.fail} check${c.fail > 1 ? 's' : ''} failing` : c.pending ? `${c.pending} check${c.pending > 1 ? 's' : ''} running` : c.pass ? 'checks pass' : '';
+  return `<span class="prstate${c.fail ? ' fail' : ''}">${s.draft ? 'draft' : 'ready'}${checks ? ` · ${checks}` : ''}</span>`;
+}
+
+function renderNeeds(loop, cards, slices) {
+  const items = [];
+  for (const c of cards.filter((c) => c.kind === 'block')) items.push(['block', c.title || 'Block card', `${c.run}/cards/${c.card}`]);
+  for (const p of loop.parked || []) items.push(['parked', `Slice ${p.slice}: ${p.reason}`, p.run]);
+  for (const [id, r] of Object.entries(loop.runs || {}).reverse()) {
+    const pr = prLink(r.published);
+    // A merged or closed PR no longer needs a review.
+    if (pr && !prs[pr.url]?.merged && prs[pr.url]?.state !== 'closed') {
+      items.push(['pr', `<a href="${esc(pr.url)}" target="_blank" rel="noopener">Review draft PR #${esc(pr.num)}</a>${prStateText(pr.url)}`, sliceName(slices, id, r), true]);
+    }
+  }
+  $('needs').innerHTML = items.length
+    ? items.map(([tag, text, sub, html]) => `<li><span class="tag ${tag}">${tag}</span><div>${html ? text : esc(text)}<span class="path">${esc(sub)}</span></div></li>`).join('')
+    : '<li class="muted">Nothing waiting on you.</li>';
+}
+
+/** Cards with the same title across runs collapse into one row with a count. */
+function groupCards(cards) {
+  const groups = new Map();
+  for (const c of cards) {
+    const key = `${c.kind}|${c.title || c.card}`;
+    if (!groups.has(key)) groups.set(key, { kind: c.kind, title: c.title || c.card, items: [] });
+    groups.get(key).items.push(c);
+  }
+  return [...groups.values()];
+}
+
+function cardRow(g) {
+  const paths = g.items.slice(0, 3).map((c) => esc(`${c.run}/cards/${c.card}`)).join('<br>');
+  const more = g.items.length > 3 ? `<br>+${g.items.length - 3} more` : '';
+  return `<li><span class="tag ${g.kind === 'block' ? 'block' : ''}">${esc(g.kind)}</span><div>${esc(g.title)}${g.items.length > 1 ? ` <span class="count">×${g.items.length}</span>` : ''}<span class="path">${paths}${more}</span></div></li>`;
+}
+
+function renderCards(loop, cards) {
+  const loopRuns = new Set(Object.keys(loop.runs || {}));
+  // Notices, and cards from runs outside the loop, are context; decisions in the loop's runs come first.
+  const isNotice = (c) => c.kind === 'info' || !loopRuns.has(c.run);
+  const decide = groupCards(cards.filter((c) => c.kind !== 'block' && !isNotice(c)));
+  const notices = groupCards(cards.filter(isNotice));
+  $('cards').innerHTML = decide.length ? decide.map(cardRow).join('') : '<li class="muted">No open decisions.</li>';
+  const n = notices.reduce((a, g) => a + g.items.length, 0);
+  $('older').innerHTML = n
+    ? `<details class="older"><summary>${n} notice${n > 1 ? 's' : ''} (setup warnings, runs outside the loop)</summary><ul class="items" style="margin-top:8px">${notices.map(cardRow).join('')}</ul></details>`
+    : '';
+}
+
+function renderFeed(feed) {
+  const lines = String(feed || '').split('\n').filter((l) => l && !/no stdin data received/.test(l));
+  const cls = (l) => (l.startsWith('#') ? 'h' : l.startsWith('>') ? 's' : l.startsWith('=') ? 'r' : l.startsWith('!') ? 'w' : 't');
+  const last = [...lines].reverse().find((l) => !l.startsWith('!')) || 'no stage running';
+  $('feed-last').textContent = last;
+  const pre = $('feed');
+  const atBottom = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 8;
+  pre.innerHTML = lines.slice(-200).map((l) => `<span class="${cls(l)}">${esc(l)}</span>`).join('\n') || '<span class="s">no stage running</span>';
+  if (atBottom) pre.scrollTop = pre.scrollHeight;
+}
+
+function renderRuns(loop, slices) {
+  const rows = Object.entries(loop.runs || {}).reverse().map(([id, r]) => {
+    const now = runningStage(loop, id, r);
+    const dots = STAGES.map((_, n) => {
+      const s = r.stages?.[n];
+      const c = n === now ? 'running' : !s ? '' : BAD.includes(s.outcome) ? 'bad' : 'done';
+      return `<span class="dot ${c}" title="${STAGES[n]}${s ? `: ${esc(s.outcome)}` : ''}"></span>`;
+    }).join('');
+    const pr = prLink(r.published);
+    const result = pr ? `<a href="${esc(pr.url)}" target="_blank" rel="noopener">PR #${esc(pr.num)}</a>${prStateText(pr.url)}`
+      : esc(r.published || r.finished || (now >= 0 ? `${STAGES[now].toLowerCase()}...` : 'stopped'));
+    const row = `<tr class="runrow" data-run="${esc(id)}"><td class="mono">${esc(id)}</td><td>${esc(sliceName(slices, id, r) || '-')}</td><td class="hide-sm"><span class="dots">${dots}</span></td><td>${result}</td><td class="num">${money(r.cost)}</td></tr>`;
+    return row + (expanded.has(id) ? `<tr class="detail"><td colspan="5">${runDetail(r)}</td></tr>` : '');
+  });
+  $('runs').innerHTML = rows.join('') || '<tr><td colspan="5" class="muted">No runs yet.</td></tr>';
+}
+
+// Runs the viewer opened; kept across the 3-second redraws.
+const expanded = new Set();
+
+/** One run's stages: outcome, model, how long, what it cost, and its note. */
+function runDetail(r) {
+  const rows = STAGES.map((name, n) => {
+    const s = r.stages?.[n];
+    if (!s) return '';
+    // Runs from before stages recorded a start: the previous stage's end is close enough.
+    const started = s.started || r.stages?.[n - 1]?.at;
+    return `<tr><td>${name}</td><td>${esc(s.outcome)}</td><td>${esc(s.model || '')}</td><td class="num">${esc(span(started, s.at))}</td><td class="num">${s.cost ? money(s.cost) : ''}</td><td>${esc(String(s.note || '').slice(0, 160))}</td></tr>`;
+  });
+  for (const c of r.critic_passes || []) rows.splice(5, 0, `<tr><td>Visual critic</td><td>${esc(r.visual || '')}</td><td>${esc(c.model || '')}</td><td class="num">${esc(span(c.started, c.at))}</td><td class="num">${money(c.cost)}</td><td></td></tr>`);
+  return `<table class="stages"><thead><tr><th>Stage</th><th>Outcome</th><th>Model</th><th class="num">Time</th><th class="num">Cost</th><th>Note</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+}
+
+$('runs').addEventListener('click', (e) => {
+  const tr = e.target.closest('tr.runrow');
+  if (!tr || e.target.closest('a')) return;
+  const id = tr.dataset.run;
+  if (expanded.has(id)) expanded.delete(id); else expanded.add(id);
+  if (lastStatus) renderRuns(lastStatus.loop, lastStatus.slices || {});
+});
+
+let lastStatus = null;
+
+function render(status) {
+  lastStatus = status;
+  const { repo, loop, cards = [], feed, limits = {}, slices = {} } = status;
+  const title = repo ? `Cycle · ${repo}` : 'Cycle';
+  $('title').textContent = title;
+  document.title = title;
+  renderState(loop);
+  renderHero(loop, slices);
+  renderMeters(loop, limits);
+  renderNeeds(loop, cards, slices);
+  renderCards(loop, cards);
+  renderFeed(feed);
+  renderRuns(loop, slices);
+}
+
+const img = (path, caption) => (path
+  ? `<figure><a href="/visual-file?path=${encodeURIComponent(path)}" target="_blank" rel="noopener"><img src="/visual-file?path=${encodeURIComponent(path)}" alt="${esc(caption)}" loading="lazy" onerror="this.closest('figure').hidden=true"></a><figcaption>${esc(caption)}</figcaption></figure>`
+  : '');
+
+function decisionWhy(d) {
+  if (d.verdict === 'taste') return `Chose <b>${esc(d.taste?.chose)}</b> over ${esc((d.taste?.alternatives || []).join(', '))}. ${esc(d.taste?.why)}`;
+  return `${esc(d.evidence)}${d.contract_line ? ` <span class="path">${esc(d.contract_line)}${d.region ? ` · region ${esc(d.region)}` : ''}</span>` : ''}`;
+}
+
+let visualKey = '';
+function renderVisual(v) {
+  $('visual').hidden = !v.enabled;
+  if (!v.enabled) return;
+  const key = JSON.stringify([v.decisions?.map((d) => [d.id, d.user]), v.history]);
+  if (key === visualKey) return;
+  visualKey = key;
+  const a = v.agreement || {};
+  $('vrate').textContent = a.rated ? `you agreed with ${a.agreed} of ${a.rated} rated (${pct(a.rate)}%)` : 'rate the critic’s calls to measure agreement';
+  const ref = v.references?.[0];
+  $('vlist').innerHTML = (v.decisions || []).slice(0, 20).map((d) => `
+    <div class="vdec${d.user ? ' rated' : ''}">
+      <div class="vtop"><span class="tag ${esc(d.verdict)}">${esc(d.verdict)}</span><span class="state">${esc(d.state)}</span><span class="mono muted">${esc(d.run)}</span><span class="when">${esc(ago(d.at))} ago</span></div>
+      <div class="vwhy">${decisionWhy(d)}</div>
+      <div class="vimgs">${img(d.before, 'before')}${img(d.after, 'after')}${ref ? img(ref.file, `reference: ${ref.take || ''}`) : ''}</div>
+      <div class="vact">
+        ${d.user ? `<span class="you">you ${esc(d.user)}d</span>` : `<button data-rate="agree" data-id="${esc(d.id)}">Agree</button><button data-rate="disagree" data-id="${esc(d.id)}">Disagree</button>`}
+        ${d.baseline_moved && (v.history?.[d.state] || 0) > 0 ? `<button data-rollback="${esc(d.state)}">Roll back ${esc(d.state)} baseline</button>` : ''}
+      </div>
+    </div>`).join('') || '<div class="muted">No visual decisions yet.</div>';
+}
+
+async function post(path, body) {
+  const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const out = await r.json().catch(() => ({}));
+  if (!r.ok) $('vrate').textContent = out.error || 'that did not work';
+  visualKey = '';
+  tick();
+}
+
+$('vlist').addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.dataset.rate) post('/visual/rate', { id: b.dataset.id, rating: b.dataset.rate });
+  else if (b.dataset.rollback) post('/visual/rollback', { state: b.dataset.rollback });
+});
+
+const box = $('feed-box');
+// The feed starts open on wide screens, where it has its own column, unless the viewer closed it.
+let feedPref = null;
+try { feedPref = localStorage.getItem('cycle-feed-open'); } catch {}
+box.open = feedPref ? feedPref === '1' : window.innerWidth >= 1200;
+box.querySelector('.toggle').textContent = box.open ? 'hide' : 'show';
+box.addEventListener('toggle', () => {
+  box.querySelector('.toggle').textContent = box.open ? 'hide' : 'show';
+  try { localStorage.setItem('cycle-feed-open', box.open ? '1' : '0'); } catch {}
+});
+
+let ticks = 0;
+
+/** PR state is slower to change and costs a gh call on the loop's side, so it refreshes every 30 s. */
+async function refreshPrs() {
+  try {
+    const r = await fetch('/prs.json', { cache: 'no-store' });
+    if (r.ok) prs = await r.json();
+  } catch {
+    // An older loop has no /prs.json; the page shows PR links without state.
+  }
+}
+
+async function tick() {
+  try {
+    if (ticks++ % 10 === 0) await refreshPrs();
+    render(await (await fetch('/status.json', { cache: 'no-store' })).json());
+    renderVisual(await (await fetch('/visual.json', { cache: 'no-store' })).json());
+  } catch {
+    $('state').className = 'pill bad';
+    $('state').textContent = 'Not reachable';
+    $('updated').textContent = 'the loop is stopped or not started';
+  }
+}
+tick();
+setInterval(tick, 3000);
+</script>
+</body>
+</html>

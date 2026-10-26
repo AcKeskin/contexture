@@ -146,6 +146,7 @@ It is set four ways, resolved **live > kickoff > overlay-default > implicit-defa
 | `checkpoint` | `stopping` | sizes the fit-pass drift question (`user-anytime` → freeze-and-record) |
 | `orchestrate` | `effort` + `ask` (Q3 dispatch), `stopping` (Q4 converge) | per-unit, at dispatch only |
 | `wrap` | `ask` (interrupt posture for the whole closing ceremony) | once at entry, threaded to every step |
+| `cycle` | `ask` (baseline posture for the driven organs inside a stage; the run's escalation table adds block/card rows on top) | at the start of each headless stage |
 | `coordinate` | `ask` (gates auto mode: `forks-only` → board ops auto, `every-step` → invoked-action) | when auto mode is enabled |
 | `spec` / `draft-plan` | set it inline as one optional kickoff question | the implicit surface of the kickoff mode |
 | `rule-prime` hook | injects the recall-before-ask line when the contract deviates | every turn, deviation-only |
@@ -177,6 +178,8 @@ Each skill has a `SKILL.md` that defines when it fires, what it does, and how it
 | `execute` | Runs a plan step-by-step with per-step verification gates |
 | `close-out` | The scope chain's terminus — reconciles a shipped slug's spec to what actually shipped (a new `as-shipped` version, intent preserved via supersedes), retires the spent plan/blueprint to a dated `.claude/archive/` folder, and records one ship line via `update-changelog`. Mode A, propose-confirm; `/execute` offers it on done-criteria-met |
 | `wrap` | Session-terminus driver — sequences the whole closing ceremony (coordinate teardown → checkpoint → recap → close-out → changelog → BACKLOG-shipped-row sweep → ship-narrative record), driving the existing organs rather than reimplementing them. Auto-runs the reversible read/draft/detect spine; every canonical write passes accept/edit/reject. Reads the autonomy contract once to set the interrupt posture; dedups close-out against the changelog step. Mode A; an optional SessionStart-recovery hook (off by default) can propose it |
+| `cycle` | Unattended dev-cycle loop — after one setup conversation it runs cycle after cycle (setup check → audit with bounded online prior art → plan → implement → review/fix → draft PR), one headless session per stage via `cycle-loop.mjs`; the script picks slices, a block parks its slice, stops on budget/hours/runs/no-change/errors/STOP, a localhost status page, live feed and chosen notifications. Contract in `skills/cycle/cycle-contract.md` |
+| `visual` | Visual organ for UI projects — one canonical design contract (tokens, references, named screen states), captures through the project's own command, region pixel diff and style-dump checks, and a critic that runs as its own headless session after cycle stage 4 and decides within the contract (taste calls included); its approvals move the baseline with history and rollback; you review on the cycle status page's Visual view |
 | `work-state` | Reports a slug's position in the scope chain (`envision→…→execute→close-out`) as deterministic structured state — per-stage missing/present/stale/done + next-action + the load-bearing stale-spec-pin check. Read-only, filesystem-derived, no model call. `/status` alias |
 | `glossary` | Extracts a project's ubiquitous language (domain term → definition → code symbol) into a project-tier `.claude/rules/glossary.md` the rule-prime hook primes and `review` cites as a vocabulary-drift reference — the *meaning* leg beside codemap's structure and `extract-conventions`' style. Frequency-ranked candidates, confidence-flagged definitions, per-group propose-confirm |
 | `update-changelog` | The single writer of the canonical `CHANGELOG.md` ship-record — one line per shipped unit, propose-confirm. Several organs (`recap` / `checkpoint` / `execute` / `close-out` / `spec` / `draft-plan`) offer it; this skill does the write |
@@ -223,6 +226,8 @@ Each file is a thin entrypoint that delegates to the corresponding skill. One fi
 | `/execute` | `skills/execute` |
 | `/close-out` | `skills/close-out` |
 | `/wrap` | `skills/wrap` |
+| `/cycle` | `skills/cycle` |
+| `/visual` | `skills/visual` |
 | `/work-state` | `skills/work-state` (alias `/status`) |
 | `/glossary` | `skills/glossary` |
 | `/update-changelog` | `skills/update-changelog` |
@@ -407,4 +412,4 @@ Resolution is a pre-filter owned by `/discover` and runs *before* the existing s
 
 ### docs/ — Internal reference documentation
 
-One markdown file per organ/subsystem: architectural-rules, architectural-rules-overlay, blueprint-organ, bootstrap, brainstorm-organ, capture-organ, changelog-contract, checkpoint-organ, coordinate-organ, delivery-organ, discover, human-view-organ, mcp-memory, memory-compression-spec, plan-execute-workflow, prep-organ, project-architecture, recap-organ, reference (this file), review-organ, review-output-contract, scope-resolution-manifests, scope-resolution-resolver, security-hooks, skills-catalog, statusline, storage-tagging, update-codemap, wrap-organ. Not every organ has a dedicated doc — the census tables above are the complete list; docs/ covers the subsystems that need prose beyond a table row.
+One markdown file per organ/subsystem: architectural-rules, architectural-rules-overlay, blueprint-organ, bootstrap, brainstorm-organ, capture-organ, changelog-contract, checkpoint-organ, cycle-contract, coordinate-organ, delivery-organ, discover, human-view-organ, mcp-memory, memory-compression-spec, plan-execute-workflow, prep-organ, project-architecture, recap-organ, reference (this file), review-organ, review-output-contract, scope-resolution-manifests, scope-resolution-resolver, security-hooks, skills-catalog, statusline, storage-tagging, update-codemap, wrap-organ. Not every organ has a dedicated doc — the census tables above are the complete list; docs/ covers the subsystems that need prose beyond a table row.

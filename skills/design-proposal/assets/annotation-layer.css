@@ -1,0 +1,29 @@
+/* Annotation layer for design-proposal playground copies. Override --ann-* on :root to match the page's brand. */
+:root{--ann-bar:#24324A;--ann-on-bar:#FFFFFF;--ann-on-bar-muted:#B4BED0;--ann-active:#FF7A2F;--ann-note-bg:#FFF1E8;--ann-note-ink:#1D2433}
+.page,.ann-root{position:relative}
+body{padding-bottom:130px}
+svg.ann{position:absolute;left:0;top:0;width:100%;z-index:5;pointer-events:none;overflow:visible}
+svg.ann path{fill:none;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+body[data-tool="pen"] svg.ann,body[data-tool="marker"] svg.ann,body[data-tool="laser"] svg.ann,body[data-tool="eraser"] svg.ann,body[data-tool="text"] svg.ann,body[data-tool="note"] svg.ann{pointer-events:all;touch-action:none}
+body[data-tool="pen"] svg.ann,body[data-tool="marker"] svg.ann,body[data-tool="laser"] svg.ann{cursor:crosshair}
+body[data-tool="text"] svg.ann,body[data-tool="note"] svg.ann{cursor:text}
+body[data-tool="eraser"] svg.ann{cursor:cell}
+body[data-tool="eraser"] svg.ann path{pointer-events:visibleStroke}
+svg.ann path.laser{transition:opacity .9s ease-out}
+.ann-note{position:absolute;z-index:6;min-width:30px;max-width:380px;font-weight:600;font-size:19px;line-height:1.35;padding:3px 6px;border-radius:6px;outline:none;white-space:pre-wrap;overflow-wrap:anywhere}
+.ann-note.sticky{background:var(--ann-note-bg);border:1px solid var(--ann-active);color:var(--ann-note-ink)!important;font-weight:400;font-size:16px;width:240px;padding:10px 12px;box-shadow:0 6px 18px rgba(0,0,0,.16)}
+body[data-tool="pen"] .ann-note,body[data-tool="marker"] .ann-note,body[data-tool="laser"] .ann-note{pointer-events:none}
+body[data-tool="pointer"] .ann-note{cursor:move}
+body[data-tool="eraser"] .ann-note{cursor:cell}
+.ann-note:focus{box-shadow:0 0 0 2px var(--ann-active)}
+body.ann-hidden svg.ann,body.ann-hidden .ann-note{display:none}
+.ann-tb{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:30;display:flex;flex-wrap:wrap;justify-content:center;gap:3px;align-items:center;background:var(--ann-bar);border-radius:12px;padding:6px 8px;box-shadow:0 8px 28px rgba(0,0,0,.28);width:max-content;max-width:calc(100vw - 32px)}
+.ann-tb button{background:transparent;border:1px solid transparent;color:var(--ann-on-bar-muted);font:600 13px system-ui,sans-serif;padding:5px 9px;border-radius:7px;cursor:pointer;display:inline-flex;gap:6px;align-items:center;white-space:nowrap}
+.ann-tb button:hover{color:var(--ann-on-bar)}
+.ann-tb button[aria-pressed="true"]{background:rgba(255,255,255,.12);color:var(--ann-on-bar);border-color:var(--ann-active)}
+.ann-tb kbd{font:600 10.5px ui-monospace,monospace;opacity:.65}
+.ann-tb .sep{width:1px;height:22px;background:rgba(255,255,255,.2);margin:0 4px}
+.ann-tb .sw{width:22px;height:22px;padding:0;border-radius:50%;border:2px solid transparent;justify-content:center}
+.ann-tb .sw i{display:block;width:14px;height:14px;border-radius:50%}
+.ann-tb .sw[aria-pressed="true"]{border-color:var(--ann-on-bar);background:transparent}
+.ann-tb button.warn{color:#FF9A7A}
