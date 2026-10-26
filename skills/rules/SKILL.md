@@ -12,7 +12,7 @@ Front door for the architectural-rule overlay system. Manages the user/company/p
 
 ## Tier directories
 
-- shipped: `~/.claude/architectural-rules/` (read-only here — never edit through this skill)
+- shipped: `~/.claude/architectural-rules/`, or `${CLAUDE_PLUGIN_ROOT}/architectural-rules/` in a plugin install (read-only here — never edit through this skill)
 - company: `~/.claude/architectural-rules-company/`
 - user:    `~/.claude/architectural-rules-local/`
 - project: `<project>/.claude/rules/`

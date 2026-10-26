@@ -14,6 +14,27 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
+// Gemini CLI runs these hooks too, under its own event and tool names (the
+// mapping its `gemini hooks migrate` uses). readPayload rewrites them to the
+// Claude names the hooks check. Gemini ignores hookEventName in replies.
+const GEMINI_EVENTS = {
+  BeforeTool: 'PreToolUse',
+  AfterTool: 'PostToolUse',
+  BeforeAgent: 'UserPromptSubmit',
+};
+const GEMINI_TOOLS = {
+  run_shell_command: 'Bash',
+  write_file: 'Write',
+  replace: 'Edit',
+  read_file: 'Read',
+};
+
+function normalisePayload(payload) {
+  if (GEMINI_EVENTS[payload.hook_event_name]) payload.hook_event_name = GEMINI_EVENTS[payload.hook_event_name];
+  if (GEMINI_TOOLS[payload.tool_name]) payload.tool_name = GEMINI_TOOLS[payload.tool_name];
+  return payload;
+}
+
 function readPayload() {
   return new Promise((resolve) => {
     let buf = '';
@@ -23,7 +44,7 @@ function readPayload() {
     });
     process.stdin.on('end', () => {
       try {
-        resolve(JSON.parse(buf || '{}'));
+        resolve(normalisePayload(JSON.parse(buf || '{}')));
       } catch {
         resolve({});
       }

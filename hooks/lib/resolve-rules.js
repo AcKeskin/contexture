@@ -49,13 +49,21 @@ function homeClaude() {
   return path.join(os.homedir(), '.claude');
 }
 
+// The shipped tier sits beside this file's tree: the repo when bootstrap
+// symlinks hooks/, the plugin root when installed as a plugin. A copied
+// hooks/ lands in ~/.claude/hooks, which resolves to the same place as before.
+function shippedRulesDir() {
+  const local = path.join(__dirname, '..', '..', 'architectural-rules');
+  return fs.existsSync(local) ? local : path.join(homeClaude(), 'architectural-rules');
+}
+
 // Absolute directory for a tier, or null when the tier has no on-disk home in
 // this environment (e.g. project tier resolved against a cwd with no .claude).
 function tierDir(tier, cwd) {
   const home = homeClaude();
   switch (tier) {
     case TIER_SHIPPED:
-      return path.join(home, 'architectural-rules');
+      return shippedRulesDir();
     case TIER_COMPANY:
       return path.join(home, 'architectural-rules-company');
     case TIER_USER:
@@ -491,5 +499,6 @@ function buildAnnotation(tier, patched, orphans) {
 // only when a unit-test file or second consumer actually needs the seam.
 module.exports = {
   resolveRules,
+  shippedRulesDir,
   TIER_ORDER,
 };

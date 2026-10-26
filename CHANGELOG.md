@@ -3,6 +3,65 @@
 File-level changes per public snapshot. Curate freely — this is the human-facing history.
 
 
+
+## 2026-10-26 — Contexture installs as a Claude Code plugin from its own marketplace, with each hook bundle as an on/off option; Copilot and Codex read the same manifest, Gemini CLI gets a built extension folder, and Cursor gets a plugin manifest and rules as .mdc files.
+
+_26 added, 18 changed, 0 removed._
+
+### Agents
+- changed `agents/c-sharp-pro.md`
+- changed `agents/cpp-pro.md`
+- changed `agents/mcp-py-pro.md`
+- changed `agents/mcp-ts-pro.md`
+- changed `agents/metal-video-source-pro.md`
+- changed `agents/react-pro.md`
+- changed `agents/rust-pro.md`
+- changed `agents/unity-pro.md`
+- changed `agents/unity-ui-pro.md`
+- changed `agents/vision-os-pro.md`
+
+### Docs
+- changed `docs/architectural-rules-overlay.md`
+
+### Hooks
+- added `hooks/hooks.json`
+- added `hooks/plugin-gate.js`
+- changed `hooks/lib/hook-io.js`
+- changed `hooks/lib/resolve-rules.js`
+- changed `hooks/rule-prime.js`
+
+### Other
+- added `.claude-plugin/marketplace.json`
+- added `.claude-plugin/plugin.json`
+- added `.cursor-plugin/plugin.json`
+- added `cursor/rules/android.mdc`
+- added `cursor/rules/bash.mdc`
+- added `cursor/rules/codecs.mdc`
+- added `cursor/rules/config-authoring.mdc`
+- added `cursor/rules/core.mdc`
+- added `cursor/rules/cpp.mdc`
+- added `cursor/rules/csharp.mdc`
+- added `cursor/rules/godot.mdc`
+- added `cursor/rules/linux.mdc`
+- added `cursor/rules/openxr.mdc`
+- added `cursor/rules/python.mdc`
+- added `cursor/rules/rendering.mdc`
+- added `cursor/rules/rust.mdc`
+- added `cursor/rules/sql.mdc`
+- added `cursor/rules/typescript.mdc`
+- added `cursor/rules/unity.mdc`
+- added `cursor/rules/universal.mdc`
+- added `cursor/rules/web.mdc`
+- added `cursor/rules/webrtc.mdc`
+- added `scripts/build-gemini-extension.js`
+- added `scripts/build-plugin-hooks.js`
+- changed `README.md`
+
+### Skills
+- changed `skills/capture/SKILL.md`
+- changed `skills/project-instructions/project-instructions.mjs`
+- changed `skills/rules/SKILL.md`
+
 ## 2026-10-26 — Added /cycle, an unattended dev loop from audit to PR, the visual organ for design captures and checks, and design-proposal pages; a citation check in the agent-output hook, a refuting verifier in pr-review, and new rules for contract enforcement, invocation control, C++ naming and over-delivery.
 
 _37 added, 37 changed, 1 removed._

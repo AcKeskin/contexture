@@ -6,7 +6,18 @@ I built it to get better at my own work, after catching myself correcting Claude
 
 ## Quick start
 
-Clone, bootstrap, restart. It's not a plugin, so there's no marketplace install.
+Two ways in. Pick one, not both, or every hook runs twice.
+
+**As a plugin.** Skills come in as `/contexture:<name>`, e.g. `/contexture:review`.
+
+```
+/plugin marketplace add AcKeskin/contexture
+/plugin install contexture@contexture
+```
+
+Each hook bundle is an on/off option in `/plugin configure contexture@contexture`. The plugin can't set a status line and doesn't register the project-memory MCP; use bootstrap for those.
+
+**With bootstrap.** Clone, bootstrap, restart. Skills keep their bare names (`/review`).
 
 ```sh
 cd <your-projects-dir>
@@ -149,13 +160,18 @@ Specs evolve v1 to v2, plans rebuild against them, nothing is destroyed. `/close
 
 ## Other agents
 
-Claude Code is the full experience. Other agents get the instruction corpus through a generated projection. They don't get hooks, auto-fire, or the propose-confirm gate, because those are Claude Code features.
+Claude Code is the full experience. The other tools get the skills and the rules, and some get the hooks. Auto-fire and the hard propose-confirm gate stay Claude Code only.
 
-- **`AGENTS.md`** at the repo root is the cross-tool surface, the [vendor-neutral standard](https://agents.md/) that Codex, Cursor, Aider, Gemini CLI, Copilot and Windsurf read natively. It's generated from the corpus (`node skills/project-instructions/project-instructions.mjs`), so don't hand-edit it. Re-run the projector after changing any rule.
-- **Copilot** also gets `.github/copilot-instructions.md` and per-language `.github/instructions/*.instructions.md`, which auto-load by glob. Skills show up as Agent Skills from the `.claude/skills/` mirror bootstrap creates. Lightly tested.
-- **Codex, Cursor, a local model:** they read `AGENTS.md`. No install.
+| Tool | Install | Skills | Rules | Hooks |
+| --- | --- | --- | --- | --- |
+| Copilot CLI | `copilot plugin marketplace add AcKeskin/contexture`, then `copilot plugin install contexture@contexture` | Yes | Via the rule-prime hook | Claude format is supported; not tried in a live session |
+| Codex CLI | `codex plugin marketplace add AcKeskin/contexture`, then `codex plugin add contexture@contexture` | Yes | Via the rule-prime hook | Not tried in a live session |
+| Gemini CLI | `node scripts/build-gemini-extension.js <dir>`, then `gemini extensions link <dir>` | Yes | Via the rule-prime hook | Security, git, codemap, rule-prime; not tried in a live session |
+| Cursor | Plugin manifest in `.cursor-plugin/`, untested | Yes | `cursor/rules/*.mdc` | Not yet |
 
-What ports: the instructions, and the skills as files for tools that scan them. What doesn't: hooks (nothing else intercepts tool calls), auto-fire (no session-lifecycle events), and the hard propose-confirm gate (an editor's accept UI is the soft version). The discipline travels; the enforcement under it doesn't.
+Copilot and Codex read the Claude plugin manifest as is. Gemini needs its own folder because it reads hooks only from `hooks/hooks.json`, in a different format. Copilot CLI doesn't load the agents, since it only reads `*.agent.md` files.
+
+`AGENTS.md`, `.github/` and `cursor/rules/` are generated from the corpus (`node skills/project-instructions/project-instructions.mjs`), so don't hand-edit them. Re-run the projector after changing any rule. Tools with no plugin support, such as Aider, can read `AGENTS.md`.
 
 ## Making it yours
 

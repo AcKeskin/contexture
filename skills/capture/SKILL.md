@@ -9,7 +9,7 @@ The capture organ. Writes stored memory for future discovery; the memory format 
 
 ## Prerequisite — load the format spec
 
-Before classifying or writing anything, **Read `~/.claude/claude-md/memory-capture.md`** (the frontmatter template, kind table, folder layout, and capture rules). It is not always-on context — it loads here, on demand, only when capture actually runs. Every reference to `claude-md/memory-capture.md` below assumes you have read it this turn.
+Before classifying or writing anything, **Read `../../claude-md/memory-capture.md`, relative to this SKILL.md's real location** (`~/.claude/claude-md/memory-capture.md` on a bootstrap install) (the frontmatter template, kind table, folder layout, and capture rules). It is not always-on context — it loads here, on demand, only when capture actually runs. Every reference to `claude-md/memory-capture.md` below assumes you have read it this turn.
 
 ## When to run
 

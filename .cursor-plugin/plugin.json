@@ -1,0 +1,16 @@
+{
+  "name": "contexture",
+  "displayName": "Contexture",
+  "description": "Architectural rules primed before coding, a review pass after, and a spec-to-ship workflow.",
+  "author": {
+    "name": "Ali Can Keskin",
+    "url": "https://github.com/AcKeskin"
+  },
+  "homepage": "https://github.com/AcKeskin/contexture",
+  "repository": "https://github.com/AcKeskin/contexture",
+  "license": "MIT",
+  "keywords": ["rules", "review", "workflow", "memory"],
+  "skills": "./skills/",
+  "agents": "./agents/",
+  "rules": "./cursor/rules/"
+}

@@ -12,7 +12,7 @@ Precedence low → high. Higher tiers win.
 
 | Tier | Directory | Owner | Update-safe |
 | --- | --- | --- | --- |
-| **shipped** | `~/.claude/architectural-rules/` (symlink into contexture) | the corpus | it *is* the update |
+| **shipped** | `~/.claude/architectural-rules/` (symlink into contexture), or `architectural-rules/` in the plugin root | the corpus | it *is* the update |
 | **company** | `~/.claude/architectural-rules-company/` (clone of a team repo) | the team | yes — separate repo |
 | **user** | `~/.claude/architectural-rules-local/` | the individual | yes — never written by sync |
 | **project** | `<project>/.claude/rules/` | the individual, per project | yes — lives with the repo |

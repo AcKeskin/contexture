@@ -1,0 +1,73 @@
+{
+  "name": "contexture",
+  "displayName": "Contexture",
+  "description": "Architectural rules primed before coding, a review pass after, safety hooks, and a spec-to-ship workflow.",
+  "author": {
+    "name": "Ali Can Keskin",
+    "url": "https://github.com/AcKeskin"
+  },
+  "homepage": "https://github.com/AcKeskin/contexture",
+  "repository": "https://github.com/AcKeskin/contexture",
+  "license": "MIT",
+  "keywords": [
+    "rules",
+    "review",
+    "hooks",
+    "workflow",
+    "memory"
+  ],
+  "commands": [
+    "./commands/allow-skip-hooks.md",
+    "./commands/status.md"
+  ],
+  "userConfig": {
+    "security": {
+      "type": "boolean",
+      "title": "Security hooks",
+      "description": "Block rm -rf on top-level paths, .env writes, and writes outside the project.",
+      "default": true
+    },
+    "git_discipline": {
+      "type": "boolean",
+      "title": "Git discipline hooks",
+      "description": "Block force-push to main, global git config edits, and hook-skip flags.",
+      "default": true
+    },
+    "session_guard": {
+      "type": "boolean",
+      "title": "Session guard",
+      "description": "After /clear or compact, suggest /recap when decisions may not have been saved.",
+      "default": true
+    },
+    "wrap_terminus": {
+      "type": "boolean",
+      "title": "Wrap recovery",
+      "description": "After /clear or compact, suggest /wrap when a ship was never wrapped up.",
+      "default": false
+    },
+    "coordinate_auto": {
+      "type": "boolean",
+      "title": "Coordinate auto-register",
+      "description": "At session start, suggest registering on the shared coordinate board.",
+      "default": false
+    },
+    "agent_output_contracts": {
+      "type": "boolean",
+      "title": "Agent output contracts",
+      "description": "After a subagent finishes, flag output that breaks its contract.",
+      "default": true
+    },
+    "codemap_dirty": {
+      "type": "boolean",
+      "title": "Codemap dirty marker",
+      "description": "Mark the codemap stale when files change in opted-in projects.",
+      "default": true
+    },
+    "rule_prime": {
+      "type": "boolean",
+      "title": "Rule priming",
+      "description": "Load matching architectural rules at session start and per prompt.",
+      "default": true
+    }
+  }
+}

@@ -32,7 +32,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const io = require('./lib/hook-io');
-const { resolveRules } = require('./lib/resolve-rules');
+const { resolveRules, shippedRulesDir } = require('./lib/resolve-rules');
 const { expandInstructionGlobs } = require('./lib/glob-files');
 
 // Per-session watermark key in ~/.claude/session-state.json. Records the primed
@@ -350,7 +350,7 @@ function autonomyDefaultCandidates(cwd) {
     cwd ? path.join(cwd, '.claude', 'rules', rel) : null, // project
     path.join(home, 'architectural-rules-local', rel), // user
     path.join(home, 'architectural-rules-company', rel), // company
-    path.join(home, 'architectural-rules', rel), // shipped
+    path.join(shippedRulesDir(), rel), // shipped
   ].filter(Boolean);
 }
 

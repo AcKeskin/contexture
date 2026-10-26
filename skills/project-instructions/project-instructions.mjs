@@ -8,6 +8,7 @@
 //   AGENTS.md                                  root, 6-section, no frontmatter, lean (<32KiB)
 //   .github/copilot-instructions.md            Copilot always-on core (lean — pointers, not bodies)
 //   .github/instructions/<scope>.instructions.md   per-scope, applyTo glob, scoped auto-fire
+//   cursor/rules/core.mdc + <scope>.mdc          Cursor plugin rules (core always on, scopes by glob)
 //
 // DETERMINISTIC: no Date, no Math.random, lexical sort everywhere → byte-stable re-runs.
 // No LLM in the path (research: LLM-generated AGENTS.md hurts performance). Pure projection.
@@ -236,6 +237,46 @@ function buildScopedInstruction(scope, rules) {
   return parts.join('\n').trimEnd() + '\n';
 }
 
+// Cursor rule globs are a comma list; expand one {a,b} group into it.
+function cursorGlobs(glob) {
+  const m = /^(.*)\{([^}]+)\}(.*)$/.exec(glob);
+  return m ? m[2].split(',').map((alt) => m[1] + alt + m[3]).join(',') : glob;
+}
+
+function buildCursorCore(rulesDir) {
+  const core = readCore(rulesDir);
+  const parts = ['---', 'description: Contexture working loop, stance and boundaries', 'alwaysApply: true', '---', ''];
+  parts.push('> Generated from `architectural-rules/config-authoring/cross-tool-core.md` — do not hand-edit.');
+  parts.push('');
+  if (core) {
+    const cut = core.indexOf('\n**Why:**');
+    parts.push(cut === -1 ? core : core.slice(0, cut).trim());
+  }
+  return parts.join('\n').trimEnd() + '\n';
+}
+
+// Universal has no file pattern, so Cursor attaches it when the agent asks
+// for it; the always-on floor stays the lean core.
+function buildCursorRule(scope, rules) {
+  const parts = ['---'];
+  if (scope === 'universal') {
+    parts.push('description: Universal engineering rules. Read before writing or reviewing any code.');
+  } else {
+    parts.push(`description: ${scope} architectural rules from contexture`);
+    parts.push(`globs: ${cursorGlobs(SCOPE_GLOBS[scope] || '**')}`);
+  }
+  parts.push('alwaysApply: false', '---', '');
+  parts.push(`> Generated from \`architectural-rules/${scope}/\` — do not hand-edit.`);
+  parts.push('');
+  for (const r of rules) {
+    parts.push(`## ${r.meta.name || r.file.replace(/\.md$/, '')}`);
+    parts.push('');
+    parts.push(stripAnchors(r.body));
+    parts.push('');
+  }
+  return parts.join('\n').trimEnd() + '\n';
+}
+
 // --- main -------------------------------------------------------------------
 
 function main() {
@@ -264,6 +305,14 @@ function main() {
       rel: path.join('.github', 'instructions', `${scope}.instructions.md`),
       content: buildScopedInstruction(scope, rules),
     });
+  }
+
+  // 4. Cursor plugin rules
+  outputs.push({ rel: path.join('cursor', 'rules', 'core.mdc'), content: buildCursorCore(rulesDir) });
+  for (const scope of scopes) {
+    const rules = readScopeRules(path.join(rulesDir, scope));
+    if (!rules.length) continue;
+    outputs.push({ rel: path.join('cursor', 'rules', `${scope}.mdc`), content: buildCursorRule(scope, rules) });
   }
 
   // --check: compare generated content against what is on disk and report
