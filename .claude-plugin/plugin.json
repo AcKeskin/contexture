@@ -69,5 +69,13 @@
       "description": "Load matching architectural rules at session start and per prompt.",
       "default": true
     }
+  },
+  "mcpServers": {
+    "project-memory": {
+      "command": "node",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/mcps/project-memory/dist/project-memory.cjs"
+      ]
+    }
   }
 }

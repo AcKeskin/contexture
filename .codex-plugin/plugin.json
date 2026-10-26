@@ -1,0 +1,23 @@
+{
+  "name": "contexture",
+  "description": "Architectural rules primed before coding, a review pass after, safety hooks, and a spec-to-ship workflow.",
+  "author": {
+    "name": "Ali Can Keskin",
+    "url": "https://github.com/AcKeskin"
+  },
+  "homepage": "https://github.com/AcKeskin/contexture",
+  "repository": "https://github.com/AcKeskin/contexture",
+  "license": "MIT",
+  "keywords": [
+    "rules",
+    "review",
+    "hooks",
+    "workflow",
+    "memory"
+  ],
+  "skills": "./skills/",
+  "commands": [
+    "./commands/allow-skip-hooks.md",
+    "./commands/status.md"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "project-memory": {
+      "command": "node",
+      "args": [
+        "${CURSOR_PLUGIN_ROOT}/mcps/project-memory/dist/project-memory.cjs"
+      ]
+    }
+  }
+}

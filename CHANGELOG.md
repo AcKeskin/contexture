@@ -4,6 +4,52 @@ File-level changes per public snapshot. Curate freely — this is the human-faci
 
 
 
+
+## 2026-10-26 — Every plugin now ships the project-memory MCP; Copilot gets the agents, Cursor gets hooks, Codex gets its own manifest, and contexture-lite plus an OpenCode hook plugin cover small and local models. The README lists /cycle, /visual and design-proposal.
+
+_20 added, 10 changed, 1 removed._
+
+### Cross-tool instructions
+- added `.github/plugin/plugin.json`
+
+### Docs
+- changed `docs/reference.md`
+- changed `docs/skills-catalog.md`
+
+### Hooks
+- added `hooks/lib/hook-io.test.js`
+- changed `hooks/lib/hook-io.js`
+
+### MCP servers
+- added `mcps/project-memory/dist/project-memory.cjs`
+- added `mcps/project-memory/scripts/bundle.mjs`
+- changed `mcps/project-memory/package-lock.json`
+- changed `mcps/project-memory/package.json`
+
+### Other
+- added `.codex-plugin/plugin.json`
+- added `copilot/agents/c-sharp-pro.agent.md`
+- added `copilot/agents/cpp-pro.agent.md`
+- added `copilot/agents/mcp-py-pro.agent.md`
+- added `copilot/agents/mcp-ts-pro.agent.md`
+- added `copilot/agents/metal-video-source-pro.agent.md`
+- added `copilot/agents/react-pro.agent.md`
+- added `copilot/agents/rust-pro.agent.md`
+- added `copilot/agents/security-reviewer.agent.md`
+- added `copilot/agents/unity-pro.agent.md`
+- added `copilot/agents/unity-ui-pro.agent.md`
+- added `copilot/agents/vision-os-pro.agent.md`
+- added `cursor/hooks.json`
+- added `cursor/mcp.json`
+- added `opencode/contexture.js`
+- added `scripts/build-plugin.js`
+- changed `.claude-plugin/marketplace.json`
+- changed `.claude-plugin/plugin.json`
+- changed `.cursor-plugin/plugin.json`
+- changed `README.md`
+- changed `scripts/build-gemini-extension.js`
+- removed `scripts/build-plugin-hooks.js`
+
 ## 2026-10-26 — Contexture installs as a Claude Code plugin from its own marketplace, with each hook bundle as an on/off option; Copilot and Codex read the same manifest, Gemini CLI gets a built extension folder, and Cursor gets a plugin manifest and rules as .mdc files.
 
 _26 added, 18 changed, 0 removed._

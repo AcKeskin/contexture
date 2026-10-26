@@ -10,6 +10,20 @@
       "name": "contexture",
       "source": "./",
       "description": "Architectural rules primed before coding, a review pass after, safety hooks, and a spec-to-ship workflow."
+    },
+    {
+      "name": "contexture-lite",
+      "source": "./",
+      "description": "Smaller contexture for local or small-context models: the rules, memory, review, and debugging skills only.",
+      "skills": [
+        "./skills/prep",
+        "./skills/discover",
+        "./skills/deliver",
+        "./skills/review",
+        "./skills/capture",
+        "./skills/recap",
+        "./skills/systematic-debugging"
+      ]
     }
   ]
 }

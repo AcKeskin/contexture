@@ -15,7 +15,9 @@ Two ways in. Pick one, not both, or every hook runs twice.
 /plugin install contexture@contexture
 ```
 
-Each hook bundle is an on/off option in `/plugin configure contexture@contexture`. The plugin can't set a status line and doesn't register the project-memory MCP; use bootstrap for those.
+Each hook bundle is an on/off option in `/plugin configure contexture@contexture`. The plugin brings the project-memory MCP prebuilt. It can't set a status line; use bootstrap for that.
+
+For a small-context or local model, install `contexture-lite@contexture` instead. It keeps seven skills (prep, discover, deliver, review, capture, recap, systematic-debugging) and costs about 2.5K always-on tokens, against 7.4K for the full plugin. Install one of the two, not both.
 
 **With bootstrap.** Clone, bootstrap, restart. Skills keep their bare names (`/review`).
 
@@ -121,7 +123,9 @@ flowchart TB
 | **Autonomy contract** | `/autonomize` sets one contract for how hard to push, when to stop, when to ask. `/execute`, `/checkpoint` and `/orchestrate` read it at their decision points. Defaults to current behaviour, so it costs nothing until you tune it. |
 | **Debugging** | `/systematic-debugging` front-doors a bug: reproduce, instrument, find the root cause, before any fix. |
 | **Authoring** | `/new-hook`, `/new-agent`, `/new-mcp` scaffold extensions by interview. |
+| **Unattended loop** | `/cycle` runs audit, plan, implement, review and a draft PR on its own, one headless session per stage, within limits on cost, hours and plan usage. A status page shows each run. `/visual` adds a design contract and screenshot checks for UI projects. |
 | **Prose** | `/humanize` flags and rewrites AI texture in user-facing writing. Advisory density, never a binary verdict. |
+| **Design pages** | `design-proposal` builds a page a team discusses together: the plan, the other options and their limits. |
 
 Every hook, skill, agent and MCP tool is listed in [docs/reference.md](docs/reference.md).
 
@@ -155,21 +159,47 @@ Specs evolve v1 to v2, plans rebuild against them, nothing is destroyed. `/close
 | Greenfield with no shape yet | Same, with `/envision` first |
 | Something's broken | `/systematic-debugging` |
 | Several independent tasks at once | `/orchestrate` |
+| Letting it work while I'm away | `/cycle` |
 | Picking up after a break | `/discover <topic>`, or `/work-state <slug>` |
 | End of a session that produced something | `/wrap` |
 
 ## Other agents
 
-Claude Code is the full experience. The other tools get the skills and the rules, and some get the hooks. Auto-fire and the hard propose-confirm gate stay Claude Code only.
+Claude Code is the full experience. The other tools get the skills and the rules, and most get the hooks and the project-memory MCP. Auto-fire and the hard propose-confirm gate stay Claude Code only.
 
-| Tool | Install | Skills | Rules | Hooks |
-| --- | --- | --- | --- | --- |
-| Copilot CLI | `copilot plugin marketplace add AcKeskin/contexture`, then `copilot plugin install contexture@contexture` | Yes | Via the rule-prime hook | Claude format is supported; not tried in a live session |
-| Codex CLI | `codex plugin marketplace add AcKeskin/contexture`, then `codex plugin add contexture@contexture` | Yes | Via the rule-prime hook | Not tried in a live session |
-| Gemini CLI | `node scripts/build-gemini-extension.js <dir>`, then `gemini extensions link <dir>` | Yes | Via the rule-prime hook | Security, git, codemap, rule-prime; not tried in a live session |
-| Cursor | Plugin manifest in `.cursor-plugin/`, untested | Yes | `cursor/rules/*.mdc` | Not yet |
+| Tool | Install | Skills | Agents | Rules | Hooks | MCP |
+| --- | --- | --- | --- | --- | --- | --- |
+| Copilot CLI | `copilot plugin marketplace add AcKeskin/contexture`, then `copilot plugin install contexture@contexture` | Yes | Yes | Via the rule-prime hook | All bundles, Claude format | Yes |
+| Codex CLI | `codex plugin marketplace add AcKeskin/contexture`, then `codex plugin add contexture@contexture` | Yes | No | Via the rule-prime hook | Not wired | Manual, see below |
+| Gemini CLI | `node scripts/build-gemini-extension.js <dir>`, then `gemini extensions link <dir>` | Yes | No | Via the rule-prime hook | Security, git, codemap, rule-prime | Yes |
+| Cursor | Plugin manifest in `.cursor-plugin/`, untested | Yes | Yes | `cursor/rules/*.mdc` | Shell commands (security, git) and codemap | Yes |
+| OpenCode | See [Local models](#local-models) | Yes | No | Via the rule-prime hook | Security, git, codemap, rule-prime | Manual |
 
-Copilot and Codex read the Claude plugin manifest as is. Gemini needs its own folder because it reads hooks only from `hooks/hooks.json`, in a different format. Copilot CLI doesn't load the agents, since it only reads `*.agent.md` files.
+Checked by installing in each CLI and feeding each tool's payloads to the hooks, not in live sessions (OpenCode aside). Cursor wasn't installed, and Copilot needs a login to list agents, so both are untested. Cursor has no event before a file write, so the `.env` and outside-project write blockers don't run there.
+
+Each tool reads its own manifest first: `.github/plugin/` (Copilot), `.codex-plugin/` (Codex), `.cursor-plugin/` (Cursor), then `.claude-plugin/`. Gemini needs its own folder because it reads hooks only from `hooks/hooks.json`, in a different format. Codex runs plugin MCP servers without a root path, so add it by hand:
+
+```sh
+codex mcp add project-memory -- node <contexture>/mcps/project-memory/dist/project-memory.cjs
+```
+
+`hooks/hooks.json`, the plugin manifests, `copilot/agents/` and `cursor/*.json` are generated by `node scripts/build-plugin.js`. Re-run it after changing `settings/settings.template.json` or an agent.
+
+### Local models
+
+Local models run through a harness. Three that work with contexture:
+
+- **Claude Code on Ollama.** Ollama 0.14+ serves the Anthropic API. Run `ollama launch claude`, or point `ANTHROPIC_BASE_URL` at `http://localhost:11434`, then install the plugin as usual. Use `contexture-lite` and a model with at least 32K context; rule-prime adds about 1K to 5K tokens per session. Turn it off in `/plugin configure` if the model struggles.
+- **Codex with `--oss`.** `codex --oss` runs on Ollama or LM Studio. Install the Codex plugin as above.
+- **OpenCode.** Reads `AGENTS.md`. Link the skills and the hook plugin:
+
+  ```sh
+  mkdir -p ~/.config/opencode/plugins
+  ln -s <contexture>/skills ~/.config/opencode/skills
+  ln -s <contexture>/opencode/contexture.js ~/.config/opencode/plugins/contexture.js
+  ```
+
+  The plugin runs the security, git, codemap and rule-prime hooks. Turn one off with `CLAUDE_PLUGIN_OPTION_<BUNDLE>=false`, for example `CLAUDE_PLUGIN_OPTION_RULE_PRIME=false`.
 
 `AGENTS.md`, `.github/` and `cursor/rules/` are generated from the corpus (`node skills/project-instructions/project-instructions.mjs`), so don't hand-edit them. Re-run the projector after changing any rule. Tools with no plugin support, such as Aider, can read `AGENTS.md`.
 
@@ -184,7 +214,7 @@ The shipped corpus is one developer's standards. To diverge:
 
 ## MCP servers
 
-**project-memory** is part of the harness. It backs `/discover`, and bootstrap registers it. `/discover` degrades gracefully if it isn't there.
+**project-memory** is part of the harness. It backs `/discover`; bootstrap registers it and the plugin ships it. `/discover` degrades gracefully if it isn't there. Plugins run the prebuilt `mcps/project-memory/dist/project-memory.cjs`; after changing its `src/`, rebuild with `npm ci && npm run bundle` in that folder.
 
 The repo also carries two game-engine editor bridges under [`mcps/`](mcps/). They're a separate concern, standalone and opt-in, skippable with `bootstrap --exclude=mcps`. They live here because I built them alongside everything else, not because anything depends on them.
 

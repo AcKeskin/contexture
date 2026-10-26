@@ -28,7 +28,7 @@ const EVENTS = {
 };
 const TOOLS = { Bash: 'run_shell_command', Write: 'write_file', Edit: 'replace', Read: 'read_file' };
 
-const COPY = ['skills', 'architectural-rules', 'hooks', 'docs', 'claude-md/memory-capture.md', 'LICENSE'];
+const COPY = ['skills', 'architectural-rules', 'hooks', 'docs', 'claude-md/memory-capture.md', 'mcps/project-memory/dist', 'LICENSE'];
 const SKIP = /(^|\/)(tests|node_modules)(\/|$)|\.test\.js$|^hooks\/(hooks\.json|plugin-gate\.js|statusline\.js)$/;
 
 const SCRIPT_RE = /\/hooks\/([\w.-]+\.js)$/;
@@ -96,6 +96,9 @@ function main() {
     name: 'contexture',
     version: '1.0.0',
     description: 'Architectural rules primed before coding, a review pass after, safety hooks, and a spec-to-ship workflow.',
+    mcpServers: {
+      'project-memory': { command: 'node', args: ['${extensionPath}/mcps/project-memory/dist/project-memory.cjs'] },
+    },
   };
   fs.writeFileSync(path.join(out, 'gemini-extension.json'), JSON.stringify(manifest, null, 2) + '\n');
   fs.writeFileSync(path.join(out, 'hooks', 'hooks.json'), JSON.stringify(buildHooks(template), null, 2) + '\n');

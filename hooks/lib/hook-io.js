@@ -29,7 +29,24 @@ const GEMINI_TOOLS = {
   read_file: 'Read',
 };
 
+// Cursor has no generic tool events. Its shell and file-edit events carry the
+// command or path at the top level, so readPayload rebuilds a Claude payload.
+// Cursor has no pre-write event, so the write blockers never run there.
+const CURSOR_EVENTS = {
+  beforeShellExecution: (p) => ({ hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command: p.command } }),
+  afterFileEdit: (p) => ({ hook_event_name: 'PostToolUse', tool_name: 'Edit', tool_input: { file_path: p.file_path } }),
+};
+
+let cursor = false;
+
 function normalisePayload(payload) {
+  const fromCursor = CURSOR_EVENTS[payload.hook_event_name];
+  if (fromCursor) {
+    cursor = true;
+    const root = Array.isArray(payload.workspace_roots) && payload.workspace_roots[0];
+    if (root && !process.env.CLAUDE_PROJECT_DIR) process.env.CLAUDE_PROJECT_DIR = root;
+    return { ...payload, ...fromCursor(payload) };
+  }
   if (GEMINI_EVENTS[payload.hook_event_name]) payload.hook_event_name = GEMINI_EVENTS[payload.hook_event_name];
   if (GEMINI_TOOLS[payload.tool_name]) payload.tool_name = GEMINI_TOOLS[payload.tool_name];
   return payload;
@@ -57,7 +74,13 @@ function allow() {
   process.exit(0);
 }
 
+// Cursor reads a deny from JSON stdout, not from exit 2.
 function block(reason) {
+  if (cursor) {
+    const msg = String(reason || 'Blocked by security hook.');
+    process.stdout.write(JSON.stringify({ permission: 'deny', user_message: msg, agent_message: msg }) + '\n');
+    process.exit(0);
+  }
   process.stderr.write(String(reason || 'Blocked by security hook.') + '\n');
   process.exit(2);
 }

@@ -1,6 +1,6 @@
 # Skills catalog
 
-Every skill shipped in `skills/`. 43 skills, grouped by what they do.
+Every skill shipped in `skills/`. 46 skills, grouped by what they do.
 
 **Firing modes** used below:
 - **Manual** — user-invoked only (`/name`), never auto-fires.
@@ -90,6 +90,7 @@ The main pipeline. Each stage writes a versioned artefact the next stage reads.
 |---|---|---|
 | `humanize` | Manual | Detects, scores, and rewrites AI texture in *user-facing* prose (docs, professional email, PR/proposal/issue). Flags by aggregate density, never single instances; scores four dimensions; produces a voice-calibrated rewrite preserving every argument. Advisory likelihood, never a binary verdict. Refuses the terse model corpus (memory, codemap, specs). |
 | `improve-prompt` | Manual | Improves any prompt — LLM/chat/agent or generative image/video/audio. Model-agnostic techniques; interviews to fill real gaps, returns a rewritten prompt plus rationale. |
+| `design-proposal` | Manual | Builds a page a team discusses together: what is planned and, where they exist, the other options with their limits. Works for an API, a service split, a data model, a UI flow or a process change. |
 
 ## Session bookkeeping
 

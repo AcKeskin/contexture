@@ -12,5 +12,7 @@
   "keywords": ["rules", "review", "workflow", "memory"],
   "skills": "./skills/",
   "agents": "./agents/",
-  "rules": "./cursor/rules/"
+  "rules": "./cursor/rules/",
+  "hooks": "./cursor/hooks.json",
+  "mcpServers": "./cursor/mcp.json"
 }

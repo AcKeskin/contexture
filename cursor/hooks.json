@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": "node \"${CURSOR_PLUGIN_ROOT}/hooks/plugin-gate.js\" security rm-rf-blocker.js"
+      },
+      {
+        "command": "node \"${CURSOR_PLUGIN_ROOT}/hooks/plugin-gate.js\" gitDiscipline force-push-main-blocker.js"
+      },
+      {
+        "command": "node \"${CURSOR_PLUGIN_ROOT}/hooks/plugin-gate.js\" gitDiscipline git-config-write-blocker.js"
+      },
+      {
+        "command": "node \"${CURSOR_PLUGIN_ROOT}/hooks/plugin-gate.js\" gitDiscipline hook-skip-blocker.js"
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": "node \"${CURSOR_PLUGIN_ROOT}/hooks/plugin-gate.js\" codemapDirty codemap-dirty-marker.js"
+      }
+    ]
+  }
+}

@@ -199,8 +199,9 @@ Each skill has a `SKILL.md` that defines when it fires, what it does, and how it
 | `new-agent` | Interview-driven subagent scaffolding (job-to-be-done, anti-patterns, debug workflow) |
 | `new-mcp` | Interview-driven MCP server scaffolding (TypeScript/Python, simple/API wrapper) |
 | `new-agents-md` | Distill-then-interview generator that projects the discipline corpus into a vendor-neutral root `AGENTS.md` for non-Claude agents (interactive companion to `project-instructions`) |
-| `project-instructions` | Deterministic cross-tool projector — regenerates root `AGENTS.md`, lean `.github/copilot-instructions.md`, and per-scope `.github/instructions/*.instructions.md` from the corpus (`node skills/project-instructions/project-instructions.mjs`) |
+| `project-instructions` | Deterministic cross-tool projector — regenerates root `AGENTS.md`, lean `.github/copilot-instructions.md`, per-scope `.github/instructions/*.instructions.md`, and Cursor's `cursor/rules/*.mdc` from the corpus (`node skills/project-instructions/project-instructions.mjs`) |
 | `dispatch` | Delegates independent problems to parallel subagents with depth caps |
+| `design-proposal` | Builds a page a team discusses together — the plan and, where they exist, the other options with their limits; also a presentation or playground copy of such a page |
 | `improve-prompt` | Improves any prompt — text/LLM or generative image/video/audio — model-agnostically; interviews to fill real gaps, then returns a rewritten prompt plus rationale (what changed, assumptions, optional per-model notes) |
 | `using-git-worktrees` | Creates isolated worktrees with gitignore safety and baseline test verification |
 | `memory-audit` | Checks memory tree for 9 integrity dimensions (orphans, dupes, schema gaps, stale refs) |
@@ -253,7 +254,7 @@ Each file is a thin entrypoint that delegates to the corresponding skill. One fi
 | `/new-agents-md` | `skills/new-agents-md` |
 | `/allow-skip-hooks` | Arms hook-skip-blocker to permit the next N git bypass commands |
 
-A few skills have no command shim and are invoked by name or auto-fire only: `deliver` and `retrospect-core` (library-only), `dispatch`, `systematic-debugging`, `test-driven-development`, `using-git-worktrees`. `project-instructions` is not a skill at all — it is the cross-tool projector script, run as a Node CLI by bootstrap.
+A few skills have no command shim and are invoked by name or auto-fire only: `deliver` and `retrospect-core` (library-only), `design-proposal`, `dispatch`, `systematic-debugging`, `test-driven-development`, `using-git-worktrees`. `project-instructions` is not a skill at all — it is the cross-tool projector script, run as a Node CLI by bootstrap.
 
 ### agents/ — Specialized subagent definitions
 
