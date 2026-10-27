@@ -1,5 +1,5 @@
 {
-  "_comment": "Per-machine overrides merged OVER settings.template.json by bootstrap. Copy to settings.local.json (gitignored) and edit. Top-level keys replace the template's; `hooks` deep-merges so machine-specific hooks coexist with the defaults. Hook BUNDLES are toggled separately in hook-config.json (`enabled.hookBundles`), not here. Remove the _comment keys — they are documentation, not settings.",
+  "_comment": "Per-machine overrides merged OVER settings.template.json by bootstrap. Copy to settings.local.json (gitignored) and edit. Top-level keys replace the template's; `hooks` deep-merges and `permissions` lists union so machine-specific hooks coexist with the defaults. Hook BUNDLES are toggled separately in hook-config.json (`enabled.hookBundles`), not here. Remove the _comment keys — they are documentation, not settings.",
 
   "_comment_statusLine": "Override the status line for this machine.",
   "statusLine": {

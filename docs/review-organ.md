@@ -2,7 +2,7 @@
 
 Authoritative procedure lives in [`skills/review/SKILL.md`](../skills/review/SKILL.md); this doc is the Claude-facing reference.
 
-Prep prevents drift; review detects it. Different jobs, complementary. Together they close the discipline loop — a rule exists (stored + tagged in the architectural-rules corpus), it's primed before work (prep), it's audited after (review), and user corrections feed back into the corpus (via capture).
+One skill reviews both local code and GitHub PRs (`--pr`, alias `/pr-review`); the target sets the default angles, everything else is shared. Prep prevents drift; review detects it. Different jobs, complementary. Together they close the discipline loop — a rule exists (stored + tagged in the architectural-rules corpus), it's primed before work (prep), it's audited after (review), and user corrections feed back into the corpus (via capture).
 
 ## What review owns
 
@@ -52,6 +52,7 @@ Typical use:
 | `/review <path>` (directory) | Directory recursively | Yes | Yes — `<scope_slug>=<path-kebab>` |
 | `/review <path>` (single file) | One file | No | Yes — `<scope_slug>=<path-with-extension>` |
 | `/review --since <ref>` | Files changed since the git ref. Bails cleanly when not a git repo | No | **No** — `--since` runs are ephemeral |
+| `/review --pr [N] [path…]` | A GitHub PR's diff via `gh`, optionally path-filtered; >30 files guard | No | PR vault note (SKILL.md §10) + `.claude/reviews/pr-<NNN>/` json |
 
 **>50 files guard.** Review asks the user to narrow before proceeding on very large scopes. Explicit `y` overrides.
 
@@ -240,14 +241,18 @@ A malformed baseline (table unparseable, frontmatter missing required fields) tr
 - **Manifest + docs read** capped at ~10 files / ~3000 lines combined during the orientation gate; sample biggest+newest if over.
 - **No cap on feedback-loop rounds.** Each picked response is a single capture invocation.
 
+## Angles
+
+Every review runs angles ([angles.md](../skills/review/angles.md)). Defaults run inline, as before: `architecture` (the drift checks) locally, `correctness, design, hygiene, security` on a PR. `--angles` runs one fresh agent per angle (add performance, readability, extensibility, tests, or a project angle from `.claude/review-angles.md`), merges, shows conflicts as tensions, and ends with one human pick, a walk, the review page, or the Obsidian note. Only kept findings reach the local apply loop. `--pack` adds a [review pack](../skills/review/pack.md) before the pick. Output shape: [review output contract](review-output-contract.md) §7.
+
 ## What review is not
 
 - Not a linter replacement.
-- Not a security audit.
-- Not a performance review.
+- Not a security audit (by default; see `--angles`).
+- Not a performance review (by default; see `--angles`).
 - Not a test coverage report.
 - Not auto-cleanup.
-- Not exhaustive — six categories cover the stated pain; other concerns become their own skills later.
+- Not exhaustive — the default angles cover the stated pain; others are opt-in through `--angles`.
 - Not auto-firing.
 - Not actively tracked across runs. The persistent artefact at `.claude/reviews/<scope-slug>/` is read on the *next* `/review` invocation for tagging — review never re-plays it, never prompts the user about old findings outside a fresh invocation.
 

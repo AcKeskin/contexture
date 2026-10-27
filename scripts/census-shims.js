@@ -23,6 +23,7 @@ const SKILLS_DIR = path.join(REPO_ROOT, 'skills');
 const SHIM_EXCEPTIONS = {
   'allow-skip-hooks': 'self-contained procedure, no skill',
   status: 'alias for work-state',
+  'pr-review': 'alias for review --pr',
 };
 // Skills that intentionally ship no shim: library-only (not user-invoked) or
 // model-triggered (fire on a described condition, not a slash command).

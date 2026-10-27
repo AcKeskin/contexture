@@ -7,7 +7,7 @@ description: "Scope-dialed fit-and-intent audit — \"does this serve the origin
 
 The scope-dialed fit-and-intent organ. One lens — *does this serve the original point, cohere with the whole, and what did I learn?* — delivered at three zoom levels (one verb, no altitude gaps, batch findings). Delegates orientation, baseline-diff, rendering, routing, and persistence to [retrospect-core](../retrospect-core/SKILL.md).
 
-**Where it sits.** Today's diff reviewers (`review` rule-drift, `pr-review` an incoming PR, `code-review` correctness) judge a change *in isolation*; the corpus passes audit the *whole* by governance category. checkpoint is the middle and the lens: it asks **fit-and-intent at whatever zoom you're at.** Its corpus scope carries the passes absorbed from the retired `retrospect` + `system-review` organs — see [corpus-passes.md](corpus-passes.md). `memory-audit` (mechanical integrity) and `recap` (per-session episodic) stay separate lenses.
+**Where it sits.** Today's diff reviewers (`review` on local code or a PR, `code-review` correctness) judge a change *in isolation*; the corpus passes audit the *whole* by governance category. checkpoint is the middle and the lens: it asks **fit-and-intent at whatever zoom you're at.** Its corpus scope carries the passes absorbed from the retired `retrospect` + `system-review` organs — see [corpus-passes.md](corpus-passes.md). `memory-audit` (mechanical integrity) and `recap` (per-session episodic) stay separate lenses.
 
 ## When to run
 
@@ -88,4 +88,4 @@ Runs the eight corpus passes defined in [corpus-passes.md](corpus-passes.md) —
 - **code-review** — composed at diff scope for the correctness lens.
 - **capture / memory-audit / proposals** — the routing targets.
 - **recap** — the per-session feeder to the corpus scope (unchanged).
-- **review / pr-review** — the other diff reviewers (rule-drift / incoming-PR); checkpoint adds the fit-and-intent lens, it does not replace them.
+- **review** — the other diff reviewer (local code or a PR, from one or more angles); checkpoint adds the fit-and-intent lens, it does not replace them.

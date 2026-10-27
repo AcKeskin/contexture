@@ -32,11 +32,11 @@ Bootstrap is idempotent. It links `claude-md`, `architectural-rules`, `skills`, 
 
 ```sh
 node bootstrap/bootstrap.js --dry-run                 # preview
-node bootstrap/bootstrap.js --exclude hooks,agents    # skip subtrees
+node bootstrap/bootstrap.js --exclude=hooks,agents   # skip subtrees
 node bootstrap/bootstrap.js --verify                  # audit current state
 ```
 
-**You need** Node 18+, git, and Claude Code. Optional: `gh` for `/pr-review`, and the .NET SDK plus Godot/Unity only if you build those MCP servers.
+**You need** Node 18+, git, and Claude Code. Optional: `gh` for `/review --pr`, and the .NET SDK plus Godot/Unity only if you build those MCP servers.
 
 **Platform caveat.** I develop and use this on Windows (PowerShell and Git Bash). The bootstrap, hooks and codemap scripts are plain Node, so macOS and Linux should work, but I haven't run it there. Expect rough edges.
 
@@ -96,7 +96,7 @@ flowchart TB
   STATE["State<br/>codemap - memory store"]
   LOOP["Session lifecycle<br/>/prep - /discover - /review - /capture - /recap - /wrap"]
   SCOPE["Scope, the heavyweight track<br/>/envision - /spec - /draft-plan - /execute - /close-out"]
-  VER["Verification<br/>/checkpoint - /pr-review - /pre-push"]
+  VER["Verification<br/>/checkpoint - /review --pr - /pre-push"]
   PAR["Parallel work<br/>/orchestrate - /dispatch - /coordinate"]
   HOOKS["Safety hooks, always on<br/>rm -rf - .env - force-push - git config - --no-verify"]
 
@@ -116,14 +116,17 @@ flowchart TB
 | **Mechanical priming** | The `rule-prime` hook puts relevant rules in context at session start and per prompt. Budget-guarded, deterministic, never blocks a turn. |
 | **Rule overlay** | Four tiers that compose update-safely: shipped, company, user, project. `/rules` to override a whole file, patch a field, or disable. Your edits survive `git pull`. |
 | **Observe and record** | Three organs that read a codebase and write down what's tacit: `/update-codemap` (structure), `/extract-conventions` (house style, as a project-tier rule), `/glossary` (domain vocabulary, cited by review). `/write-tests` authors a suite for existing code. |
-| **Stored context** | A codemap and a memory store of rules, decisions and lessons, retrieved on demand by `/discover`. |
+| **Stored context** | A codemap and a memory store of rules, decisions and lessons, retrieved on demand by `/discover`. Handoffs in the project-memory MCP let one tool leave a note (next steps, what failed) that the next tool claims once. |
+| **Context hooks** | Before the first edit of a file, show warnings and lessons that name it. Save the last request, todos, edited files and errors before compaction and restore them after. Point the first search at the codemap, say when it is out of date, and refresh it in the background where a project opts in. Opt-in: run your own checks after each edit and report only new problems. |
 | **Safety hooks** | Default-on. Block `rm -rf` on top-level paths, writes to `.env`, force-push to main, global git-config edits, and `--no-verify` bypass. |
 | **Spec to ship** | The heavyweight track: interview-driven spec, versioned plan, step-by-step execute with per-step verification, `/close-out` to reconcile the spec to what shipped. `/work-state <slug>` says where a feature sits, and flags a plan pinned to a stale spec. |
 | **Parallel work** | `/orchestrate` splits one goal into units, places each (shared tree, worktree, or serialized), fans them out, then verifies and converges. `/coordinate` keeps several live sessions aligned through a shared board so two of them don't edit the same files. |
 | **Autonomy contract** | `/autonomize` sets one contract for how hard to push, when to stop, when to ask. `/execute`, `/checkpoint` and `/orchestrate` read it at their decision points. Defaults to current behaviour, so it costs nothing until you tune it. |
+| **Multi-angle review** | `/review` covers local code and PRs (`--pr`, alias `/pr-review`) and takes `--angles`: one reviewer per angle (correctness, design, performance, readability, extensibility, security, tests, or your team's own), merged and ranked, with conflicts shown as trade-offs. You see metrics and the big picture first, the model does the call tracing, and you pick what to keep in one go or walk through findings one by one. `--pack` adds a plain-language pack on structure, call flow and how to build on the code; `--artifact` opens it all as a page. |
 | **Debugging** | `/systematic-debugging` front-doors a bug: reproduce, instrument, find the root cause, before any fix. |
 | **Authoring** | `/new-hook`, `/new-agent`, `/new-mcp` scaffold extensions by interview. |
 | **Unattended loop** | `/cycle` runs audit, plan, implement, review and a draft PR on its own, one headless session per stage, within limits on cost, hours and plan usage. A status page shows each run. `/visual` adds a design contract and screenshot checks for UI projects. |
+| **Shortcuts** | Deliberate cut corners get a `shortcut:` comment; `/shortcuts` lists them. |
 | **Prose** | `/humanize` flags and rewrites AI texture in user-facing writing. Advisory density, never a binary verdict. |
 | **Design pages** | `design-proposal` builds a page a team discusses together: the plan, the other options and their limits. |
 
@@ -174,6 +177,7 @@ Claude Code is the full experience. The other tools get the skills and the rules
 | Gemini CLI | `node scripts/build-gemini-extension.js <dir>`, then `gemini extensions link <dir>` | Yes | No | Via the rule-prime hook | Security, git, codemap, rule-prime | Yes |
 | Cursor | Plugin manifest in `.cursor-plugin/`, untested | Yes | Yes | `cursor/rules/*.mdc` | Shell commands (security, git) and codemap | Yes |
 | OpenCode | See [Local models](#local-models) | Yes | No | Via the rule-prime hook | Security, git, codemap, rule-prime | Manual |
+| Any agent, skills only | `npx skills add AcKeskin/contexture` | Yes | No | No | No | No |
 
 Checked by installing in each CLI and feeding each tool's payloads to the hooks, not in live sessions (OpenCode aside). Cursor wasn't installed, and Copilot needs a login to list agents, so both are untested. Cursor has no event before a file write, so the `.env` and outside-project write blockers don't run there.
 
@@ -203,6 +207,18 @@ Local models run through a harness. Three that work with contexture:
 
 `AGENTS.md`, `.github/` and `cursor/rules/` are generated from the corpus (`node skills/project-instructions/project-instructions.mjs`), so don't hand-edit them. Re-run the projector after changing any rule. Tools with no plugin support, such as Aider, can read `AGENTS.md`.
 
+## Claude Projects and cloud agents
+
+In Claude Projects each thread runs in a fresh cloud container, so install contexture in the project's environment setup script (Project settings, Cloud environment, gear, Setup script):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/AcKeskin/contexture/main/cloud/setup.sh | bash
+```
+
+New threads then get the skills, rules, hooks and status line. Anything written to `~/.claude` is lost when the thread ends, so commit rules to the repo's `.claude/rules/` and keep shared facts in the project's memory.
+
+The same script is the setup step for Copilot's cloud agent, Cursor cloud agents, Codex cloud and Jules; `cloud/` has the Copilot and Cursor templates. Details, and what differs from a local install, in [docs/claude-projects.md](docs/claude-projects.md).
+
 ## Making it yours
 
 The shipped corpus is one developer's standards. To diverge:
@@ -223,7 +239,7 @@ The repo also carries two game-engine editor bridges under [`mcps/`](mcps/). The
 
 ## Notes
 
-**On Obsidian.** Codemap diagrams, `/pr-review` artefacts and vault exports write to an Obsidian vault, because that's where I keep notes and I wanted the graph view and backlinks in one place. It's a personal choice, pointed at by a `vaultRoot` config value. Without it those features are inert and nothing else cares.
+**On Obsidian.** Codemap diagrams, PR review notes and vault exports write to an Obsidian vault, because that's where I keep notes and I wanted the graph view and backlinks in one place. It's a personal choice, pointed at by a `vaultRoot` config value. Without it those features are inert and nothing else cares.
 
 **What I was aiming for.**
 

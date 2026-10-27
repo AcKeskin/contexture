@@ -5,7 +5,7 @@ description: "Triage a PR's unresolved review comments with you, deciding per co
 
 # pr-triage
 
-Reviewee-side **triage** of PR review feedback. A sibling of the GitHub reviewee organs [pre-push](../pre-push/SKILL.md) and [pr-author](../pr-author/SKILL.md); the reviewer side is [pr-review](../pr-review/SKILL.md).
+Reviewee-side **triage** of PR review feedback. A sibling of the GitHub reviewee organs [pre-push](../pre-push/SKILL.md) and [pr-author](../pr-author/SKILL.md); the reviewer side is [review --pr](../review/SKILL.md).
 
 This skill does **not** respond to reviewers. You write every reply yourself, every time — pr-triage never drafts reply text and never posts. What it does is turn a pile of unresolved comments into a worked checklist and drive the *code actions* the comments call for: it fetches the unresolved comments, lays them out as a themed checklist, and walks each one with you to a decision. When a comment needs a code change, pr-triage routes that change to [/dispatch](../dispatch/SKILL.md) or [/orchestrate](../orchestrate/SKILL.md) rather than editing inline — so independent fixes fan out in parallel and cross-cutting ones decompose properly.
 
@@ -152,5 +152,5 @@ Suggest re-running [pre-push](../pre-push/SKILL.md) when the acted-on changes ar
 
 - **[dispatch](../dispatch/SKILL.md)** — the execution route for independent Act rows. pr-triage classifies a row as isolated and hands the fix to dispatch's parallel fan-out; it does not re-implement dispatch.
 - **[orchestrate](../orchestrate/SKILL.md)** — the execution route for cross-cutting Act rows. pr-triage hands a multi-file / interdependent change (or a group of related rows) to orchestrate as one goal; orchestrate owns decompose / place / converge.
-- **[pr-review](../pr-review/SKILL.md)** — reviewer-side counterpart. A user might `/pr-review` someone else's PR and `/pr-triage` the comments on their own.
+- **[review --pr](../review/SKILL.md)** — reviewer-side counterpart. A user might `/review --pr` someone else's PR and `/pr-triage` the comments on their own.
 - **[pre-push](../pre-push/SKILL.md)** — the next step once the acted-on changes are ready to push.

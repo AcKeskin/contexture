@@ -142,7 +142,8 @@ const ALWAYS_TIER_TOKEN_CAP = 1000;
 const CHARS_PER_TOKEN = 4;
 
 function estimateTokens(text) {
-  return Math.ceil((text ? text.length : 0) / CHARS_PER_TOKEN);
+  // CRLF checkouts (Windows) must not cost more than LF ones.
+  return Math.ceil((text ? text.replace(/\r/g, '').length : 0) / CHARS_PER_TOKEN);
 }
 
 // Cap a list of rendered rule entries to a token budget. Eviction is by tier
@@ -155,7 +156,7 @@ function estimateTokens(text) {
 // is irreversible, so alphabetical luck must never decide its fate. Remaining
 // ties drop later-keyed rules first (stable, arbitrary but deterministic).
 // Output preserves the caller's original order for readability. Returns
-// { kept, dropped, tokens, overflowed } where `dropped` is the evicted rule
+// { kept, dropped, tokens, total, overflowed } where `dropped` is the evicted rule
 // objects themselves — callers must be able to name what was withheld
 // (watermark honesty + the visible overflow line), not just count it.
 function capToBudget(rules, renderOne, tokenCap) {
@@ -194,7 +195,8 @@ function capToBudget(rules, renderOne, tokenCap) {
   // Emit in the caller's original order, keeping only the budgeted set.
   const kept = indexed.filter((e) => keepSet.has(e.i)).map((e) => e.r);
   const dropped = indexed.filter((e) => !keepSet.has(e.i)).map((e) => e.r);
-  return { kept, dropped, tokens, overflowed };
+  const total = indexed.reduce((n, e) => n + e.t, 0);
+  return { kept, dropped, tokens, total, overflowed };
 }
 
 // Advisory goes to stderr → the hook debug log on exit 0 (NOT model context,
@@ -437,8 +439,8 @@ function sessionStart(payload) {
   const droppedIds = capped.dropped.map((r) => r.key || r.name);
   if (capped.overflowed) {
     logBudgetAdvisory(
-      `resolved floor ≈${estimateTokens(floorRules.map(renderOne).join(''))} tok ` +
-        `exceeds ${ALWAYS_TIER_TOKEN_CAP} tok cap; injected ${capped.kept.length}/${floorRules.length} rules ` +
+      `resolved floor ≈${capped.total} tok exceeds ${ALWAYS_TIER_TOKEN_CAP} tok cap; ` +
+        `injected ${capped.kept.length}/${floorRules.length} rules (≈${capped.tokens} tok) ` +
         `(dropped: ${droppedIds.join(', ') || 'none'}). Trim universal/ relevance:always or phase-gate rules (incl. declared instruction sources).`
     );
   }

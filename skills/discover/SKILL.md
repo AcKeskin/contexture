@@ -42,6 +42,8 @@ mcp__project-memory__discover({
 
 The engine returns ranked memory fragments (with `📛` warning prefixes, `[related_to]` / `⚡ contradicts` flags, scope/relevance metadata), plus a `## Codemap` block, plus any `⚠️` shadowed-tier / case-split warnings. Surface that result directly (§9 shaping is mostly done by the engine). Then run §4a (rules-overlay) and merge: overlay-resolved rules are appended to the engine's result list and ranked by the same signals the engine reports (scope match, then kind priority, then description keyword overlap with the task); ties break toward the overlay rule, since a tier override outranks a shipped default. The merged list honours the caller's top_n as a single combined cap — overlay rules never bypass the cap. Deliver then renders the merged list's bodies exactly as in the degraded path (§9a applies to engine-returned bodies too).
 
+**Open handoffs.** Also call `mcp__project-memory__list_handoffs`. If any are open (another agent or tool stopped mid-task here), list them and offer to claim one with `claim_handoff`. Claiming is the user's call; a claim can't be undone.
+
 **Detecting MCP-unavailable:** the tool call errors, returns "No memory tree found" with no result, or the `project-memory` server is not connected. On any of these → fall through to §0b. Do not retry in a loop.
 
 ### 0b. Fallback — static always-on floor

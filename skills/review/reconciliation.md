@@ -83,6 +83,6 @@ resolutions:
 
 `open` covers findings the user neither resolved nor declined; they are the default carry-forward signal for the next run.
 
-**Atomicity:** write `v<N+1>.md` first, then rename `latest.md` → `v<N>.md` (if it exists), then copy `v<N+1>.md` → `latest.md`. If any step fails, leave the tree as-is and report the failure in the run summary; do not partially overwrite. Do not block §8 on write failure — the report has already been delivered to the user; the persistence step is a side effect.
+**How:** through `save-run.mjs` (SKILL.md §7b), since Claude Code blocks direct writes under `.claude/` in headless runs. **Atomicity:** write `v<N+1>.md` first, then rename `latest.md` → `v<N>.md` (if it exists), then copy `v<N+1>.md` → `latest.md`. If any step fails, leave the tree as-is and report the failure in the run summary; do not partially overwrite. Do not block §8 on write failure — the report has already been delivered to the user; the persistence step is a side effect.
 
 The artefact is committable — the version-to-version diff is a substrate for tracking architectural debt trends, not a substitute for fixing things.

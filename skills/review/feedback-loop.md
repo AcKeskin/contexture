@@ -17,7 +17,7 @@ Per-option procedure for `review`'s feedback loop. The SKILL.md §9 keeps the fi
 - Apply via Edit after user confirms.
 
 **4. Adjust threshold.**
-- Identify which threshold (from the SKILL.md §"Monolithic files" table, or elsewhere).
+- Identify which threshold (from the "Monolithic files" table in drift-checks.md, or elsewhere).
 - Two target options:
   - **Project-specific override** — write to a project memory with `scope: [project-<name>]`, `kind: architectural-rule`, describing the new threshold. Invoke capture.
   - **General adjustment** — propose an edit to the SKILL.md threshold table. User explicitly confirms (this change ships to every machine via the subtree link).

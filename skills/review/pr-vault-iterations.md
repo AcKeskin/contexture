@@ -1,4 +1,4 @@
-# pr-review — vault iteration handling
+# review — PR vault iteration handling
 
 Companion to [SKILL.md](SKILL.md) §10. Read this when a review file or folder for the PR already exists in the vault. It extends the same frontmatter schema (`iteration_log`) as the first-review shape in §10 — not a second schema.
 

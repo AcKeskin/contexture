@@ -1,6 +1,6 @@
 # Skills catalog
 
-Every skill shipped in `skills/`. 46 skills, grouped by what they do.
+Every skill shipped in `skills/`. 45 skills, grouped by what they do.
 
 **Firing modes** used below:
 - **Manual** — user-invoked only (`/name`), never auto-fires.
@@ -40,11 +40,12 @@ The main pipeline. Each stage writes a versioned artefact the next stage reads.
 
 | Skill | Mode | What it does |
 |---|---|---|
-| `review` | Manual | Audits code in scope against your architectural rules and reports drift — dead code, SoC violations, monoliths, missing patterns, comment drift, naming quality. Propose-confirm per fix; routes rule misses to `capture`. Not a linter, not a security audit. |
+| `review` | Manual | Reviews local code (`/review [path \| --since <ref>]`) or a GitHub PR (`/review --pr N`, alias `/pr-review`). Defaults: rule drift locally, correctness / design / hygiene / security on a PR; `--angles` adds performance, extensibility, readability, tests or a project angle, one fresh reviewer each. Metrics first, then one pick, a one-by-one `walk`, a review page (`--artifact`) or an Obsidian note with tick boxes. Local fixes are propose-confirm; never posts to GitHub. |
 | `checkpoint` | Manual | Scope-dialed fit-and-intent audit: "does this serve the original point, cohere with the whole, and what did I learn?" Auto-detects zoom (diff / module / corpus), overridable with `--scope`. At diff scope composes code-review plus a fit pass. |
 | `write-tests` | Manual | Authors a test suite for *existing* code. Detects framework + conventions, proposes a confirmable test plan first, delegates idiomatic authoring to the scope's language-pro agent. Characterization-with-flags: pins current behavior but flags suspicious-as-bug rather than enshrining it. |
 | `test-driven-development` | Manual | The TDD discipline for non-trivial features/bugfixes where regressions matter. Skipped for prototypes, generated code, config-only changes, one-liners — but only with permission. |
 | `systematic-debugging` | Manual | Root-cause-first discipline for any bug or test failure without an obvious one-line fix. Blocks the "try random fixes" failure mode. |
+| `shortcuts` | Manual | Lists every `shortcut:` marker in the project by file. The `mark-shortcuts` rule asks for one at each deliberate cut corner. |
 
 ## Pull requests and git
 
@@ -52,7 +53,6 @@ The main pipeline. Each stage writes a versioned artefact the next stage reads.
 |---|---|---|
 | `pre-push` | **Auto** | Pre-flight checklist before `git push`: commits-to-ship summary plus branch-name, commit-hygiene, AI-attribution, staged-leftover, debug-artifact, hook-bypass, and unresolved-secret checks. Stops on any flag, never pushes past it. |
 | `pr-author` | **Auto** | Drafts a PR title and body (Summary + Test plan + Closes-line, layered on any existing template) when about to open a PR. Hands you a ready-to-run `gh pr create` — never runs the write itself. |
-| `pr-review` | Manual | Reviews an incoming external GitHub PR — fetches the diff via `gh`, analyzes correctness / design / hygiene / security, presents structured findings. No GitHub posting. |
 | `pr-triage` | Manual | Walks a PR's unresolved review comments to one of three outcomes: Act (route the fix to `dispatch`/`orchestrate`), Skip/defer, or Note (capture your decision for the reply *you* write). Never drafts or posts replies. |
 | `using-git-worktrees` | Manual | Creates an isolated git worktree for feature work that shouldn't pollute the current tree, with directory-selection priority and gitignore safety verification. |
 

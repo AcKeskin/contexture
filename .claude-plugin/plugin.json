@@ -68,6 +68,36 @@
       "title": "Rule priming",
       "description": "Load matching architectural rules at session start and per prompt.",
       "default": true
+    },
+    "file_history": {
+      "type": "boolean",
+      "title": "File history check",
+      "description": "Before the first edit of a file, show warning and lesson memories that name it.",
+      "default": true
+    },
+    "compact_snapshot": {
+      "type": "boolean",
+      "title": "Compaction snapshot",
+      "description": "Save the last request, todos, edited files and errors before compaction; restore after.",
+      "default": true
+    },
+    "edit_checks": {
+      "type": "boolean",
+      "title": "Edit checks",
+      "description": "Run trusted checks from .claude/edit-checks.json after edits; report only new problems.",
+      "default": false
+    },
+    "codemap_nudge": {
+      "type": "boolean",
+      "title": "Codemap nudge",
+      "description": "On the first search of a session, point at .claude/codemap.md if it exists.",
+      "default": true
+    },
+    "codemap_refresh": {
+      "type": "boolean",
+      "title": "Codemap refresh",
+      "description": "Say when the codemap is out of date; refresh it in the background where Auto-update refresh is on.",
+      "default": true
     }
   },
   "mcpServers": {

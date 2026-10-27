@@ -1,0 +1,3 @@
+{
+  "install": "curl -fsSL https://raw.githubusercontent.com/AcKeskin/contexture/main/cloud/setup.sh | bash"
+}

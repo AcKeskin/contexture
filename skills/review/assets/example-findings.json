@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "run": { "target": "pr", "title": "PR #42 — Add rate limiting", "scope": "src/api/ (9 files)", "url": "https://github.com/example/app/pull/42", "base": "main", "head": "feat/rate-limit", "date": "2026-10-27", "verdict": "REQUEST_CHANGES", "rules": "5 architectural rules", "artifact_url": null },
+  "metrics": [
+    { "id": "size", "label": "Change size", "value": "+412 / -88", "note": "9 files in 3 modules", "source": "git diff --stat" },
+    { "id": "blast", "label": "Blast radius", "value": 23, "note": "files import a touched file", "source": "codemap File deps" },
+    { "id": "surface", "label": "Public surface", "value": "+3 / ~1 / -0", "note": "exports added / changed / removed", "source": "codemap exports" },
+    { "id": "request-path", "label": "Calls on request path", "value": "+1 per key", "note": "Redis round-trips added to every API call", "source": "performance angle" },
+    { "id": "tests", "label": "Tests", "value": "2 of 5", "note": "changed source files with a changed test", "source": "git diff" }
+  ],
+  "coverage": [
+    { "angle": "correctness", "files": 9, "findings": 2, "status": "ok" },
+    { "angle": "performance", "files": 9, "findings": 1, "status": "ok" },
+    { "angle": "extensibility", "files": 3, "findings": 1, "status": "ok" },
+    { "angle": "readability", "files": 0, "findings": 0, "status": "skipped", "reason": "diff < 200 added lines in source" }
+  ],
+  "findings": [
+    { "id": "F001", "file": "src/api/limit.ts", "line": "42-48", "severity": "high", "effort": "S", "category": "performance", "angles": ["performance", "correctness"], "verdict": "confirmed",
+      "title": "Redis call per key inside the loop", "impact": "Rate-limit checks get slower as a request names more keys, and the key list comes from the client.",
+      "chain": ["routes.ts:18 POST /batch handler", "limit.ts:40 checkAll(keys)", "limit.ts:44 redis.incr(k)"],
+      "what": "One round-trip per key; 50 keys means 50 calls before the handler runs.", "quote": "for (const k of keys) await redis.incr(k)",
+      "fix": "Batch with a pipeline.", "suggestion": "await redis.pipeline(keys.map(k => ['incr', k])).exec()",
+      "verifier": "Confirmed: `keys` comes from the request body and is unbounded (routes.ts:18).", "status": "open", "reason": null, "notes": [] },
+    { "id": "F002", "file": "src/api/limit.ts", "line": "12", "severity": "medium", "effort": "M", "category": "extensibility", "angles": ["extensibility"], "verdict": "unverified",
+      "title": "Limits are a hardcoded table", "impact": "Adding a limit for a new route means editing this file; plugins can't register their own.",
+      "chain": ["limit.ts:12 const LIMITS = {...}"], "quote": "const LIMITS = { '/batch': 50, '/upload': 5 }", "fix": "Accept limits through `createLimiter(options)`.", "status": "open", "reason": null, "notes": [] },
+    { "id": "F003", "file": "src/api/limit.ts", "line": "61", "severity": "low", "effort": "S", "category": "correctness", "angles": ["correctness"], "verdict": "unverified",
+      "title": "TTL set after increment", "impact": "A crash between the two calls leaves a key that never expires.", "quote": "await redis.incr(k); await redis.expire(k, 60)", "fix": "Use `SET k 1 EX 60 NX` then `INCR`.", "status": "open", "reason": null, "notes": [] }
+  ],
+  "tensions": [
+    { "id": "T1", "file": "src/api/limit.ts", "line": "40-72", "sides": [ { "angle": "performance", "say": "Inline `keyFor()`; it runs per key on every request." }, { "angle": "readability", "say": "Keep `keyFor()`; `admin.ts:30` builds keys the same way." } ], "settle": "A profile of a 50-key request, or confirming admin.ts keeps using it.", "status": "open" }
+  ],
+  "needs_validation": [ { "file": "src/api/routes.ts", "line": "18", "claim": "Body size limit may not cover `keys`", "gap": "The body parser config is outside the diff", "settle": "Check `server.ts` for the JSON body limit" } ],
+  "fine": [ { "file": "src/api/limit.ts", "line": "80-140", "why": "Long switch maps each status code to one message; splitting it would hide the one-to-one table." } ],
+  "pack": {
+    "summary": "Adds per-key rate limiting in front of the batch and upload routes, backed by Redis counters with a 60-second window.",
+    "sections": [
+      { "id": "structure", "title": "Structure", "text": "- `limit.ts` is new and sits between `routes.ts` and the handlers.\n- `redis.ts` gains one export, `pipeline()`.", "mermaid": ["flowchart LR\n  routes[routes.ts] --> limit[limit.ts]:::touched\n  limit --> redis[redis.ts]:::touched\n  routes --> handlers[handlers/]\n  classDef touched stroke-width:3px"] },
+      { "id": "call-flow", "title": "Call flow", "text": "A batch request checks every key before the handler runs.", "mermaid": ["sequenceDiagram\n  participant C as Client\n  participant R as routes.ts\n  participant L as limit.ts\n  participant DB as Redis\n  C->>R: POST /batch\n  R->>L: checkAll(keys)\n  loop each key\n    L->>DB: INCR key\n  end\n  L-->>R: ok / 429"] },
+      { "id": "building-on-top", "title": "Building on top", "text": "New public API: `checkAll(keys)`, `LIMITS`, `RateLimitError`.\n\n- To limit a new route, add it to `LIMITS` (limit.ts:12). There is no hook for plugins yet (see F002).\n- No existing callers break." },
+      { "id": "performance", "title": "Performance", "text": "- Every limited request makes one Redis round-trip per key (limit.ts:44).\n- Memory: one key per client per route, expiring after 60 s.\n- Not measured: latency under load. A 50-key request profile would settle T1." }
+    ]
+  },
+  "walk": null
+}

@@ -7,11 +7,11 @@ scope: [change-discipline, universal]
 relevance: always
 ---
 
-- <!-- id: surface-assumptions --> Surface assumptions before coding. State them; if multiple interpretations exist, present them; if a simpler approach exists, say so. Do not silently pick.
-- <!-- id: surgical-edits --> Surgical edits. Don't "improve" adjacent code, comments, or formatting. Don't refactor what isn't broken. Match existing style even if you'd write it differently.
-- <!-- id: no-unrequested-scope --> No unrequested scope. Build the minimal thing that satisfies the request — don't add configurability, abstraction, options, or features the user didn't ask for. When a broader or configurable design tempts you, *propose it and get confirmation* before building; never bake speculative generality in. Over-building costs a full revert.
-- <!-- id: clean-own-mess --> Clean up only your own mess. Remove imports / variables / functions that *your* changes orphaned. Do not delete pre-existing dead code unless asked — flag it, don't act.
+- <!-- id: surface-assumptions --> Surface assumptions before coding. State them; if the ask reads several ways or a simpler approach exists, say so. Do not silently pick.
+- <!-- id: surgical-edits --> Surgical edits. Don't improve adjacent code, comments or formatting, or refactor what isn't broken. Match the existing style.
+- <!-- id: no-unrequested-scope --> No unrequested scope. Build the minimal thing asked for: no extra configurability, abstraction, options or features. If a broader design tempts you, propose it and get confirmation first.
+- <!-- id: clean-own-mess --> Clean up only your own mess: remove imports, variables and functions your change orphaned. Flag pre-existing dead code; don't delete it unless asked.
 - <!-- id: every-line-traced --> Every changed line traces to the user's request.
-- <!-- id: goal-driven-execution --> Goal-driven execution. Translate vague tasks into verifiable goals — "add validation" → "tests for invalid inputs, then make them pass." For multi-step tasks, state plan with per-step verification before starting.
+- <!-- id: goal-driven-execution --> Goal-driven execution. Turn vague tasks into verifiable goals ("add validation" → tests for invalid inputs, then make them pass). For multi-step work, state the plan with a check per step first.
 
-**Why:** code-standards covers *what* good code looks like; this rule covers *how* changes are made. The two failure modes are different — the first produces bad code, the second produces drift in adjacent code that no one asked for.
+**Why:** code-standards covers what good code looks like; this covers how changes are made. Bad code and unrequested drift in adjacent code are different failures.

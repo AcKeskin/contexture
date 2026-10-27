@@ -69,14 +69,27 @@ function deepClone(o) {
 function writeSettings({ homeClaude, settings }) {
   fs.mkdirSync(homeClaude, { recursive: true });
   const target = path.join(homeClaude, 'settings.json');
-  const next = JSON.stringify(settings, null, 2) + '\n';
-
   const current = fs.existsSync(target) ? fs.readFileSync(target, 'utf8') : null;
+  // Keep top-level keys bootstrap doesn't manage (e.g. ones the desktop app writes).
+  const next = JSON.stringify({ ...unmanagedKeys(current, settings), ...settings }, null, 2) + '\n';
   if (current === next) {
     return { action: 'up-to-date', target };
   }
   fs.writeFileSync(target, next);
   return { action: current == null ? 'created' : 'updated', target };
+}
+
+function unmanagedKeys(currentText, settings) {
+  let current;
+  try {
+    current = currentText ? JSON.parse(currentText) : null;
+  } catch {
+    return {};
+  }
+  if (!isPlainObject(current)) return {};
+  const out = {};
+  for (const [k, v] of Object.entries(current)) if (!(k in settings)) out[k] = v;
+  return out;
 }
 
 function readJson(p) {
@@ -90,6 +103,8 @@ function mergeWithHooksDeepened(template, override) {
   for (const [k, v] of Object.entries(override)) {
     if (k === 'hooks' && isPlainObject(v) && isPlainObject(template.hooks)) {
       out.hooks = mergeHooks(template.hooks, v);
+    } else if (k === 'permissions' && isPlainObject(v) && isPlainObject(template.permissions)) {
+      out.permissions = mergePermissions(template.permissions, v);
     } else {
       out[k] = v;
     }
@@ -104,6 +119,17 @@ function mergeHooks(base, extra) {
       out[event] = out[event].concat(arr);
     } else {
       out[event] = arr;
+    }
+  }
+  return out;
+}
+
+// allow / ask / deny lists union, so a local rule never drops a template rule.
+function mergePermissions(base, extra) {
+  const out = { ...base, ...extra };
+  for (const key of ['allow', 'ask', 'deny']) {
+    if (Array.isArray(base[key]) && Array.isArray(extra[key])) {
+      out[key] = [...new Set([...base[key], ...extra[key]])];
     }
   }
   return out;

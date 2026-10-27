@@ -13,6 +13,7 @@ contexture/
 ├── bootstrap/                   # install scripts (Node — Windows-tested, untested elsewhere)
 │   ├── bootstrap.js
 │   └── lib/                     # platform / link / settings / mcps
+├── cloud/                       # setup script + Copilot/Cursor templates for cloud agents (docs/claude-projects.md)
 ├── settings/                    # settings.json template + per-machine override
 ├── skills/                      # one directory per skill, each with SKILL.md (committed source; bootstrap
 │                                #   mirrors into gitignored .claude/skills/ for Copilot/Codex/Cursor discovery).
@@ -30,6 +31,11 @@ contexture/
 │   ├── agent-output-contract-validator.js
 │   ├── codemap-dirty-marker.js
 │   ├── clear-context-decision-guard.js
+│   ├── file-history-precheck.js
+│   ├── compact-snapshot.js
+│   ├── edit-checks.js
+│   ├── codemap-search-nudge.js
+│   ├── codemap-refresh.js
 │   └── lib/                     # shared hook-io + path utilities
 ├── mcps/                        # MCP server projects (standalone, not bootstrapped)
 │   ├── lib/                     # shared TypeScript utilities (fetch, rate-limit, errors)
@@ -69,19 +75,26 @@ Directories are created lazily as proposals require them — no speculative scaf
 | `rule-prime` | SessionStart [startup/clear/compact] + UserPromptSubmit | Advisory — mechanically primes resolved architectural rules into context: the always+project floor (plus the one language tier for single-language repos) at session start, and incremental language/domain tiers per prompt, both via `hookSpecificOutput.additionalContext` (deterministic match, no model call). Also loads declared **glob-addressed instruction files** (see below), and injects the **autonomy recall-before-ask line** when the active autonomy contract deviates from the default (zero cost at default; the only reader-seam autonomize has on a hook). Budget-guarded, idempotent against a per-session watermark; never blocks. The mechanical half of `/prep` |
 | `wrap-terminus-recovery` | SessionStart [clear/compact] | Advisory, **off by default** (`wrapTerminus` bundle). Scans the prior transcript for a shipped/closed unit whose closing terminus never ran and, if found, proposes `/wrap` via `hookSpecificOutput.additionalContext` at the next session start; string/structure match, no model call; never blocks. The auto-fire seam for the session-terminus driver |
 | `coordinate-autoregister` | SessionStart [startup/clear/compact/resume] | Advisory, **off by default** (`coordinateAuto` bundle). When coordinate auto mode is enabled, surfaces a nudge to auto-register this session's board row + run a start-of-session check via `hookSpecificOutput.additionalContext`; the board write is coordinate's action, keyed off the nudge; never blocks |
+| `file-history-precheck` | PreToolUse / Write* | Advisory (`fileHistory` bundle). Before the first edit of a file in a session, lists warning and lesson memories that name the file (project-relative path, or a specific basename). Once per file per session |
+| `compact-snapshot` | PreCompact + SessionStart [compact] | Advisory (`compactSnapshot` bundle). PreCompact saves the last user request, open todos, edited files and recent tool errors (max 2 KB); the post-compaction SessionStart injects it once and deletes it |
+| `edit-checks` | PreToolUse + PostToolUse / Write* | Advisory, **off by default** (`editChecks` bundle; it runs project commands). Runs the checks in `.claude/edit-checks.json` (`{"checks":[{"glob":"*.ts","command":"npx eslint --format unix {file}"}]}`) before the first edit of a file and after each edit, and reports only output lines the edit added (line numbers ignored), each once. Runs only after you trust the file on this machine: `node ~/.claude/hooks/edit-checks.js --trust <project>` (stores its hash; any change needs a new trust). Not on Cursor (no pre-edit event) |
+| `codemap-search-nudge` | PreToolUse / Grep, Glob | Advisory (`codemapNudge` bundle). The first search of a session in a project with `.claude/codemap.md` points at the codemap and `trace_path` |
+| `codemap-refresh` | SessionStart [startup/resume] + Stop | `codemapRefresh` bundle. In projects with a codemap: says at session start when it is 5+ files behind (files under the project newer than the codemap, from git log + status). With `- refresh: true` under `## Auto-update` in `.claude/codemap.config.md`, regenerates it in a detached background run instead (needs the update-codemap tree-sitter deps) |
 | `statusline.js` | — | *Not a hook — the statusline **renderer**, invoked by the `statusLine` settings key, not by a hook event. See [statusline.md](statusline.md)* |
 | `lib/hook-io.js` | — | *Shared utility — payload reading, fail-open exit codes, `addContext()` / `advise()` helpers for the `hookSpecificOutput.additionalContext` channel* |
 | `lib/resolve-rules.js` | — | *Shared utility — the tier-overlay resolver as callable code (precedence, whole-file override, patch-by-anchor, anchor-strip); the engine `rule-prime` calls* |
 | `lib/glob-files.js` | — | *Shared utility — path-aware instruction-glob expander; `rule-prime` (load) + `bootstrap --verify` (drift-check) call it* |
+| `lib/codemap-state.js` | — | *Shared utility — codemap staleness (files changed since it was written) and `## Auto-update` flags* |
+| `lib/memory-root.js` | — | *Shared utility — finds the project-memory tree for a cwd, same match as the project-memory MCP* |
 
-Hooks ship in default-on bundles — `security`, `gitDiscipline`, `bootstrapDrift`, `agentOutputContracts`, `codemapDirty`, `sessionGuard`, and `rulePrime` — plus two **default-off** automation bundles, `wrapTerminus` and `coordinateAuto` (the opt-in session-terminus + coordinate-autoregister hooks). Bundles are toggled per machine in `~/.claude/hook-config.json` under `enabled.hookBundles` (set a default-off bundle `true` to opt in). All hooks fail-open (exit 0 = allow, exit 2 = block, JSON stdout `hookSpecificOutput.additionalContext` = advise). See [security-hooks](security-hooks.md) and the automation-model note below.
+Hooks ship in default-on bundles — `security`, `gitDiscipline`, `bootstrapDrift`, `agentOutputContracts`, `codemapDirty`, `sessionGuard`, `rulePrime`, `fileHistory`, `compactSnapshot`, `codemapNudge`, and `codemapRefresh` — plus three **default-off** bundles: `wrapTerminus` and `coordinateAuto` (the opt-in session-terminus + coordinate-autoregister hooks) and `editChecks` (runs project-defined commands). Bundles are toggled per machine in `~/.claude/hook-config.json` under `enabled.hookBundles` (set a default-off bundle `true` to opt in). All hooks fail-open (exit 0 = allow, exit 2 = block, JSON stdout `hookSpecificOutput.additionalContext` = advise). See [security-hooks](security-hooks.md) and the automation-model note below.
 
 #### The automation model — what fires on its own
 
 The harness is manual-first: most organs are user-invoked (Mode A) and every organ that writes a memory or canonical artefact does so behind an accept/edit/reject gate. Three tiers of automatic behavior sit on top, all advisory (never blocking) and none of which silent-writes:
 
 - **Always-on advisories (default-on).** `rule-prime` primes resolved rules into context at session start + per prompt; `bootstrap-drift-injector` warns when the local install is stale; `clear-context-decision-guard` nudges a recap after a clear/compact left decisions unpersisted. These surface context via `hookSpecificOutput.additionalContext` — they inform, they don't act.
-- **Opt-in-per-project.** `codemap-dirty-marker` marks the codemap stale after edits, enabled per project via `.claude/codemap.config.md`.
+- **Opt-in-per-project.** `codemap-dirty-marker` marks the codemap stale after edits, enabled per project via `.claude/codemap.config.md`. `edit-checks` needs its bundle on, a `.claude/edit-checks.json` in the project, and that file trusted with `--trust`.
 - **Opt-in automation (default-off).** The `wrapTerminus` and `coordinateAuto` bundles are the newest tier: they *propose* an action (run `/wrap`; register on the coordinate board) at the next session start, and only when their bundle is turned on in `hook-config.json`. Even enabled, they surface a proposal — the write itself still passes the organ's own gate.
 
 The rule throughout: **automatic means auto-propose, never auto-write.** A hook can bring an action to your attention; it cannot take a canonical action on its own. Enabling a default-off bundle changes *what gets proposed to you*, not *what happens without you*.
@@ -160,10 +173,9 @@ Each skill has a `SKILL.md` that defines when it fires, what it does, and how it
 | Skill | Purpose |
 |-------|---------|
 | `prep` | Primes session with architectural rules before coding; auto-fires on first substantive task |
-| `review` | Audits code against loaded rules for 7 drift categories (dead code, monoliths, SoC, patterns, principles, comment-drift, naming-quality). Supports `--vault` to persist to Obsidian |
+| `review` | Reviews local code or a GitHub PR (`--pr`, alias `/pr-review`) from one or more angles — rule drift locally, correctness/design/hygiene/security on a PR, `--angles` for more. Metrics first, one pick or a walk, review page (`--artifact`), Obsidian note with tick-box picks (`--vault`), review pack (`--pack`) |
 | `extract-conventions` | Observes a scope's dominant code conventions and writes a project-tier `conventions.md` that overrides universal defaults for that scope. Hybrid detection — mechanical conventions deterministically (`detect.mjs`), semantic conventions model-judged + confidence-flagged. Per-category propose-confirm gate; language-pro-delegated authoring; conflicts with shipped rules surfaced at confirm. The first organ to auto-populate the project tier |
 | `write-tests` | Authors a quality test suite for existing code to the `test-quality` standard — detects framework + conventions (reusing `extract-conventions` output where present), proposes a confirmable test plan, delegates idiomatic authoring to the language-pro agent. Characterization-with-flags stance (pins current behavior but flags suspicious-as-bug); on a run failure surfaces the test-vs-code discrepancy rather than auto-adjusting |
-| `pr-review` | Reviews a GitHub PR via `gh` CLI across correctness/design/hygiene/security. Writes a canonical artefact to the Obsidian vault with iteration tracking (flat → folder on iteration 2) and stub redirects so wikilinks never break |
 | `capture` | Stores memories via propose-confirm-commit with relation tracking and secret redaction |
 | `recap` | Writes episodic session records; promotes learned items to rule-tier via capture |
 | `discover` | Retrieves relevant memories and codemap entries for the current task by scope/keyword |
@@ -174,7 +186,7 @@ Each skill has a `SKILL.md` that defines when it fires, what it does, and how it
 | `spec` | Interview-driven versioned spec under `.claude/specs/<slug>/`; mandatory `done_criteria:` frontmatter; INDEX tracks the active version |
 | `draft-plan` | Produces a versioned plan from the active spec, with a propose-confirm review gate before the plan lands on disk |
 | `blueprint` | Authors a concrete pre-build blueprint — intent (what we wanted) + the mature shape (classes, interfaces, dependencies, module relationships, build order) with Mermaid UML, from vision+spec+plan or `--from-code`; optional, after `/draft-plan` |
-| `human-view` | Projects an LLM-optimized planning artefact (plan / blueprint / spec / vision) into a human-readable approval view — goal + concrete decisions + an alignment check |
+| `human-view` | Projects an LLM-optimized planning artefact (plan / blueprint / spec / vision) into a human-readable approval view — goal + concrete decisions + an alignment check. |
 | `execute` | Runs a plan step-by-step with per-step verification gates |
 | `close-out` | The scope chain's terminus — reconciles a shipped slug's spec to what actually shipped (a new `as-shipped` version, intent preserved via supersedes), retires the spent plan/blueprint to a dated `.claude/archive/` folder, and records one ship line via `update-changelog`. Mode A, propose-confirm; `/execute` offers it on done-criteria-met |
 | `wrap` | Session-terminus driver — sequences the whole closing ceremony (coordinate teardown → checkpoint → recap → close-out → changelog → BACKLOG-shipped-row sweep → ship-narrative record), driving the existing organs rather than reimplementing them. Auto-runs the reversible read/draft/detect spine; every canonical write passes accept/edit/reject. Reads the autonomy contract once to set the interrupt posture; dedups close-out against the changelog step. Mode A; an optional SessionStart-recovery hook (off by default) can propose it |
@@ -194,6 +206,7 @@ Each skill has a `SKILL.md` that defines when it fires, what it does, and how it
 | `brainstorm` | Shapes a half-formed idea or crystallizes a blurry one (name, one-line description, in/out edges, end-goal) — upstream of `/envision`; writes a light `.claude/ideas/<slug>.md` note |
 | `envision` | Interview-driven top-level project vision — intent, UX walkthrough, 4–8 named modules (role/owns/depends-on/does-not-do), boundaries, relations, cross-cutting concerns, non-goals (≥ 3), mandatory module-map diagram. Versioned under `.claude/visions/<slug>/v<N>.md`. Upstream of `/spec`. Breadth-over-depth — refuses to drift into implementation detail |
 | `systematic-debugging` | Enforces root-cause investigation before fixes (4-phase process) |
+| `shortcuts` | Lists `shortcut:` comment markers (from the `mark-shortcuts` rule) by file, so cut corners can be paid down or filed. User-only |
 | `test-driven-development` | Enforces red-green-refactor discipline before implementation |
 | `new-hook` | End-to-end hook scaffolding with recipe selection and settings merge |
 | `new-agent` | Interview-driven subagent scaffolding (job-to-be-done, anti-patterns, debug workflow) |
@@ -217,7 +230,7 @@ Each file is a thin entrypoint that delegates to the corresponding skill. One fi
 | `/review` | `skills/review` |
 | `/extract-conventions` | `skills/extract-conventions` |
 | `/write-tests` | `skills/write-tests` |
-| `/pr-review` | `skills/pr-review` |
+| `/pr-review` | `skills/review` (alias for `/review --pr`) |
 | `/pr-author` | `skills/pr-author` |
 | `/pr-triage` | `skills/pr-triage` |
 | `/pre-push` | `skills/pre-push` |
@@ -243,6 +256,7 @@ Each file is a thin entrypoint that delegates to the corresponding skill. One fi
 | `/improve-prompt` | `skills/improve-prompt` |
 | `/update-codemap` | `skills/update-codemap` |
 | `/visualise-codemap` | `skills/visualise-codemap` |
+| `/shortcuts` | `skills/shortcuts` |
 | `/new-hook` | `skills/new-hook` |
 | `/new-agent` | `skills/new-agent` |
 | `/new-mcp` | `skills/new-mcp` |
@@ -408,9 +422,9 @@ Resolution is a pre-filter owned by `/discover` and runs *before* the existing s
 
 ### settings/ — Settings templates
 
-- `settings.template.json` — full config with the default-on hook bundles (`security`, `gitDiscipline`, `bootstrapDrift`, `agentOutputContracts`, `codemapDirty`, `sessionGuard`, `rulePrime`) plus the two default-off automation bundles (`wrapTerminus`, `coordinateAuto`) and event registrations
+- `settings.template.json` — full config with the default-on hook bundles (`security`, `gitDiscipline`, `bootstrapDrift`, `agentOutputContracts`, `codemapDirty`, `sessionGuard`, `rulePrime`, `fileHistory`, `compactSnapshot`, `codemapNudge`, `codemapRefresh`) plus the default-off bundles (`wrapTerminus`, `coordinateAuto`, `editChecks`) and event registrations
 - `settings.local.json.example` — empty placeholder for per-machine overrides (gitignored)
 
 ### docs/ — Internal reference documentation
 
-One markdown file per organ/subsystem: architectural-rules, architectural-rules-overlay, blueprint-organ, bootstrap, brainstorm-organ, capture-organ, changelog-contract, checkpoint-organ, cycle-contract, coordinate-organ, delivery-organ, discover, human-view-organ, mcp-memory, memory-compression-spec, plan-execute-workflow, prep-organ, project-architecture, recap-organ, reference (this file), review-organ, review-output-contract, scope-resolution-manifests, scope-resolution-resolver, security-hooks, skills-catalog, statusline, storage-tagging, update-codemap, wrap-organ. Not every organ has a dedicated doc — the census tables above are the complete list; docs/ covers the subsystems that need prose beyond a table row.
+One markdown file per organ/subsystem: architectural-rules, architectural-rules-overlay, blueprint-organ, bootstrap, brainstorm-organ, capture-organ, changelog-contract, checkpoint-organ, claude-projects, cycle-contract, coordinate-organ, delivery-organ, discover, human-view-organ, mcp-memory, memory-compression-spec, plan-execute-workflow, prep-organ, project-architecture, recap-organ, reference (this file), review-organ, review-output-contract, scope-resolution-manifests, scope-resolution-resolver, security-hooks, skills-catalog, statusline, storage-tagging, update-codemap, wrap-organ. Not every organ has a dedicated doc — the census tables above are the complete list; docs/ covers the subsystems that need prose beyond a table row.

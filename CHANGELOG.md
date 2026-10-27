@@ -5,6 +5,111 @@ File-level changes per public snapshot. Curate freely — this is the human-faci
 
 
 
+
+## 2026-10-27 — Multi-angle /review for local code and PRs, with /pr-review folded in; context hooks for file history, compaction and the codemap; cross-tool handoffs in project-memory; /shortcuts; a setup script for Claude Projects and other cloud agents; and asset_set_properties in the Unity MCP.
+
+_33 added, 46 changed, 1 removed._
+
+### Architectural rules
+- added `architectural-rules/universal/mark-shortcuts.md`
+- changed `architectural-rules/universal/change-discipline.md`
+- changed `architectural-rules/universal/code-standards.md`
+- changed `architectural-rules/universal/layering.md`
+- changed `architectural-rules/universal/naming.md`
+- changed `architectural-rules/universal/solid-and-responsibilities.md`
+
+### Bootstrap
+- changed `bootstrap/lib/enablement.js`
+- changed `bootstrap/lib/settings.js`
+
+### Commands
+- added `commands/shortcuts.md`
+- changed `commands/pr-review.md`
+- changed `commands/review.md`
+
+### Cross-tool instructions
+- changed `.github/instructions/universal.instructions.md`
+
+### Docs
+- added `docs/claude-projects.md`
+- changed `docs/checkpoint-organ.md`
+- changed `docs/reference.md`
+- changed `docs/review-organ.md`
+- changed `docs/review-output-contract.md`
+- changed `docs/skills-catalog.md`
+
+### Hooks
+- added `hooks/codemap-refresh.js`
+- added `hooks/codemap-search-nudge.js`
+- added `hooks/compact-snapshot.js`
+- added `hooks/edit-checks.js`
+- added `hooks/file-history-precheck.js`
+- added `hooks/lib/codemap-state.js`
+- added `hooks/lib/memory-root.js`
+- added `hooks/tests/context-hooks.test.js`
+- changed `hooks/hooks.json`
+- changed `hooks/lib/hook-io.js`
+- changed `hooks/rule-prime.js`
+
+### MCP servers
+- added `mcps/project-memory/src/tools/handoff.ts`
+- added `mcps/project-memory/test/handoff.test.ts`
+- added `mcps/unity/unity-package/Editor/Tools/Assets/AssetSetPropertiesTool.cs`
+- added `mcps/unity/unity-package/Editor/Tools/Assets/AssetSetPropertiesTool.cs.meta`
+- added `mcps/unity/unity-package/Tests/Editor/AssetSetPropertiesTestAsset.cs`
+- added `mcps/unity/unity-package/Tests/Editor/AssetSetPropertiesTestAsset.cs.meta`
+- added `mcps/unity/unity-package/Tests/Editor/AssetSetPropertiesToolTests.cs`
+- added `mcps/unity/unity-package/Tests/Editor/AssetSetPropertiesToolTests.cs.meta`
+- changed `mcps/project-memory/README.md`
+- changed `mcps/project-memory/dist/project-memory.cjs`
+- changed `mcps/project-memory/src/index.ts`
+- changed `mcps/unity/README.md`
+- changed `mcps/unity/unity-package/Editor/Tools/Components/PropertyValueCoercion.cs`
+
+### Other
+- added `cloud/copilot-setup-steps.yml`
+- added `cloud/cursor-environment.json`
+- added `cloud/setup.sh`
+- changed `.claude-plugin/plugin.json`
+- changed `README.md`
+- changed `cursor/rules/universal.mdc`
+- changed `scripts/build-plugin.js`
+- changed `scripts/census-shims.js`
+
+### Settings
+- changed `settings/settings.local.json.example`
+- changed `settings/settings.template.json`
+
+### Skills
+- added `skills/review/angles.md`
+- added `skills/review/assets/example-findings.json`
+- added `skills/review/assets/review-page.html`
+- added `skills/review/drift-checks.md`
+- added `skills/review/findings-schema.md`
+- added `skills/review/pack.md`
+- added `skills/review/render-note.mjs`
+- added `skills/review/render-page.mjs`
+- added `skills/review/save-run.mjs`
+- added `skills/shortcuts/SKILL.md`
+- added `skills/shortcuts/shortcuts.mjs`
+- changed `skills/checkpoint/SKILL.md`
+- changed `skills/cycle/SKILL.md`
+- changed `skills/discover/SKILL.md`
+- changed `skills/human-view/SKILL.md`
+- changed `skills/pr-triage/SKILL.md`
+- changed `skills/pre-push/SKILL.md`
+- changed `skills/recap/SKILL.md`
+- changed `skills/review/SKILL.md`
+- changed `skills/review/feedback-loop.md`
+- changed `skills/review/pr-vault-iterations.md`
+- changed `skills/review/reconciliation.md`
+- changed `skills/review/vault-output.md`
+- changed `skills/update-codemap/SKILL.md`
+- changed `skills/update-codemap/codemap.mjs`
+- changed `skills/visualise-codemap/SKILL.md`
+- changed `skills/visualise-codemap/visualise-codemap.mjs`
+- removed `skills/pr-review/SKILL.md`
+
 ## 2026-10-26 — Every plugin now ships the project-memory MCP; Copilot gets the agents, Cursor gets hooks, Codex gets its own manifest, and contexture-lite plus an OpenCode hook plugin cover small and local models. The README lists /cycle, /visual and design-proposal.
 
 _20 added, 10 changed, 1 removed._

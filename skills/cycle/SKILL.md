@@ -120,7 +120,7 @@ Read `## Confirmed slice` (and any answered slice card). Invoke [spec](../spec/S
 
 With `merge: on`, the loop starts this as its own session for each PR it published and for open PRs carrying `merge_label`, once per head commit. You review; the loop posts and merges.
 
-1. Read `<folder>/pr.json`. Follow [pr-review](../pr-review/SKILL.md)'s procedure for PR `<pr>`, read-only through `gh`, including its refuting verify pass. Skip its vault write.
+1. Read `<folder>/pr.json`. Follow [review](../review/SKILL.md)'s `--pr` procedure for PR `<pr>`, read-only through `gh`, including its refuting verify pass. Skip its vault write and its pick prompt.
 2. A finding is **blocking** when it is Critical or High and the verify pass confirmed it.
 3. Write `<folder>/review.json`: `{ "verdict": "approve" | "changes", "summary": "...", "findings": [{ "severity", "file", "line", "claim", "blocking", "suggestion" }] }`. The verdict is `changes` when any finding is blocking, `approve` otherwise.
 4. Write `<folder>/comment.md`, the one PR comment: first line `**Automated review (cycle)**`, then the summary and the findings with `file:line`, blocking ones first. Plain words, no other attribution.

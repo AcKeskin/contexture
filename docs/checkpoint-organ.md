@@ -4,7 +4,7 @@ Authoritative procedure: [`skills/checkpoint/SKILL.md`](../skills/checkpoint/SKI
 
 ## What it is
 
-One lens — *does this serve the original point, cohere with the whole, and what did I learn?* — delivered at **three zoom levels**, governed by the efficiency-helper principle (one verb, no altitude gaps, batch findings). It is the missing middle and the missing lens: today's diff reviewers (`review`, `pr-review`, `code-review`) judge a change *in isolation*; the backward-looking organs audit the *whole* by governance category. checkpoint asks fit-and-intent at whatever zoom you're at.
+One lens — *does this serve the original point, cohere with the whole, and what did I learn?* — delivered at **three zoom levels**, governed by the efficiency-helper principle (one verb, no altitude gaps, batch findings). It is the missing middle and the missing lens: today's diff reviewers (`review`, `code-review`) judge a change *in isolation*; the backward-looking organs audit the *whole* by governance category. checkpoint asks fit-and-intent at whatever zoom you're at.
 
 It **absorbed** the retired `retrospect` + `system-review` organs — their passes now live in the corpus scope. `memory-audit` (mechanical integrity) and `recap` (per-session episodic) stay separate lenses. Delegates orient/diff/render/route/persist to [`retrospect-core`](../skills/retrospect-core/SKILL.md).
 
@@ -35,4 +35,4 @@ Renders the whole batch (per the review-output contract: Severity × Pass matrix
 
 ## Relationship to other organs
 
-- **retrospect-core** — the shared engine (+ the batch-select route mode this organ added). **corpus-passes.md** — the corpus-scope pass definitions, absorbed from the retired retrospect / system-review organs. **code-review** — composed at diff scope. **capture / memory-audit / proposals** — routing targets. **review / pr-review** — the other diff reviewers; checkpoint adds the fit lens, doesn't replace them.
+- **retrospect-core** — the shared engine (+ the batch-select route mode this organ added). **corpus-passes.md** — the corpus-scope pass definitions, absorbed from the retired retrospect / system-review organs. **code-review** — composed at diff scope. **capture / memory-audit / proposals** — routing targets. **review** — the other diff reviewer; checkpoint adds the fit lens, doesn't replace them.

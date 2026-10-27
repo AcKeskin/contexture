@@ -350,5 +350,5 @@ Glob semantics match the `## Skip` and `## Vendored` sections in `update-codemap
 ## Relationship to other skills
 
 - **update-codemap** — produces the source `.claude/codemap.md` this skill consumes. Run first.
-- **review / pr-review** — both skills already use Mermaid diagrams; the vault layout (`Projects/<ProjectFolder>/...`) and `<ProjectFolder>` inference rule are shared. `visualise-codemap` mirrors that convention exactly.
+- **review** — already uses Mermaid diagrams; the vault layout (`Projects/<ProjectFolder>/...`) and `<ProjectFolder>` inference rule are shared. `visualise-codemap` mirrors that convention exactly.
 - **prep** — does not consume codemap diagrams. Prep primes from architectural rules, not from rendered visuals.

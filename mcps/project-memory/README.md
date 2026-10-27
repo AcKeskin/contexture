@@ -5,17 +5,20 @@ First-party memory retrieval that backs `/discover`.
 
 ## What it does
 
-Three tools, all read-only over `~/.claude/projects/<slug>/memory/`:
+Tools over `~/.claude/projects/<slug>/memory/` and its siblings:
 
 | Tool | Job |
 |---|---|
 | `discover` | Ranked retrieval over the full memory tree (scope / relevance / keyword match). Mirrors the `/discover` skill's contract. |
 | `recent_sessions` | Last N session rollups for the calling project, newest first. |
 | `get_memory` | Fetch a single memory by its frontmatter `name` slug. |
+| `trace_path` | Callers / callees of a symbol through the codemap graph. |
+| `write_memory` | Append a scratch observation. Canonical writes are refused; `/capture` owns them. |
+| `write_handoff` / `list_handoffs` / `claim_handoff` | Cross-tool handoffs in `<slug>/handoffs/`. One agent leaves a note (next steps, what failed, open questions); the next claims it. Each claim is a rename, so a handoff is claimed once. |
 
 ## What it does not do
 
-- **No capture.** Capture stays in slash commands (`/capture`, `/recap`). This MCP only reads.
+- **No canonical capture.** Durable memories go through `/capture` and `/recap`. The only writes here are scratch entries and handoffs.
 - **No daemon.** Stdio MCP, launched on demand.
 - **No new schema.** Reads the existing memory tree as the source of truth.
 - **No sync.** Memory does not sync between machines.

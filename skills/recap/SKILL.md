@@ -103,7 +103,8 @@ Ask: *accept / edit / reject*.
    - **A shipped unit with no spec/plan to reconcile** (a doc change, a one-off) → offer just the **changelog line**: *"This session shipped &lt;unit&gt; — log it to CHANGELOG? (y/N)"*. On `y`, invoke [`skills/update-changelog/SKILL.md`](../update-changelog/SKILL.md).
 
    recap is a *doorway*, not the writer — it never writes the changelog or reconciles a spec itself; both `/close-out` and `/update-changelog` run behind their own accept/edit/reject gates. Skip silently when nothing shipped (sessions that only investigated/planned produce no offer).
-5. Proceed to step 8 (promotion pass).
+5. **Offer a handoff for unfinished work.** If the recap's next steps are open and the work may continue in another session or tool (Codex, Copilot, ...), offer: *"Leave a handoff for the next agent? (y/N)"*. On `y`, call `mcp__project-memory__write_handoff` with the summary, next steps, what failed, open questions, and key files from the recap. Skip when the MCP is not connected.
+6. Proceed to step 8 (promotion pass).
 
 **On edit:** take the user's edit as the new draft; loop to step 6.
 

@@ -154,6 +154,25 @@ function writeSessionState(next) {
   fs.writeFileSync(target, JSON.stringify(next, null, 2) + '\n');
 }
 
+// Per-session scratch file under ~/.claude/hook-state/, for hooks that need
+// once-per-session memory. Creates the dir and prunes files older than a week.
+const HOOK_STATE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+function hookStateFile(prefix, sessionId) {
+  const dir = path.join(homeClaude(), 'hook-state');
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    const cutoff = Date.now() - HOOK_STATE_TTL_MS;
+    for (const name of fs.readdirSync(dir)) {
+      const p = path.join(dir, name);
+      if (fs.statSync(p).mtimeMs < cutoff) fs.rmSync(p, { force: true });
+    }
+  } catch {
+    // Pruning is housekeeping; never fail the hook over it.
+  }
+  return path.join(dir, prefix + '-' + String(sessionId).replace(/[^\w-]/g, '_') + '.json');
+}
+
 // Session identity comes from the stdin payload — every hook event carries
 // `session_id`. The env var is a legacy fallback production does not set;
 // without the payload, all sessions would collapse onto one '<unknown>' key.
@@ -215,6 +234,7 @@ module.exports = {
   hookConfig,
   sessionState,
   writeSessionState,
+  hookStateFile,
   sessionId,
   normalise,
   resolvePath,

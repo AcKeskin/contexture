@@ -1,413 +1,226 @@
 ---
 name: review
-description: "Audit code in scope against your architectural rules; report drift (dead code, SoC, monolith, missing-pattern, principle, comment-drift, naming-quality, over-delivery). Triggers: /review [path | --since <ref> | --vault], \"review this\", \"audit the architecture\", \"check for drift\". User-invoked only. Not a linter, not a security audit (use security-reviewer), not a PR review (use pr-review)."
+description: "Review code from one or more angles — local code (/review [path | --since <ref>]) or a GitHub PR (/review --pr N, alias /pr-review). Defaults: rule drift locally, correctness/design/hygiene/security on a PR; --angles adds performance, extensibility and more. Ends with your pick, a one-by-one walk, a review page (--artifact) or an Obsidian note (--vault). User-invoked only; never posts to GitHub."
 ---
 
 # review
 
-The review organ. Consumes [discover](../discover/SKILL.md), [deliver](../deliver/SKILL.md), the [architectural-rules tree](../../architectural-rules/README.md), and routes corrections through [capture](../capture/SKILL.md).
+One review skill. What changes between a local review and a PR review is the **target** and the **default angles**; everything else (verify, rank, metrics, pick, walk, page, vault note, pack) is shared.
 
-Prep prevents drift by priming before code is written. Review detects drift after the fact and proposes concrete cleanups. Different jobs, complementary.
+**Who does what.** The model does the mechanical work: reads the raw code, follows every call to its callers and callees, checks guards and types, confirms lines, verifies. The human decides: they see metrics, where the change sits, a one-line `impact` per finding, and the trade-offs. Code stays folded until asked for. Never ask the human to trace a call or confirm a line.
+
+Consumes [discover](../discover/SKILL.md), [deliver](../deliver/SKILL.md), the [architectural-rules tree](../../architectural-rules/README.md); routes corrections through [capture](../capture/SKILL.md). Output shape: [review output contract](../../docs/review-output-contract.md).
 
 ## When to run
 
-- User types `/review` / `/review <path>` / `/review --since <ref>`.
-- Natural language: "review this", "audit the architecture", "check for drift", "look for dead code".
-- **Do not auto-fire.** No session-end trigger, no task-end trigger, no hook-based trigger. Continuous monitoring is deliberately parked. User-invoked only.
+- `/review …` or `/pr-review …` (alias for `/review --pr …`).
+- Natural language: "review this", "audit the architecture", "check for drift", "review PR 123".
+- **Never auto-fires.** No hook, session-end or task-end trigger.
 
-## Inputs
+## 1. Resolve target
 
-- **Scope argument** (optional). Determines which files the scan covers.
-- **Working directory** — `$CLAUDE_PROJECT_DIR` or `cwd`. Anchors project context and `.claude/architecture.md` lookup.
-- **Git repo presence.** Enables `--since` scoping, TODO-age checks, and (optional) open/closed commit-history analysis. Degrade gracefully when absent.
-
-## Procedure
-
-### 1. Resolve scope
-
-| Form | Resolution |
+| Form | Target |
 | --- | --- |
-| `/review` (no args) | Entire project — every file under the project root, respecting `.gitignore` |
-| `/review <path>` | Directory (recursive) or single file |
-| `/review --since <ref>` | `git diff <ref>..HEAD --name-only` — only changed files. Bail with a clear message if not a git repo. Skips Phase-1 orientation (§2c) and the persistent artefact (§7b) — `--since` runs are ephemeral by nature |
-| `/review --vault` (combinable with any of the above) | Same scan, plus a copy written to the Obsidian vault per §7c. The in-repo `.claude/reviews/...` artefact is still produced. |
-| `/review --expand` (combinable with `--vault`) | Force the vault artefact to use the subfolder layout (§7c) even when no threshold tripped. Useful when the user knows up front this review will accumulate iterations or attached discussion. |
-| Natural language | Infer from task text; default to entire project when unclear; narrow to a path when the user named a module. "Save this to Obsidian" / "write to the vault" / "put it in my notes" enables `--vault`. |
+| `/review` | Whole project, respecting `.gitignore` |
+| `/review <path>` | Directory (recursive) or file |
+| `/review --since <ref>` | `git diff <ref>..HEAD --name-only`. Not a git repo → refuse and suggest `/review <path>` |
+| `/review --pr [N] [path…]` | GitHub PR N (or the current branch's PR), optionally filtered to paths |
 
-**>50 files guard.** If the resolved scope has more than 50 files, ask the user to narrow before proceeding:
+Flags combine with any target:
 
-> Scope resolves to N files — context cost high. Narrow with `/review <subdir>` or `/review --since <ref>`? (proceed anyway: `y`)
+| Flag | Effect |
+| --- | --- |
+| `--angles [list\|auto\|all]` | Angles to run (§3). Without it, the target's default angles run as before |
+| `--pack` | Build a review pack ([pack.md](pack.md)) shown before the pick |
+| `--artifact` | Render the review page (§6) |
+| `--vault` | Obsidian note: [vault-output.md](vault-output.md) for local targets, §10 for PRs |
+| `--expand` | Local vault output: force the subfolder layout |
 
-Proceed on explicit `y`.
+Natural language: infer the target; "save this to Obsidian" → `--vault`; "as a page" → `--artifact`.
 
-### 2. Load architectural rules via discover
+**Local guard.** More than 50 files → *"Scope resolves to N files — context cost high. Narrow with `/review <subdir>` or `--since <ref>`? (proceed anyway: `y`)"*.
 
-Invoke `skills/discover/SKILL.md` programmatically:
+**PR target.** Needs `gh` installed and authenticated, else bail with how to fix it. Then:
 
-```
-{
-  task_keywords: [<derived from scope + explicit cues>],
-  scopes: [<detected language>, <detected domain>, "global", "project-<name>"],
-  kind: "architectural-rule",
-  relevance_phases: ["always", "during-review"],
-  top_n: 20,
-  render_bodies: true,
-  include_recaps: false
-}
-```
+1. `gh pr view <N> --json number,title,body,state,author,baseRefName,headRefName,url,additions,deletions,changedFiles,labels,commits`. If it fails (GraphQL is blocked in some cloud sessions), use REST: `gh api repos/{owner}/{repo}/pulls/<N>` (same fields as `base.ref`, `head.ref`, `user.login`, `merged_at`), or the GitHub MCP `pull_request_read`. No N → `gh pr view --json number`, else `gh api "repos/{owner}/{repo}/pulls?head={owner}:<branch>"`. Merged or closed → *"PR #N is `<state>`. Review anyway? (y/N)"*; draft → same warning, not blocking. Show a header: number, title, author, base ← head, files, +/−, labels, URL.
+2. `gh pr diff <N>`, parsed per file (path, added/removed lines with numbers, hunks). Skip binary files and count them in the header.
+3. More than 30 changed files → *"PR touches N files — narrow with a path or proceed? (y / path / abort)"*.
+4. Apply the path filter; report *"Reviewing N of M changed files (filtered to: …)"*.
 
-Read `<project-root>/.claude/architecture.md` directly if present — discover's codemap branch covers `codemap.md` only.
+Work only from `gh` output and `git show <ref>:<path>`; never check out the PR branch, never run its tests.
 
-Cap the combined rule set at 20 fragments (same ceiling as prep).
+## 2. Load context
 
-**If zero rules load:** surface the empty result and proceed with dead-code + comment-drift checks only — those two categories are rule-agnostic. Ask the user whether to continue.
+### 2a. Rules and guidelines
 
-### 2b. Load out-of-scope index
+- **Local target**: load rules automatically via discover — `{task_keywords: <from scope>, scopes: [<language>, <domain>, "global", "project-<name>"], kind: "architectural-rule", relevance_phases: ["always", "during-review"], top_n: 20, render_bodies: true, include_recaps: false}`. Read `.claude/architecture.md` if present. Zero rules → say so, run only the rule-free checks (dead code, comment drift) of the `architecture` angle, and ask whether to continue.
+- **PR target**: ask, in order: *"Load architectural rules for this review? 1. Yes 2. No"* (yes → the same discover call with `top_n: 15`, keywords from the PR title and paths), then *"Any guidelines, checklists or context to apply? Paste text, a path or a URL, or Enter to skip."*
 
-Read every file under `<project-root>/.claude/review-out-of-scope/` if the directory exists. Index by `scope` + `finding-category` from each file's frontmatter. See [OUT-OF-SCOPE.md](OUT-OF-SCOPE.md) for format and matching rules. Skip silently if no directory.
+### 2b. Out-of-scope index
 
-### 2c. Phase-1 orientation gate
+Local targets: read `.claude/review-out-of-scope/` if present, indexed by `scope` + `finding-category` ([OUT-OF-SCOPE.md](OUT-OF-SCOPE.md)). Matching findings are dropped and counted as suppressed.
 
-Runs **only** for unscoped or directory-scoped invocations (`/review`, `/review src/auth/`). Skip for file-scoped (`/review src/auth/middleware.ts`) and `--since` invocations — the user already pinned scope and the orientation cost dominates the value.
+### 2c. Orientation
 
-When triggered, perform these in order before §3:
+Only for `/review` and `/review <dir>`. Read manifests, README + `docs/`/`adr/` (≈10 files / 3000 lines cap), map top-level structure, take churn (`git log --oneline -200`, last-6-months `--stat`; one plain `git log` per call, run from the project root, no `git -C` or `;` chains, so headless allow rules match), and intersect the top-20 largest with the top-20 most-changed files (the hot list, scanned first). Write a 1–2 paragraph mental model; a contradiction with the README is itself a comment-drift finding citing the README line. Rendered as the report's `## Orientation` block.
 
-1. **Manifest read.** Read whichever of `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `*.csproj`, `*.sln`, `composer.json`, `Gemfile`, `pom.xml`, `build.gradle*` exist at the root. Note primary language, framework, dep count, scripts/entry points.
-2. **Docs read.** Top-level `README.md` plus any `docs/` and `adr/` (or `docs/adr/`) entries. Skip `node_modules/` etc. Cap at ~10 files / ~3000 lines combined; sample biggest+newest if over.
-3. **Structure map.** Glob top-level directories (depth 2); identify major modules / layers from naming.
-4. **Churn data.** `git log --oneline -200` and `git log --stat --since="6 months ago" --pretty=format:`. Skip silently if not a git repo (orientation proceeds with manifest + structure + docs).
-5. **LOC × churn intersection.** Files both top-20 by line count *and* top-20 by commit frequency in the last 6 months. **Most architectural drift hides in this intersection.** Default scan-priority hint for §3 — scan these first when finding budget is tight.
-6. **Mental model paragraph.** Synthesize 1–2 paragraphs describing the architecture as observed. **If the model contradicts the README, that contradiction is itself a finding** — surface it under Comment drift in §5 with a `file:line` citation pointing at the README claim.
+## 3. Run the angles
 
-Output the orientation block in §5's report header (before findings):
+Angle briefs live in [angles.md](angles.md); projects can add their own or set defaults in `.claude/review-angles.md` (format in angles.md).
 
-```
-## Orientation
-Stack: <language>, <framework>. <N> declared deps. Entry: <main script / binary>.
-Layout: <one-line structure summary — e.g. "src/{api,domain,ui,services}; tests in tests/">
-Churn (last 6mo): <top 3 high-churn paths>; <total commits over period>
-Hot intersection (large × high-churn): N files
-  - path/to/file.ext (L lines, C commits)
-  - …
-Mental model: <1–2 paragraph synthesis>
-```
+| Input | Angles | How they run |
+| --- | --- | --- |
+| no `--angles` | Local: `architecture`. PR: `correctness, design, hygiene, security` | Inline in this session, as one pass (no extra agents) |
+| `--angles a,b,c` | Exactly those | One fresh agent per angle |
+| `--angles auto` / bare | Project default if set, else the target defaults + up to 3 picked by the signals in angles.md | One fresh agent per angle |
+| `--angles all` | Every built-in + project angle | One fresh agent per angle |
 
-The intersection list is non-empty unless the project is too small or too new — when empty, say so explicitly (don't omit the line). Orientation is read-only; no findings emitted from it directly except the README-contradiction case noted above.
+`auto` runs at most 5 agents and doesn't ask: past 5, drop the latest picks. `all` → ask once with the count. A typed list runs as typed. State the resolved list; for `auto`, one line per angle picked or skipped and why.
 
-### 3. Scan files
+**Fan-out.** All agents in one message. Each gets only: the target and how to read it, its brief verbatim, the loaded rules and guidelines, the [findings schema](findings-schema.md) finding shape, and the grounding gate (contract §1a). Plus: *"Follow each call you depend on to its callers and callees and record the path in `chain`. Write `impact` as one plain line on what it costs, with no code. Keep `what`, `impact` and `fix` plain text: no mermaid or code fences. Return findings only for your angle, or `none`."* Never pass one angle's output to another. A reply that doesn't parse is re-run once, then recorded as `failed` in coverage.
 
-For each file in scope:
+**Every finding** — inline or from an agent — cites `file:line` (new-file lines on a PR), quotes the real code there, and has been checked against its callers (contract §1a). No line → not a finding. A non-architecture finding needs no rule citation; an architecture finding does, except dead code and comment drift ([drift-checks.md](drift-checks.md)). Fixes that are ≤10 lines, one contiguous range, and mechanically actionable become ` ```suggestion ` blocks (contract §3).
 
-1. Read the full content. Batch independent Reads — several files per message — and never re-read a file already in context.
-2. Run the eight drift checks (see §"Drift checks" below).
-3. Collect findings of shape `{id, file, line, category, severity, effort, what, rule_cited, proposed_fix}`. `id` is `F<NNN>` — assigned provisionally in scan order during this step, then reassigned in §4b for repeat runs (CARRIED findings reuse the baseline id; NEW findings continue numbering above the baseline's max). For fresh runs, the provisional id is the final id.
-4. **`file:line` citation is mandatory.** Every finding must cite `path/to/file.ext:LINE` or a `file.ext:START-END` range. A finding that cannot point at a specific line is not a finding — it is pattern-matching, and it is rejected before reaching §4. Vague claims like "the code generally..." or "this module tends to..." do not pass this gate. The orientation paragraph in §2c is exempt (it is synthesis, not a finding); every concrete entry under a category in §5 is not.
-5. A finding without a *rule* citation is only valid for the dead-code and comment-drift categories (self-evident). All other findings must cite a loaded rule — if the check triggers but no rule supports it, drop the finding rather than fabricating a rule name. (Independent of the `file:line` rule above; a finding needs both where applicable.)
-6. Cross-check each finding against the out-of-scope index from §2b. Drop matches silently and increment the suppressed count.
+## 4. Merge, verify, rank
 
-### 4. Aggregate and prioritise
-
-**Primary grouping is per-file.** Group all findings by file path first; within each file group, sort by Severity (Critical → Low) then Effort (S → L). Category becomes a tag on each finding and a roll-up summary table, not the primary structure. Files with zero findings are still surfaced (one-line "no findings") so the reviewer can see that the file was scanned.
-
-Assign:
-
-- **Severity** — Critical / High / Medium / Low. Anchored to confidence + impact:
-  - Critical = clear rule breach, high blast radius (security-adjacent, data integrity, public API contract).
-  - High = clear rule breach, localised impact; or probable drift that touches a load-bearing module.
-  - Medium = probable drift, moderate impact; the typical category-3/4/5 finding.
-  - Low = possible drift, weak confidence; informational dead code; minor comment drift.
-- **Effort** — S / M / L:
-  - S = under ~1h, single file, mechanical (rename, delete, extract).
-  - M = ≈half-day, 2–5 files, design choice but small.
-  - L = multi-day, >5 files, sequencing / coordination needed.
-
-Cap at top 5 findings per file in the per-file detail section (the run-wide findings table stays uncapped within the global ceiling). **Global ceiling = 50 findings per run**; on reaching it, stop scanning and report the cap in the report header ("scan capped at 50 findings — N files unscanned"). Surplus reported as a count:
-
-```
-+3 more findings in this file — drill in with /review <path/to/file> for detail
-```
-
-A roll-up "Severity × Category" matrix (Critical/High/Medium/Low × Dead code/Monolith/SoC/Pattern/Principle/Comment drift/Naming quality/Over-delivery) is rendered once before the per-file sections so the category-level signal is not lost.
+1. **Merge.** Same file + overlapping lines + same root cause → one finding with `angles: [a, b]`, highest severity, clearest fix, longest chain. Move any fenced block an agent left in a text field into the pack or drop it.
+2. **Tensions.** Two findings on the same code whose fixes pull opposite ways → a tension: the code, side A, side B, what would settle it. No severity, no winner.
+3. **Verify.** Each Critical and High finding goes to a fresh agent that tries to refute it — security findings to `security-reviewer` in Verify mode. It gets only: the target, `file:line`, the one-line claim, the expected failure, and the refs. *"Try to refute this from the source. Look for a guard, a caller or a type that makes it impossible. Return `verdict: confirmed | plausible | rejected`, the `file:line` evidence, one sentence of reason."* `confirmed` keeps it (lower severity if the impact is smaller, never higher); `plausible` moves it to Needs validation without severity; `rejected` moves it to "looks bad but actually fine". An unparseable reply is re-run once, then `plausible`. Verifier unavailable → mark `unverified` and say so in the header.
+4. **Severity / effort.** Critical = clear breach or bug with high blast radius (security, data integrity, public contract). High = clear, localised; or probable on a load-bearing module. Medium = probable, moderate. Low = possible, weak confidence, nits. Effort S < 1h single file; M ≈ half-day, 2–5 files; L multi-day.
+5. **Rank** for the decide view: severity, then angle count, then verified, then effort. Ids stay the stable `F<NNN>`; ranking is order only.
+6. **Caps.** Top 5 per file in per-file sections (surplus as a count), 50 per run (header says so when hit).
 
 ### 4b. Repeat-run reconciliation
 
-If a prior review artefact exists for the resolved scope (`<project-root>/.claude/reviews/<scope-slug>/latest.md`), treat it as a baseline: set Run mode = repeat, match this run's findings against it, and tag each `CARRIED` / `NEW` / `WONT_FIX` / `RESOLVED`. Resolved findings are surfaced in a "Resolved since last run" section, never silently dropped. No baseline → Run mode = fresh, IDs from F001. Malformed baseline → warn in the header, treat as fresh, never rewrite it.
+Local targets with a prior `.claude/reviews/<scope-slug>/latest.md`: run mode = repeat; tag each finding `NEW` / `CARRIED` (keeps its id) / `WONT_FIX` / `RESOLVED`; resolved ones get their own section. Malformed baseline → warn, treat as fresh. Mechanics: [reconciliation.md](reconciliation.md). PR re-reviews use §10's iteration rules.
 
-Full matching rules, tagging semantics, and the resolved-section shape: [reconciliation.md](reconciliation.md).
+## 5. Report
 
-### 5. Report
-
-**Primary structure is per-file**, sorted by Severity within each file. Category appears as a tag on each finding and in the roll-up matrix — not as section headers.
-
-Output shape:
+Shape per the [review output contract](../../docs/review-output-contract.md); on divergence the contract wins. Header:
 
 ```
-Review of: <resolved scope> (N files, M lines)
-Rules loaded: K architectural rules across language/domain/project scopes
-Run mode: <fresh | repeat (baseline: v<N>.md, YYYY-MM-DD)>     # see §4b
-
-## Orientation — block per §2c; omit when §2c skipped.
-
-Findings: T total (C critical, H high, M medium, L low)
-
-## Severity × Category
-|                    | Critical | High | Medium | Low |
-|--------------------|----------|------|--------|-----|
-| Dead code          | 0        | 0    | 1      | 2   |
-| Monolithic files   | 0        | 1    | 0      | 0   |
-| SoC violations     | 0        | 0    | 2      | 0   |
-| Missing patterns   | 0        | 0    | 1      | 1   |
-| Principle viol.    | 1        | 0    | 0      | 0   |
-| Comment drift      | 0        | 0    | 0      | 3   |
-| Naming quality     | 0        | 0    | 1      | 2   |
-| Over-delivery      | 0        | 0    | 1      | 0   |
-
-## Diagram                                                      # see §5b — mandatory section
-<mermaid block, ASCII box-diagram, or one-line N/A justification>
-
-## Per-file findings
-
-> This per-file render **intentionally extends** the output contract's §1 shape — it adds the header stats (line count, commit count, hot flag) and the ID-prefixed bullet form. Everything else follows the contract; on any other divergence the contract wins.
-
-### src/auth/middleware.ts (612 lines, 18 commits — hot)
-- F001 [High/L]  Monolithic files       L1     — 612-line file mixing 4 concerns. Suggested split: <sketch>.
-- …
-
-### src/auth/login-form.tsx — no findings
-
-## Findings table
-| ID    | Category         | File:Line                     | Severity | Effort | Description                                | Recommendation                          |
-|-------|------------------|-------------------------------|----------|--------|--------------------------------------------|-----------------------------------------|
-| F001  | Monolith         | src/auth/middleware.ts:1      | High     | L      | 612-line file mixing 4 concerns            | Split per bullet above                  |
-| …     |                  |                               |          |        |                                            |                                         |
-
-## Quick wins (Low effort × Medium+ severity)
-- [ ] F004 — Move middleware DB call to services/
-
-## Things that look bad but are actually fine (≥2)
-- src/auth/permissions.ts:240 — 180-line function is a flat dispatch table; splitting would obscure the 1-to-1 mapping that's the point.
-- …
-
-----
-Apply proposed fixes? Choose per finding:
-  1. Apply  2. Skip  3. Edit  4. View detail  5. Won't fix (reason)
+Review of: <target> (N files, M lines)        # PR: "PR #N: <title>", author, base <- head, +/-
+Rules loaded: K | none                        Run mode: fresh | repeat (baseline v<N>, date)
+Angles: correctness (12 files, 4) · performance (12, none) · security (failed)
+Metrics: change +412/-88 in 3 modules · blast radius 23 files · public surface +3/~1/-0 · tests 2 of 5
 ```
 
-**Rules for the report sections:**
+**Metrics** come from sources, never estimates: change size (`git diff --stat` / PR metadata), blast radius (files importing a touched file — codemap File deps, else grep), public surface (codemap exports, else the diff; for a path target, exported symbols in scope), tests (changed source files with a changed test; for a path target, source files with a test), plus angle metrics such as calls added to the request path. Each names its source.
 
-- **Render report sections per the [review output contract](../../docs/review-output-contract.md)** — Read it at §5 if not already in context; on divergence the contract wins. It owns zero-finding-file rendering, the findings table, quick wins, and looks-bad-but-fine. Suggestion blocks (its §3) live in the propose-fix step here — see §6.
-- Orientation block is omitted when §2c was skipped (file-scoped or `--since` runs).
-- **Per-file sections are the primary structure.** Sorted by Severity (Critical → Low) then Effort (S → L) within each file; Category is a column on the finding line, not a section header. Bullets capped at top 5 per file.
-- **Severity × Category roll-up table** always present when T > 0. Rows with all zeros may be omitted.
-- **Diagram section (§5b) is mandatory.**
-- If T = 0, skip per-file sections and the table; still emit the explicit `## Quick wins` heading with a `None` line (the contract requires the line, not the content), the diagram (or its N/A justification), and the "looks bad but fine" section, then skip straight to §8.
+The Metrics line is never skipped; a metric with no source shows `n/a (<why>)`.
 
-### 5b. Diagram (mandatory)
+Then: Orientation (2c) → Severity × Category matrix (category = drift check or angle) → mandatory diagram (contract §2: flowchart for boundary findings, split sketch, sequence for ordering bugs, ASCII bar chart for many small findings, or a one-line N/A with the why) → per-file findings (severity-first locally, line-ascending on a PR) → findings table → quick wins → Tensions → Needs validation → resolved/carried (repeat runs) → looks bad but actually fine (≥2, contract §4). Files with no findings render as one line. PR targets end with `Verdict: APPROVE | REQUEST_CHANGES | COMMENT` and a 1–2 sentence reason; only confirmed Critical/High drive `REQUEST_CHANGES`. Zero findings → *"No findings."* (+ `Verdict: APPROVE` on a PR), still with the diagram line and looks-bad-but-fine.
 
-Always try to include a diagram — a visual anchor for the code *as a system*. Choose the type that fits what the review surfaced:
+## 6. Decide
 
-| Scope shape | Diagram type |
-| --- | --- |
-| Cross-module / cross-layer findings (boundary violations, layering issues) | Mermaid `flowchart` showing the violating edge(s) highlighted |
-| Monolith split proposal | Mermaid `flowchart` or ASCII box-diagram showing the proposed sub-module decomposition |
-| Sequence-level finding (race condition, ordering bug) | Mermaid `sequenceDiagram` |
-| State drift / lifecycle issue | Mermaid `stateDiagram-v2` |
-| Many small findings without a unifying structural story | ASCII bar chart of findings-per-file (counts severity-stacked) |
-| Single-file leaf utility, fewer than 3 findings, no structural angle | One-line N/A justification: `Diagram: N/A — single-file scope with no cross-module structure to visualise.` |
+When `--pack` is set, show the [pack](pack.md) first. Then the **decide view**, no code in it: metrics, *needs your call* (Critical/High as `id · impact`, and the tensions), the ranked list as `id · severity · impact · angles`, Needs validation. Ask once:
 
-**Preference order: mermaid > ASCII box-drawing > ASCII bar chart > N/A justification.** The N/A line must state the *why* — empty without reason is treated as incompleteness, same as the "looks bad but fine" section. Format rules per the output contract §2.
+> Pick: `keep 1,3` · `drop 2` · `wontfix 4 "<reason>"` · `tension T1 a|b|skip` · `all` · `none` · `show <id>` · `walk` · `page` · `apply vault picks`
 
-### 6. Propose-confirm-commit per finding
+- Clauses combine on one line — the same line the page's Copy pick and `render-note.mjs --read-picks` produce.
+- `show <id>` opens code, call path, fix and verifier note, then asks again.
+- `wontfix` needs a durable reason ("not now" is `drop`); it carries forward per §4b / §10. A reason durable for every future run can go to `.claude/review-out-of-scope/` (§9 option 5).
+- Not kept → `dropped`, still recorded so the next run knows it was seen.
 
-**Suggestion-block format for proposed fixes.** When a finding's `proposed_fix` is a concrete code change that is **≤10 lines, localised to one contiguous range in one file, and mechanically actionable** (no "you'll also need to update X elsewhere" caveats), render it as a GitHub ` ```suggestion ` block in the Recommendation — the literal replacement lines for the cited range, indentation matched to the cited file, no explanatory comments inside the block (those go in the prose above it). When any condition fails, prose is correct — do not force a block. Per the [review output contract](../../docs/review-output-contract.md) §3.
-
-Iterate findings in report order. For each:
-
-- **Apply** → perform the edit via Edit / Write; confirm with a one-line report of the edit. Mark resolution `applied`.
-- **Skip** → discard for this run. Mark resolution `skipped`. (Ephemeral; does not propagate into the next run's baseline as `WONT_FIX`.)
-- **Edit** → accept user's revised fix; apply; confirm. Mark resolution `edited`.
-- **View detail** → show fuller context (surrounding code, rule body, alternative fixes); loop to ask again.
-- **Won't fix (note reason)** → ask the user for a one-line durable reason. Mark resolution `wont_fix` and store the reason on the finding. The next run will carry this finding forward tagged `WONT_FIX` (see §4b) and suppress it from Quick wins. If the reason is ephemeral ("not now", "later"), use Skip instead — the prompt should remind the user of the distinction. If the reason is structural enough that it belongs in the out-of-scope index (durable for *every* future run, not just the next one), offer option 5 from §9 inline — that path writes to `.claude/review-out-of-scope/` and overrides the per-run `wont_fix` tagging. The same inline shortcut applies when the user picks Skip with a load-bearing reason.
-
-Track counts of applied / skipped / edited / wont_fix per category.
-
-No batch auto-apply. No silent fixes.
-
-### 7. Summary
-
-After per-finding resolution, report counts:
+**Walk** (`walk`, `walk high+`, `walk src/api/`, `walk extensibility`, `walk from F004`) — one finding per step, in ranked order:
 
 ```
-Applied N fixes across C categories. Skipped M. Edited K. Won't-fix W. Suppressed S (out-of-scope).
-Repeat mode: N new, R resolved since last run, C carried, W carried as won't-fix.   # repeat runs only
+F002 · 2/7 · medium · extensibility · unverified
+Limits are a hardcoded table.
+Impact: adding a limit for a new route means editing this file; plugins can't register their own.
+Fix: accept limits through createLimiter(options).            (effort M)
+keep · drop · wontfix "<reason>" · edit · ask <question> · code · back · stop
 ```
 
-Omit the suppressed line when S = 0. Omit the repeat-mode line for fresh runs.
+`code` shows code, chain and verifier note; `ask` answers from the code (following calls as needed) and adds a note; `edit` changes severity, fix or wording; `back` goes back; `stop` leaves the rest `open`. Tensions follow the findings with `a · b · skip`. The cursor and answers are saved to findings.json after each step, so a later `walk` resumes.
 
-### 7b. Persist artefact
+**Page** (`--artifact` or `page`) — `node <skill dir>/render-page.mjs <findings.json> <out.html> [--artifact]`, resolving the skill dir from this SKILL.md's real path. With the Artifact tool: render with `--artifact` and publish (icon `review`), to `run.artifact_url` when set so re-runs update one page; say it is private until shared. Without it: render without `--artifact` to `.claude/reviews/<slug>/v<N>.html` and give the path. The page opens on metrics, keeps code folded, and has Keep / Drop / Won't fix buttons with a Copy pick line to paste back.
 
-After §7, write the run's results to `<project-root>/.claude/reviews/<scope-slug>/` — the substrate the next repeat run reads (§4b). `--since` runs are **not** persisted (no stable scope to baseline against). Versioning appends: `latest.md` plus a numbered `v<N>.md`, written atomically, never overwriting in place. A write failure is reported but never blocks §8.
+**Apply vault picks** — `node <skill dir>/render-note.mjs --read-picks <note.md>` prints the pick line from ticked boxes; apply it as typed, then re-render the note.
 
-Full slug derivation, frontmatter shape, per-finding Status column, and the atomic write order: [reconciliation.md](reconciliation.md).
+**After the pick:**
 
-### 7c. Obsidian vault output (opt-in)
+- **Local target** — iterate the kept findings: `1. Apply 2. Skip 3. Edit 4. View detail 5. Won't fix (reason)`. Apply edits via Edit/Write with a one-line confirmation; check `git status` first and pause if the file is dirty. Naming findings: local renames and comment rewords may apply; public renames and over-delivery deletions are suggest-only ([drift-checks.md](drift-checks.md)). No batch auto-apply, no silent fixes.
+- **PR target** — kept findings become the review checklist. Then: *"1. Drill into a finding 2. Re-review with other scope, rules or angles 3. Walk 4. Open as page 5. Build a pack 6. Done — take the checklist to GitHub"*. Never post to GitHub.
 
-On `/review --vault` (or a natural-language vault request — "save this to Obsidian", "put it in the vault", "write a copy to my notes"), **Read [`vault-output.md`](vault-output.md) and follow it** for the vault write: project-folder inference, filename, subfolder promotion, iterations, stub redirects, failure modes. This is in addition to §7b — the in-repo `.claude/reviews/...` artefact always writes regardless and is the repeat-run baseline.
+## 7. Summary and persistence
 
-Two rules stay inline (load-bearing): the vault root comes from `vaultRoot` in `~/.claude/hook-config.json` — **never hardcoded** (per `universal/no-hardcoded-machine-paths.md`); if it's unset, skip the vault write and surface *"Set `vaultRoot` in `~/.claude/hook-config.json` to write the review to the vault."* **Skip this section entirely when `--vault` was not requested** — do not read the sidecar on a normal run.
+Report counts: applied / skipped / edited / won't-fix / suppressed (local), kept / dropped / won't-fix (PR); repeat-mode counts when relevant.
 
-### 8. Feedback-loop prompt
+### 7b. Persist
 
-At the end of every run (even zero-finding runs):
+Every run writes [findings.json](findings-schema.md) — the terminal report, page and vault note all render from it, and walks resume from it.
 
-> Did this catch what you wanted? (y / n — n opens the feedback loop)
+- Local: `.claude/reviews/<scope-slug>/` gets `v<N>.md` + `v<N>.json`, `latest.md` + `latest.json`, written atomically ([reconciliation.md](reconciliation.md)). `--since` runs write only `latest.json` under `.claude/reviews/since-<ref-slug>/` as working state, never a baseline.
+- PR: `.claude/reviews/pr-<NNN>/v<N>.json` + `latest.json`, even when the vault is unset.
 
-On `y` → end. On `n` or free-form correction → step 9.
+**How to write.** Claude Code blocks Write/Edit under `.claude/` in headless runs, so never write there directly. Write the file to `.review-run.tmp.json` (or `.md`) at the project root, then move it in with `node <skill dir>/save-run.mjs <slug> json|md|latest <tmp>` — json first, then md; `latest` for `--since`. Run it with the Bash tool as one plain command: the skill dir written out as an absolute path with forward slashes (e.g. `<home>/.claude/skills/review`, with `<home>` written out), no variables, no `&&`, no `cd`. The allow rule only matches that shape. It numbers versions, writes atomically and deletes the temp file. Bootstrap allows the temp write and that command for headless runs. Always save both, json then md; never skip either on the guess that it will be denied.
 
-### 9. Feedback loop
+A write failure is reported, never blocks the next step.
 
-Offer five system-level responses. Read [feedback-loop.md](feedback-loop.md) for the per-option procedure when the loop opens.
+### 7c. Vault (local, opt-in)
 
-1. **Sharpen existing rule** — a rule exists but didn't catch the missed drift; sharpened body routes through capture as an overwrite.
-2. **Add new rule** — no existing rule covers this; draft routes through capture.
-3. **Retag existing rule** — right rule, wrong scope; `scope` / `relevance` frontmatter edit after user confirms.
-4. **Adjust threshold** — project-specific override via capture, or a general edit to this SKILL.md's threshold table that the user explicitly confirms (it ships to every machine via the subtree link).
-5. **Record as out-of-scope** — the finding is real but a load-bearing reason makes leaving it the right call; confirm the reason is durable (would still apply to a future explorer), not ephemeral, then write to `.claude/review-out-of-scope/` after user confirms.
+On `--vault`, read [vault-output.md](vault-output.md) and follow it. Vault root is `vaultRoot` in `~/.claude/hook-config.json`, never hardcoded; unset → skip and say how to set it.
 
-User picks one (or none). Collaborator principle — never change silently.
+## 8. Feedback prompt
 
-## Drift checks
+Local targets, every run: *"Did this catch what you wanted? (y / n)"*. `n` or a correction → §9.
 
-### 1. Dead code
+## 9. Feedback loop
 
-- **Unused export.** A named export whose identifier does not appear in any other file within the project. Use Grep to verify. Exception: public-API packages where external consumers exist — warn in the finding.
-- **Unused parameter.** A declared parameter not referenced anywhere in the function body.
-- **Unreachable branch.** Code after an unconditional `return`, `throw`, or equivalent. `if (false) { … }`.
-- **Commented-out code.** ≥5 contiguous commented lines that parse as code. Cite git blame if possible.
+1. Sharpen an existing rule · 2. Add a rule · 3. Retag a rule · 4. Adjust a threshold · 5. Record as out-of-scope. Procedures: [feedback-loop.md](feedback-loop.md). Never change silently; rule writes go through capture.
 
-Dead-code findings are self-evident — no rule citation required.
+## 10. PR vault note
 
-### 2. Monolithic files
+PR reviews are always written to the vault (skip with a note when `vaultRoot` is unset). `<ProjectFolder>`: match an existing `Projects/` subfolder from the repo name, else create; ask once when two fit. File: `<Vault>/Projects/<ProjectFolder>/Code Reviews/PR-<NNN> — <Short Title>.md` (NNN zero-padded to 3, 4 past 999; title 3–6 words, title case with spaces).
 
-Per-language line thresholds (adjustable via feedback loop):
+Body: `node <skill dir>/render-note.mjs <findings.json> <note.md>` — metrics, needs your call, where the change sits, one section per finding (impact, `keep / drop / wontfix:` boxes, code and call path folded in a callout), trade-offs, needs validation, pack sections when `--pack`, coverage, looks bad but fine. Put these keys in `run.frontmatter`; the script adds counts and `metric_*` after them:
 
-| Language | Threshold |
-| --- | --- |
-| C# | >400 |
-| TypeScript / JavaScript / JSX / TSX | >300 |
-| C++ / header files | >500 |
-| Python | >300 |
-| Go | >400 |
-| Rust | >400 |
-| Markdown / docs | N/A (skip) |
-| Other | >400 |
+```yaml
+pr: <NNN>
+title: <Short Title>
+repo: <repo>
+url: <PR url>
+ticket: <id or null>
+author: <author>
+base: <base>
+head: <head>
+state: open | merged | closed | draft
+files_changed: <N>
+additions: <A>
+deletions: <D>
+reviewer: <git config user.name>     # never hardcode
+reviewed_on: <YYYY-MM-DD>
+last_reviewed: <YYYY-MM-DD>
+iterations: 1
+iteration_log:
+  - { n: 1, date: <YYYY-MM-DD>, verdict: <verdict>, findings: { critical: 0, high: 0, medium: 0, low: 0 }, head_sha: <sha> }
+verdict: <verdict>
+```
 
-Additional signals for this category:
-
-- File declares more than 3 unrelated top-level concerns (distinct classes / top-level functions without shared state / distinct feature areas).
-- A single function exceeds ~60 lines of non-trivial logic.
-
-Cite the language threshold or the universal "small testable units" rule.
-
-### 3. SoC violations
-
-- Import crossing a boundary forbidden by a loaded rule (project rule like "/ui must not import /api directly", or domain rule).
-- Side effects (I/O, DB, network calls) in files that rule / naming convention marks as pure (e.g. `*.types.ts`, `domain/*`).
-- Logic in a layer that should be thin: business logic in UI components, transport logic in domain types.
-
-All three require a rule citation. If no rule supports a suspected SoC violation, drop the finding — or, if the pattern is stark, note it as informational and ask the user whether to capture it as a rule via the feedback loop.
-
-### 4. Missing pattern usage
-
-- Switch / if-else chain with shared dispatch structure in a file scoped to a domain that has a captured strategy-pattern rule. Citation: the domain pattern rule.
-- Repeated near-identical structure ≥3 times in scope. Citation: the universal DRY rule, if captured; otherwise drop.
-
-### 5. Principle violations
-
-- **SRP obvious case.** A class / module exposing public surface across ≥3 unrelated concerns. Example: `UserManager` handling auth + profile + preferences + billing.
-- **Open/Closed edit-core-to-extend pattern.** Recent commits (last ~10) repeatedly edit the same switch / if-tree in a core file to handle new cases. Requires git history.
-- Liskov / ISP / DIP — lower priority. Only flag when a specific rule targets one of these.
-
-All require rule citation (the universal SOLID rule, typically).
-
-### 6. Comment drift
-
-- Comment contains terminology or references that no longer appear in the adjacent code (e.g. mentions a removed function, an old type name).
-- Public export without docstring / JSDoc / summary — only when a rule requiring docs on public API is loaded.
-- TODO comments older than 20 commits. Requires git repo. Skip silently otherwise.
-
-Comment-drift findings are self-evident for the first signal; the second needs the docs rule cited.
-
-### 7. Naming & comment quality
-
-Catches identifiers and comments that are **technically correct but read badly** — distinct from check 6 (which catches *stale* comments, out of sync with code). This class audits *quality of expression*, not staleness. Cite [`universal/naming-and-comments.md`](../../architectural-rules/universal/naming-and-comments.md) on every finding (loaded via discover under `relevance: during-review`).
-
-**Boundary vs check 6 (comment-drift).** A single comment generates **at most one** finding — if it is both stale (check 6) and awkward (check 7), report it under check 6.
-
-**What this class flags** (confident cases → findings):
-- **Machine/AI-flavored names** — meaningless numbered suffixes (`processData2`, `handlerHandler`), placeholder-as-name (`tmp`/`data`/`obj`/`val` standing alone), names that read like generated code.
-- **Restatement comments** — a comment that says what the next line already says (`// increment i` above `i++`). Pure noise.
-- **Stilted / AI-flavored comment prose** — "This function is responsible for facilitating…". Terse, direct is the standard.
-- **Names contradicting the file's OWN established style** — a lone `snake_case` local in a file of `camelCase` ones. A self-inconsistency, the most confident signal (conformance-over-ideal).
-
-**Calibration — BALANCED.** Severity is **low by default** for this whole class.
-- **Confident** (the four signals above) → findings, low/medium severity.
-- **Borderline** (a name that's *slightly* off, a comment of marginal value) → **low-severity** findings the user can dismiss in one keystroke — surfaced, never silently dropped.
-- **Correct-but-unusual** (domain term, math/protocol name, idiomatic abbreviation, deliberate legacy consistency — the when-not-to-flag clause of the cited rule) → route to the **required "Things that look bad but are actually fine" section** with reasoning, **never a finding**.
-
-**Conformance-over-ideal precedence.** Before flagging a name, resolve the scope's conventions through the rule-overlay tiers. Precedence, highest first: an **extracted project convention** (`.claude/rules/<lang>/conventions.md`) > the **file's own observed style** > the **universal default**. A name that *matches a present project convention is never flagged*, even when it deviates from the universal default (e.g. an `m_` field prefix where the project's extracted conventions endorse it). The universal default applies only where no more-local convention speaks.
-
-**Apply policy — localized-auto / cross-cutting-suggest-only.**
-- **Comment rewords** and **local-variable renames** are localized → apply directly through the per-finding Apply gate, emitted as suggestion blocks per §6.
-- **Public / exported renames** are **suggest-only** — a public rename is *not localized* (it ripples across call sites), so it never auto-applies and never becomes a suggestion-fence. Flag it, propose the better name in prose, and note that sweeping the call sites is the user's call. Do not edit call sites.
-
-**Feedback loop.** When the user rejects a naming finding as wrong ("that's a domain term"), route to §9 so the universal rule **or** the project convention learns the exception.
-
-### 8. Over-delivery
-
-Catches work that was **not asked for** — an option, an abstraction, a guard, a paragraph, or a comment that the request did not call for. Cite [`universal/over-delivery-tells.md`](../../architectural-rules/universal/over-delivery-tells.md) on every finding (loaded via discover under `relevance: during-review`); read the tell lists there rather than restating them here.
-
-**Boundary vs `/simplify`.** The bundled `/simplify` reviews changed code for reuse, simplification, efficiency, and altitude, and applies the fixes. It answers *could this be simpler*. This class answers a narrower question — *did the request ask for this* — and the two diverge on the finding that matters most: an unrequested config option is not a complexity problem to be refactored, it is work that should not exist. Where a finding is purely "this could be tidier", it belongs to `/simplify`, not here.
-
-**Boundary vs check 5 (principle violations).** A speculative abstraction violates the no-speculative-abstractions principle *and* is an over-delivery tell. Report it under check 5 with its rule cited; a single construct generates **at most one** finding.
-
-**Scope gate.** This class needs to know what was asked. It runs on `/review --since <ref>` and on an explicit path where the request is known from the session. On a whole-project `/review` with no diff and no stated request there is no baseline to judge against — **skip the class and say so in the report header** rather than guessing at intent from the code.
-
-**Calibration — CONSERVATIVE.** Lower confidence than check 7, because the evidence lives outside the code.
-- **Confident** (a construct with no caller, no stated requirement, and no convention endorsing it) → finding, low/medium severity.
-- **Borderline** → the **"Things that look bad but are actually fine"** section with reasoning, never a finding. The legitimate forms named in the cited rule — an imminent named second case, a guard on a boundary the code owns, a comment carrying a *why* — all land here.
-- **Conformance outranks the tell.** A pattern the surrounding code already establishes is not over-delivery, it is consistency.
-
-**Apply policy — suggest-only.** Deleting work is not localized: the author may know a requirement the diff does not show. Flag, propose, and let the user decide. Never auto-apply a deletion, and never emit one as a suggestion fence.
+Re-reviews: read [pr-vault-iterations.md](pr-vault-iterations.md) — subfolder promotion, `open / claimed / fixed / wontfix` with verify-before-fixed, iteration bodies via `render-note.mjs --body-only`. Older notes in the previous layout stay as they are. Never commit or push the vault file.
 
 ## Failure modes
 
-- **Scope too large (>50 files) and user didn't narrow.** After the guard prompt, if user still says proceed, accept — but flag high context cost in the final summary.
-- **Discover returned zero rules.** Fall back to dead-code + comment-drift only. Make this explicit in the report header.
-- **Not a git repo but user passed `--since`.** Refuse with a clear message; suggest `/review <path>` instead.
-- **Finding's proposed fix would conflict with uncommitted changes.** Check `git status` for the file before Edit; if dirty, pause and ask user to stash / commit first.
-- **Feedback loop's "sharpen" target is in the global architectural-rules tree (not per-project memory).** Capture writes there by design; proceed as normal. User's confirmation is the safety net.
+- `gh` missing / unauthenticated, no GitHub remote, PR not found, network error → bail with the exact fix or the `gh` error verbatim.
+- Empty PR diff → *"PR #N has no file changes."*
+- Scope over the guard and the user proceeds → flag the context cost in the summary.
+- Zero rules on a local run → rule-free checks only, stated in the header.
 
 ## What review does NOT do
 
-- **Does not auto-fire** — not on any hook, not at any session / task boundary.
-- **Does not replace a linter** — syntax / style is lint's job.
-- **Does not audit security, performance, accessibility, or i18n** — separate skills.
-- **Does not apply fixes silently** — every fix is propose-confirm-commit per finding.
-- **Does not track findings across runs in any active sense** — the §7b artefact is a passive record read for repeat-run tagging, never re-played, executed, or used to prompt the user outside a fresh `/review` invocation.
-- **Does not auto-suggest rule-tightening** on recurring findings — deliberately parked.
-- **Does not modify rule files itself** — rule changes route through capture (or an explicit user-confirmed Edit on retag / threshold adjustment).
-- **Does not write to the Obsidian vault unless asked** — the vault copy (§7c) is opt-in; the in-repo artefact always writes.
-- **Does not silently promote a vault file to a subfolder** — promotion (≥2 iterations, >3000 lines, or `--expand`) is always proposed first.
+- **Does not auto-fire**, post to GitHub, check out PR branches, or run tests.
+- **Does not replace a linter.** Security goes deeper with `security-reviewer`; fit-and-intent is `checkpoint`; bug-hunting your own diff is the built-in `code-review`.
+- **Does not apply fixes silently** or on a PR target.
+- **Does not settle tensions** — it shows both sides and what would decide.
+- **Does not spawn agents without `--angles`.**
+- **Does not track findings actively** — the persisted artefacts are read only by the next run.
 
 ## Relationship to other organs
 
-- **discover** — rule retrieval. Same pattern as prep.
-- **deliver** — rule-body rendering inside discover. `render_bodies: true` on every call.
-- **capture** — feedback-loop writeback. Sharpen / add / retag / adjust-threshold all route through capture where they involve writing to the memory tree.
-- **prep** — complementary. When review keeps finding the same drift in an area prep should have covered, the prep rule for that scope needs sharpening. The feedback loop routes that change.
-- **architectural-rules tree** — the corpus. Review's quality is bounded by the corpus's quality. Feedback loop is how the corpus improves.
-- **retrospect-core** — runs the same orient / baseline-diff / render / persist machinery this skill keeps inlined. Deliberate duplication: review is the code-facing original, retrospect-core the generalised engine for the meta-review passes. When one changes, check the other.
-- **recap** — review findings are not automatically captured; the user can ask `/recap` separately after a review if the run produced notable learnings.
+- **discover / deliver** — rule retrieval and rendering. **capture** — feedback-loop writeback. **prep** — primes before writing; review detects after.
+- **retrospect-core** — the same orient / baseline / render / persist ideas, generalised for checkpoint. When one changes, check the other.
+- **human-view** — the plan-side projection; the code-side pack lives here in [pack.md](pack.md).
+- **security-reviewer** — verifier for security findings. **pr-triage / pre-push / pr-author** — the reviewee side of a PR.
 
-See [`docs/review-organ.md`](../../docs/review-organ.md) for the scope map and rationales.
+See [`docs/review-organ.md`](../../docs/review-organ.md) for rationale.

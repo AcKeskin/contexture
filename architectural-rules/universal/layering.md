@@ -12,4 +12,4 @@ relevance: always
 - <!-- id: interfaces-at-boundaries --> Interfaces at layer boundaries. Inner layers define contracts; outer layers implement them.
 - <!-- id: dependency-inward --> Dependency direction strictly inward. Outer depends on inner; never the reverse.
 
-**Why:** layering is what keeps core logic portable and testable. Inversion of control at the boundary is what makes swap-out cheap later.
+**Why:** layering keeps core logic portable and testable, and makes swapping a boundary cheap.

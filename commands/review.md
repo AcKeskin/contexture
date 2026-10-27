@@ -1,26 +1,27 @@
 ---
-description: Audit code in scope against architectural rules. Report drift findings with propose-confirm-commit per fix and a feedback loop to improve the rule corpus.
+description: Review local code or a GitHub PR from one or more angles — rule drift locally, correctness/design/hygiene/security on a PR, plus any angle you add. Ends with your pick, a walk, a review page or an Obsidian note.
 ---
 
 Run the `review` skill.
 
-Forms:
+Targets:
 
-- `/review` — entire current project.
-- `/review <path>` — directory (recursive) or a single file.
-- `/review --since <ref>` — only files changed since the given git ref.
+- `/review` — whole project. `/review <path>` — a directory or file. `/review --since <ref>` — files changed since a ref.
+- `/review --pr [N] [path…]` — a GitHub PR (`/pr-review` is an alias).
+
+Flags (combine with any target):
+
+- `--angles [list|auto|all]` — e.g. `--angles performance,extensibility`. One fresh reviewer per angle; findings are merged, ranked, and conflicts shown as trade-offs. Projects add angles in `.claude/review-angles.md`.
+- `--pack` — a plain-language pack first: metrics, structure, call flow, how to build on it, performance.
+- `--artifact` — open the review as a page (Claude artifact, or a local HTML file).
+- `--vault` — write an Obsidian note with tick-box picks.
 
 Examples:
 
-- `/review` — scan the whole project for drift.
-- `/review src/auth/` — scan just the auth module.
-- `/review src/auth/middleware.ts` — scan a single file.
-- `/review --since main` — scan files changed on the current branch.
+- `/review src/auth/` — rule-drift audit of the auth module.
+- `/review --since main --angles auto` — drift plus 3–4 angles picked from the diff.
+- `/review --pr 123 --angles perf,extensibility --pack --artifact`
 
-The skill resolves scope, loads architectural rules via `skills/discover/SKILL.md` (`kind: "architectural-rule"`, `relevance_phases: ["always", "during-review"]`, `render_bodies: true`), reads `.claude/architecture.md` if present, and scans each file in scope for drift across six categories: dead code, monolithic files, SoC violations, missing pattern usage, principle violations, comment drift. Findings come with specific fixes — not "consider refactoring." Each fix is propose-confirm-commit (apply / skip / edit / view-detail) — no silent changes.
-
-At the end of every run, the skill asks *"did this catch what you wanted?"* A "no" opens the feedback loop: sharpen an existing rule, add a new rule, retag a rule, or adjust a threshold — each routed through `/capture` so the system improves from the correction.
-
-Does not auto-fire. Not a linter replacement, not a security audit, not a test coverage report.
+You see metrics and the big picture first; the model does the call tracing. Pick what to keep in one line, `walk` through findings one by one, or pick on the page or in the vault note. Local reviews then apply the kept fixes with your confirmation and ask whether the review caught what you wanted. Nothing is posted to GitHub.
 
 See `~/.claude/skills/review/SKILL.md` for the full procedure.

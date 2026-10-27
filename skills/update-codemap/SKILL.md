@@ -43,7 +43,7 @@ The script honors `$CLAUDE_PROJECT_DIR`, reads `.claude/codemap.config.md` (skip
 
 - User types `/update-codemap`.
 - User asks to refresh / create / update the codemap.
-- Do **not** auto-fire. User owns freshness.
+- Do **not** auto-fire. User owns freshness. The `codemap-refresh` hook says at session start when the codemap is 5+ files behind, and regenerates it in the background only in projects that opt in with `- refresh: true` (see `## Auto-update` below).
 - Codemap is a map, not the territory. This skill does not replace reading the actual code when implementation details matter.
 
 ## Inputs
@@ -255,7 +255,7 @@ Start here — the most-depended-on files, ranked by importers:
 **Overview section** — prose paragraph:
 - First sentence pulled from the root `README.md` H1's first paragraph if present; otherwise the root `package.json` `description`; otherwise a one-liner from the project name.
 - Append `Entry: <up to 2 entry points>` when entry points are detected.
-- Append `Dominant language: <lang>` based on the most common LANG_BY_EXT classification across all included files.
+- Append `Dominant language: <lang>` based on the most common source language across all included files (`.js`/`.mjs`/`.cjs`/`.jsx` count as `js`, though they parse with the ts grammar).
 - Always emit the section. Never omit it.
 
 **Map section** — a ranked table of the most-depended-on files (top 12 by inbound file-edge count, importers > 0), each with its purpose. The agent's entry point: read these first instead of scanning the tree. Distinct from `## Hubs` (which lists every file with ≥3 importers); Map is the top slice as a table. Omitted when no file has inbound edges.
@@ -411,6 +411,7 @@ Full example:
 ## Auto-update
 
 - enabled: true
+- refresh: true
 ```
 
 **Section reference:**
@@ -418,7 +419,7 @@ Full example:
 - `## Skip` — additive to defaults. Bullet list of backtick-quoted gitignore-style globs. See §2 parsing rules.
 - `## Vendored` — bullet list of backtick-quoted gitignore-style globs. Files under these patterns are scanned for tree structure but get `<vendored>` as their purpose line and no `exports:` entry. Imports out of vendored files are not emitted into `## Dependencies` / `## File deps`. Use this for in-tree third-party SDKs (e.g. bundled OpenXR headers) that you want represented in the tree but not as part of the project's surface area. Imports *into* vendored files (e.g. project code that `#include`s a bundled header) still produce edges — vendored is about ownership of the file, not visibility.
 - `## Layers` — `<LayerName>: <module>, <module>, ...` per bullet. Module names match top-level directories. Surfaces in the codemap's `## Layers` section and is consumed by `visualise-codemap` to cluster L1 nodes.
-- `## Auto-update` — `enabled: true` (or `- enabled: true`) opts the project into the codemap-dirty hook. The hook touches `.claude/codemap.dirty` on any project-tree write so the next `/update-codemap` run knows the codemap is stale. Anything other than `enabled: true` (missing line, `enabled: false`, missing section) keeps the project opt-out — no sentinel is ever written. The hook is registered globally; this section is the per-project gate.
+- `## Auto-update` — `enabled: true` (or `- enabled: true`) opts the project into the codemap-dirty hook. The hook touches `.claude/codemap.dirty` on any project-tree write so the next `/update-codemap` run knows the codemap is stale. Anything other than `enabled: true` (missing line, `enabled: false`, missing section) keeps the project opt-out — no sentinel is ever written. The hook is registered globally; this section is the per-project gate. `refresh: true` opts into background regeneration by the `codemap-refresh` hook at session start and after each turn, whenever git shows files changed since the codemap was written. It is incremental (extraction cache) and needs this skill's tree-sitter deps (`npm install` here); without them the hook only advises, so a refresh never downgrades to the regex fallback.
 
 **Glob semantics (Skip and Vendored):**
 - `*` matches a single path segment.

@@ -14,4 +14,4 @@ relevance: always
 - <!-- id: no-speculative-abstractions --> No speculative abstractions. Build for the concrete requirement; generalise when the second use case arrives, not the first.
 - <!-- id: no-temporary-solutions --> No "temporary" solutions. Temporary code outlives permanent code.
 
-**Why:** each of these defers cost. Every violation turns into a debugging session later.
+**Why:** each violation is a debugging session later.

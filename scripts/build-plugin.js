@@ -44,6 +44,11 @@ const BUNDLE_INFO = {
   agentOutputContracts: ['Agent output contracts', 'After a subagent finishes, flag output that breaks its contract.'],
   codemapDirty: ['Codemap dirty marker', 'Mark the codemap stale when files change in opted-in projects.'],
   rulePrime: ['Rule priming', 'Load matching architectural rules at session start and per prompt.'],
+  fileHistory: ['File history check', 'Before the first edit of a file, show warning and lesson memories that name it.'],
+  compactSnapshot: ['Compaction snapshot', 'Save the last request, todos, edited files and errors before compaction; restore after.'],
+  editChecks: ['Edit checks', 'Run trusted checks from .claude/edit-checks.json after edits; report only new problems.'],
+  codemapNudge: ['Codemap nudge', 'On the first search of a session, point at .claude/codemap.md if it exists.'],
+  codemapRefresh: ['Codemap refresh', 'Say when the codemap is out of date; refresh it in the background where Auto-update refresh is on.'],
 };
 
 const SCRIPT_RE = /\/hooks\/([\w.-]+\.js)$/;
@@ -54,6 +59,8 @@ const CURSOR_EVENTS = [
   ['PreToolUse', /\bBash\b/, 'beforeShellExecution'],
   ['PostToolUse', /\b(Write|Edit)\b/, 'afterFileEdit'],
 ];
+// Bundles that need an event Cursor lacks. editChecks needs a pre-edit baseline.
+const CURSOR_SKIP = new Set(['editChecks']);
 
 const MCP_SCRIPT = 'mcps/project-memory/dist/project-memory.cjs';
 
@@ -98,6 +105,7 @@ function buildHooks(template) {
 function buildCursorHooks(template) {
   const hooks = {};
   for (const [bundle, events] of pluginBundles(template)) {
+    if (CURSOR_SKIP.has(bundle)) continue;
     for (const [event, matchers] of Object.entries(events)) {
       for (const m of matchers) {
         const target = CURSOR_EVENTS.find(([e, re]) => e === event && re.test(m.matcher || ''));

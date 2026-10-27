@@ -31,6 +31,7 @@ namespace UnityMcp.Editor.Tools.Components
             {
                 case SerializedPropertyType.Integer:
                 case SerializedPropertyType.LayerMask:
+                case SerializedPropertyType.ArraySize: // '<field>.Array.size' resizes a list
                     p.intValue = value.Value<int>();
                     return;
                 case SerializedPropertyType.Boolean:

@@ -13,6 +13,14 @@ import {
   writeMemorySchema,
   writeMemoryHandler,
 } from "./tools/write-memory.js";
+import {
+  writeHandoffSchema,
+  writeHandoffHandler,
+  listHandoffsSchema,
+  listHandoffsHandler,
+  claimHandoffSchema,
+  claimHandoffHandler,
+} from "./tools/handoff.js";
 
 const server = new McpServer({
   name: "project-memory",
@@ -52,6 +60,27 @@ server.tool(
   "Write an observation to project memory. `tier: scratch` appends a session-scoped, TTL'd, disposable entry (a decision / discovery / corrected assumption — never a tool-log) that reloads on resume so re-orientation is a read. `tier: canonical` is refused without capture's confirmed gate — /capture owns durable authoring.",
   writeMemorySchema,
   writeMemoryHandler,
+);
+
+server.tool(
+  "write_handoff",
+  "Leave a handoff for the next agent on this project (Claude Code, Codex, Copilot, ...): where the work stands, next steps, what failed, open questions. Use when stopping mid-task or switching tools.",
+  writeHandoffSchema,
+  writeHandoffHandler,
+);
+
+server.tool(
+  "list_handoffs",
+  "List open handoffs for this project, newest first. Check at the start of a task picked up from another agent.",
+  listHandoffsSchema,
+  listHandoffsHandler,
+);
+
+server.tool(
+  "claim_handoff",
+  "Claim an open handoff and get its full text. Each handoff can be claimed once; omit id for the newest.",
+  claimHandoffSchema,
+  claimHandoffHandler,
 );
 
 async function main() {

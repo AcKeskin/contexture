@@ -1,6 +1,6 @@
 # Review output contract
 
-The shared output shape for every review-flavoured skill — [`review`](../skills/review/SKILL.md), [`pr-review`](../skills/pr-review/SKILL.md), and any future `security-review`. This doc is the authority; the consuming skills cite it, they do not restate it.
+The shared output shape for every review-flavoured skill — [`review`](../skills/review/SKILL.md) (local and `--pr` targets) and any future `security-review`. This doc is the authority; the consuming skills cite it, they do not restate it.
 
 ## What the contract owns
 
@@ -13,14 +13,14 @@ Three skills produced three slightly-different shapes and the same two affordanc
 | What is a finding | each skill's review categories | Assumes findings already collected |
 | Whether to apply a fix | each skill's propose-confirm loop | Untouched — contract is presentation only |
 | Where the artefact lives | each skill's persistence section | Untouched — contract shapes the body, not the path |
-| `file:line` citation rule | review + pr-review | Reaffirms it; a finding without `file:line` is not a finding |
-| Grounding gate | review + pr-review + code-review | A finding must quote real code at its cited line — from the fetched diff, or from the file itself when no diff exists — with its *meaning* confirmed by reading the surrounding file, not the diff hunk alone (§1a) |
+| `file:line` citation rule | review | Reaffirms it; a finding without `file:line` is not a finding |
+| Grounding gate | review + code-review | A finding must quote real code at its cited line — from the fetched diff, or from the file itself when no diff exists — with its *meaning* confirmed by reading the surrounding file, not the diff hunk alone (§1a) |
 
 ## 1. File grouping + destination-dependent within-file order (primary)
 
 Findings render **file-grouped**, files in the order the reviewer encounters them. **Within a file, the sort order depends on where the output goes:**
 
-- **GitHub-facing** (`pr-review`, `code-review` posting inline comments) → **line-ascending**. This matches GitHub's Files-changed view, where inline comments render top-to-bottom by line — so the findings read in the same order the reviewer scrolls the PR. Files render in the PR's Files-changed order (alphabetical-by-path, GitHub's default).
+- **GitHub-facing** (`review --pr`, `code-review` posting inline comments) → **line-ascending**. This matches GitHub's Files-changed view, where inline comments render top-to-bottom by line — so the findings read in the same order the reviewer scrolls the PR. Files render in the PR's Files-changed order (alphabetical-by-path, GitHub's default).
 - **Terminal-only** (`review` on the working tree) → **severity-first** (Critical → High → Medium → Low). In a terminal read there is no line-anchored display to mirror, and worst-thing-first tells the reviewer whether the file is acceptable at a glance.
 
 Either way severity stays visible — in each finding's `[Severity / Effort]` label and the Severity × Category roll-up (§5). Only the within-file *sort key* changes with destination; the severity signal is never dropped.
@@ -43,7 +43,7 @@ Either way severity stays visible — in each finding's `[Severity / Effort]` la
 ```
 
 - Within-file sort key: **line-ascending** for GitHub-facing output, **Critical → High → Medium → Low** for terminal-only (see above). Effort suffix (`S`/`M`/`L`) is informational, never a sort key.
-- A finding that spans multiple files appears under the **primary** file (the changed file for pr-review; the importer for working-tree review) with cross-references in the recommendation.
+- A finding that spans multiple files appears under the **primary** file (the changed file on a PR target; the importer for working-tree review) with cross-references in the recommendation.
 - Files with zero findings still render as `## <path> — no findings` (one line) so the reviewer can confirm the file was scanned, not skipped.
 - The category-grouped view (all SoC violations across the run, etc.) is a permitted **secondary** view. File-grouped is primary; category-grouped is optional supplementary. The Severity × Category roll-up matrix (§5) carries the category-level signal.
 
@@ -154,6 +154,25 @@ The table is the **scan** view; the file-grouped sections are the **read-in-orde
 
 Low effort × Medium+ severity findings, rendered as a checklist after the table. Always present — when no finding qualifies, render the section with an explicit one-liner (`None — no Low-effort × Medium+-severity findings in this run`) rather than omitting it.
 
+## 7. Multi-angle findings
+
+Applies to every [review](../skills/review/SKILL.md) run (angles, metrics, pick); multi-agent parts only with `--angles`. Everything above still holds; this adds five things.
+
+- **Human view first, code on request.** The decide view opens with metrics (review §5), then *needs your call*, then the ranked list as `id · severity · impact · angles`. Each finding carries `impact` (one plain line, no code) and `chain` (the call path the model followed). Code, chain and verifier notes show only on `show`, `code`, or the page's folded section. The model traces; the human decides.
+
+- **Angle tags.** Each finding shows the angles that raised it after its label: `[High / M] Performance — N+1 query in loop  (performance, correctness)`. Two or more angles on one finding is signal; the pick view ranks it higher.
+- **Coverage line** in the header: which angle covered which files, how many findings each returned, which failed, and which `auto` skipped and why.
+- **Tensions** section, after Needs validation (or before the findings table where there is none). One entry per conflict, no severity:
+
+  ```
+  T1  src/feed/render.ts:40-72
+      performance: inline the formatter; it runs per item (L52 loop over 10k rows)
+      readability: keep it extracted; it is reused in export.ts:18
+      Settles it: a profile of the 10k-row case, or confirming export.ts stays
+  ```
+
+- **Pick view.** One ranked list (ids stay the stable `F<NNN>`) ordered by severity, then angle count, then verified, then effort, followed by the single pick prompt. File-grouped order stays the primary *read* view; the ranked list is the *decide* view. After the pick, the persisted artefact marks each finding `kept`, `dropped` or `wontfix` and records tension resolutions. The same decisions can come from a walk (review §6), a pick pasted from the review page, or boxes ticked in the Obsidian note; all four write the same [findings.json](../skills/review/findings-schema.md).
+
 ## What this is not
 
 - **Not a new skill, not a slash command.** A doc consumed by skills.
@@ -166,7 +185,7 @@ Low effort × Medium+ severity findings, rendered as a checklist after the table
 | Skill | How it consumes |
 | --- | --- |
 | [`review`](../skills/review/SKILL.md) | File-primary grouping (already), diagrams (already, §5b), findings table + quick wins + looks-bad-but-fine (already). **New from this contract:** suggestion blocks per §3 in the propose-fix recommendations. |
-| [`pr-review`](../skills/pr-review/SKILL.md) | File-grouped + severity-sorted (already), mandatory diagram (already, §10), file:line gate (already), summary matrix + key-findings table + checklist (already). **New from this contract:** suggestion blocks per §3, replacing freeform `Suggestion:` prose where the four conditions hold. |
+| [`review`](../skills/review/SKILL.md) `--pr` | Same skill on a PR target: line-ascending within files, verdict + checklist, vault note via `render-note.mjs`. |
 | future `security-review` | Hard input from day one — security fixes are overwhelmingly ≤10-line localised changes, so suggestion blocks apply heavily. |
 
 The two skills already implemented ~80% of this shape independently. The contract's job is to (a) stop the shape being re-derived per skill, and (b) add the one affordance neither had — suggestion blocks — which is what makes the one-click apply round-trip pay off.

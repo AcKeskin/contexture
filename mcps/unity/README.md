@@ -27,7 +27,7 @@ Because the surface lives on the Editor side and is advertised dynamically, addi
 | **Project / scene** | `project_info`, `scene_info`, `scene_load`, `scene_save`, `scene_create`, `scene_set_active` |
 | **GameObject** | `go_create`, `go_find`, `go_delete`, `go_set_transform`, `go_set_parent`, `go_set_active`, `go_serialize` |
 | **Component** | `component_add`, `component_remove`, `component_list`, `component_describe`, `component_set_property`, `component_set_properties` |
-| **Asset / prefab** | `asset_create`, `asset_find`, `asset_import`, `asset_delete`, `asset_get_dependencies`, `prefab_create_from`, `prefab_instantiate`, `prefab_apply_overrides`, `prefab_revert` |
+| **Asset / prefab** | `asset_create`, `asset_find`, `asset_set_properties`, `asset_import`, `asset_delete`, `asset_get_dependencies`, `prefab_create_from`, `prefab_instantiate`, `prefab_apply_overrides`, `prefab_revert` |
 | **Material / physics / settings** | `manage_material`, `manage_physics`, `manage_project_settings`, `manage_packages`, `manage_camera` |
 | **UI authoring** | `ui_create_canvas`, `ui_create_text`, `ui_create_image`, `ui_create_layout_group`, `ui_set_rect` |
 | **Scripts** | `manage_script`, `script_apply_edits`, `find_in_file` |

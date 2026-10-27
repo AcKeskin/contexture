@@ -87,14 +87,14 @@ needs canonical pinning a second time (promote-on-second-occurrence).
 
 ## Change discipline
 
-- Surface assumptions before coding. State them; if multiple interpretations exist, present them; if a simpler approach exists, say so. Do not silently pick.
-- Surgical edits. Don't "improve" adjacent code, comments, or formatting. Don't refactor what isn't broken. Match existing style even if you'd write it differently.
-- No unrequested scope. Build the minimal thing that satisfies the request — don't add configurability, abstraction, options, or features the user didn't ask for. When a broader or configurable design tempts you, *propose it and get confirmation* before building; never bake speculative generality in. Over-building costs a full revert.
-- Clean up only your own mess. Remove imports / variables / functions that *your* changes orphaned. Do not delete pre-existing dead code unless asked — flag it, don't act.
+- Surface assumptions before coding. State them; if the ask reads several ways or a simpler approach exists, say so. Do not silently pick.
+- Surgical edits. Don't improve adjacent code, comments or formatting, or refactor what isn't broken. Match the existing style.
+- No unrequested scope. Build the minimal thing asked for: no extra configurability, abstraction, options or features. If a broader design tempts you, propose it and get confirmation first.
+- Clean up only your own mess: remove imports, variables and functions your change orphaned. Flag pre-existing dead code; don't delete it unless asked.
 - Every changed line traces to the user's request.
-- Goal-driven execution. Translate vague tasks into verifiable goals — "add validation" → "tests for invalid inputs, then make them pass." For multi-step tasks, state plan with per-step verification before starting.
+- Goal-driven execution. Turn vague tasks into verifiable goals ("add validation" → tests for invalid inputs, then make them pass). For multi-step work, state the plan with a check per step first.
 
-**Why:** code-standards covers *what* good code looks like; this rule covers *how* changes are made. The two failure modes are different — the first produces bad code, the second produces drift in adjacent code that no one asked for.
+**Why:** code-standards covers what good code looks like; this covers how changes are made. Bad code and unrequested drift in adjacent code are different failures.
 
 ## Code standards
 
@@ -105,7 +105,7 @@ needs canonical pinning a second time (promote-on-second-occurrence).
 - No speculative abstractions. Build for the concrete requirement; generalise when the second use case arrives, not the first.
 - No "temporary" solutions. Temporary code outlives permanent code.
 
-**Why:** each of these defers cost. Every violation turns into a debugging session later.
+**Why:** each violation is a debugging session later.
 
 ## Config is truth, not installer wizards
 
@@ -239,7 +239,25 @@ Branching model and command mechanics: see universal/git-workflow.
 - Interfaces at layer boundaries. Inner layers define contracts; outer layers implement them.
 - Dependency direction strictly inward. Outer depends on inner; never the reverse.
 
-**Why:** layering is what keeps core logic portable and testable. Inversion of control at the boundary is what makes swap-out cheap later.
+**Why:** layering keeps core logic portable and testable, and makes swapping a boundary cheap.
+
+## Mark shortcuts
+
+**Mark the shortcut where it lives.** When you knowingly take the smaller path (hardcoded value, missing case, no retry, skipped test), leave one comment at that spot:
+
+```
+// shortcut: single currency only; add conversion when a second one ships
+```
+
+Say what was cut and what would make it worth doing. One line. Use the file's comment syntax; the marker word is `shortcut:`.
+
+**Name what you skipped.** End the reply with what you did not do or did not check: untested paths, cases left out, commands not run. One line each. Nothing skipped, say nothing.
+
+**Not for safety work.** Input validation at a trust boundary, data-loss handling, security, and accessibility are never shortcuts. Do them or stop and ask.
+
+**The ledger.** `/shortcuts` lists every marker in the project by file, so they can be paid down or turned into issues. A marker that no longer applies is deleted with the fix.
+
+**Why:** a shortcut nobody can find later is a bug with a delay. A grep-able marker costs one line and makes the debt countable.
 
 ## Naming & comment quality (universal)
 
@@ -263,10 +281,10 @@ Abbreviate **only where idiomatic** to the surrounding code and domain (`ctx`, `
 
 - One type per file, filename matches the type — where the language's file idiom supports it.
 - No versioning suffixes in names: `New`, `V2`, `Final`, `Redesigned`. If an old version must coexist, rename the old one to `<Name>_OLD` and delete once the new one is proven.
-- Booleans read as a predicate. Prefix `Is` / `Has` (or `Can` / `Should` where it reads better) on boolean members, properties, and functions returning a boolean: `IsReady`, `HasPendingWrites`, `CanRetry`. Not `ready`, `pending`, `flag`, `status`. Applies to the language's casing — `is_ready` in snake_case languages. Negated names are banned: `IsNotReady` inverts at every call site.
+- Booleans read as a predicate: prefix `Is` / `Has` (or `Can` / `Should`) on boolean members and functions, e.g. `IsReady`, `HasPendingWrites`, `is_ready` in snake_case. Not `ready`, `flag`, `status`. No negated names like `IsNotReady`.
 - Language-specific casing and file-layout idioms live in per-language rules under `<lang>/naming.md` and win.
 
-**Why:** suffixes like `V2` become permanent; `_OLD` is a visible debt you cannot ignore. A bare `ready` reads as a noun at the call site, so `if (thing.ready)` is ambiguous between a state object and a boolean — the predicate prefix removes the guess.
+**Why:** suffixes like `V2` become permanent; `_OLD` is visible debt. A bare `ready` could be a state object or a boolean; the prefix removes the guess.
 
 ## No hardcoded machine-specific paths in skills or code
 
@@ -396,7 +414,7 @@ This rule covers *when* a model-invocable skill fires. Whether a skill may be mo
 - Composition over inheritance. Inheritance only when the "is-a" is durable and substitutable; otherwise compose.
 - Explicit ownership, lifetimes, responsibilities. If "who owns this" is unclear, the design is wrong.
 
-**Why:** the cost of these rules is paid once at design time; the cost of ignoring them compounds forever.
+**Why:** these cost once at design time; ignoring them costs forever.
 
 ## Test quality (universal)
 

@@ -1462,7 +1462,7 @@ function normalizeFolderKey(s) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 }
 
-// Derive <ProjectFolder> under <Vault>/Projects/. Convention (shared with pr-review /
+// Derive <ProjectFolder> under <Vault>/Projects/. Convention (shared with review /
 // review / document): MATCH an existing Projects/ subfolder first; only create a new one
 // when nothing fits. Without this match step the skill spawns near-duplicate folders that
 // differ only by stripped punctuation (e.g. `Odds Ends  Errands` vs `Odds, Ends & Errands`).

@@ -16,7 +16,7 @@ Examples:
 
 Slug derivation follows §7b. Date is `YYYY-MM-DD` of the run.
 
-**File body** mirrors the in-repo `latest.md` body verbatim — same frontmatter, same §5 report, same diagram, same per-file findings, same tables. The only difference: the vault frontmatter gains a `source:` field pointing at the in-repo artefact path (`.claude/reviews/<slug>/v<N>.md`) so the reader can find the canonical baseline from inside Obsidian.
+**File body** is rendered from the run's findings.json by `render-note.mjs` (SKILL.md §10 has the call) — metrics first, one section per finding with `keep / drop / wontfix:` boxes, code folded in a callout. Pass `source: .claude/reviews/<slug>/v<N>.md` in `run.frontmatter` so the reader can find the canonical baseline from inside Obsidian. Iteration files use `--body-only`. Ticked boxes come back through "apply vault picks".
 
 **Promotion to subfolder.** A flat `.md` is the default. Promote to a subfolder when any of these trip:
 

@@ -59,3 +59,4 @@ Read the artefact and render the four parts above. Rules:
 - **deliver** — the sibling projector, opposite audience: `deliver` renders fragments *for the LLM*; human-view renders artefacts *for the human*. Same faithful-source-of-truth discipline.
 - **the AGENTS.md projector / two-doc-tracks** — the same humans-vs-agents split, applied to working artefacts instead of the shipped corpus.
 - **visualise-codemap** — shares the vault conventions + `vaultRoot`-from-config rule for the `--vault` copy.
+- **review** — its `--pack` is the code-side counterpart of this view ([pack.md](../review/pack.md)).

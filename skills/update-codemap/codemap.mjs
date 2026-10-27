@@ -991,13 +991,16 @@ function readPackageDescription(root) {
   return '';
 }
 
+const JS_EXTS = new Set(['.js', '.mjs', '.cjs', '.jsx']);
+
 function dominantLanguage(groups) {
   const counts = new Map();
   for (const items of groups.values()) {
     for (const it of items) {
       const ext = path.extname(it.rel).toLowerCase();
-      const lang = LANG_BY_EXT[ext];
-      if (!lang) continue;
+      if (!LANG_BY_EXT[ext]) continue;
+      // LANG_BY_EXT names the parser grammar (.js parses as ts); report the source language.
+      const lang = JS_EXTS.has(ext) ? 'js' : LANG_BY_EXT[ext];
       counts.set(lang, (counts.get(lang) || 0) + 1);
     }
   }
