@@ -1,6 +1,6 @@
 {
   "permissions": {
-    "allow": ["Bash(node *skills/review/save-run.mjs *)", "PowerShell(node *save-run.mjs *)", "Edit(**/.review-run.tmp.*)", "Bash(git log *)"]
+    "allow": ["Bash(node *skills/review/save-run.mjs *)", "PowerShell(node *save-run.mjs *)", "Bash(node *skills/review/receipts.mjs *)", "PowerShell(node *receipts.mjs *)", "Edit(**/.review-run.tmp.*)", "Bash(git log *)"]
   },
   "statusLine": {
     "type": "command",

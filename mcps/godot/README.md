@@ -37,7 +37,7 @@ v2 adds four bundles **on the same architecture** (no new transport/envelope/thr
 `node_delete`, `node_reparent`, `node_set_property`, `node_duplicate` (all undo-wrapped); `scene_create`, `scene_open`, `scene_save`, `scene_reload`; `script_create`, `script_attach`, `script_validate`; `project_settings_get`/`set`, `input_map_list`/`add`/`remove`.
 
 **Bundle 2 — build / export + C# (CLI):**
-`export_preset` (drives `--export-release`/`--export-debug`, returns artifact + exit code, structured error on misconfig — never hangs); `dotnet_build` (C# projects only — runs `dotnet build`, returns `{success, errors:[{file,line,message}], warnings}`). `dotnet_build` is advertised only when the project is C#.
+`export_preset` (drives `--export-release`/`--export-debug`, returns artifact + exit code, structured error on misconfig — never hangs); `dotnet_build` (C# projects only — runs `dotnet build`, returns `{success, errors:[{file,line,message}], warnings}`). `dotnet_build` is advertised only when the project is C#. `gdscript_check` parse-checks `.gd` files headless with real line numbers: it loads each file after autoloads register, which `--check-only` does not, so code that names an autoload passes. No paths means every `.gd` outside `addons/`; pass `import: true` once on a project the editor never opened.
 
 **Bundle 3 — Game UI / Control nodes (socket):**
 `ui_create_control` (anchor-preset-aware, undo-wrapped), `ui_inspect_control` (anchors/offsets/size/theme), `ui_set_anchors`, `ui_get_theme`, `ui_set_theme_override`, `ui_set_container_layout`.
@@ -53,7 +53,7 @@ v2 adds four bundles **on the same architecture** (no new transport/envelope/thr
 
 ## Content-pipeline bundle (additive)
 
-Four more socket tools on the same descriptor-driven architecture (no TypeScript change — the server picks them up from the plugin's capability descriptor). The surface grows to **42 tools** (43 on a C# project). These close the "author and wire up content, not just nodes" gap.
+Four more socket tools on the same descriptor-driven architecture (no TypeScript change — the server picks them up from the plugin's capability descriptor). The surface grows to **42 tools** (43 on a C# project; `gdscript_check` later makes it 43 and 44). These close the "author and wire up content, not just nodes" gap.
 
 - **`import_asset`** — copy an image from a drop folder into `res://` and drive the editor import so it loads as a `Texture2D`. Reimport is deferred in Godot 4.6 (a bare `scan()` + `reimport_files()` collides re-entrantly), so the handler is a coroutine that awaits via `update_file` + a bounded frame poll. Rejects non-image extensions with a structured `InvalidInput`.
 - **`set_resource`** — build a `Texture2D` / `AtlasTexture` (region `Rect2`) / `StyleBoxTexture` and assign it to a node property, undo-wrapped (single Ctrl+Z).

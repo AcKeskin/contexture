@@ -1,6 +1,6 @@
 ---
 name: recap
-description: "Write a session recap — an episodic record of what a work session was about, what was investigated, learned, completed, and what's next; Learned items can be promoted to memories via /capture. Use on /recap, \"wrap up\" / \"write session notes\" / \"recap this session\", or session-closure signals (\"done for today\", PR merged, deliberate pause). Mode A — never auto-fires."
+description: "Write a session recap: an episodic record of what the session was about, what was investigated, learned and completed, and what's next; Learned items can be promoted to memories via /capture. Use on /recap, \"recap this session\", \"write session notes\", or session-closure signals (done for today, PR merged, deliberate pause). Mode A — never auto-fires."
 ---
 
 # recap

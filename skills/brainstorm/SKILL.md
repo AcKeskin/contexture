@@ -1,6 +1,6 @@
 ---
 name: brainstorm
-description: Ideation organ upstream of /envision — talk a half-formed idea into shape, or crystallize a blurry one into a name, one-line description, edges (in/out), and end-goal. Converges (doesn't just chat); writes a light .claude/ideas/<slug>.md note that /envision picks up. Use on /brainstorm [slug], "help me shape this idea", "I have a vague idea for…", "crystallize this". Mode A — propose-confirm, never auto-fires.
+description: "Ideation organ upstream of /envision: talk a half-formed idea into a name, one-line description, edges (in/out) and end-goal, and write a light .claude/ideas/<slug>.md note that /envision picks up. Converges rather than chats. Use on /brainstorm [slug], \"help me shape this idea\", or when the user has a vague idea to shape. Mode A — propose-confirm, never auto-fires."
 ---
 
 # brainstorm

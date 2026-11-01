@@ -1,6 +1,6 @@
 ---
 name: visual
-description: "Visual organ for UI projects: one design contract (tokens, references, screen states), captures by named state through the project's own command, deterministic checks, and a fresh critic that decides within the contract while the user reviews after. Use on /visual setup, /visual audit, /visual verify, /visual rollback, or when /cycle runs a UI project."
+description: "Visual organ for UI projects: one design contract (tokens, references, screen states), captures by named state through the project's own command, deterministic checks, and a fresh critic that decides within the contract while the user reviews after. Use on /visual setup, /visual audit, /visual verify, /visual rollback, /visual break, or when /cycle runs a UI project."
 disable-model-invocation: true
 ---
 
@@ -19,6 +19,7 @@ Its rules come from a hand-run on a real UI project, where an uninstructed criti
 - `/visual verify <run>` — inside a cycle's stage 4: capture what the change touched and hand it to the loop's critic.
 - `/visual critic <run>` — **only** as the loop's headless critic session.
 - `/visual rollback <state>` — restore an earlier baseline.
+- `/visual break <component>` — render one component under every worst case that can reach it, on a throwaway page, and report what broke. Procedure: [break.md](break.md).
 - User-invoked, or run by `/cycle` when `.claude/visual/contract.json` exists. Never on its own.
 
 ## Setup
@@ -72,6 +73,19 @@ You are the critic: a fresh session that has not seen how the change was made. J
 4. **Check each claim against the code** before you write it (grep the selector, the token, the comment near it), and set `checked_against_code: true`. A claim you could not check is not a verdict; leave it out and say so in `evidence` of the nearest one.
 5. Write the list to `<run>/visual/verdicts.json` and stop. The loop validates it, rejects stale captures, records each decision and moves baselines on approval.
 
+## Before you finish
+
+Applies to audit, verify, critic and break. Report only checks that ran on the final captures; name a skipped check as skipped.
+
+| Mistake | Fix |
+| --- | --- |
+| A verdict on an image you did not open | Open every listed image after the last change, or drop the verdict |
+| A capture older than the head it judges | Recapture; the loop rejects stale captures anyway |
+| A "defect" a code comment calls deliberate | Grep near the selector before writing it; it is `consistent` or `taste` |
+| `needs-revision` with no contract line | Make it `taste`, or a proposed contract line |
+| A fix that only removes things (labels, rules, cards) and leaves the screen thin | Removing a tell is half the fix; replace it with real content or larger type, as the contract allows |
+| "All checks pass" when the style dump did not run | Say pixel diff only |
+
 ## Rollback
 
 `node <skill-dir>/visual.mjs rollback <repo> <state> [history-file]` restores the newest earlier baseline (or the one named). The current baseline goes to history first, so a rollback can be undone. The status page's Visual view has the same button.
@@ -79,7 +93,7 @@ You are the critic: a fresh session that has not seen how the change was made. J
 ## What visual does NOT do
 
 - **Not a design generator.** It checks and compares; the implementer makes the UI.
-- **Not a capture framework.** The project declares its capture commands.
+- **Not a capture framework.** The project declares its capture commands. `break` builds a throwaway page but captures it the same way.
 - **Not on by default.** Only repos with a contract.
 - **Not the implementer's judge of itself.** The critic is always a separate session with a brief built from files.
 

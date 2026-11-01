@@ -51,7 +51,7 @@ If the session built a **module- or corpus-scope** change (not a diff-scope twea
 
 ### 2.5 Scratch reflection pass (read/dedup auto; promotion gated)
 
-The session's scratch tier (written silently during work by [`execute`](../execute/SKILL.md) §3d.1 and [`checkpoint`](../checkpoint/SKILL.md) step 7) holds in-flight observations that are **deleted un-promoted at session end**. This is the one pass that can turn any of them into durable memory. It runs **before recap** so recap narrates a session whose promotions are already settled.
+The session's scratch tier (written silently during work by [`execute`](../execute/SKILL.md) (**Record the outcome to scratch**) and [`checkpoint`](../checkpoint/SKILL.md) step 7) holds in-flight observations that are **deleted un-promoted at session end**. This is the one pass that can turn any of them into durable memory. It runs **before recap** so recap narrates a session whose promotions are already settled.
 
 1. **Read + reconcile (auto).** Read this session's scratch and apply contradiction reconciliation — a later observation superseding an earlier one wins, so a corrected reading is never offered beside the stale one it replaced.
 2. **Filter by salience (auto).** Drop `low`-salience entries from candidacy. Those are the passing-verification notes: real value *during* the session for re-orientation, near-zero value as durable memory. They are filtered from the candidate list, not deleted early.

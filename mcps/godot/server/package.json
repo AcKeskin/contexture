@@ -13,6 +13,7 @@
     "build": "tsc",
     "start": "node build/index.js",
     "smoke": "node scripts/registry-smoke.mjs",
+    "test:gdscript-parse": "node scripts/gdscript-check-parse.mjs",
     "clean": "rimraf build"
   },
   "dependencies": {

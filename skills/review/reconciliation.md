@@ -27,6 +27,15 @@ When `latest.md` exists:
 
 Resolved findings are not silently dropped — surfacing them is half the point of repeat mode.
 
+**Receipts.** `receipts.mjs` stores `.claude/reviews/<scope-slug>/receipt.json`: a sha256 of each file the last run read (scope files and loaded rule files). Hashes, not `git diff` or mtimes: git needs a committed baseline, and mtimes lie after a backup restore or a cloud sync, which would let changed content skip review. The failure left is the safe one: a missing or unreadable receipt reads as "everything changed".
+
+On a repeat run, before the angles:
+
+1. `check` prints one line per file. A rule file in `CHANGED`/`GONE`, a differing angle list, `--full`, or `RECEIPT: NONE` → review the whole scope as usual.
+2. Otherwise run the angles over `CHANGED` + `NEW` files only. Callers and callees of those files may still be read for context; a finding must cite a `CHANGED` or `NEW` file to count as new.
+3. Baseline open findings on `UNCHANGED` files → `CARRIED` (same id), not re-verified, unless the finding cites another file that is `CHANGED` or `GONE`: re-verify that one. Findings on `GONE` files → `RESOLVED` with the note "file removed".
+4. Header line: *"Receipt: N of M files unchanged since <stamp date>, not re-read."*
+
 When no `latest.md` exists, set Run mode = fresh, skip this step, and proceed to §5 with all IDs assigned in scan order from F001.
 
 If the baseline is malformed (unparseable findings table, frontmatter missing required fields), log a one-line warning in the report header ("baseline at `<path>` malformed; treating run as fresh") and proceed as fresh — never delete or rewrite a malformed baseline automatically.

@@ -8,10 +8,21 @@ The briefs [review](SKILL.md) §3 hands each angle, verbatim (inline for the def
 Does the code follow the loaded architectural rules? Run the eight drift checks in [drift-checks.md](drift-checks.md): dead code, monolithic files, SoC violations, missing patterns, principle violations, comment drift, naming quality, over-delivery. The check name is the finding's category. Default angle for local targets.
 
 ### correctness
-Does it do what it claims, for every input it can get? Look for wrong logic, missed edge cases (empty, null, zero, max, concurrent), error paths that swallow or mislead, state left half-updated, and changes whose effect lands in an unchanged caller. Severity follows blast radius.
+Does it do what it claims, for every input it can get? Look for wrong logic, missed edge cases (empty, null, zero, max, concurrent), error paths that swallow or mislead, state left half-updated, and changes whose effect lands in an unchanged caller. Also ask:
+- **Does it match the ask?** On a PR, compare with the description and linked issue. Clean code that solves a nearby problem is a finding.
+- **What if it runs twice?** Retries, duplicate events, double clicks: does it double-charge, double-insert or double-send?
+- **What if a dependency is slow or down?** Look for missing timeouts, retries with no limit, and no fallback or clear error.
+- **Does everything it calls exist?** APIs, config keys, flags and library functions must exist in the version the project uses. Check the source or the lockfile, never memory.
+
+Severity follows blast radius.
 
 ### design
-Does it fit the system it lives in? Look for crossed module or layer boundaries, a new dependency direction, responsibilities in the wrong place, duplicated concepts, and a simpler shape that already exists nearby. Cite a loaded rule where one applies. Structural findings need a diagram (contract §2).
+Does it fit the system it lives in? Look for crossed module or layer boundaries, a new dependency direction, responsibilities in the wrong place, duplicated concepts, and a simpler shape that already exists nearby. Also ask:
+- **Should this code exist?** Something the codebase, the platform or a current dependency already does.
+- **Is the abstraction for a real case?** An interface, factory or option with one user and no named second case.
+- **Can it be rolled back?** Migrations, data or file format changes, and removed public fields need a way back or a note saying there is none.
+
+Cite a loaded rule where one applies. Structural findings need a diagram (contract §2).
 
 ### performance
 What does it cost when it runs? Find what runs per call, request, frame or item. Look for I/O or queries inside loops, repeated work that could be done once, growth worse than the input needs (O(n²) on a list that grows), large copies or allocations on a hot path, blocking calls on a thread that must not block, and missing limits (unbounded cache, unpaginated fetch). State the cost in terms of input size. Never invent timings; if it needs a measurement, say which one.
@@ -26,10 +37,10 @@ Can someone build on this without editing it? Read it as the next developer who 
 Can it be made to do something it shouldn't? Look for untrusted input reaching queries, shells, paths, templates or deserializers; missing or wrong auth checks; secrets in code or logs; unsafe defaults. Route findings to the `security-reviewer` agent's verify mode in the verify step.
 
 ### hygiene
-Is the PR itself in good shape? Empty or vague commit messages, unrelated changes mixed in (formatting-only files, drive-by refactors), new logic with no test change, public API changes with no doc update, new TODOs without a tracking reference, debug leftovers (`console.log`, `print()`, `debugger`) in non-test code. PR targets only.
+Is the PR itself in good shape? Empty or vague commit messages, unrelated changes mixed in (formatting-only files, drive-by refactors), new logic with no test change or only tests that mirror it, public API changes with no doc update, new TODOs without a tracking reference, skipped or disabled tests and checks, new lint or type suppressions, hardcoded values standing in for config, debug leftovers (`console.log`, `print()`, `debugger`) in non-test code. PR targets only.
 
 ### tests
-Would a regression here be caught? Look for changed behaviour with no test that would fail if it broke, tests that assert the mock instead of the behaviour, missing edge-case tests for the correctness risks above, and flaky patterns (time, order, network). Point at the test file and the case to add.
+Would a regression here be caught? Look for changed behaviour with no test that would fail if it broke, tests that assert the mock instead of the behaviour, tests that mirror the code and would still pass if it were wrong, missing edge-case tests for the correctness risks above, and flaky patterns (time, order, network). Point at the test file and the case to add.
 
 ## Auto-pick signals
 

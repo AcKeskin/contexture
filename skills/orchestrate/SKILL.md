@@ -1,6 +1,6 @@
 ---
 name: orchestrate
-description: "Goal-directed orchestration and convergence for concurrent work — turns a single goal into parallel agent work and verifies it back into one result. Use when the user types /orchestrate or says \"split this across agents\", \"set up worktrees for these branches\", \"fan this goal out\". Mode A only — never auto-fires."
+description: "Goal-directed orchestration and convergence for concurrent work: turns one goal into parallel agent work and verifies it back into one result. Use on /orchestrate or when the user asks to split a goal across agents or set up worktrees for several branches. Mode A only — never auto-fires."
 ---
 
 # Orchestrate

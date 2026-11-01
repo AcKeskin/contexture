@@ -1,6 +1,6 @@
 ---
 name: rules
-description: Manage the architectural-rule overlay — list / disable / enable / edit / sync / where across the shipped, company, user, and project tiers. Use when the user types /rules, says "override that rule", "disable this rule", "add a company rule", "show my active rules", "why is this rule applying", or wants to point at a company rules repo. Mode A only — never auto-fire.
+description: "Manage the architectural-rule overlay: list, disable, enable, edit, sync or locate rules across the shipped, company, user and project tiers. Use on /rules, or when the user asks to override, disable or add a rule, see which rules are active or why one applies, or point at a company rules repo. Mode A only — never auto-fire."
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 

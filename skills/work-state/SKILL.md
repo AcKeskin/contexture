@@ -1,6 +1,6 @@
 ---
 name: work-state
-description: Report a slug's position in the scope chain (envision→spec→draft-plan→blueprint→execute→archive) as deterministic structured state — a per-stage missing/present/stale/done table, a single next-action line, and the load-bearing stale-spec-pin check. Read-only, mostly filesystem-derived (no model call for the structural state). Use when the user types /work-state <slug> or /status <slug>, asks "where is <slug> in the chain", "what's the next step for <slug>", "is <slug>'s plan stale". Mode A — never auto-fires, never mutates.
+description: "Report a slug's position in the scope chain (envision→spec→draft-plan→blueprint→execute→archive) as deterministic state: a per-stage missing/present/stale/done table, one next-action line, and the stale-spec-pin check. Read-only. Use on /work-state <slug> or /status <slug>, or when the user asks where a slug stands or what its next step is. Mode A — never auto-fires, never mutates."
 ---
 
 # work-state

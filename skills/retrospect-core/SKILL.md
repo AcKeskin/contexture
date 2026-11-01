@@ -62,7 +62,7 @@ Mirrors review's Phase-1 orientation (§2c), generalised off code and onto whate
 1. **Inventory.** Glob `roots`, count by type, note the largest/most-linked nodes. Cheap structural census — *not* a content read of every file (the passes read content).
 2. **Since-last-run delta.** Read `<report_dir>/<scope>/latest.md` frontmatter if it exists; take its `date`. Compute what changed since:
    - git: `git log --oneline --since=<date>` over the relevant repo(s) → commits/ships in the window.
-   - non-git or no baseline: fall back to file mtimes newer than the baseline date, or "first run — full corpus" when no baseline.
+   - non-git, or files that change outside commits: run review's receipt check, `node <review skill dir>/receipts.mjs check <report_dir>/<scope> --list <roots file list>`, and count `CHANGED` / `NEW` / `GONE`. Not mtimes: they lie after restores and cloud sync. No receipt → "first run — full corpus".
 3. **Emit the orientation block** (goes in the report header, before findings):
 
 ```
@@ -132,6 +132,7 @@ Write the run to `<report_dir>/<scope-slug>/`, same versioning + atomicity as re
 - If `latest.md` exists → rename to `v<N>.md` (highest+1); write the new run as both `v<N+1>.md` and `latest.md`; set `supersedes: v<N>.md` in the new frontmatter.
 - Atomic order: write `v<N+1>.md`, rename old `latest.md`→`v<N>.md`, copy `v<N+1>.md`→`latest.md`. On failure leave the tree as-is and report in the run summary; never partially overwrite.
 - Frontmatter carries `date`, `kind`, `scope_slug`, `run_mode`, `baseline`, `findings_total`, per-severity counts, and per-finding `Status` in the table (the next run's `diff` reads these).
+- Then stamp the receipt over the files the passes read: `node <review skill dir>/receipts.mjs stamp <report_dir>/<scope-slug> --list <list>`. `review` owns the script and its rules.
 
 The artefact is committable — diffing `v3.md`↔`v4.md` shows which decisions went stale, which organs got consolidated, what reopened.
 

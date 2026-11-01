@@ -35,6 +35,7 @@ Flags combine with any target:
 | `--artifact` | Render the review page (§6) |
 | `--vault` | Obsidian note: [vault-output.md](vault-output.md) for local targets, §10 for PRs |
 | `--expand` | Local vault output: force the subfolder layout |
+| `--full` | Repeat run: re-read every file, ignoring the receipt (§4b) |
 
 Natural language: infer the target; "save this to Obsidian" → `--vault`; "as a page" → `--artifact`.
 
@@ -93,6 +94,8 @@ Angle briefs live in [angles.md](angles.md); projects can add their own or set d
 ### 4b. Repeat-run reconciliation
 
 Local targets with a prior `.claude/reviews/<scope-slug>/latest.md`: run mode = repeat; tag each finding `NEW` / `CARRIED` (keeps its id) / `WONT_FIX` / `RESOLVED`; resolved ones get their own section. Malformed baseline → warn, treat as fresh. Mechanics: [reconciliation.md](reconciliation.md). PR re-reviews use §10's iteration rules.
+
+**Receipts: skip what didn't change.** Before §3 on a repeat run, check the receipt: `node <skill dir>/receipts.mjs check .claude/reviews/<scope-slug> --list .review-run.tmp.txt` (the scope's files, one per line; same command shape as `save-run.mjs`). It prints `UNCHANGED` / `CHANGED` / `NEW` / `GONE` per file, by content hash. Re-read only `CHANGED` and `NEW` files; carry the baseline's open findings on `UNCHANGED` files as `CARRIED` without re-reading them; findings on `GONE` files are `RESOLVED`. Re-read everything when any stamped rule file changed, the angle list differs from the baseline's, there is no receipt, or the user passes `--full`. Say in the header how many files were skipped and why. Details: [reconciliation.md](reconciliation.md).
 
 ## 5. Report
 
@@ -155,6 +158,8 @@ Every run writes [findings.json](findings-schema.md) — the terminal report, pa
 - PR: `.claude/reviews/pr-<NNN>/v<N>.json` + `latest.json`, even when the vault is unset.
 
 **How to write.** Claude Code blocks Write/Edit under `.claude/` in headless runs, so never write there directly. Write the file to `.review-run.tmp.json` (or `.md`) at the project root, then move it in with `node <skill dir>/save-run.mjs <slug> json|md|latest <tmp>` — json first, then md; `latest` for `--since`. Run it with the Bash tool as one plain command: the skill dir written out as an absolute path with forward slashes (e.g. `<home>/.claude/skills/review`, with `<home>` written out), no variables, no `&&`, no `cd`. The allow rule only matches that shape. It numbers versions, writes atomically and deletes the temp file. Bootstrap allows the temp write and that command for headless runs. Always save both, json then md; never skip either on the guess that it will be denied.
+
+After the json and md are saved, stamp the receipt with every file in scope plus the rule files loaded in §2a (rule files by absolute path): `node <skill dir>/receipts.mjs stamp .claude/reviews/<scope-slug> --list <list>`. Write the list to `.review-run.tmp.txt` at the project root first; the script deletes it. Not for `--since` or PR runs.
 
 A write failure is reported, never blocks the next step.
 

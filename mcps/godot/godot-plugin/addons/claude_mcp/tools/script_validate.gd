@@ -18,8 +18,8 @@ extends "res://addons/claude_mcp/tools/mcp_tool.gd"
 ##
 ##   Result: this tool reliably returns {"valid": true/false}. On failure it
 ##   returns one synthetic error entry with line -1 and the raw error code.
-##   To see per-line details now, open the script in the Godot editor — the
-##   parser errors appear in the Output panel and the script editor gutter.
+##   For per-line details, use the gdscript_check CLI tool: it runs the file
+##   headless and reads Godot's own "SCRIPT ERROR ... (res://path:line)" output.
 ##
 ## C# scripts are out of scope: dotnet_build is the correct tool for those.
 ##
@@ -94,7 +94,7 @@ func invoke(params: Dictionary, ctx: Dictionary):
 			{
 				"line": -1,
 				"message": (
-					"Parse failed (error code %d: %s). Open the script in the Godot editor for line-level details."
+					"Parse failed (error code %d: %s). Run gdscript_check for line-level details."
 					% [result, error_string(result)]
 				),
 			}

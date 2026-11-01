@@ -24,30 +24,35 @@ The readers already know the domain and why the work exists. Each page covers on
 - Look for work already in flight on the topic and shape the plan around it: recent branches, open PRs, design docs, tickets. Delegate this sweep to a search agent when it spans many places. A plan that ignores the team's current modules gets rejected in the room.
 - Check every named identifier (function, type, extension, endpoint, flag, table) against its source of truth: headers, schemas, specs, the codebase. Report in chat any name you cannot confirm; do not print it on the page as fact.
 
-### 3. Pick the look
+### 3. Write the argument
+
+Before any page, list each tab and each topic block as one line: the claim it makes and the proof it carries (a diagram, a signature, a number, a source). Delete any block with no claim. The claims decide which tabs exist and their order. This is what stops a stock sequence of sections that each say a little.
+
+### 4. Pick the look
 
 - Search the project for its own brand: theme or color token files, a design-system package, a logo SVG's fills, an app style sheet. Use those colors and the brand font, provided it is on Google Fonts.
 - When the project has none, ask the user once which brand to follow, or use a neutral palette. Never carry a brand over from another project.
 - Start from `assets/page-shell.html`: tabbed pages, topic blocks, signature highlighting and diagram classes, all driven by color tokens. Fill its token slots and follow the `artifact-design` skill's page contract (load it before writing).
 
-### 4. Write the pages
+### 5. Write the pages
 
 - One tab per area. The first tab is an overview: one diagram of the whole, and a table of the parts (name, side or owner, where it attaches, what it does).
 - Every area tab gets at least one diagram of its mechanism: a sequence for a protocol, a flow for data, a mapping band for translations, a timeline for lifetimes, side by side for a comparison. Use the `artifact-diagramming` skill.
 - Write interfaces as real signatures or schemas, in the notation the team will implement.
 
-### 5. Copy pass
+### 6. Copy pass
 
 - Run the `humanize` skill on the prose when it is installed. Otherwise apply the copy rules in `references/page-recipe.md`.
 - Then run the tripwires in `references/page-recipe.md` against the file. Every hit is removed or rewritten before publishing.
 
-### 6. Publish and iterate
+### 7. Publish and iterate
 
+- **Gate.** Publish only when all of these hold on the final file: every block on the argument list made it onto a page; every identifier is confirmed or reported in chat; the tripwires ran with zero hits left; you opened the page at desktop and phone width and read every tab. A step you skipped is named in your message, never implied.
 - Publish as an artifact and give the link. Tell the user it is private until they share it.
 - When a comment asks for a change: re-read the part, change it, then update every other page that mentions the same choice. A choice that flips moves the old plan into Other ways with its limitation. Reply in the thread and resolve it.
 - When the user asks a question about the design without asking for an edit, answer in chat and leave the page alone.
 
-### 7. Playground copy (on request)
+### 8. Playground copy (on request)
 
 When the user wants to present or discuss on the page itself, build a second artifact from the same file with the annotation layer: inline `assets/annotation-layer.css` into the page style and `assets/annotation-layer.js` before `</body>`, append " playground" to the title, and publish it under a new file name so the original stays clean. The layer gives pen, marker, text, sticky notes, eraser, laser, undo, hide, full screen and arrow keys between tabs. Drawings stay in the viewer's browser; offer shared storage only if the team needs to draw together.
 

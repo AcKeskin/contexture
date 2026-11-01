@@ -91,6 +91,20 @@ When a config value is absent, **surface a "configure this" message** naming the
 
 **Smell:** grepping `skills/`, `agents/`, `architectural-rules/`, `commands/`, or settings templates for a username, a drive letter, an email, or a personal tool path returns hits. Each un-annotated hit is a share-readiness defect. The `bootstrap --verify` leak check automates this grep.
 
+## Skill anatomy — say how hard to press, and check the work at the moment it is done
+
+- **Every skill says how hard to press.** One or two lines near the top: which values are exact and which are approximate, what counts as a finding and what is a preference, and when the right output is nothing. Give it a heading that carries the point (`Evidence, not taste`), not a label (`Guidelines`). A skill that lists rules without this leaves strictness to chance, and that is the difference between a review that blocks on evidence and one that blocks on taste.
+- **Recurring mistakes go in a `## Before you finish` table**, two columns: the mistake as something you can detect in the output, then the fix. The left column is what a principle does not give you. The heading names the moment the table is used; `Common mistakes` reads as background and gets skipped while orienting. Skip the table when the domain has no recurring mistakes, and do not restate a principle as a row.
+- **The description is one or two plain sentences: what the skill does, then when it fires.** The trigger is a clause ("Use when a PR is open and the user asks for review"), not a list of quoted phrases. A keyword pile is a weaker match signal than a clear sentence, it goes stale when the scope moves, and it loads on every turn. Keep the slash form and at most one natural phrasing when the phrasing is the trigger.
+- **Each rule lives in one skill.** Another skill that needs it names the owner (`review`) and does not restate it. A skill may keep a fact its own output cannot be produced without, such as a threshold it reports against, with the owner named beside it.
+- **Point at a section by its heading, never by its number.** `§4b` breaks the moment a step is inserted above it, and nothing fails when it does.
+- **A skill that checks its own output says what it ran and nothing more.** The report lists the checks that ran on the final version. A check that was skipped is named as skipped, never implied.
+- **After an edit, prune.** No sentence over 30 words, counting a code span as one. Each rule stated once. Cut any sentence that cannot be restated as an instruction, a fact or a number.
+
+**Why:** a skill is read by a model at the moment of doing the work, and the model fills every gap with its default. The calibration line closes the strictness gap, the table closes the "looks done" gap, and a short description keeps the always-on cost down. Adapted from `jakubkrehel/skills` (AGENTS.md), read 2026-11-01.
+
+**Smell:** a review skill whose findings are mostly preferences; a "Common mistakes" list nobody consults; a description longer than its first paragraph; `see step 3` in another skill.
+
 ## Thresholds — a count may guard a resource or trip a question, never decide
 
 This rule governs **authoring the harness itself** (skills / agents / rules / hooks), not a user's project code. Business logic is full of legitimate domain constants; this is about numbers that appear in *instructions*, where they stand in for a decision.

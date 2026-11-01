@@ -12,7 +12,8 @@
  *   4. otherwise → GodotBinaryNotFound
  */
 import { spawn, type ChildProcess } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
+import { join, relative, sep } from "node:path";
 import { randomUUID } from "node:crypto";
 import { activeInstance } from "./registry.js";
 import type { ResponseEnvelope, ErrorCode } from "./envelope.js";
@@ -34,22 +35,24 @@ function runToCompletion(
       resolve({ code: null, stdout: "", stderr: `spawn failed: ${(e as Error).message}`, timedOut: false });
       return;
     }
-    let stdout = "";
-    let stderr = "";
+    const out: Buffer[] = [];
+    const errOut: Buffer[] = [];
     let timedOut = false;
     const timer = setTimeout(() => {
       timedOut = true;
       child.kill();
     }, opts.timeoutMs ?? 300_000);
-    child.stdout?.on("data", (d: Buffer) => (stdout += d.toString("utf8")));
-    child.stderr?.on("data", (d: Buffer) => (stderr += d.toString("utf8")));
+    child.stdout?.on("data", (d: Buffer) => out.push(d));
+    child.stderr?.on("data", (d: Buffer) => errOut.push(d));
+    const text = (b: Buffer[]) => Buffer.concat(b).toString("utf8");
     child.on("error", (e) => {
       clearTimeout(timer);
-      resolve({ code: null, stdout, stderr: stderr + `\n[spawn error] ${e.message}`, timedOut });
+      resolve({ code: null, stdout: text(out), stderr: text(errOut) + `\n[spawn error] ${e.message}`, timedOut });
     });
-    child.on("exit", (code) => {
+    // "close" fires after the pipes drain; "exit" can fire before.
+    child.on("close", (code) => {
       clearTimeout(timer);
-      resolve({ code, stdout, stderr, timedOut });
+      resolve({ code, stdout: text(out), stderr: text(errOut), timedOut });
     });
   });
 }
@@ -321,6 +324,131 @@ async function dotnetBuild(): Promise<ResponseEnvelope> {
   });
 }
 
+// ── GDScript parse check ─────────────────────────────────────────────────────
+
+const GDSCRIPT_CHECKER = "res://addons/claude_mcp/cli/gdscript_check.gd";
+// Keeps each command line well under the Windows limit (~32K chars).
+const GDSCRIPT_CHUNK = 100;
+
+export interface GdscriptResult {
+  path: string;
+  ok: boolean;
+  errors: { line: number; message: string }[];
+}
+
+/** Every .gd under the project, skipping addons/, dot-dirs and .gdignore dirs. */
+function projectScripts(projectPath: string): string[] {
+  const out: string[] = [];
+  const walk = (dir: string) => {
+    let entries;
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    if (entries.some((e) => e.name === ".gdignore")) return;
+    for (const e of entries) {
+      if (e.name.startsWith(".")) continue;
+      const full = join(dir, e.name);
+      if (e.isDirectory()) {
+        if (dir === projectPath && e.name === "addons") continue;
+        walk(full);
+      } else if (e.name.endsWith(".gd")) {
+        out.push("res://" + relative(projectPath, full).split(sep).join("/"));
+      }
+    }
+  };
+  walk(projectPath);
+  return out.sort();
+}
+
+/** Parse the checker's output: `ok:` / `PARSE FAIL:` lines, plus Godot's
+ *  `SCRIPT ERROR: <msg>` followed by `at: ... (res://path:line)`. */
+export function parseGdscriptCheck(output: string, paths: string[]): GdscriptResult[] {
+  const byPath = new Map<string, GdscriptResult>();
+  for (const p of paths) byPath.set(p, { path: p, ok: false, errors: [] });
+  const lines = output.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    const okMatch = line.match(/^ok: (res:\/\/.+)$/);
+    if (okMatch && byPath.has(okMatch[1])) {
+      byPath.get(okMatch[1])!.ok = true;
+      continue;
+    }
+    const scriptErr = line.match(/^SCRIPT ERROR:\s*(.*)$/);
+    if (!scriptErr) continue;
+    const at = (lines[i + 1] ?? "").match(/at:.*\((res:\/\/.+?):(\d+)\)/);
+    if (!at) continue;
+    const entry = byPath.get(at[1]);
+    if (entry) entry.errors.push({ line: Number(at[2]), message: scriptErr[1].trim() });
+  }
+  return [...byPath.values()];
+}
+
+/**
+ * gdscript_check — parse-check GDScript files headless, with line numbers.
+ *
+ * Runs the plugin's checker script, which loads each file after autoloads
+ * are registered (`--check-only` gets autoload references wrong). No paths
+ * means every .gd outside addons/. `import: true` runs `--import` first, which
+ * builds the class cache `class_name` lookups need on a never-opened project.
+ */
+async function gdscriptCheck(args: Record<string, unknown>): Promise<ResponseEnvelope> {
+  const bin = resolveBinary();
+  if (!bin.ok) {
+    return err(
+      "GodotBinaryNotFound",
+      "No godot binary resolved. Tried: registry binaryPath, GODOT_BIN env, PATH. " +
+        "Open the editor (so the registry carries its path) or set GODOT_BIN.",
+    );
+  }
+  const projectPath = activeInstance()?.projectPath;
+  if (!projectPath) {
+    return err("CliError", "No project path known — open the editor on a project first.");
+  }
+  const given = Array.isArray(args["paths"]) ? (args["paths"] as unknown[]).map(String) : [];
+  const bad = given.find((p) => !p.startsWith("res://") || !p.endsWith(".gd") || p.split("/").includes(".."));
+  if (bad) return err("InvalidInput", `Each path must be a res:// .gd file. Got: ${bad}`);
+  const paths = given.length ? given : projectScripts(projectPath);
+  if (!paths.length) return ok({ success: true, checked: 0, failed: [], results: [] });
+
+  if (args["import"] === true) {
+    const imp = await runToCompletion(bin.path, ["--headless", "--path", projectPath, "--import"]);
+    if (imp.timedOut || imp.code === null) {
+      return err("CliError", `godot --import failed. ${(imp.stderr || imp.stdout).slice(-1000)}`);
+    }
+  }
+
+  const results: GdscriptResult[] = [];
+  let rawTail = "";
+  for (let i = 0; i < paths.length; i += GDSCRIPT_CHUNK) {
+    const chunk = paths.slice(i, i + GDSCRIPT_CHUNK);
+    const argv = ["--headless", "--path", projectPath, "-s", GDSCRIPT_CHECKER, "--", ...chunk];
+    const res = await runToCompletion(bin.path, argv);
+    const combined = res.stdout + "\n" + res.stderr;
+    if (res.timedOut || res.code === null || res.code === 2) {
+      return err("CliError", `gdscript_check did not run (exit ${res.code}). ${combined.slice(-2000)}`);
+    }
+    if (!/^(ok|PARSE FAIL): /m.test(res.stdout)) {
+      return err(
+        "CliError",
+        `The checker printed no results. Is the claude_mcp addon installed in this project? ${combined.slice(-2000)}`,
+      );
+    }
+    const chunkResults = parseGdscriptCheck(combined, chunk);
+    results.push(...chunkResults);
+    if (!rawTail && chunkResults.some((r) => !r.ok)) rawTail = combined.slice(-4000);
+  }
+  const failed = results.filter((r) => !r.ok);
+  return ok({
+    success: failed.length === 0,
+    checked: results.length,
+    failed: failed.map((r) => r.path),
+    results: failed,
+    rawTail: failed.length ? rawTail : undefined,
+  });
+}
+
 /** Dispatch entry for CLI-surface tools. */
 export function runCli(
   name: string,
@@ -335,6 +463,8 @@ export function runCli(
       return exportPreset(args);
     case "dotnet_build":
       return dotnetBuild();
+    case "gdscript_check":
+      return gdscriptCheck(args);
     default:
       return Promise.resolve(
         err("ToolNotFound", `No CLI handler named '${name}'.`),

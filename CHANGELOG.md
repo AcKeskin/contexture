@@ -6,6 +6,103 @@ File-level changes per public snapshot. Curate freely — this is the human-faci
 
 
 
+
+## 2026-11-01 — Review receipts so a repeat review skips unchanged files, and AI-era questions in the review angles; a skill-triggering eval suite with fixes for skills that didn't fire; a skill-anatomy rule and skills lint; /visual break and report gates for visual and design-proposal; gdscript_check in the Godot MCP; user-only skills stay user-only in Codex.
+
+_43 added, 33 changed, 0 removed._
+
+### Architectural rules
+- added `architectural-rules/config-authoring/skill-anatomy.md`
+
+### Bootstrap
+- changed `bootstrap/bootstrap.js`
+
+### Cross-tool instructions
+- changed `.github/instructions/config-authoring.instructions.md`
+
+### Docs
+- changed `docs/skills-catalog.md`
+
+### MCP servers
+- added `mcps/godot/godot-plugin/addons/claude_mcp/cli/gdscript_check.gd`
+- added `mcps/godot/server/scripts/gdscript-check-parse.mjs`
+- added `mcps/godot/server/scripts/gdscript-check-smoke.mjs`
+- changed `mcps/godot/README.md`
+- changed `mcps/godot/godot-plugin/addons/claude_mcp/tools/registry_smoke_test.gd`
+- changed `mcps/godot/godot-plugin/addons/claude_mcp/tools/script_validate.gd`
+- changed `mcps/godot/godot-plugin/addons/claude_mcp/tools/tool_registry.gd`
+- changed `mcps/godot/server/package.json`
+- changed `mcps/godot/server/src/cli.ts`
+
+### Other
+- added `evals/README.md`
+- added `evals/review-finds-bug/case.yaml`
+- added `evals/review-finds-bug/graders/cites-line.md`
+- added `evals/review-finds-bug/graders/finds-off-by-one.md`
+- added `evals/review-finds-bug/graders/skill-fired.md`
+- added `evals/review-finds-bug/scaffold.sh`
+- added `evals/trigger-brainstorm/graders/skill-fired.md`
+- added `evals/trigger-brainstorm/prompt.md`
+- added `evals/trigger-capture/graders/skill-fired.md`
+- added `evals/trigger-capture/prompt.md`
+- added `evals/trigger-checkpoint/graders/skill-fired.md`
+- added `evals/trigger-checkpoint/prompt.md`
+- added `evals/trigger-pre-push/graders/skill-fired.md`
+- added `evals/trigger-pre-push/prompt.md`
+- added `evals/trigger-recap/graders/skill-fired.md`
+- added `evals/trigger-recap/prompt.md`
+- added `evals/trigger-rules/graders/skill-fired.md`
+- added `evals/trigger-rules/prompt.md`
+- added `evals/trigger-systematic-debugging/graders/skill-fired.md`
+- added `evals/trigger-systematic-debugging/prompt.md`
+- added `evals/trigger-work-state/graders/skill-fired.md`
+- added `evals/trigger-work-state/prompt.md`
+- added `evals/unrelated-arithmetic/graders/answer.md`
+- added `evals/unrelated-arithmetic/graders/no-skill.md`
+- added `evals/unrelated-arithmetic/prompt.md`
+- added `evals/user-only-improve-prompt/graders/not-invoked.md`
+- added `evals/user-only-improve-prompt/prompt.md`
+- added `scripts/lint-skills.js`
+- changed `.gitignore`
+- changed `README.md`
+- changed `cursor/rules/config-authoring.mdc`
+- changed `scripts/build-plugin.js`
+
+### Settings
+- changed `settings/settings.template.json`
+
+### Skills
+- added `skills/cycle/agents/openai.yaml`
+- added `skills/humanize/agents/openai.yaml`
+- added `skills/improve-prompt/agents/openai.yaml`
+- added `skills/new-hook/agents/openai.yaml`
+- added `skills/new-mcp/agents/openai.yaml`
+- added `skills/review/receipts.mjs`
+- added `skills/review/receipts.test.mjs`
+- added `skills/shortcuts/agents/openai.yaml`
+- added `skills/visual/agents/openai.yaml`
+- added `skills/visual/break.md`
+- added `skills/visualise-codemap/agents/openai.yaml`
+- changed `skills/blueprint/SKILL.md`
+- changed `skills/brainstorm/SKILL.md`
+- changed `skills/capture/SKILL.md`
+- changed `skills/checkpoint/SKILL.md`
+- changed `skills/close-out/SKILL.md`
+- changed `skills/design-proposal/SKILL.md`
+- changed `skills/improve-prompt/SKILL.md`
+- changed `skills/orchestrate/SKILL.md`
+- changed `skills/pre-push/SKILL.md`
+- changed `skills/recap/SKILL.md`
+- changed `skills/retrospect-core/SKILL.md`
+- changed `skills/review/SKILL.md`
+- changed `skills/review/angles.md`
+- changed `skills/review/reconciliation.md`
+- changed `skills/rules/SKILL.md`
+- changed `skills/systematic-debugging/SKILL.md`
+- changed `skills/visual/SKILL.md`
+- changed `skills/work-state/SKILL.md`
+- changed `skills/wrap/SKILL.md`
+
 ## 2026-10-27 — Multi-angle /review for local code and PRs, with /pr-review folded in; context hooks for file history, compaction and the codemap; cross-tool handoffs in project-memory; /shortcuts; a setup script for Claude Projects and other cloud agents; and asset_set_properties in the Unity MCP.
 
 _33 added, 46 changed, 1 removed._

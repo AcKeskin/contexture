@@ -4,7 +4,7 @@
 // Generate the plugin files every tool reads from this repo:
 //   Claude Code  hooks/hooks.json, .claude-plugin/plugin.json (userConfig, MCP)
 //   Copilot CLI  .github/plugin/plugin.json, copilot/agents/*.agent.md
-//   Codex CLI    .codex-plugin/plugin.json
+//   Codex CLI    .codex-plugin/plugin.json, skills/*/agents/openai.yaml
 //   Cursor       cursor/hooks.json, cursor/mcp.json
 // Hook bundles come from settings/settings.template.json. userConfig defaults
 // come from bootstrap's DEFAULT_ENABLED, so a plugin install starts with the
@@ -27,6 +27,7 @@ const MANIFEST = path.join(ROOT, '.claude-plugin', 'plugin.json');
 const COPILOT_MANIFEST = path.join(ROOT, '.github', 'plugin', 'plugin.json');
 const CODEX_MANIFEST = path.join(ROOT, '.codex-plugin', 'plugin.json');
 const AGENTS = path.join(ROOT, 'agents');
+const SKILLS = path.join(ROOT, 'skills');
 const COPILOT_AGENTS = path.join(ROOT, 'copilot', 'agents');
 const CURSOR_HOOKS = path.join(ROOT, 'cursor', 'hooks.json');
 const CURSOR_MCP = path.join(ROOT, 'cursor', 'mcp.json');
@@ -162,6 +163,34 @@ function buildCodexManifest(manifest) {
   return { name, description, author, homepage, repository, license, keywords, skills: './skills/', commands: manifest.commands };
 }
 
+// Codex ignores `disable-model-invocation`; its switch is
+// `policy.allow_implicit_invocation: false` in the skill's agents/openai.yaml.
+function codexPolicyPath(skill) {
+  return path.join(SKILLS, skill, 'agents', 'openai.yaml');
+}
+
+function userOnlySkills() {
+  return fs
+    .readdirSync(SKILLS)
+    .filter((s) => fs.existsSync(path.join(SKILLS, s, 'SKILL.md')))
+    .sort()
+    .filter((s) => {
+      const text = fs.readFileSync(path.join(SKILLS, s, 'SKILL.md'), 'utf8').replace(/\r\n/g, '\n');
+      const front = text.startsWith('---\n') ? text.slice(4, text.indexOf('\n---', 4)) : '';
+      return /^disable-model-invocation:\s*["']?true["']?\s*(#.*)?$/im.test(front);
+    });
+}
+
+const CODEX_POLICY = 'policy:\n  allow_implicit_invocation: false\n';
+
+// A hand-written openai.yaml is kept if it already sets the policy.
+function buildCodexPolicies() {
+  return userOnlySkills()
+    .map((s) => codexPolicyPath(s))
+    .filter((f) => !(fs.existsSync(f) && /allow_implicit_invocation:\s*false/.test(fs.readFileSync(f, 'utf8'))))
+    .map((f) => [f, CODEX_POLICY]);
+}
+
 // Same agents without `model:`, which names a Claude model alias.
 function buildCopilotAgents() {
   return fs
@@ -196,6 +225,7 @@ function main() {
     [COPILOT_MANIFEST, json(buildCopilotManifest(claudeManifest))],
     ...buildCopilotAgents(),
     [CODEX_MANIFEST, json(buildCodexManifest(claudeManifest))],
+    ...buildCodexPolicies(),
     [CURSOR_HOOKS, json(buildCursorHooks(template))],
     [CURSOR_MCP, json({ mcpServers: mcpServers('CURSOR_PLUGIN_ROOT') })],
   ];
@@ -208,6 +238,18 @@ function main() {
     stale = true;
     if (check) console.error(`stale: ${path.relative(ROOT, file)}`);
     else fs.rmSync(file);
+  }
+  // Remove only a generated policy file whose skill is no longer user-only.
+  const userOnly = new Set(userOnlySkills());
+  for (const s of fs.readdirSync(SKILLS)) {
+    const file = codexPolicyPath(s);
+    if (userOnly.has(s) || !fs.existsSync(file) || fs.readFileSync(file, 'utf8') !== CODEX_POLICY) continue;
+    stale = true;
+    if (check) console.error(`stale: ${path.relative(ROOT, file)}`);
+    else {
+      fs.rmSync(file);
+      if (!fs.readdirSync(path.dirname(file)).length) fs.rmdirSync(path.dirname(file));
+    }
   }
   for (const [file, content] of outputs) {
     const current = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';

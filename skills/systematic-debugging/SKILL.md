@@ -1,6 +1,6 @@
 ---
 name: systematic-debugging
-description: Use when encountering a bug, test failure, or unexpected behavior that does not have an obvious one-line fix, before proposing fixes. Random fixes waste time and create new bugs — find root cause first.
+description: Use when a bug, failing or flaky test, or unexpected behavior needs its cause found, before proposing fixes. Random fixes and retries waste time and create new bugs; find the root cause first. Skip only when the fix is an obvious one-liner.
 ---
 
 # Systematic Debugging

@@ -158,6 +158,18 @@ func _cli_descriptors() -> Array:
 			},
 			"surface": "cli",
 		},
+		{
+			"name": "gdscript_check",
+			"description": "Parse-check GDScript files headless, the way the game loads them (autoload references resolve). Returns {success, failed[], results[{path, errors[{line, message}]}]} with real line numbers. No paths checks every .gd outside addons/. No paths skips .gdignore folders. Needs the editor open on the project.",
+			"inputSchema": {
+				"type": "object",
+				"properties": {
+					"paths": {"type": "array", "items": {"type": "string"}, "description": "res:// .gd paths. Omit to check every .gd outside addons/."},
+					"import": {"type": "boolean", "description": "Run `godot --import` first. Needed once on a project the editor has never opened, so class_name lookups resolve."}
+				}
+			},
+			"surface": "cli",
+		},
 	]
 	# C#-only: surface dotnet_build only when this is a C# project, proving the
 	# descriptor drives the conditional tool surface (no TypeScript change).

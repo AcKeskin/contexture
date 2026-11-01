@@ -1,6 +1,6 @@
 ---
 name: pre-push
-description: Pre-flight checklist before a git push — commits-to-ship summary + branch-name / commit-hygiene / AI-attribution / staged-leftover / debug-artifact / hook-bypass / unresolved-secret checks; stops on any flag, never pushes past it. Auto-fires when about to run git push or on "push this" / "send it up". Skip on the scratch branch or "skip pre-push". /pre-push.
+description: "Pre-flight checklist before a git push: commits-to-ship summary plus branch-name, commit-hygiene, AI-attribution, staged-leftover, debug-artifact, hook-bypass and unresolved-secret checks; stops on any flag, never pushes past it. Auto-fires when about to run git push or on \"push this\" or \"send it up\". Skip on the scratch branch or when told to skip it. /pre-push."
 ---
 
 # pre-push

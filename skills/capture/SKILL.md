@@ -1,6 +1,6 @@
 ---
 name: capture
-description: "Capture a memory (lesson / decision / rule / preference / feedback / project fact / reference) via propose-confirm-commit. Use on /capture, \"remember that\" / \"save this\", or skill invocation. Auto-proposes (never silent-writes; accept/edit/reject gates) only when high-stakes: a reversal of a shipped decision, a correction phrased with finality, or a warning-shaped \"X broke Z, hard to undo\". Otherwise never auto-fires."
+description: "Save a memory (lesson, decision, rule, preference or project fact) via propose-confirm-commit. Use whenever the user asks to remember or save something, or on /capture, instead of writing a memory file directly. Auto-proposes (never silent-writes) only when high-stakes: a reversal of a shipped decision, a correction phrased with finality, or a warning that something broke and is hard to undo."
 ---
 
 # capture

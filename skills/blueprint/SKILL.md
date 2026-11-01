@@ -1,6 +1,6 @@
 ---
 name: blueprint
-description: "Author a concrete blueprint for a slug — what we wanted (intent from vision + spec) and what we're building now (the mature concrete shape: classes, interfaces, dependencies, module relationships, build order) with Mermaid UML. Optional, after /draft-plan — the commit-point view an engineer reaches for before coding. Also re-blueprints existing code (--from-code). Use on /blueprint [slug] or \"blueprint this\" / \"show the concrete shape\". Never auto-fires."
+description: "Author a concrete blueprint for a slug: the intent (from vision and spec) and the shape being built now (classes, interfaces, dependencies, module relationships, build order) as Mermaid UML. Optional, after /draft-plan; also re-blueprints existing code (--from-code). Use on /blueprint [slug] or when the user asks to see the concrete shape before coding. Never auto-fires."
 ---
 
 # blueprint

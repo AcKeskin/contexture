@@ -50,8 +50,8 @@ func _init() -> void:
 		# Bundle 3 — Game UI
 		"ui_create_control", "ui_inspect_control", "ui_set_anchors",
 		"ui_get_theme", "ui_set_theme_override", "ui_set_container_layout",
-		# Bundle 2 — CLI (export_preset always; dotnet_build only on C# projects)
-		"export_preset",
+		# Bundle 2 — CLI (export_preset and gdscript_check always; dotnet_build only on C# projects)
+		"export_preset", "gdscript_check",
 		# Bundle 4 — runtime introspection
 		"runtime_tree", "runtime_get_property", "runtime_set_property", "runtime_emit_signal",
 		# v3 — runtime input injection
