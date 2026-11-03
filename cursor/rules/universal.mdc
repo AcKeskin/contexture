@@ -86,14 +86,15 @@ needs canonical pinning a second time (promote-on-second-occurrence).
 
 ## Change discipline
 
-- Surface assumptions before coding. State them; if the ask reads several ways or a simpler approach exists, say so. Do not silently pick.
-- Surgical edits. Don't improve adjacent code, comments or formatting, or refactor what isn't broken. Match the existing style.
-- No unrequested scope. Build the minimal thing asked for: no extra configurability, abstraction, options or features. If a broader design tempts you, propose it and get confirmation first.
-- Clean up only your own mess: remove imports, variables and functions your change orphaned. Flag pre-existing dead code; don't delete it unless asked.
+- Before the first edit, state your assumptions, including how the code handles any failure mode the request names (duplicates, retries, crashes, concurrency, time boundaries). If that changes the interface, adds storage or decides who owns it, ask first. The final report is too late.
+- Smallest complete change: needed at all? Already in the repo? Stdlib or an installed package? Then the shortest diff that fully works.
+- Surgical edits: don't touch adjacent code, comments or formatting. Match the existing style.
+- No unrequested scope: no extra configurability, abstraction, options or features. Propose a broader design and get confirmation first.
+- Remove only what your change orphaned. Flag pre-existing dead code; don't delete it unless asked.
 - Every changed line traces to the user's request.
-- Goal-driven execution. Turn vague tasks into verifiable goals ("add validation" → tests for invalid inputs, then make them pass). For multi-step work, state the plan with a check per step first.
+- Goal-driven: turn vague tasks into verifiable goals ("add validation" → tests for invalid inputs, then pass them). For multi-step work, state the plan with a check per step first.
 
-**Why:** code-standards covers what good code looks like; this covers how changes are made. Bad code and unrequested drift in adjacent code are different failures.
+**Why:** code-standards covers what good code looks like; this covers how changes are made.
 
 ## Code standards
 

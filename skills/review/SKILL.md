@@ -141,6 +141,14 @@ keep · drop · wontfix "<reason>" · edit · ask <question> · code · back · 
 
 **Apply vault picks** — `node <skill dir>/render-note.mjs --read-picks <note.md>` prints the pick line from ticked boxes; apply it as typed, then re-render the note.
 
+**Pushing back on a finding.** These rules apply whenever you argue a finding is wrong: in a walk, a `wontfix` reason, or a cold read for `spec` or `draft-plan`.
+
+- **Contest only with evidence the reviewer could read:** a `path:line`, a symbol, or a line in the doc under review. "This was intentional" is not evidence.
+- **Escalate when the evidence is out of reach.** A team convention, a verbal decision or an outside constraint goes to the user as `escalate`, with the fact stated. Do not fix it and do not drop it.
+- **Do not argue down a comprehension gap.** If a fresh reader got lost, the text is missing context.
+- **Add text for human readers only.** If only a no-context agent needs it, escalate instead of padding the doc.
+- **Never change severity to win.** Contest it and say why.
+
 **After the pick:**
 
 - **Local target** — iterate the kept findings: `1. Apply 2. Skip 3. Edit 4. View detail 5. Won't fix (reason)`. Apply edits via Edit/Write with a one-line confirmation; check `git status` first and pause if the file is dirty. Naming findings: local renames and comment rewords may apply; public renames and over-delivery deletions are suggest-only ([drift-checks.md](drift-checks.md)). No batch auto-apply, no silent fixes.

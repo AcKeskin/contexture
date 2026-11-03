@@ -10,7 +10,8 @@
 //   enabled.hookBundles = { security, gitDiscipline, bootstrapDrift,
 //                           agentOutputContracts, codemapDirty, sessionGuard,
 //                           rulePrime, fileHistory, compactSnapshot,
-//                           editChecks, codemapNudge, codemapRefresh : bool }  (each independently toggleable)
+//                           editChecks, codemapNudge, codemapRefresh,
+//                           subagentRules : bool }  (each independently toggleable)
 //
 // First-run discipline: if hook-config.json has no `enabled` block, write
 // the solo defaults (everything on, nothing excluded) and continue. The
@@ -41,6 +42,7 @@ const DEFAULT_ENABLED = {
     fileHistory: true,
     compactSnapshot: true,
     codemapNudge: true,
+    subagentRules: true,
     codemapRefresh: true,
     // Runs commands from the project's .claude/edit-checks.json; off until trusted.
     editChecks: false,

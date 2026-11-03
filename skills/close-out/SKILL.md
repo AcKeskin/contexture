@@ -65,6 +65,8 @@ The spec is **intent at spec-time** (done-criteria frozen). The shipped change r
 
    Nothing is written to the spec tree until accept. This is the same propose-confirm-commit gate `spec` / `draft-plan` / `capture` use.
 
+5. **Name where it lives.** If the reconciled body names no code paths, add a `## Where it lives` list: the shipped files, taken from the plan steps' Files lines. A later drift check reads these instead of searching. Part of the same proposal, not a second gate.
+
 ### 3. Retire — move spent artefacts to a dated archive folder (preview, then move)
 
 The reconciled spec stays live. Everything the change consumed becomes audit history.

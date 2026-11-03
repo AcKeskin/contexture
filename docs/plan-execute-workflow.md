@@ -47,7 +47,7 @@ commit → one concern per commit
 
 Interview the user with `AskUserQuestion`. Probe technical implementation, UI/UX, edge cases, constraints, tradeoffs. Skip obvious questions. Stop when the user signals done or coverage is complete. Before writing, invoke `discover` to fold in relevant prior knowledge.
 
-Output: `.claude/specs/<slug>/v<N>.md`. Sections: Problem, Goals, Non-goals, User-facing behavior, Technical approach, Constraints, Grounded context, Open questions, Verification criteria. Plus a `Changes from v<N-1>` section on evolutions.
+Output: `.claude/specs/<slug>/v<N>.md`. Sections: Problem, Goals, Non-goals, User-facing behavior, Technical approach, Constraints, Grounded context, Open questions (each tagged with who answers it and what it blocks), Not yet specified, Verification criteria. Plus a `Changes from v<N-1>` section on evolutions.
 
 **Port and parity work reads the code first.** When the feature already exists somewhere — another platform, a sibling subsystem — that implementation *is* the requirements document, and interviewing from zero re-derives from memory what the repo already states exactly. On a port-shaped framing ("like X but for Y", "same as the desktop version"), spec sweeps for candidate bases, asks which is canonical (surfacing any drift between siblings as a requirements question), then interviews on **divergence only** — the evolve flow's delta discipline against a code baseline. The result is a `## Base implementation` section, parity-shaped done-criteria ("behaviours 1–7 of the base hold on the target"), and an explicit answer to port-copy-vs-extract-shared-core. Bases in another repo come from your nomination or a memory pointer — never an unprompted scan. No port framing, no pass.
 
@@ -57,7 +57,7 @@ Specs evolve — `/spec <slug>` defaults to evolving the active version (intervi
 
 ### Phase 2 — /draft-plan
 
-Read the active spec for the slug (`.claude/specs/<slug>/v<M>.md`), or fall back to a `--task` description with a warning. Invoke `prep` to load architectural rules. Invoke `discover` to load memory + codemap. Draft steps — each with files, outcome, verification.
+Read the active spec for the slug (`.claude/specs/<slug>/v<M>.md`), or fall back to a `--task` description with a warning. Invoke `prep` to load architectural rules. Invoke `discover` to load memory + codemap. Draft steps — each with files, outcome, verification, and a `Builds on` line (repo code, stdlib, an installed dependency, or new code with a reason). A step that builds more than its criteria need gets a `Smaller option` line; the gate lists them together for the user to take or refuse. A spec with an open question tagged `blocks: plan` is refused.
 
 Triviality check: one-paragraph spec + one-step change + no architectural risk → ask the user to skip plan/execute and just do it.
 

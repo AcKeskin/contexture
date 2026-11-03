@@ -21,6 +21,7 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
 - `/draft-plan <slug>` — read `.claude/specs/<slug>/` active version, write `.claude/plans/<slug>/v<N>.md`.
 - `/draft-plan <slug> --task "<text>"` — degraded mode: no spec required, the text is the input. Slug still required for the output path. Use `default` for the no-decision case.
 - `--quiet` — terse review gate: one accept/edit/reject prompt instead of an inline or outline walkthrough (step 9). Combinable with any form above.
+- `--cold` — run the cold read (step 8d) before the review gate. Also offered at the gate as `cold`.
 - `--executor cheap` — **strict drafting mode.** Draft the plan for an executor that does not share this conversation and reasons less capably: every step self-contained, every judgment call closed at draft time (step 8b). Default is `--executor main` (this context executes; today's behaviour). Combinable with any form above.
 
 ## Procedure
@@ -43,6 +44,10 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
    - If the spec's frontmatter `done_criteria_provisional: true`, refuse to plan:
 
      > Spec `<slug>` v<M> has provisional done-criteria. Plans cannot be drafted against an under-specified spec — re-run `/spec <slug>` to firm up the done-criteria probe, then re-run `/draft-plan <slug>`.
+
+   - If the spec's `## Open questions` has any line tagged `blocks: plan`, refuse to plan and list those lines:
+
+     > Spec `<slug>` v<M> has open questions that block the plan: <list>. Settle them with `/spec <slug>` (or `/spec <slug> --questionnaire` when someone else holds the answer), then re-run `/draft-plan <slug>`.
 
    - If the spec's frontmatter has no `done_criteria` field at all (a legacy spec predating done-criteria), warn once and continue:
 
@@ -86,6 +91,8 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
    - Files (concrete paths — flag unknowns in Notes and stop).
    - Outcome (what is true after this step).
    - Verification (specific command, test, or check).
+   - **Builds on:** what the step uses instead of new code, first that fits: code already in this repo (`path:line`), the standard library or platform, an installed dependency, or `new code: <why none of these fits>`. Grep or check the codemap before writing it; a guessed path is not reuse. Adding a dependency needs its own reason.
+   - **Smaller option** (only when one exists): when the step builds more than its criteria need (an option, abstraction, config or extra case nobody asked for), one line naming the smaller version. The user picks at the gate; never choose silently either way.
    - **Serves criteria:** list of done-criteria index numbers from the spec this step contributes to (e.g. `[1, 3]`). At least one criterion per step. A step that traces to no criterion is a planning smell — flag and ask the user:
 
      > Step N doesn't trace to any done-criterion. Either the criterion is missing from the spec (re-run `/spec <slug>`) or the step is unnecessary (drop it). Resolve before continuing.
@@ -124,16 +131,27 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
 
    The drafted plan is held **in-conversation** at this point — nothing is written to disk yet. The review gate (step 9) decides whether it lands.
 
+8d. **Cold read (`--cold`, or `cold` at the gate).** The plan was written by a context that remembers everything; a reader who doesn't will find what it skipped. Dispatch three [`cold-reader`](../../agents/cold-reader.md) agents in one message, one per lens: `comprehension`, `readiness`, `reuse`. Each gets only the plan text verbatim, the repo root, and its lens. Never the conversation, never another agent's output.
+
+   - **Sort each finding** as `fix`, `contest`, `escalate` or `skip` (nits only), per [review](../review/SKILL.md)'s *Pushing back on a finding*.
+   - **Show** the comprehension paraphrase first, then escalations, then the rest as `lens · severity · where · what · your call`. A wrong paraphrase is a finding even with no other findings.
+   - **Apply** the `fix` rows the user accepts to the in-conversation draft, then return to the gate. One cold read per draft: after an edit, re-run only if the user asks.
+   - **No Agent tool** → say the cold read did not run. Never role-play it in this context; that is not a cold read.
+   - **Cost:** three agents. Worth it on plans that `/execute` will hand off (`[delegate]` steps or `--executor cheap`); say so once when the plan has neither.
+
 9. **Review gate — present the plan and confirm before writing.** The plan is the last cheap checkpoint before `/execute` ("plan changes are cheap, implementation changes are not"). Do **not** write the file silently; present the drafted plan and ask the user how to proceed. For a non-trivial plan, offer a [human-view](../human-view/SKILL.md) projection alongside — *"want the plain-prose approval view? (/human-view)"* — so approval reads the decisions, not the artefact format. Pick the presentation mode by plan size:
 
-   - **Inline (default, small plans ≤ 6 steps).** Render the full plan body — Context, the Done-criteria echo, and every numbered step (goal / files / outcome / verification / serves-criteria) — in the conversation. Then ask: *accept / edit / reject*.
-   - **Outline-first (large plans > 6 steps).** Render a compact outline — one line per step (`Step N: <goal>  → serves [criteria]`) — then ask: *"Show the full plan inline, write it to disk for you to open, or edit a step? (accept / show / write / edit / reject)"*. Pull the full body inline only if the user asks for it.
+   - **Inline (default, small plans ≤ 6 steps).** Render the full plan body — Context, the Done-criteria echo, and every numbered step (goal / files / outcome / verification / serves-criteria) — in the conversation. Then ask: *accept / edit / cold / reject*.
+   - **Outline-first (large plans > 6 steps).** Render a compact outline — one line per step (`Step N: <goal>  → serves [criteria]`) — then ask: *"Show the full plan inline, write it to disk for you to open, or edit a step? (accept / show / write / edit / cold / reject)"*. Pull the full body inline only if the user asks for it.
    - **Ask-only (terse preference — `--quiet` flag, or a stored `preferences/`-tier verbosity preference).** A single prompt: *"Plan drafted: K steps, pinned to spec v<M>. Review inline, or write and open? (review / write / reject)"*. Honour the stated preference for minimal conversation while still **asking** rather than silently writing.
+
+   Before asking, list every step's **Smaller option** line together, so the user can take or refuse each one (`take 2`, `keep all`). Skip when there are none.
 
    Resolve the user's choice:
 
    - **accept** (or "write") → proceed to step 10 and write the file exactly as specified. The confirmed plan is what lands.
    - **edit** → the user describes changes in prose ("drop step 3", "swap 4 and 5", "step 2 should also touch `foo.ts`"). Apply them to the in-conversation draft, re-present per the same mode, and loop until accept or reject.
+   - **cold** → run the cold read (step 8d), then re-present.
    - **reject** → discard the draft. Write nothing. Acknowledge (*"Plan discarded — nothing written."*) and stop.
 
    This is a gate on the **in-conversation draft**, not a second file. No `v<N>-draft.md` scratch file is created — only the confirmed plan becomes `v<N>.md`. The gate fires identically in degraded `--task` mode (arguably more important there, since there is no spec to fall back on). It mirrors the propose-confirm-commit flow recap / capture / rules / memory-audit already use.
@@ -177,6 +195,8 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
    - Files: <concrete paths>
    - Outcome: <what is true after this step>
    - Verification: <command or specific check>
+   - Builds on: <path:line | stdlib/platform: <what> | dependency: <name> | new code: <why>>
+   - Smaller option: <one line>   ← only when one exists
    - Serves criteria: [<list of criterion indices, e.g. 1, 3>]   ← skipped in legacy mode
    - Tags: [research] [delegate] [mechanical|judgment]   ← optional on main; [mechanical]/[judgment] mandatory in strict mode
    - Current state: <before-excerpt, file:line>   ← [delegate] steps; every step in strict mode ("new file" for new-file steps)

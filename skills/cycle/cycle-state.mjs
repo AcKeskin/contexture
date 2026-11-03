@@ -8,6 +8,9 @@
 //   check <run>        exit 1 while any completion item lacks evidence
 //   status <run>       print files, completion count and open cards
 //   log <run> <text>   append one line to log.md
+//   decide <run> <stage> <decision> --why <w> --evidence <e> --result <r> [--supersedes <id>]
+//                      append one row to decisions.tsv
+//   trail <run>        exit 1 while a live decision row lacks evidence or a pointer does not resolve
 //   setup-check <run>  check declared paths, commands and write scope; exit 1 on gaps
 //   template <run>     print Claude Code Project instructions filled from the run
 //   outcome <run> <stage> <state> [note]  record a stage outcome in <run>/outcome-<stage>.json
@@ -123,6 +126,8 @@ function status(dir) {
   for (const f of ['setup.md', 'audit.md', 'contract.md', 'log.md']) {
     console.log(`${existsSync(join(dir, f)) ? 'ok     ' : 'missing'} ${f}`);
   }
+  const trailFile = join(dir, 'decisions.tsv');
+  console.log(`decisions: ${existsSync(trailFile) ? readTrail(read(trailFile)).length : 0}`);
   const items = readCompletion(read(join(dir, 'contract.md')));
   console.log(`completion: ${items.filter((i) => i.evidence).length}/${items.length} with evidence`);
   const open = openCards(dir);
@@ -132,6 +137,93 @@ function status(dir) {
 function log(dir, text) {
   if (!text) fail('log needs a line of text');
   appendFileSync(join(dir, 'log.md'), `- ${stamp()} ${text}\n`);
+}
+
+// --- decision trail -----------------------------------------------------------
+
+export const TRAIL_COLUMNS = ['id', 'ts', 'stage', 'decision', 'why', 'evidence', 'result', 'supersedes'];
+const TRAIL_FLAGS = ['why', 'evidence', 'result', 'supersedes'];
+
+/** One TSV cell: single line, no tabs, and no leading byte a spreadsheet reads as a formula. */
+export function cell(value) {
+  const flat = String(value ?? '').replace(/[\t\r\n]+/g, ' ').trim();
+  return /^[=+\-@"]/.test(flat) ? `'${flat}` : flat;
+}
+
+/** Splits `--flag value` pairs out of args: { flags, rest }. */
+export function readFlags(args, names) {
+  const flags = {};
+  const rest = [];
+  for (let i = 0; i < args.length; i++) {
+    const name = args[i].startsWith('--') ? args[i].slice(2) : null;
+    if (name && names.includes(name)) flags[name] = args[++i] ?? '';
+    else rest.push(args[i]);
+  }
+  return { flags, rest };
+}
+
+/** Rows of decisions.tsv as objects keyed by TRAIL_COLUMNS. */
+export function readTrail(text) {
+  const lines = text.split(/\r?\n/).filter((l) => l.trim());
+  return lines.slice(1).map((l) => Object.fromEntries(l.split('\t').map((v, i) => [TRAIL_COLUMNS[i], v])));
+}
+
+/**
+ * Why one evidence pointer does not resolve, or null when it does.
+ * Accepted: a URL or `#123` (not fetched), a commit sha in the repo, a path (from the repo or the run folder) with an optional `:line`.
+ */
+export function pointerProblem(pointer, root, dir, hasCommit) {
+  const p = pointer.trim();
+  if (/^https?:\/\//.test(p) || /^(PR )?#\d+$/.test(p)) return null;
+  if (/^[0-9a-f]{7,40}$/.test(p)) return hasCommit(p) ? null : `no commit ${p}`;
+  const m = p.match(/^(.+?)(?::(\d+)(?:-\d+)?)?$/);
+  const file = [isAbsolute(m[1]) ? m[1] : null, join(root, m[1]), join(dir, m[1])].find((f) => f && existsSync(f));
+  if (!file) return /[\\/.]/.test(m[1]) ? `no file ${m[1]}` : `not a pointer: ${p}`;
+  if (m[2] && statSync(file).isFile() && readFileSync(file, 'utf8').split('\n').length < Number(m[2])) return `${m[1]} has no line ${m[2]}`;
+  return null;
+}
+
+/** Problems with the trail: [string]. Superseded rows are history and are not checked. */
+export function trailProblems(rows, root, dir, hasCommit) {
+  if (!rows.length) return ['no decisions logged'];
+  const ids = new Set(rows.map((r) => r.id));
+  const superseded = new Set(rows.map((r) => r.supersedes).filter(Boolean));
+  const out = [];
+  for (const r of rows) {
+    if (r.supersedes && !ids.has(r.supersedes)) out.push(`row ${r.id}: supersedes unknown row ${r.supersedes}`);
+    if (superseded.has(r.id)) continue;
+    if (!r.evidence) { out.push(`row ${r.id}: no evidence (${r.decision})`); continue; }
+    for (const ptr of r.evidence.split(/,\s*/)) {
+      const why = pointerProblem(ptr, root, dir, hasCommit);
+      if (why) out.push(`row ${r.id}: ${why}`);
+    }
+  }
+  return out;
+}
+
+function decide(dir, args) {
+  const { flags, rest } = readFlags(args, TRAIL_FLAGS);
+  const [stage, ...words] = rest;
+  if (!/^[0-5]v?$/.test(stage ?? '') || !words.length) fail('decide needs <stage> <decision> --why <w> --evidence <e> --result <r>');
+  if (!flags.why) fail('decide needs --why');
+  const file = join(dir, 'decisions.tsv');
+  if (!existsSync(file)) writeFileSync(file, TRAIL_COLUMNS.join('\t') + '\n');
+  const rows = readTrail(readFileSync(file, 'utf8'));
+  if (flags.supersedes && !rows.some((r) => r.id === flags.supersedes)) fail(`no row ${flags.supersedes} to supersede`);
+  const id = String(rows.length + 1);
+  const row = [id, new Date().toISOString().slice(0, 19) + 'Z', stage, words.join(' '), flags.why, flags.evidence, flags.result, flags.supersedes];
+  appendFileSync(file, row.map(cell).join('\t') + '\n');
+  console.log(`row ${id}`);
+}
+
+function trail(dir, root) {
+  const file = join(dir, 'decisions.tsv');
+  const rows = existsSync(file) ? readTrail(readFileSync(file, 'utf8')) : [];
+  const hasCommit = (sha) => spawnSync('git', ['-C', root, 'cat-file', '-e', `${sha}^{commit}`]).status === 0;
+  const problems = trailProblems(rows, root, dir, hasCommit);
+  for (const p of problems) console.log(p);
+  if (problems.length) process.exit(1);
+  console.log(`trail: ${rows.length} rows, every live row has evidence that resolves`);
 }
 
 /** Reads an env var. A copied Windows env keeps the shell's spelling (`Path`), so match case-insensitively there. */
@@ -369,7 +461,7 @@ function main(argv) {
   const rootAt = argv.indexOf('--root');
   const args = rootAt >= 0 ? argv.filter((_, i) => i !== rootAt && i !== rootAt + 1) : argv;
   const [cmd, run, ...rest] = args;
-  if (!run || !RUN_ID.test(run)) fail('usage: cycle-state.mjs <init|check|status|log|setup-check|template|outcome|remove-worktree> <run> [--root <repo>]');
+  if (!run || !RUN_ID.test(run)) fail('usage: cycle-state.mjs <init|check|status|log|decide|trail|setup-check|template|outcome|remove-worktree> <run> [--root <repo>]');
   let root = rootAt >= 0 ? resolve(argv[rootAt + 1]) : null;
   if (!root && cmd === 'init') root = process.cwd();
   if (!root) root = findRoot(process.cwd(), run) ?? fail(`no run ${run} at or above ${process.cwd()}: pass --root <repo>`);
@@ -380,6 +472,8 @@ function main(argv) {
     case 'check': return check(dir);
     case 'status': return status(dir);
     case 'log': return log(dir, rest.join(' '));
+    case 'decide': return decide(dir, rest);
+    case 'trail': return trail(dir, root);
     case 'setup-check': return setupCheck(dir, root);
     case 'template': return template(dir, root, run);
     case 'outcome': return outcome(dir, run, rest[0], rest[1], rest.slice(2).join(' '));

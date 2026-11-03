@@ -76,6 +76,8 @@ Go through the checklist row by row. For each comment, the user picks **one of t
 - **Skip / defer** — no action now (won't-do, or later). The row stays on the checklist as **unhandled** — it is *not* removed. The user responds on GitHub themselves; pr-triage does not draft anything.
 - **Note** — the user wants to capture a decision against this comment ("pushing back — perf is fine, the LB idle timeout justifies 30s") so *they* have it to hand when *they* write the reply. pr-triage stores the note against the row. It **never** turns the note into a drafted reply and **never** posts it. The note is the user's raw material, in the user's voice-to-be.
 
+When your recommendation is that the reviewer is wrong, follow [review](../review/SKILL.md)'s *Pushing back on a finding*: cite `path:line` or a line in the PR. If the evidence lives off the PR (a team decision, an outside constraint), say so in Detail. The reviewer cannot see it, so the user's reply has to carry it.
+
 Update the checklist live as outcomes are assigned:
 
 ```

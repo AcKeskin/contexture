@@ -14,7 +14,7 @@ Files next to this one:
 
 - [cycle-contract.md](cycle-contract.md) — the contract both hosts follow: stages, run state, escalation, completion.
 - `cycle-loop.mjs` — the loop: one headless Claude session per stage, the slice pick, stops, pushes and draft PRs, the digest, the status page, notifications.
-- `cycle-state.mjs` — run-state file work: `init`, `setup-check`, `check`, `status`, `log`, `outcome`, `template`.
+- `cycle-state.mjs` — run-state file work: `init`, `setup-check`, `check`, `status`, `log`, `decide`, `trail`, `outcome`, `template`.
 - `config-defaults.md`, `contract-defaults.md`, `projects-template.md`, `status-page.html`.
 
 `<skill-dir>` below means the folder holding this file.
@@ -65,6 +65,19 @@ Always pass `--root <repo>` (the repo the loop runs in, not the worktree or the 
 
 **Gate map.** Nobody answers prompts during a stage, so the driven organs' own gates map to the run: `spec` runs delta-only with no interview (the confirmed slice settles the approach); `draft-plan`'s triviality check and review gate are accepted under the run contract (with no autonomy contract set, the implicit default applies; say so in the log); `execute`'s done-criteria confirmation moves to the end gate (the draft PR); `review`'s per-finding prompts become fix steps or cards; `close-out` runs its record step only. Any other question a stage would ask becomes a **card** with a default, or, for a `block` row in `contract.md`, an outcome of `blocked` with the reason. **Answered cards come first:** read `cards/` at the start of every stage and apply what the user wrote.
 
+### Decision trail
+
+The user reads the PR hours later and can't ask why. Every stage logs its decision points to `<run>/decisions.tsv`, one row each:
+
+```
+node <skill-dir>/cycle-state.mjs decide <run> <stage> "<decision>" --why "<reason>" --evidence "<pointer>" --result "<state>" --root <repo>
+```
+
+- **Log:** an approach chosen and the ones rejected, a pivot or revert and what triggered it, a check skipped and why, a gate accepted under the run contract, each review/fix round. Not every action.
+- **Evidence is a pointer, never prose:** a commit sha, `path` or `path:line`, a file in the run folder (`stage-4.log`), a URL or `#123`. Several go comma-separated.
+- **Result** is a state: `tests green`, `reverted`, `open`, `INCONCLUSIVE`.
+- **Append-only.** A wrong row stays; add one that corrects it with `--supersedes <id>`.
+
 ### Stage 1: audit
 
 Read the code as it is on `origin/<base_branch>`, not the local checkout, which may sit on another branch or behind: `git fetch origin`, then a detached worktree of `origin/<base_branch>` in the run folder for the audit to read and run in. Remove it at the end of the stage with `cycle-state.mjs remove-worktree <run> <path>`, never a bare `git worktree remove`.
@@ -92,7 +105,7 @@ Rank by value against effort, then `outcome <run> 1 done`. The loop picks the sl
 
 ### Stage 2: plan
 
-Read `## Confirmed slice` (and any answered slice card). Invoke [spec](../spec/SKILL.md) delta-only, then [draft-plan](../draft-plan/SKILL.md). Plan verifications use full paths, never a bare filter word that can match more than intended. `outcome <run> 2 done "<plan path>"`; an architecture fork the spec cannot settle is `blocked`.
+Read `## Confirmed slice` (and any answered slice card). Invoke [spec](../spec/SKILL.md) delta-only, then [draft-plan](../draft-plan/SKILL.md). Log the approach taken and each one rejected. Plan verifications use full paths, never a bare filter word that can match more than intended. `outcome <run> 2 done "<plan path>"`; an architecture fork the spec cannot settle is `blocked`.
 
 ### Stage 3: implement
 
@@ -102,7 +115,7 @@ Read `## Confirmed slice` (and any answered slice card). Invoke [spec](../spec/S
 
 1. [review](../review/SKILL.md) the run branch's diff against `origin/<base>`, and run `test`.
 2. With a declared `capture`: before/after pairs for the screen states the change touches, from `origin/<base>` and from the WIP commit (not `git stash`, which other worktrees share). A capture that writes tracked files: copy the images out of the repo and restore the files. Compare only the regions the change touched. When the repo has a visual contract, skip this step: after this stage records `done`, **the loop** captures every state from a fresh worktree of `origin/<base>` and from the run branch, diffs each pair above the state's noise floor, and starts the visual critic as its own session for the states that changed. Do not capture for the critic and do not judge the captures yourself. Leave the run branch's worktree in place and built, since the loop captures from it; a `needs-revision` verdict brings the run back here with `visual/verdicts.json` to fix first.
-3. Findings become fix steps; commit each round. Record a fingerprint per round (tree hash, first failing line, any denied action). The same fingerprint for 3 rounds, or `retry_cap` rounds, ends the stage: `outcome <run> 4 stuck "<what it tried, why it stopped>"`.
+3. Findings become fix steps; commit each round and log it (`decide`, the commit as evidence). Record a fingerprint per round (tree hash, first failing line, any denied action). The same fingerprint for 3 rounds, or `retry_cap` rounds, ends the stage: `outcome <run> 4 stuck "<what it tried, why it stopped>"`.
 4. Fill each completion item's `evidence:` in `contract.md` as it is met: the command plus an output excerpt, or a file path.
 5. On a rerun after the PR review asked for changes, read `<run>/review/review.json` and fix each finding with `blocking: true` first.
 
@@ -112,9 +125,11 @@ Read `## Confirmed slice` (and any answered slice card). Invoke [spec](../spec/S
 
 1. [close-out](../close-out/SKILL.md), record step only (reconcile and retire wait for the merge). No changelog in the repo: a card with the line as default.
 2. Stage by name and commit. Then fill `staged-by-name` and run `cycle-state.mjs check <run>`. Exit 1: go back and fill the missing evidence; never claim done while it fails.
-3. Write `pr.md`: first line `# <title>`, then the [pr-author](../pr-author/SKILL.md) body with the before/after pairs, the approaches considered and rejected, and the run's open cards. No AI attribution.
-4. **Do not push.** The loop pushes and opens the draft PR as `config.md` allows, after its own `.git` check. On a rerun after review changes, the push updates the open PR.
-5. `outcome <run> 5 done "branch=<run branch>"`.
+3. **Audit the trail.** Walk `decisions.tsv` against what the run did (`log.md`, the `stage-<N>.log` feeds, `git log`). A pivot or skipped check with no row is a gap: add it. A row whose claim is wrong gets a superseding row. Then run `cycle-state.mjs trail <run>` until it exits 0.
+4. **Attention.** Write `git log -p origin/<base>..<run branch>` to `<run>/trail-context.txt` (the reader has no shell). Dispatch the [`cold-reader`](../../agents/cold-reader.md) agent with lens `trail`, giving it only the run folder path and the repo root. It has not seen the run, so it finds what the run talked itself past.
+5. Write `pr.md`: first line `# <title>`, then the [pr-author](../pr-author/SKILL.md) body with the before/after pairs, the approaches considered and rejected, the run's open cards, and `## Attention`: the cold reader's flags, each pointing at a row or commit, or `No flags`. No AI attribution.
+6. **Do not push.** The loop pushes and opens the draft PR as `config.md` allows, after its own `.git` check. On a rerun after review changes, the push updates the open PR.
+7. `outcome <run> 5 done "branch=<run branch>"`.
 
 ### Review (`/cycle review <pr> <folder>`, headless)
 

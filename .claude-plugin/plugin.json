@@ -87,6 +87,12 @@
       "description": "Run trusted checks from .claude/edit-checks.json after edits; report only new problems.",
       "default": false
     },
+    "subagent_rules": {
+      "type": "boolean",
+      "title": "Subagent rules",
+      "description": "Give each subagent the change-discipline rule (minimal change, no unrequested scope).",
+      "default": true
+    },
     "codemap_nudge": {
       "type": "boolean",
       "title": "Codemap nudge",

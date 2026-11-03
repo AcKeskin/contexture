@@ -47,6 +47,7 @@ Walk the trees and classify each stage as `missing` / `present` / `stale` / `don
 - **spec** — read `.claude/specs/INDEX.md` for the slug's `Current` active version.
   - No row / no active version → `missing`.
   - Active version present, `done_criteria_provisional: true` (or `status: draft`) → `present` (exists but not promotable).
+  - Active version present with an open question tagged `blocks: plan` → `present`, gap: "open questions block the plan: <count>", plus "questionnaire waiting: <file>" for each `questionnaire-*.md` in the slug folder.
   - Active version present with firm `done_criteria` → `done` (the spec is ready to build against).
   - **Record the active spec version `vM`** — the plan-staleness check needs it.
 - **plan** — `.claude/plans/<slug>/` active version (via `.claude/plans/INDEX.md`).

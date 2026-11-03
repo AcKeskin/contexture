@@ -159,6 +159,15 @@
         }
       ]
     },
+    "subagentRules": {
+      "SubagentStart": [
+        {
+          "hooks": [
+            { "type": "command", "command": "node __HOME__/.claude/hooks/subagent-rules.js", "timeout": 5 }
+          ]
+        }
+      ]
+    },
     "codemapNudge": {
       "PreToolUse": [
         {

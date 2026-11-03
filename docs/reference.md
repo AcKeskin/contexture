@@ -19,7 +19,7 @@ contexture/
 │                                #   mirrors into gitignored .claude/skills/ for Copilot/Codex/Cursor discovery).
 │                                #   For the full roster see docs/skills-catalog.md — enumerating it here drifts.
 ├── commands/                    # slash-command shims, one file each
-├── agents/                      # subagents (cpp-pro, c-sharp-pro, rust-pro, react-pro, security-reviewer, metal-video-source-pro, vision-os-pro, unity-pro, unity-ui-pro, mcp-ts-pro, mcp-py-pro)
+├── agents/                      # subagents (cpp-pro, c-sharp-pro, rust-pro, react-pro, security-reviewer, cold-reader, metal-video-source-pro, vision-os-pro, unity-pro, unity-ui-pro, mcp-ts-pro, mcp-py-pro)
 ├── hooks/                       # Node hook scripts (default-on protection — see docs/security-hooks.md)
 │   ├── rm-rf-blocker.js
 │   ├── env-file-write-blocker.js
@@ -35,6 +35,7 @@ contexture/
 │   ├── compact-snapshot.js
 │   ├── edit-checks.js
 │   ├── codemap-search-nudge.js
+│   ├── subagent-rules.js
 │   ├── codemap-refresh.js
 │   └── lib/                     # shared hook-io + path utilities
 ├── mcps/                        # MCP server projects (standalone, not bootstrapped)
@@ -78,16 +79,18 @@ Directories are created lazily as proposals require them — no speculative scaf
 | `file-history-precheck` | PreToolUse / Write* | Advisory (`fileHistory` bundle). Before the first edit of a file in a session, lists warning and lesson memories that name the file (project-relative path, or a specific basename). Once per file per session |
 | `compact-snapshot` | PreCompact + SessionStart [compact] | Advisory (`compactSnapshot` bundle). PreCompact saves the last user request, open todos, edited files and recent tool errors (max 2 KB); the post-compaction SessionStart injects it once and deletes it |
 | `edit-checks` | PreToolUse + PostToolUse / Write* | Advisory, **off by default** (`editChecks` bundle; it runs project commands). Runs the checks in `.claude/edit-checks.json` (`{"checks":[{"glob":"*.ts","command":"npx eslint --format unix {file}"}]}`) before the first edit of a file and after each edit, and reports only output lines the edit added (line numbers ignored), each once. Runs only after you trust the file on this machine: `node ~/.claude/hooks/edit-checks.js --trust <project>` (stores its hash; any change needs a new trust). Not on Cursor (no pre-edit event) |
+| `subagent-rules` | SubagentStart | Advisory (`subagentRules` bundle). Gives each subagent the resolved change-discipline rule, since SessionStart context reaches only the main thread. Skips read-only built-ins (Explore, Plan, claude-code-guide, statusline-setup) |
 | `codemap-search-nudge` | PreToolUse / Grep, Glob | Advisory (`codemapNudge` bundle). The first search of a session in a project with `.claude/codemap.md` points at the codemap and `trace_path` |
 | `codemap-refresh` | SessionStart [startup/resume] + Stop | `codemapRefresh` bundle. In projects with a codemap: says at session start when it is 5+ files behind (files under the project newer than the codemap, from git log + status). With `- refresh: true` under `## Auto-update` in `.claude/codemap.config.md`, regenerates it in a detached background run instead (needs the update-codemap tree-sitter deps) |
 | `statusline.js` | — | *Not a hook — the statusline **renderer**, invoked by the `statusLine` settings key, not by a hook event. See [statusline.md](statusline.md)* |
+| `plugin-gate.js` | — | *Plugin-mode wrapper — `plugin-gate.js <bundle> <script>` runs the script only when that bundle's plugin option is on. Bootstrap installs don't use it* |
 | `lib/hook-io.js` | — | *Shared utility — payload reading, fail-open exit codes, `addContext()` / `advise()` helpers for the `hookSpecificOutput.additionalContext` channel* |
 | `lib/resolve-rules.js` | — | *Shared utility — the tier-overlay resolver as callable code (precedence, whole-file override, patch-by-anchor, anchor-strip); the engine `rule-prime` calls* |
 | `lib/glob-files.js` | — | *Shared utility — path-aware instruction-glob expander; `rule-prime` (load) + `bootstrap --verify` (drift-check) call it* |
 | `lib/codemap-state.js` | — | *Shared utility — codemap staleness (files changed since it was written) and `## Auto-update` flags* |
 | `lib/memory-root.js` | — | *Shared utility — finds the project-memory tree for a cwd, same match as the project-memory MCP* |
 
-Hooks ship in default-on bundles — `security`, `gitDiscipline`, `bootstrapDrift`, `agentOutputContracts`, `codemapDirty`, `sessionGuard`, `rulePrime`, `fileHistory`, `compactSnapshot`, `codemapNudge`, and `codemapRefresh` — plus three **default-off** bundles: `wrapTerminus` and `coordinateAuto` (the opt-in session-terminus + coordinate-autoregister hooks) and `editChecks` (runs project-defined commands). Bundles are toggled per machine in `~/.claude/hook-config.json` under `enabled.hookBundles` (set a default-off bundle `true` to opt in). All hooks fail-open (exit 0 = allow, exit 2 = block, JSON stdout `hookSpecificOutput.additionalContext` = advise). See [security-hooks](security-hooks.md) and the automation-model note below.
+Hooks ship in default-on bundles — `security`, `gitDiscipline`, `bootstrapDrift`, `agentOutputContracts`, `codemapDirty`, `sessionGuard`, `rulePrime`, `fileHistory`, `compactSnapshot`, `codemapNudge`, `subagentRules`, and `codemapRefresh` — plus three **default-off** bundles: `wrapTerminus` and `coordinateAuto` (the opt-in session-terminus + coordinate-autoregister hooks) and `editChecks` (runs project-defined commands). Bundles are toggled per machine in `~/.claude/hook-config.json` under `enabled.hookBundles` (set a default-off bundle `true` to opt in). All hooks fail-open (exit 0 = allow, exit 2 = block, JSON stdout `hookSpecificOutput.additionalContext` = advise). See [security-hooks](security-hooks.md) and the automation-model note below.
 
 #### The automation model — what fires on its own
 
@@ -183,14 +186,14 @@ Each skill has a `SKILL.md` that defines when it fires, what it does, and how it
 | `pr-author` | Drafts a PR title + body to a clean contract (Summary / Test plan / Closes) and hands over a ready-to-run `gh pr create` — never opens the PR itself |
 | `pr-triage` | Triages a PR's unresolved review comments into a checklist, walks each to Act / Skip-defer / Note, and routes the Act code changes via /dispatch or /orchestrate — never drafts or posts replies (you write those) |
 | `pre-push` | Pre-push pre-flight checklist — commits-to-ship summary, branch-name / commit-hygiene / AI-attribution / debug-artifact / hook-bypass checks; stops on any flag |
-| `spec` | Interview-driven versioned spec under `.claude/specs/<slug>/`; mandatory `done_criteria:` frontmatter; INDEX tracks the active version |
-| `draft-plan` | Produces a versioned plan from the active spec, with a propose-confirm review gate before the plan lands on disk |
+| `spec` | Interview-driven versioned spec under `.claude/specs/<slug>/`; mandatory `done_criteria:` frontmatter; INDEX tracks the active version; open questions tagged with who answers and what they block; `--questionnaire` for answers held by someone else |
+| `draft-plan` | Produces a versioned plan from the active spec, with a propose-confirm review gate before the plan lands on disk; each step has a `Builds on` line; refuses a spec with a `blocks: plan` open question |
 | `blueprint` | Authors a concrete pre-build blueprint — intent (what we wanted) + the mature shape (classes, interfaces, dependencies, module relationships, build order) with Mermaid UML, from vision+spec+plan or `--from-code`; optional, after `/draft-plan` |
 | `human-view` | Projects an LLM-optimized planning artefact (plan / blueprint / spec / vision) into a human-readable approval view — goal + concrete decisions + an alignment check. |
 | `execute` | Runs a plan step-by-step with per-step verification gates |
 | `close-out` | The scope chain's terminus — reconciles a shipped slug's spec to what actually shipped (a new `as-shipped` version, intent preserved via supersedes), retires the spent plan/blueprint to a dated `.claude/archive/` folder, and records one ship line via `update-changelog`. Mode A, propose-confirm; `/execute` offers it on done-criteria-met |
 | `wrap` | Session-terminus driver — sequences the whole closing ceremony (coordinate teardown → checkpoint → recap → close-out → changelog → BACKLOG-shipped-row sweep → ship-narrative record), driving the existing organs rather than reimplementing them. Auto-runs the reversible read/draft/detect spine; every canonical write passes accept/edit/reject. Reads the autonomy contract once to set the interrupt posture; dedups close-out against the changelog step. Mode A; an optional SessionStart-recovery hook (off by default) can propose it |
-| `cycle` | Unattended dev-cycle loop — after one setup conversation it runs cycle after cycle (setup check → audit with bounded online prior art → plan → implement → review/fix → draft PR), one headless session per stage via `cycle-loop.mjs`; the script picks slices, a block parks its slice, stops on budget/hours/runs/no-change/errors/STOP, a localhost status page, live feed and chosen notifications. Contract in `skills/cycle/cycle-contract.md` |
+| `cycle` | Unattended dev-cycle loop — after one setup conversation it runs cycle after cycle (setup check → audit with bounded online prior art → plan → implement → review/fix → draft PR), one headless session per stage via `cycle-loop.mjs`; the script picks slices, a block parks its slice, stops on budget/hours/runs/no-change/errors/STOP, a localhost status page, live feed and chosen notifications; a decision trail (`decide` / `trail` in `cycle-state.mjs`) audited before the PR, with an `## Attention` list. Contract in `skills/cycle/cycle-contract.md` |
 | `visual` | Visual organ for UI projects — one canonical design contract (tokens, references, named screen states), captures through the project's own command, region pixel diff and style-dump checks, and a critic that runs as its own headless session after cycle stage 4 and decides within the contract (taste calls included); its approvals move the baseline with history and rollback; you review on the cycle status page's Visual view |
 | `work-state` | Reports a slug's position in the scope chain (`envision→…→execute→close-out`) as deterministic structured state — per-stage missing/present/stale/done + next-action + the load-bearing stale-spec-pin check. Read-only, filesystem-derived, no model call. `/status` alias |
 | `glossary` | Extracts a project's ubiquitous language (domain term → definition → code symbol) into a project-tier `.claude/rules/glossary.md` the rule-prime hook primes and `review` cites as a vocabulary-drift reference — the *meaning* leg beside codemap's structure and `extract-conventions`' style. Frequency-ranked candidates, confidence-flagged definitions, per-group propose-confirm |
@@ -285,6 +288,7 @@ Language and domain experts with tailored system prompts, tool allowlists, and m
 | `unity-pro` | Unity 2022.3+ — gameplay, scenes/prefabs, ScriptableObject, Addressables, scripting perf, build pipeline |
 | `unity-ui-pro` | Unity UI — UI Toolkit (UXML/USS/UIDocument) and UGUI, data binding, gamepad/keyboard input, runtime UI perf |
 | `security-reviewer` | OWASP Top 10 / LLM Top 10 / Zero Trust vulnerability review |
+| `cold-reader` | Read-only, no-history, no-CLAUDE.md reader of a spec, plan or decision trail (comprehension / readiness / reuse / trail); used by `/spec --cold`, `/draft-plan --cold` and `/cycle` finalize |
 | `mcp-ts-pro` | TypeScript MCP servers — @modelcontextprotocol/sdk, Zod schemas, stdio/HTTP transport |
 | `mcp-py-pro` | Python MCP servers — FastMCP, httpx, async tools, venv setup |
 
@@ -422,9 +426,9 @@ Resolution is a pre-filter owned by `/discover` and runs *before* the existing s
 
 ### settings/ — Settings templates
 
-- `settings.template.json` — full config with the default-on hook bundles (`security`, `gitDiscipline`, `bootstrapDrift`, `agentOutputContracts`, `codemapDirty`, `sessionGuard`, `rulePrime`, `fileHistory`, `compactSnapshot`, `codemapNudge`, `codemapRefresh`) plus the default-off bundles (`wrapTerminus`, `coordinateAuto`, `editChecks`) and event registrations
+- `settings.template.json` — full config with the default-on hook bundles (`security`, `gitDiscipline`, `bootstrapDrift`, `agentOutputContracts`, `codemapDirty`, `sessionGuard`, `rulePrime`, `fileHistory`, `compactSnapshot`, `codemapNudge`, `subagentRules`, `codemapRefresh`) plus the default-off bundles (`wrapTerminus`, `coordinateAuto`, `editChecks`) and event registrations
 - `settings.local.json.example` — empty placeholder for per-machine overrides (gitignored)
 
 ### docs/ — Internal reference documentation
 
-One markdown file per organ/subsystem: architectural-rules, architectural-rules-overlay, blueprint-organ, bootstrap, brainstorm-organ, capture-organ, changelog-contract, checkpoint-organ, claude-projects, cycle-contract, coordinate-organ, delivery-organ, discover, human-view-organ, mcp-memory, memory-compression-spec, plan-execute-workflow, prep-organ, project-architecture, recap-organ, reference (this file), review-organ, review-output-contract, scope-resolution-manifests, scope-resolution-resolver, security-hooks, skills-catalog, statusline, storage-tagging, update-codemap, wrap-organ. Not every organ has a dedicated doc — the census tables above are the complete list; docs/ covers the subsystems that need prose beyond a table row.
+One markdown file per organ/subsystem: architectural-rules, architectural-rules-overlay, blueprint-organ, bootstrap, brainstorm-organ, capture-organ, changelog-contract, checkpoint-organ, claude-projects, cycle-contract, coordinate-organ, delivery-organ, discover, human-view-organ, mcp-memory, memory-compression-spec, other-agents, plan-execute-workflow, prep-organ, project-architecture, recap-organ, reference (this file), review-organ, review-output-contract, scope-resolution-manifests, scope-resolution-resolver, security-hooks, skills-catalog, statusline, storage-tagging, update-codemap, wrap-organ. Not every organ has a dedicated doc — the census tables above are the complete list; docs/ covers the subsystems that need prose beyond a table row.

@@ -44,7 +44,7 @@ The one conversation that needs the user, before the loop starts:
 
 **Review / fix.** Before/after captures come from `origin/<base>` and the WIP commit, never from a shared stash. Captures that write tracked files are copied out and the files restored. Compare only the regions the change touched.
 
-**Finalize.** Stage by name, never everything: engines and importers rewrite tracked files. `check` passes, then the script pushes with an explicit refspec (no upstream write, so the `.git` tamper check stays meaningful) and opens a draft PR if the config allows it.
+**Finalize.** Stage by name, never everything: engines and importers rewrite tracked files. The decision trail is audited against the run, `trail` passes, and a zero-context reader's flags go in the PR body under `## Attention`. `check` passes, then the script pushes with an explicit refspec (no upstream write, so the `.git` tamper check stays meaningful) and opens a draft PR if the config allows it.
 
 **Review and merge** (`merge: on` only). A fresh headless session reviews each PR the loop published, and between runs one open PR carrying `merge_label`, once per head commit. It writes a verdict and one comment; the script posts the comment. The script merges with `merge_method` only when the review approves, every check passes, nothing was pushed since the review, and, for its own runs, the critic approved (when `merge_needs_critic` and a visual contract) and no block card is open. A labeled PR also needs the label at merge time. Changes requested on its own run send it back to review / fix; on a labeled PR they stay a comment. The script never bypasses the repo's branch rules.
 
@@ -67,6 +67,7 @@ Each stage is a fresh headless process that reads its input from the run folder 
 | `<run>/audit.md` | the ranked table, Adapt notes, the confirmed slice |
 | `<run>/contract.md` | escalation rows, `retry_cap`, completion items with `evidence:` |
 | `<run>/log.md` | one line per stage, escalation and card |
+| `<run>/decisions.tsv` | the decision trail: one row per decision with why, an evidence pointer and a result; append-only |
 | `<run>/stage-<N>.log` | the stage's live feed |
 | `<run>/outcome-<N>.json` | the stage's recorded outcome; the loop copies it into `loop.json` |
 | `<run>/cards/` | decision cards: `kind: block` or `card`, `status: open` or `resolved` |

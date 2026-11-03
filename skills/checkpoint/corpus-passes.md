@@ -28,6 +28,8 @@ memory-audit asks "is the back-link present?"; this pass asks "*should* this be 
 
 For each proposal marked shipped: read its ship note / amendments against its original done-criteria. Flag **`DRIFTED`** when the ship deviated in a way never reconciled into the proposal body, or when stated done-criteria don't all show as met. → `route: proposal` (amendment stub) or `capture` (lesson), severity Medium. Signal: ship notes saying "redesigned at ship time", "reversed", "deferred to v2" with no reflecting edit.
 
+A shipped proposal or spec that names no code paths cannot be checked cheaply. Flag it **`UNLINKED`**, severity Low, `route: direct-fix`, `proposed_action` = the paths found by search, to add to its body.
+
 ### D3 — Uncaptured lessons
 
 Sweep every `sessions/` recap since the last run for `Learned` items never promoted to a rule-tier memory (token-overlap check against the tree). No match → `route: capture`, `proposed_action` = the lesson text, severity Low–Medium. Never promotes silently — each routes through capture's confirm.

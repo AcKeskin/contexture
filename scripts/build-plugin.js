@@ -48,6 +48,7 @@ const BUNDLE_INFO = {
   fileHistory: ['File history check', 'Before the first edit of a file, show warning and lesson memories that name it.'],
   compactSnapshot: ['Compaction snapshot', 'Save the last request, todos, edited files and errors before compaction; restore after.'],
   editChecks: ['Edit checks', 'Run trusted checks from .claude/edit-checks.json after edits; report only new problems.'],
+  subagentRules: ['Subagent rules', 'Give each subagent the change-discipline rule (minimal change, no unrequested scope).'],
   codemapNudge: ['Codemap nudge', 'On the first search of a session, point at .claude/codemap.md if it exists.'],
   codemapRefresh: ['Codemap refresh', 'Say when the codemap is out of date; refresh it in the background where Auto-update refresh is on.'],
 };
@@ -191,7 +192,7 @@ function buildCodexPolicies() {
     .map((f) => [f, CODEX_POLICY]);
 }
 
-// Same agents without `model:`, which names a Claude model alias.
+// Same agents without `model:` (a Claude model alias) or `omitClaudeMd:` (Claude Code only).
 function buildCopilotAgents() {
   return fs
     .readdirSync(AGENTS)
@@ -200,7 +201,8 @@ function buildCopilotAgents() {
     .map((f) => {
       const text = fs.readFileSync(path.join(AGENTS, f), 'utf8').replace(/\r\n/g, '\n');
       const end = text.indexOf('\n---', 4);
-      const body = text.slice(0, end).replace(/^model:.*\n?/m, '') + text.slice(end);
+      const head = text.slice(0, end + 1).replace(/^model:.*\n/m, '').replace(/^omitClaudeMd:.*\n/m, '');
+      const body = head + text.slice(end + 1);
       return [path.join(COPILOT_AGENTS, f.replace(/\.md$/, '.agent.md')), body];
     });
 }

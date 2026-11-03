@@ -20,6 +20,8 @@ Do **not** auto-fire. Do **not** run for one-line fixes, refactors, or tasks wit
 - `/spec` — write to the reserved `default` slug. Use this when the project itself is the scope (one-off small projects, single-feature work). On evolution, the existing `default` spec evolves like any other.
 - `/spec <slug>` — named slug. Use when a project hosts parallel specs (`auth-rework`, `billing`, …). If the slug exists in `.claude/specs/INDEX.md`, evolve the active version (interview on diffs, write `v_n+1`, mark old version `superseded`). If new, create `v1.md` under it.
 - `/spec <slug> --new` — explicit fresh slug. Refuse and stop if `<slug>` already exists in INDEX. For genuine forks where the existing spec keeps living.
+- `--cold` — before writing, have no-context agents read the drafted spec (step 6.5). Combinable with the create and evolve forms.
+- `/spec <slug> --questionnaire [<recipient>]` — write a questionnaire for the active spec's open questions that someone other than the user must answer (step 7.5). No new spec version.
 - `/spec <slug> --abandon` — mark the active version `abandoned` in both file frontmatter and INDEX. No new file written. Confirms before writing.
 
 `default` is a reserved slug — it is treated like any other slug structurally (folder, INDEX row, frontmatter), the only difference is the no-arg form resolves to it. Mixing `default` with named slugs in the same project is supported.
@@ -82,8 +84,14 @@ Do **not** auto-fire. Do **not** run for one-line fixes, refactors, or tasks wit
      > Port the behaviour into a separate implementation, or extract the shared logic into a common core both call?
 
      This is an architecture decision with a long tail, it is cheapest to take now, and it will otherwise be taken by default at execute time by whoever is closest to the code. Record the answer in the spec — including *why*, since "we deliberately duplicated" and "we never thought about it" read identically six months later.
-   - **Evolve flow** — open the active version, summarise its current shape in 3–5 bullets, then ask: *"What's changing? (paragraphs / sections to revise, or 'all of it' for a full re-interview)"*. Interview only on the deltas. Sections the user does not touch are carried forward verbatim from the previous version.
+   - **Evolve flow** — first read any filled questionnaire in `.claude/specs/<slug>/` (step 7.5): each answer settles its open question, and the answer goes in the section it settles. Then open the active version, summarise its current shape in 3–5 bullets, then ask: *"What's changing? (paragraphs / sections to revise, or 'all of it' for a full re-interview)"*. Interview only on the deltas. Sections the user does not touch are carried forward verbatim from the previous version.
    - **Done-criteria probe** (closing phase, both flows) — after the body sections are populated, propose 2–4 candidate done-criteria derived from the spec body and ask the user to accept/edit/add. Each criterion must be: (a) **falsifiable** ("done when X works" is too vague; "done when running command Y produces output Z" is good), (b) **observable from outside the implementation** (a fresh reader can check it against the artefact), (c) **sufficient together** (if all are met, the spec's intent is satisfied). Iterate until the user signals done. Minimum: one criterion. **Nudge toward at least one command-shaped criterion** (one a command can settle, rather than a reader's judgment) — that is the kind `/execute`'s closing assessment can check on its own, and asking for it during the interview costs nothing. Advisory, not a gate: a spec whose intent is genuinely all judgment still ships with judgment criteria. **With a confirmed base, prefer parity-shaped criteria** — *"behaviours 1–7 of the base inventory hold on `<target>`"* is falsifiable, cheap to write, and often command-shaped already where the base carries tests. If the user can't articulate any falsifiable criterion ("we'll figure it out as we go"), mark the spec `status: draft` with `done_criteria_provisional: true` in frontmatter — this blocks `/draft-plan` until the criteria are firm. Drafts are still useful; the block is on promotion to `active`, not on writing the spec.
+   - **Open-questions sort** (closing phase, both flows) — list what is still unresolved and sort each item:
+     - **Open question** — you can state it precisely now, even if nobody can answer it yet. Tag who answers it (`user`, `research`, or a person or role) and what it blocks (`plan`, `build`, `none`). A question the user can answer and that blocks the plan gets asked now, not recorded. A `research` question that blocks the plan gets a bounded look now (docs, the repo) before it is recorded.
+     - **Not yet specified** — you can tell it is coming but can't phrase it as a precise question yet. Write it as loosely as you see it. It is in scope; it becomes an open question once an answer upstream makes it sharp.
+     - **Non-goal** — it lies beyond the goal. It goes under Non-goals and never comes back as a question.
+
+     The test between the first two is whether you can state the question precisely, not whether you can answer it. A spec with any open question tagged `blocks: plan` is written `status: draft`; `/draft-plan` refuses it until the question is settled. When the answerer is someone else, offer the questionnaire (step 7.5).
    - **Autonomy-contract probe** (closing phase, optional) — once the work's shape is clear, optionally ask *one* question: *"How autonomous should the build be — push hard to all criteria, or MVP-and-stop? Interrupt on every step, or only real forks?"* and call [autonomize](../autonomize/SKILL.md) as a library to record the answer as the per-task kickoff contract. **Skip it** when the implicit default (balanced / criteria-met / forks-only) obviously fits, or the user gave a terse preference — this is one optional question, never a mandatory gate. It is the *implicit surface* of autonomize's kickoff mode: the explicit `/autonomize` command stays available independently.
 
 6. **Ground the spec.** Invoke `skills/discover/SKILL.md`:
@@ -106,6 +114,8 @@ Do **not** auto-fire. Do **not** run for one-line fixes, refactors, or tasks wit
    > The base carries `<known problem>` (from `<memory name>`). Porting it as-is inherits that. Keep the behaviour, or fix it in the port?
 
    The delta interview asks *what differs*; this asks *what shouldn't be copied*. Without it, the pass makes the strongest case for reproducing exactly the behaviour you already learned was wrong.
+
+6.5 **Cold read (`--cold` only).** Before writing, run [draft-plan](../draft-plan/SKILL.md)'s cold read on the drafted spec with two lenses: `comprehension` and `reuse`. Readiness is for plans. Apply the fixes the user accepts, then write.
 
 7. **Write the new version file.** Path: `.claude/specs/<slug>/v<N>.md` where `N` = previous active version + 1, or `1` for create flow.
 
@@ -159,7 +169,10 @@ Do **not** auto-fire. Do **not** run for one-line fixes, refactors, or tasks wit
    <loaded rules / decisions / lessons. Cite by name.>
 
    ## Open questions
-   - <unresolved>
+   - <precise question> · answers: <user | research | person or role> · blocks: <plan | build | none>
+
+   ## Not yet specified
+   - <in scope, coming, not yet sharp enough to ask>
 
    ## Verification criteria
    <how shipped work will be judged. Specific.>
@@ -169,6 +182,30 @@ Do **not** auto-fire. Do **not** run for one-line fixes, refactors, or tasks wit
    ```
 
    Sections with no content → write *"not addressed during interview"*. Do not invent.
+
+7.5 **Questionnaire** (an open question someone else must answer, or `--questionnaire`). The user can't answer it, so ask the user only about the send: who it goes to (role, what they know that the user doesn't) and anything they need back beyond the open questions. One exchange. Then write `.claude/specs/<slug>/questionnaire-<recipient>.md`:
+
+   ```markdown
+   # <topic>: questions for <recipient>
+
+   **Why:** <the decision riding on the answers>. **From:** <user> **To:** <recipient>
+
+   ## Context
+   <one paragraph for someone who hasn't seen the spec>
+
+   ## How to answer
+   Write under each question. "I don't know" and partial answers help; flag what you're unsure of.
+
+   ## <theme>
+   ### <one question, most important first>
+   _Why it matters: <only where it could be misread>_
+   >
+
+   ## Anything else we should know?
+   >
+   ```
+
+   Every open question with this answerer gets a question; each question asks one thing. Tell the user the path. The next `/spec <slug>` reads the filled file first (evolve flow).
 
 8. **Update the previous active version's frontmatter** (evolve flow only):
    - Set `status: superseded` in `v<N-1>.md`.

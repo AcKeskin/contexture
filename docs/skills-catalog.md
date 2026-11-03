@@ -1,6 +1,6 @@
 # Skills catalog
 
-Every skill shipped in `skills/`. 45 skills, grouped by what they do.
+Every skill shipped in `skills/`. 46 skills, grouped by what they do. (`skills/project-instructions/` is a Node script, not a skill; see [reference](reference.md).)
 
 **Firing modes** used below:
 - **Manual** — user-invoked only (`/name`), never auto-fires.
@@ -17,8 +17,8 @@ The main pipeline. Each stage writes a versioned artefact the next stage reads.
 |---|---|---|
 | `brainstorm` | Manual | Talks a half-formed idea into a name, one-line description, in/out edges, and end-goal. Converges rather than chats; writes `.claude/ideas/<slug>.md` for `envision` to pick up. |
 | `envision` | Manual | Interview-driven top-level project vision — intent, UX shape, module partition, boundaries, non-goals — into a versioned `.claude/visions/<slug>/`. Breadth over depth, mandatory module map. Once per project. |
-| `spec` | Manual | Detailed interview (via AskUserQuestion) into a versioned spec at `.claude/specs/<slug>/`. Specs evolve as v1, v2, …; `INDEX.md` tracks the active version. |
-| `draft-plan` | Manual | Turns the active spec into a versioned plan at `.claude/plans/<slug>/v<N>.md`. Each step carries goal, files, expected outcome, verification criteria. Plans pin to a specific spec version. Accept/edit/reject before write. |
+| `spec` | Manual | Detailed interview (via AskUserQuestion) into a versioned spec at `.claude/specs/<slug>/`. Specs evolve as v1, v2, …; `INDEX.md` tracks the active version. Open questions carry who answers and what they block; `Not yet specified` holds what isn't sharp enough to ask. `--questionnaire` writes the questions someone else must answer to a file the next run reads. `--cold` has no-context `cold-reader` agents read it before writing. |
+| `draft-plan` | Manual | Turns the active spec into a versioned plan at `.claude/plans/<slug>/v<N>.md`. Each step carries goal, files, expected outcome, verification criteria, and what it builds on (repo code, stdlib, a dependency, or new code with a reason); smaller options are listed at the gate. Refuses a spec with a `blocks: plan` open question. Plans pin to a specific spec version. Accept/edit/reject before write; `--cold` first has no-context `cold-reader` agents read it. |
 | `blueprint` | Manual | Optional commit-point view after `draft-plan`: what we wanted vs. the concrete shape we're building (classes, interfaces, dependencies, build order) with Mermaid UML. Also re-blueprints existing code via `--from-code`. |
 | `execute` | Manual | Runs the plan step by step with verification gates. Picks a strategy up front (sequential / subtask / multi-agent), advances only on pass, stops on any failure. Re-preps on module-boundary crossings. |
 | `close-out` | Manual | Terminus after `execute` meets done-criteria. Reconciles the shipped change back into the canonical spec, retires spent plan/blueprint artefacts to a dated archive, records one ship line. |
@@ -97,7 +97,7 @@ The main pipeline. Each stage writes a versioned artefact the next stage reads.
 | Skill | Mode | What it does |
 |---|---|---|
 | `wrap` | Manual | Session-terminus driver. One invocation runs the whole closing ceremony in order — coordinate teardown → checkpoint if warranted → recap → close-out → changelog → backlog sweep → progress record — by driving the existing organs rather than reimplementing them. Every canonical write passes accept/edit/reject. |
-| `cycle` | Manual | Unattended dev-cycle loop. One setup conversation (tools, limits, never-touch list, GitHub choice, notifications), then `cycle-loop.mjs` runs cycle after cycle while you are away: audit with online prior art, a slice picked by the script, plan, implement, review/fix, and a draft PR when allowed. Watch through `/cycle status`, `/cycle watch`, a localhost status page and notifications; jump in by answering cards. |
+| `cycle` | Manual | Unattended dev-cycle loop. One setup conversation (tools, limits, never-touch list, GitHub choice, notifications), then `cycle-loop.mjs` runs cycle after cycle while you are away: audit with online prior art, a slice picked by the script, plan, implement, review/fix, and a draft PR when allowed. Each run keeps a decision trail (`decisions.tsv`, evidence pointers, audited before the PR) and the PR body gets an `## Attention` list from a cold reader. Watch through `/cycle status`, `/cycle watch`, a localhost status page and notifications; jump in by answering cards. |
 | `visual` | Manual | Visual organ for UI projects. `/visual setup` writes one design contract (canonical tokens, references, screen states and their capture commands); `/cycle` then captures what each change touched, runs pixel and style checks, and starts a fresh critic session that approves, asks for a revision, or settles a taste call within the contract. You review its decisions afterwards on the status page, agree or disagree, and roll a baseline back. `/visual break <component>` stress-tests one component on a throwaway page and reports what visibly broke. |
 | `update-changelog` | Manual + callable | Appends one dated line per shipped unit to the canonical `CHANGELOG.md`. Offered by `recap`, `checkpoint`, `execute`, `spec`, `draft-plan`. One line per shipped unit, not per commit. |
 

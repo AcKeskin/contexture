@@ -240,4 +240,24 @@ function memoryDir(home, project) {
   t.assert('nudge: names the Symbol index', (h.additionalContext(r.stdout, 'PreToolUse') || '').includes('## Symbol index'), r.stdout);
 }
 
+// subagent-rules
+{
+  const { home, project } = setup();
+  const start = (agent) => ({ session_id: 's1', hook_event_name: 'SubagentStart', agent_type: agent, cwd: project });
+
+  let r = run('subagent-rules', start('general-purpose'), home, project);
+  const ctx = h.additionalContext(r.stdout, 'SubagentStart') || '';
+  t.assert('subagent: gets the change-discipline rule', ctx.includes('No unrequested scope'), r.stdout);
+
+  r = run('subagent-rules', start('Explore'), home, project);
+  t.assert('subagent: read-only agent skipped', r.stdout.trim() === '', r.stdout);
+
+  const dir = path.join(project, '.claude', 'rules', 'universal');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'change-discipline.md'), '---\nname: Change discipline\nscope: [change-discipline, universal]\nrelevance: always\n---\n\n- Project override body.\n');
+  r = run('subagent-rules', start('general-purpose'), home, project);
+  const over = h.additionalContext(r.stdout, 'SubagentStart') || '';
+  t.assert('subagent: project override wins', over.includes('Project override body') && !over.includes('No unrequested scope'), r.stdout);
+}
+
 t.report();

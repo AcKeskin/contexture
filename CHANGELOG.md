@@ -7,6 +7,69 @@ File-level changes per public snapshot. Curate freely — this is the human-faci
 
 
 
+
+## 2026-11-03 — Cold-reader agent and cold read for /spec and /draft-plan; spec open questions that gate the plan; a cycle decision trail with evidence pointers; a subagent rules hook and plan reuse lines to keep code small; an assumption trigger in change-discipline; a public README with a screenshot, install, uninstall and troubleshooting.
+
+_5 added, 35 changed, 0 removed._
+
+### Agents
+- added `agents/cold-reader.md`
+
+### Architectural rules
+- changed `architectural-rules/universal/change-discipline.md`
+
+### Bootstrap
+- changed `bootstrap/lib/enablement.js`
+
+### Cross-tool instructions
+- changed `.github/instructions/universal.instructions.md`
+
+### Docs
+- added `docs/images/review-page.png`
+- added `docs/other-agents.md`
+- changed `docs/plan-execute-workflow.md`
+- changed `docs/reference.md`
+- changed `docs/skills-catalog.md`
+
+### Hooks
+- added `hooks/subagent-rules.js`
+- changed `hooks/hooks.json`
+- changed `hooks/tests/context-hooks.test.js`
+
+### Other
+- added `copilot/agents/cold-reader.agent.md`
+- changed `.claude-plugin/plugin.json`
+- changed `README.md`
+- changed `copilot/agents/c-sharp-pro.agent.md`
+- changed `copilot/agents/cpp-pro.agent.md`
+- changed `copilot/agents/mcp-py-pro.agent.md`
+- changed `copilot/agents/mcp-ts-pro.agent.md`
+- changed `copilot/agents/metal-video-source-pro.agent.md`
+- changed `copilot/agents/react-pro.agent.md`
+- changed `copilot/agents/rust-pro.agent.md`
+- changed `copilot/agents/unity-pro.agent.md`
+- changed `copilot/agents/unity-ui-pro.agent.md`
+- changed `copilot/agents/vision-os-pro.agent.md`
+- changed `cursor/rules/universal.mdc`
+- changed `scripts/build-plugin.js`
+
+### Settings
+- changed `settings/settings.template.json`
+
+### Skills
+- changed `skills/checkpoint/corpus-passes.md`
+- changed `skills/close-out/SKILL.md`
+- changed `skills/cycle/SKILL.md`
+- changed `skills/cycle/cycle-contract.md`
+- changed `skills/cycle/cycle-state.mjs`
+- changed `skills/cycle/test/cycle-state.test.mjs`
+- changed `skills/draft-plan/SKILL.md`
+- changed `skills/envision/SKILL.md`
+- changed `skills/pr-triage/SKILL.md`
+- changed `skills/review/SKILL.md`
+- changed `skills/spec/SKILL.md`
+- changed `skills/work-state/SKILL.md`
+
 ## 2026-11-01 — Review receipts so a repeat review skips unchanged files, and AI-era questions in the review angles; a skill-triggering eval suite with fixes for skills that didn't fire; a skill-anatomy rule and skills lint; /visual break and report gates for visual and design-proposal; gdscript_check in the Godot MCP; user-only skills stay user-only in Codex.
 
 _43 added, 33 changed, 0 removed._

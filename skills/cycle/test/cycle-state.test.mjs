@@ -6,7 +6,7 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, readdi
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { readCompletion, readFrontmatter, setupGaps, setupEnv, envVar, resolvesOnPath, baselineSection, TEMPLATE_LIMIT, linksOutside } from '../cycle-state.mjs';
+import { readCompletion, readFrontmatter, setupGaps, setupEnv, envVar, resolvesOnPath, baselineSection, TEMPLATE_LIMIT, linksOutside, cell, readTrail, trailProblems, pointerProblem } from '../cycle-state.mjs';
 
 // A directory link that needs no admin rights on Windows.
 const DIR_LINK = process.platform === 'win32' ? 'junction' : 'dir';
@@ -296,4 +296,65 @@ test('outcome run from inside the run worktree, without --root, lands in the rep
 test('readCompletion parses id, item and evidence', () => {
   const items = readCompletion('## Completion items\n\n- id: a\n  item: thing\n  evidence: done\n- id: b\n  item: other\n  evidence:\n');
   assert.deepEqual(items, [{ id: 'a', item: 'thing', evidence: 'done' }, { id: 'b', item: 'other', evidence: '' }]);
+});
+
+test('decide appends a numbered row and trail passes when evidence resolves', () => {
+  const { root, git } = gitRepoWithRun();
+  const sha = git('rev-parse', 'HEAD').stdout.trim();
+  assert.equal(cycle(root, 'decide', RUN, '2', 'took the cache approach', '--why', 'one owner for state', '--evidence', `README.md:1, ${sha}`, '--result', 'tests green').status, 0);
+  const r = cycle(root, 'decide', RUN, '4', 'kept retry at 3', '--why', 'matches config', '--evidence', 'https://example.com/pr/1', '--result', 'open');
+  assert.match(r.stdout, /row 2/);
+  const rows = readTrail(readFileSync(runFile(root, 'decisions.tsv'), 'utf8'));
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].stage, '2');
+  assert.equal(rows[0].why, 'one owner for state');
+  const t = cycle(root, 'trail', RUN);
+  assert.equal(t.status, 0, t.stdout + t.stderr);
+});
+
+test('trail fails on missing evidence and unresolved pointers, and a superseding row clears them', () => {
+  const { root } = gitRepoWithRun();
+  assert.equal(cycle(root, 'trail', RUN).status, 1, 'an empty trail fails');
+  cycle(root, 'decide', RUN, '3', 'skipped the e2e run', '--why', 'slow');
+  cycle(root, 'decide', RUN, '4', 'fixed the null check', '--why', 'review finding', '--evidence', 'src/gone.ts:4');
+  const t = cycle(root, 'trail', RUN);
+  assert.equal(t.status, 1);
+  assert.match(t.stdout, /row 1: no evidence/);
+  assert.match(t.stdout, /row 2: no file src\/gone\.ts/);
+  cycle(root, 'decide', RUN, '5', 'ran the e2e suite after all', '--why', 'row 1 had no proof', '--evidence', 'README.md', '--supersedes', '1');
+  cycle(root, 'decide', RUN, '5', 'the fix landed in README', '--why', 'row 2 named the wrong file', '--evidence', 'README.md:1', '--supersedes', '2');
+  assert.equal(cycle(root, 'trail', RUN).status, 0);
+});
+
+test('decide needs a stage and a why, and refuses to supersede a missing row', () => {
+  const root = repo();
+  cycle(root, 'init', RUN);
+  assert.equal(cycle(root, 'decide', RUN, 'x', 'thing', '--why', 'w').status, 2);
+  assert.equal(cycle(root, 'decide', RUN, '2', 'thing').status, 2);
+  assert.equal(cycle(root, 'decide', RUN, '2', 'thing', '--why', 'w', '--supersedes', '9').status, 2);
+});
+
+test('cell flattens tabs and newlines and defuses formula bytes', () => {
+  assert.equal(cell('a\tb\nc'), 'a b c');
+  assert.equal(cell('=1+1'), "'=1+1");
+  assert.equal(cell(undefined), '');
+});
+
+test('pointerProblem accepts urls, PR numbers, shas and paths with lines', () => {
+  const root = repo();
+  writeFileSync(join(root, 'a.txt'), 'one\ntwo\n');
+  const yes = () => true;
+  const no = () => false;
+  assert.equal(pointerProblem('https://x.dev/y', root, root, no), null);
+  assert.equal(pointerProblem('#12', root, root, no), null);
+  assert.equal(pointerProblem('abc1234', root, root, yes), null);
+  assert.match(pointerProblem('abc1234', root, root, no), /no commit/);
+  assert.equal(pointerProblem('a.txt:2', root, root, no), null);
+  assert.match(pointerProblem('a.txt:40', root, root, no), /no line 40/);
+  assert.match(pointerProblem('tests passed', root, root, no), /not a pointer/);
+});
+
+test('trailProblems flags a supersedes that points nowhere', () => {
+  const rows = [{ id: '1', decision: 'd', evidence: 'https://x.dev', supersedes: '7' }];
+  assert.deepEqual(trailProblems(rows, '.', '.', () => true), ['row 1: supersedes unknown row 7']);
 });

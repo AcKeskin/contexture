@@ -163,7 +163,10 @@ Body shape — sections in this exact order:
 <loaded rules / decisions / lessons that would shape the partition. Cite by name. "None applicable" is valid.>
 
 ## Open questions
-- <unresolved — things that need answering before any module's `/spec` runs productively>
+- <precise question> · answers: <user | research | person or role> · blocks: <spec of <module> | none>
+
+## Not yet specified
+- <in scope, coming, not yet sharp enough to ask>
 
 ## Next moves
 <2–4 sentences. Which module to `/spec` first and why. Which can wait. Open questions that block specing.>
@@ -178,6 +181,7 @@ Body shape — sections in this exact order:
 - Each module's `Role` is ≤ ~20 words. Compress if over.
 - `Modules` frontmatter list matches the `## Modules` headings exactly — same count, same order, same slugs.
 - `non_goals_count` matches the bullet count under `## Non-goals` and is ≥ 3.
+- Unresolved items are sorted as in [spec](../spec/SKILL.md)'s open-questions sort: a precise question goes under Open questions with who answers it and which module's spec it blocks; what you can't phrase yet goes under Not yet specified; what is beyond the project is a non-goal.
 - Module map renders — sanity-check Mermaid syntax mentally; for ASCII, every box has matching corners.
 
 If any check fails, fix in-place before writing. Do not write a malformed vision and patch after.
