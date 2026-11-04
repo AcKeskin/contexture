@@ -13,27 +13,9 @@ When you have multiple unrelated failures (different test files, different subsy
 
 **Core principle:** Dispatch one agent per independent problem domain. Let them work concurrently.
 
-**Before any Agent-tool call, walk the three hard-cap gates in [Hard caps](#hard-caps). A failed gate aborts the dispatch.** The hard caps prevent runaway recursion, geometric cost compounding, and parent loss of synthesis — failure modes the soft "When to Use / When NOT to Use" heuristics below do not catch on their own.
+**Before any Agent-tool call, walk the three hard-cap gates in [Hard caps](#hard-caps). A failed gate aborts the dispatch.** The hard caps prevent runaway recursion, geometric cost compounding, and parent loss of synthesis — failure modes the soft "When to Use" heuristics below do not catch on their own.
 
 ## When to Use
-
-```dot
-digraph when_to_use {
-    "Multiple failures?" [shape=diamond];
-    "Are they independent?" [shape=diamond];
-    "Single agent investigates all" [shape=box];
-    "One agent per problem domain" [shape=box];
-    "Can they work in parallel?" [shape=diamond];
-    "Sequential agents" [shape=box];
-    "Parallel dispatch" [shape=box];
-
-    "Multiple failures?" -> "Are they independent?" [label="yes"];
-    "Are they independent?" -> "Single agent investigates all" [label="no - related"];
-    "Are they independent?" -> "Can they work in parallel?" [label="yes"];
-    "Can they work in parallel?" -> "Parallel dispatch" [label="yes"];
-    "Can they work in parallel?" -> "Sequential agents" [label="no - shared state"];
-}
-```
 
 **Use when:**
 - 3+ test files failing with different root causes
@@ -42,9 +24,9 @@ digraph when_to_use {
 - No shared state between investigations
 
 **Don't use when:**
-- Failures are related (fix one might fix others)
-- Need to understand full system state
-- Agents would interfere with each other
+- Failures are related (fixing one might fix others): investigate together first
+- Understanding needs the whole system, or you don't know what's broken yet
+- Agents would interfere (same files, same resources)
 
 ## The Pattern
 
@@ -113,32 +95,7 @@ You are a depth-N subagent. Maximum allowed depth is 2. You may spawn one more l
 
 Where N is the current depth (1 if dispatched by the user-facing agent, 2 if dispatched by a depth-1 subagent). The parent always knows N because the parent itself was told its depth on dispatch — passing the count down by convention requires no harness change.
 
-Full example with the annotation:
-
-```markdown
-You are a depth-1 subagent. Maximum allowed depth is 2. You may spawn one more level only if needed; beyond that, return work to your parent rather than spawning.
-
-Fix the 3 failing tests in src/agents/agent-tool-abort.test.ts:
-
-1. "should abort tool with partial output capture" - expects 'interrupted at' in message
-2. "should handle mixed completed and aborted tools" - fast tool aborted instead of completed
-3. "should properly track pendingToolCount" - expects 3 results but gets 0
-
-These are timing/race condition issues. Your task:
-
-1. Read the test file and understand what each test verifies
-2. Identify root cause - timing issues or actual bugs?
-3. Fix by:
-   - Replacing arbitrary timeouts with event-based waiting
-   - Fixing bugs in abort implementation if found
-   - Adjusting test expectations if testing changed behavior
-
-Do NOT just increase timeouts - find the real issue.
-
-Return: Summary of what you found and what you fixed.
-
-If you reach a decision, lesson, or landmine worth remembering beyond this task, emit a `harvest:` block (decisions / lessons / open_questions) per "Harvesting subagent state". Omit it if there's nothing worth keeping.
-```
+A full prompt with the annotation: [reference.md](reference.md), *Full example*.
 
 ### Autonomy contract at dispatch
 
@@ -153,20 +110,7 @@ This section is the single owner of contract-to-dispatch wiring; orchestrate's Q
 
 ## Consult returns (below-parent-tier units)
 
-A unit dispatched below the parent's tier trades judgment for cost — so give it a channel to borrow judgment back instead of guessing. The mechanism is the existing return posture, not new machinery: a consult is a BLOCKED-shaped return carrying one specific question plus the evidence that raised it. The parent answers tersely and re-dispatches the same unit with the answer appended (or continues the agent, where the platform supports continuing a spawned agent). **Continue or resume a unit only if nothing else has touched that unit's files since it was dispatched** — otherwise dispatch fresh; a resumed session is repairing against a stale world. For serialized units the condition holds trivially; for concurrent ones a violation means two units shared files that shouldn't have — a placement bug surfacing late, worth naming aloud rather than silently repairing around.
-
-For every below-parent-tier dispatch, add these lines to the unit's prompt (alongside the depth annotation and the harvest invitation):
-
-> If you hit any of these, stop and return a consult — one short, specific question plus the evidence that raised it — rather than pushing through: (1) you are about to take your first state-changing action and the approach wasn't fully specified; (2) you are stuck — the same error twice, or results that don't fit; (3) you are about to switch approach. Before returning a consult or a done result, make your work durable first — write the file, commit in your worktree; a durable partial survives, an unwritten one doesn't. If your own evidence contradicts guidance you were given, don't silently pick a side — return the conflict: "found X, was advised Y — which constraint wins?"
-
-Parent side, two rules:
-
-- **Answer tersely.** A consult answer is direction — a few sentences naming the constraint that breaks the tie — never a redo of the unit's work. If answering properly requires doing the work, the unit was mis-tiered; take it over.
-- **Cap at two consults per unit.** A unit that needs a third consult isn't mechanical — it was mis-scoped or mis-tiered. Split it or run it at parent tier.
-
-Do not add the consult lines to parent-tier dispatches: an executor already at the parent's tier gains nothing from consulting the parent, and a mandated consult there produces ceremony instead of judgment. Lower tiers under-consult by default and need the triggers stated explicitly; that asymmetry is the point.
-
-For **lowest-tier** executors, soft triggers are not enough — observed behavior is that they resolve convention conflicts with silent local judgment rather than consulting. Phrase the deviation trigger as a hard rule on those dispatches: *"Hard rule: if the instructions' conventions do not fit what you find in a file — wrong structure, a case the conventions never mention — you MUST stop and return a consult before editing that file. Deciding the exception yourself is the one thing you may not do."*
+A unit dispatched below the parent's tier gets a channel to ask instead of guessing. Before writing that prompt, read [consult.md](consult.md): it gives the lines to paste (stop and consult before the first state change, when stuck, or before switching approach; the hard-rule form for the lowest tier). The parent answers in a few sentences, caps it at two consults per unit, and adds no consult lines to parent-tier dispatches.
 
 ## Output contract (for agents that declare one)
 
@@ -178,36 +122,11 @@ The advisory is informational — it never rejects the agent response, so an orc
 
 ## Harvesting subagent state
 
-A subagent runs in **isolated context** — correct for focus, a liability for *state*. A decision it reaches, a landmine it hits, or an open question it surfaces dies with its context unless the parent notices it in the free-text summary and chooses to capture it by hand. The `harvest:` block is a **narrow, structured return channel** that closes that leak without breaking isolation (the opposite of dumping full context back across the boundary).
-
-Any subagent **may** append an optional `harvest:` block when — and only when — it produced something worth remembering beyond its own task. A subagent with nothing capture-worthy omits it entirely (no ceremony):
-
-```yaml
-harvest:
-  decisions:
-    - what: "Chose longest-prefix walk over per-file lookup for scope resolution"
-      why: "O(depth) not O(files); matches the submodule mental model"
-      scope: [scope-resolution]
-  lessons:
-    - what: "ELK renderer needed for >40-node Mermaid graphs; dagre overflows"
-      kind: warning
-      scope: [codemap, visualization]
-  open_questions:
-    - "Does PreCompact expose the live transcript or only the on-disk lag?"
-```
-
-**What happens to it.** The `agent-output-contract-validator.js` hook (PostToolUse on Agent) scans every subagent response for a top-level `harvest:` block, independently of any `## Output contract` (the two coexist — a response may carry both; they're parsed separately). When the block is present and non-empty, the hook emits a **non-blocking advisory** in your next turn summarising the counts. You then route each item on the **user's** confirmation:
-- `decisions[]` → `/capture` with `kind: decision`
-- `lessons[]` → `/capture` with `kind: lesson` (or `kind: warning` when the item carries `kind: warning` — a subagent-discovered landmine reaches the highlighted warning tier without re-classification)
-- `open_questions[]` → carry into your working notes / the next `/recap`
-
-**Nothing is auto-written.** The hook *surfaces*; capture stays Mode A — the user accepts/edits/rejects every memory write (collaborator, not auto-learner). The subagent's `kind: warning` self-tag is a *proposal* the user can override at capture time.
-
-**The dispatch-prompt line.** Alongside the depth annotation (Gate 2), every dispatch prompt should invite the block:
+Every dispatch prompt carries one line:
 
 > If you reach a decision, lesson, or landmine worth remembering beyond this task, emit a `harvest:` block per the return contract (decisions / lessons / open_questions). Omit it entirely if there's nothing worth keeping.
 
-This is one line; it carries no obligation. It is the State-side complement to the depth annotation's Instructions-side discipline (the depth caps stop bad spawns; the harvest block keeps what a good spawn learned).
+When a reply carries one, the output-contract hook flags it. Route each item only on the user's confirmation; the schema and routing are in [harvest.md](harvest.md). Nothing is auto-written.
 
 ## Common Mistakes
 
@@ -222,13 +141,6 @@ This is one line; it carries no obligation. It is the State-side complement to t
 
 **❌ Vague output:** "Fix it" - you don't know what changed
 **✅ Specific:** "Return summary of root cause and changes"
-
-## When NOT to Use
-
-**Related failures:** Fixing one might fix others - investigate together first
-**Need full context:** Understanding requires seeing entire system
-**Exploratory debugging:** You don't know what's broken yet
-**Shared state:** Agents would interfere (editing same files, using same resources)
 
 ## Tier and effort selection
 
@@ -282,38 +194,6 @@ This is the right interrupt point — the user can stop a dispatch before it hap
 
 **Bulk-batch exception:** when the parent has already established a batch ("I'm batching N file-reads to subagents") in user-visible text once in the session, subsequent dispatches in that same explicit batch may skip restating the justification. The framing covers them. New batches require new justification.
 
-## Example Dispatch
-
-**Scenario:** 6 test failures across 3 files after major refactoring
-
-**Failures:**
-- agent-tool-abort.test.ts: 3 failures (timing issues)
-- batch-completion-behavior.test.ts: 2 failures (tools not executing)
-- tool-approval-race-conditions.test.ts: 1 failure (execution count = 0)
-
-**Decision:** Independent domains - abort logic separate from batch completion separate from race conditions
-
-**Dispatch:**
-```
-Agent 1 → Fix agent-tool-abort.test.ts
-Agent 2 → Fix batch-completion-behavior.test.ts
-Agent 3 → Fix tool-approval-race-conditions.test.ts
-```
-
-**Results:**
-- Agent 1: Replaced timeouts with event-based waiting
-- Agent 2: Fixed event structure bug (threadId in wrong place)
-- Agent 3: Added wait for async tool execution to complete
-
-**Integration:** All fixes independent, no conflicts, full suite green
-
-## Key Benefits
-
-1. **Parallelization** - Multiple investigations happen simultaneously
-2. **Focus** - Each agent has narrow scope, less context to track
-3. **Independence** - Agents don't interfere with each other
-4. **Speed** - 3 problems solved in time of 1
-
 ## Verification
 
 After agents return:
@@ -321,3 +201,5 @@ After agents return:
 2. **Check for conflicts** - Did agents edit same code?
 3. **Run full suite** - Verify all fixes work together
 4. **Spot check** - Agents can make systematic errors
+
+A worked example, the decision graph and the pattern's benefits: [reference.md](reference.md).

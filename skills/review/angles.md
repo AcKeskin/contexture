@@ -37,7 +37,7 @@ Can someone build on this without editing it? Read it as the next developer who 
 Can it be made to do something it shouldn't? Look for untrusted input reaching queries, shells, paths, templates or deserializers; missing or wrong auth checks; secrets in code or logs; unsafe defaults. Route findings to the `security-reviewer` agent's verify mode in the verify step.
 
 ### hygiene
-Is the PR itself in good shape? Empty or vague commit messages, unrelated changes mixed in (formatting-only files, drive-by refactors), new logic with no test change or only tests that mirror it, public API changes with no doc update, new TODOs without a tracking reference, skipped or disabled tests and checks, new lint or type suppressions, hardcoded values standing in for config, debug leftovers (`console.log`, `print()`, `debugger`) in non-test code. PR targets only.
+Is the PR itself in good shape? Empty or vague commit messages, unrelated changes mixed in (formatting-only files, drive-by refactors), new logic with no test change or only tests that mirror it, public API changes with no doc update, new TODOs without a tracking reference, hardcoded values standing in for config, debug leftovers (`console.log`, `print()`, `debugger`) in non-test code. Skipped tests, suppressions and loosened checks belong to the gate scan ([gates.md](gates.md)). PR targets only.
 
 ### tests
 Would a regression here be caught? Look for changed behaviour with no test that would fail if it broke, tests that assert the mock instead of the behaviour, tests that mirror the code and would still pass if it were wrong, missing edge-case tests for the correctness risks above, and flaky patterns (time, order, network). Point at the test file and the case to add.

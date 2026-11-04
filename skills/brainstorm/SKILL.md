@@ -13,6 +13,20 @@ The ideation organ. The stage *before* `/envision`: where a half-formed or blurr
 
 The discipline: it must **converge**, not just chat. A `/brainstorm` that ends without a crystallized statement the user accepts was just conversation. The engineer wants the idea *sharpened*, not a transcript.
 
+## Your first reply
+
+The first reply is short and has exactly this shape:
+
+1. Play the idea back in two or three sentences, in your words.
+2. Ask **one** question. If the user hasn't said why they want this, ask why, openly and in their terms, with no options and no example answers.
+3. Say in one line what the answer will change.
+
+Example, for "/brainstorm a tool that tracks my reading":
+
+> You want something that keeps a record of what you read, so it doesn't vanish once you close the tab or book. What made you want this now? Knowing whether it's about remembering, finding things again or reading more decides what the tool keeps.
+
+No numbered question lists, no option menus, no draft name or note in the first reply. If the idea is already sharp and the why is known, skip the question and propose the crystallized note instead.
+
 ## When to run
 
 - `/brainstorm [slug]` — start (or resume) shaping an idea.
@@ -26,9 +40,15 @@ The discipline: it must **converge**, not just chat. A `/brainstorm` that ends w
 - Slug given → use it. Omitted → derive a short kebab slug from the idea once it has a name, or ask.
 - If `.claude/ideas/<slug>.md` exists, read it and **resume** from where it left off (this is the cross-session-gap recovery the persisted note buys).
 
-### 2. Discuss — explore, but steer toward shape
+### 2. Look before you ask
 
-Talk the idea through. Free-form, but every few turns pull toward the five things a shaped idea needs (below). Surface tensions, ask the question that's load-bearing, offer framings — but **do not drift into spec-level detail** (functions, files, schemas): that's `/spec`'s job downstream. When the user starts there, redirect: *"that's implementation — let's pin what this *is* first."*
+If the idea points at something (a project, files, notes, an earlier conversation), read it before your first reply. Never ask what it already answers, and don't reopen what the user already decided.
+
+### 3. Discuss — explore, but steer toward shape
+
+Talk the idea through. Every few turns, pull toward the five things a shaped idea needs (below). **Do not drift into spec-level detail** (functions, files, schemas): that's `/spec`'s job. When the user starts there, redirect: *"that's implementation — let's pin what this *is* first."*
+
+**After that**, one question per message. Ask only when the answer would change the name, the edges or the end goal and nothing already answers it; otherwise state your call as a proposal the user can correct. Once you know the why, when a choice has options you can name, sketch each with its trade-off and say which you'd pick.
 
 The five things to converge on:
 1. **Name** — what to call it.
@@ -37,7 +57,7 @@ The five things to converge on:
 4. **End goal** — what "done / working" looks like.
 5. **Open edges** — the questions still genuinely unresolved (carried forward, not forced).
 
-### 3. Crystallize — propose the shaped idea
+### 4. Crystallize — propose the shaped idea
 
 When the five are roughly there (or the user says "pin it"), propose the crystallized note for **accept / edit / reject**:
 
@@ -60,7 +80,7 @@ description: <one-line>
 
 Don't force premature precision — `status: shaping` is allowed if it genuinely isn't crystallized yet, but say so and name what's still blurry.
 
-### 4. Write + hand off
+### 5. Write + hand off
 
 On accept: write `.claude/ideas/<slug>.md`, update `.claude/ideas/INDEX.md` (one row per idea: slug / status / created / one-line). Then point downstream:
 

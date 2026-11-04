@@ -30,11 +30,7 @@ Do **not** auto-fire. Do **not** run for one-line fixes, refactors, or tasks wit
 
 1. **Locate the specs tree.** Resolve `$CLAUDE_PROJECT_DIR/.claude/specs/` (or `cwd/.claude/specs/` if env var unset). Create the directory tree lazily — do not pre-create empty folders.
 
-2. **Legacy migration check (one-time).** If `$CLAUDE_PROJECT_DIR/SPEC.md` exists at project root and `.claude/specs/` does not yet exist, ask:
-
-   > Found a legacy SPEC.md at the project root. Migrate it to `.claude/specs/<slug>/v1.md` and create INDEX.md? (y/N)
-
-   On `y`: derive the slug from the file's `# Spec — <slug>` heading (or ask if absent), move the content into `v1.md` with the new frontmatter (status `active`), build `.claude/specs/INDEX.md`. The old `SPEC.md` is deleted only after the new files are written successfully. On `n`: leave the legacy file alone; treat the new flow as additive (`/spec` will write to `.claude/specs/` regardless).
+2. **Legacy migration check (one-time).** If a root `SPEC.md` exists and `.claude/specs/` does not, offer to migrate it; procedure in [reference.md](reference.md).
 
 3. **Resolve the slug.**
    - `/spec` (no args) → use the reserved slug `default`. No prompt; the user opted into the no-decision path.
@@ -49,41 +45,11 @@ Do **not** auto-fire. Do **not** run for one-line fixes, refactors, or tasks wit
    - Slug not in INDEX → **create flow**: this will be `v1.md`.
    - Slug in INDEX with active version → **evolve flow**: read the active file, interview only on what's changing, write `v_n+1`.
 
-4.5 **Prior-art pass** (conditional — port / parity work only). When the feature already exists somewhere and this work is a *port* of it, the existing implementation **is** the requirements document. Interviewing from zero re-derives from memory what the repo already states exactly.
-
-   **Trigger.** Run this pass when the user frames the work against something that exists — *"like X but for Y"*, *"same as the desktop version"*, *"port"*, *"parity with"*, *"we did this for &lt;platform&gt;"* — or when the interview surfaces a sibling capability already built. **No trigger, no pass:** an original feature goes straight to step 5 with no added cost.
-
-   1. **Sweep for candidate bases.** Codemap first (it already names modules and their roles); targeted Glob/Grep only where the codemap doesn't reach. This is a *locate* pass, not a read pass — you are looking for which implementations exist and where.
-
-   2. **Confirm the canonical base.** List the candidates and ask which one is authoritative. Never pick silently: sibling implementations drift, and the one that looks newest is not reliably the one they consider correct.
-
-      **Surface drift as a finding.** If two candidates disagree on behaviour, say so before the interview continues:
-
-      > `<A>` and `<B>` differ on `<behaviour>`. The port can't inherit both — which is the intended behaviour?
-
-      Drift is a requirements question the user must settle, not something to resolve by picking the majority or the most recent.
-
-   3. **Bases in another project.** A base often lives outside this repo (*"like we did in `<other project>`"*). Two sources, both narrow:
-      - **User nomination** — they name the project or path.
-      - **A memory pointer** — a stored reference or lesson already points at that project.
-
-      **Never sweep other projects looking for one.** An unprompted scan across the filesystem is unbounded cost for a guess, and it reads private trees nobody pointed you at. No nomination and no pointer means no cross-project base — say so and continue with what's here.
-
-      Resolve a nominated project through its own codemap when it has one, targeted reads otherwise. If that codemap is stale, **warn and use it anyway** — regenerating another project's artefacts from this session is scope creep. Record the base path with a note that it is machine-local: the spec is a local artefact, and a path that resolves here means nothing on a teammate's machine.
+4.5 **Prior-art pass** (port or parity work only). When the user frames the work against something that exists ("like X but for Y", "port", "parity with") or the interview surfaces a sibling already built, read [prior-art.md](prior-art.md) and run it before step 5: locate candidate bases (codemap first), have the user confirm the canonical one, surface drift between candidates as a question, and never sweep other projects unasked. No trigger, no pass.
 
 5. **Interview** (`AskUserQuestion`, fall back to plain text if unavailable):
    - **Create flow** — full interview. Probe technical implementation, UI/UX, edge cases, constraints, tradeoffs, concerns. Skip obvious questions. Stop when the user signals done, coverage is complete, or after ~10 questions ask the meta-question *"I've asked 10 questions. Are there areas we haven't covered that matter?"* and respect the answer.
-   - **Create flow with a confirmed base** (the prior-art pass ran) — interview on the **delta**, not from zero. First inventory the base's observable behaviours: what it does, its states and transitions, what it does on failure. **Inventory, don't absorb** — you are listing behaviours and where they live, not reading implementations into the spec; the deep read belongs downstream in blueprint or the plan. Then ask only about divergence:
-
-     > The base does `<A>`, `<B>`, `<C>` on `<event>`. Same here, or does `<target>` differ?
-
-     Behaviours the user doesn't flag as different are carried into the spec as inherited, exactly as the evolve flow carries untouched sections forward. This is the same delta discipline, with a code baseline instead of a spec baseline.
-
-     **Ask the shared-core question — always, on every confirmed base:**
-
-     > Port the behaviour into a separate implementation, or extract the shared logic into a common core both call?
-
-     This is an architecture decision with a long tail, it is cheapest to take now, and it will otherwise be taken by default at execute time by whoever is closest to the code. Record the answer in the spec — including *why*, since "we deliberately duplicated" and "we never thought about it" read identically six months later.
+   - **Create flow with a confirmed base** — interview on the delta, not from zero, and always ask the shared-core question (port vs. extract a common core). Procedure: [prior-art.md](prior-art.md), *Delta interview*.
    - **Evolve flow** — first read any filled questionnaire in `.claude/specs/<slug>/` (step 7.5): each answer settles its open question, and the answer goes in the section it settles. Then open the active version, summarise its current shape in 3–5 bullets, then ask: *"What's changing? (paragraphs / sections to revise, or 'all of it' for a full re-interview)"*. Interview only on the deltas. Sections the user does not touch are carried forward verbatim from the previous version.
    - **Done-criteria probe** (closing phase, both flows) — after the body sections are populated, propose 2–4 candidate done-criteria derived from the spec body and ask the user to accept/edit/add. Each criterion must be: (a) **falsifiable** ("done when X works" is too vague; "done when running command Y produces output Z" is good), (b) **observable from outside the implementation** (a fresh reader can check it against the artefact), (c) **sufficient together** (if all are met, the spec's intent is satisfied). Iterate until the user signals done. Minimum: one criterion. **Nudge toward at least one command-shaped criterion** (one a command can settle, rather than a reader's judgment) — that is the kind `/execute`'s closing assessment can check on its own, and asking for it during the interview costs nothing. Advisory, not a gate: a spec whose intent is genuinely all judgment still ships with judgment criteria. **With a confirmed base, prefer parity-shaped criteria** — *"behaviours 1–7 of the base inventory hold on `<target>`"* is falsifiable, cheap to write, and often command-shaped already where the base carries tests. If the user can't articulate any falsifiable criterion ("we'll figure it out as we go"), mark the spec `status: draft` with `done_criteria_provisional: true` in frontmatter — this blocks `/draft-plan` until the criteria are firm. Drafts are still useful; the block is on promotion to `active`, not on writing the spec.
    - **Open-questions sort** (closing phase, both flows) — list what is still unresolved and sort each item:
@@ -109,101 +75,17 @@ Do **not** auto-fire. Do **not** run for one-line fixes, refactors, or tasks wit
 
    Fold relevant prior knowledge into the spec's `Grounded context` section. Cite by name; do not silently absorb.
 
-   **Anchoring guard (when a base was confirmed).** Cross-check what discover returned *against the base*. A base is evidence, not gospel — a known defect in it will otherwise be ported forward as though it were a requirement. When a retrieved lesson or warning names a problem in the base, flag it rather than inheriting it silently:
+   With a confirmed base, run the anchoring guard in [prior-art.md](prior-art.md): flag a known defect in the base instead of porting it.
 
-   > The base carries `<known problem>` (from `<memory name>`). Porting it as-is inherits that. Keep the behaviour, or fix it in the port?
-
-   The delta interview asks *what differs*; this asks *what shouldn't be copied*. Without it, the pass makes the strongest case for reproducing exactly the behaviour you already learned was wrong.
-
-6.5 **Cold read (`--cold` only).** Before writing, run [draft-plan](../draft-plan/SKILL.md)'s cold read on the drafted spec with two lenses: `comprehension` and `reuse`. Readiness is for plans. Apply the fixes the user accepts, then write.
+6.5 **Cold read (`--cold` only).** Before writing, run [draft-plan's cold read](../draft-plan/cold-read.md) on the drafted spec with two lenses: `comprehension` and `reuse`. Readiness is for plans. Apply the fixes the user accepts, then write.
 
 7. **Write the new version file.** Path: `.claude/specs/<slug>/v<N>.md` where `N` = previous active version + 1, or `1` for create flow.
 
-   Frontmatter (mandatory):
-
-   ```yaml
-   ---
-   slug: <slug>
-   version: <N>
-   status: active
-   supersedes: v<N-1>.md   # null on v1 — omit the line entirely
-   created: YYYY-MM-DD
-   description: <one-line — what this spec is about, used by INDEX>
-   done_criteria:
-     - "<falsifiable, observable condition 1>"
-     - "<falsifiable, observable condition 2>"
-   done_criteria_provisional: false   # set true (with status: draft) only if step 5 yielded no firm criteria
-   ---
-   ```
-
-   Body shape:
-
-   ```markdown
-   # Spec — <slug> (v<N>)
-
-   ## Problem
-   <what forces this work. 1–2 paragraphs.>
-
-   ## Goals
-   - <bullet>
-
-   ## Non-goals
-   - <bullet>
-
-   ## User-facing behavior
-   <from interview.>
-
-   ## Base implementation      ← only when the prior-art pass confirmed a base
-   **Base:** <path(s) to the confirmed canonical implementation>
-   **Behaviour inventory:** <the base's observable behaviours, numbered — the list parity criteria reference>
-   **Divergences:** <where this target deliberately differs, and why>
-   **Shared core:** <port-copy or extract-shared, and the reason>
-
-   ## Technical approach
-   <from interview.>
-
-   ## Constraints
-   <deadlines, perf targets, dependencies.>
-
-   ## Grounded context
-   <loaded rules / decisions / lessons. Cite by name.>
-
-   ## Open questions
-   - <precise question> · answers: <user | research | person or role> · blocks: <plan | build | none>
-
-   ## Not yet specified
-   - <in scope, coming, not yet sharp enough to ask>
-
-   ## Verification criteria
-   <how shipped work will be judged. Specific.>
-
-   ## Changes from v<N-1>      ← evolve flow only
-   - <bullet per section that changed, with one-line summary>
-   ```
-
-   Sections with no content → write *"not addressed during interview"*. Do not invent.
+   Use the frontmatter and body template in [templates.md](templates.md). Frontmatter is mandatory: `slug`, `version`, `status`, `supersedes` (omit on v1), `created`, `description`, `done_criteria`, `done_criteria_provisional`. Body sections: Problem, Goals, Non-goals, User-facing behavior, Base implementation (only with a confirmed base), Technical approach, Constraints, Grounded context, Open questions (`· answers: … · blocks: …`), Not yet specified, Verification criteria, Changes from v<N-1> (evolve only). Sections with no content → write *"not addressed during interview"*. Do not invent.
 
 7.5 **Questionnaire** (an open question someone else must answer, or `--questionnaire`). The user can't answer it, so ask the user only about the send: who it goes to (role, what they know that the user doesn't) and anything they need back beyond the open questions. One exchange. Then write `.claude/specs/<slug>/questionnaire-<recipient>.md`:
 
-   ```markdown
-   # <topic>: questions for <recipient>
-
-   **Why:** <the decision riding on the answers>. **From:** <user> **To:** <recipient>
-
-   ## Context
-   <one paragraph for someone who hasn't seen the spec>
-
-   ## How to answer
-   Write under each question. "I don't know" and partial answers help; flag what you're unsure of.
-
-   ## <theme>
-   ### <one question, most important first>
-   _Why it matters: <only where it could be misread>_
-   >
-
-   ## Anything else we should know?
-   >
-   ```
+   Use the questionnaire template in [templates.md](templates.md).
 
    Every open question with this answerer gets a question; each question asks one thing. Tell the user the path. The next `/spec <slug>` reads the filled file first (evolve flow).
 
@@ -237,35 +119,4 @@ Do **not** auto-fire. Do **not** run for one-line fixes, refactors, or tasks wit
 
     **Offer a changelog decision line — significant changes only.** A *new* spec for a slug (v1) or a status transition (a spec going `active`, or `--abandon`) is a significant planning-artifact change worth recording: offer *"Spec'd &lt;slug&gt; — log a decision line to CHANGELOG? (y/N)"*. On `y`, invoke [`update-changelog`](../update-changelog/SKILL.md) (it composes a `◆` decision line behind its own accept/edit/reject gate). **Do not offer on a routine v→v+1 wording revision** — that is authoring churn, already tracked by the version chain + INDEX (changelog-contract §5). spec is a *doorway*, not the writer; the propose-confirm gate is the backstop if the change turns out not changelog-worthy.
 
-## Versioning contract (canonical)
-
-This section is the **single canonical statement** of the versioning mechanics for every versioned artefact in the scope chain — specs, visions, plans, blueprints. The sibling organs reference it rather than restating it.
-
-- `version` is monotonic per slug. Never reused, never decremented.
-- `status` transitions: `draft → active → superseded` (normal evolution) or `* → abandoned` (explicit dead-end).
-- Exactly one version per slug carries `status: active` at any time. Evolve flow enforces this.
-- `supersedes` is the relative filename of the immediate predecessor. `superseded_by` is the inverse, written when the next version takes over.
-- `created` is the date the version was written. Never edited after creation.
-- `description` is one line, used by INDEX. Edit it freely as the spec evolves.
-- `done_criteria` is a list of falsifiable / observable / sufficient conditions, populated during the interview's done-criteria probe. **Mandatory for `status: active`** — the spec cannot be promoted to active with an empty list. New versions of an existing spec must populate `done_criteria` (lazy migration at the natural inflection point).
-- `done_criteria_provisional` defaults to `false`. Set `true` (with `status: draft`) when the interview yielded no firm criteria — blocks `/draft-plan` until resolved. Existing specs without `done_criteria:` are tolerated as legacy; `/spec` warns when reading them and offers to add criteria.
-
-## Done-criteria semantics
-
-The `done_criteria` list is the **machine-checkable** companion to the body's `## Verification criteria` section. The body section is the human-readable expansion (with examples, rationale, edge cases); the frontmatter list is the bulleted assertion set that downstream skills (`/draft-plan`, `/execute`) consume mechanically. They populate together during the interview.
-
-Three rules on what counts as a criterion:
-
-1. **Falsifiable.** "Done when X works" is too vague. "Done when running command Y produces output Z" is good. The user (or Claude) can read the criterion after implementation and answer "yes, met" or "no, not met" without ambiguity.
-2. **Observable from outside the implementation.** A criterion that requires reading the implementer's mind ("done when the design feels right") is not a criterion. A criterion that can be checked by a fresh reader against the artefact is.
-3. **Sufficient.** The criteria together must mean: if all are met, the spec's intent is satisfied. Missing criteria = under-specified spec — exactly what the done-criteria probe is designed to surface.
-
-## What /spec does not do
-
-- Does not implement anything.
-- Does not run `/draft-plan` or `/execute`.
-- Does not modify code files — only writes under `.claude/specs/` and updates INDEX.md there.
-- Does not silently overwrite an existing version. Every write either creates a new `v<N>.md` or transitions an existing file's frontmatter explicitly.
-- Does not delete superseded or abandoned versions. They are kept for archaeology.
-
-See also: [`docs/plan-execute-workflow.md`](../../docs/plan-execute-workflow.md) for the full four-phase chain and the file-tree convention.
+The versioning contract, done-criteria semantics and what /spec does not do: [reference.md](reference.md).

@@ -49,8 +49,8 @@ const BUNDLE_INFO = {
   compactSnapshot: ['Compaction snapshot', 'Save the last request, todos, edited files and errors before compaction; restore after.'],
   editChecks: ['Edit checks', 'Run trusted checks from .claude/edit-checks.json after edits; report only new problems.'],
   subagentRules: ['Subagent rules', 'Give each subagent the change-discipline rule (minimal change, no unrequested scope).'],
-  codemapNudge: ['Codemap nudge', 'On the first search of a session, point at .claude/codemap.md if it exists.'],
-  codemapRefresh: ['Codemap refresh', 'Say when the codemap is out of date; refresh it in the background where Auto-update refresh is on.'],
+  codemapNudge: ['Codemap nudge', 'Where .claude/codemap.md exists: a short project layout at session start, and a pointer for subagents and the first search.'],
+  codemapRefresh: ['Codemap refresh', 'Refresh an out-of-date codemap in the background (untracked codemaps by default), or say it is out of date.'],
 };
 
 const SCRIPT_RE = /\/hooks\/([\w.-]+\.js)$/;

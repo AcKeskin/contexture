@@ -129,6 +129,16 @@
         ]
       },
       {
+        "matcher": "startup|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/plugin-gate.js\" codemapNudge codemap-search-nudge.js",
+            "timeout": 5
+          }
+        ]
+      },
+      {
         "matcher": "startup|resume",
         "hooks": [
           {
@@ -199,6 +209,15 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/plugin-gate.js\" subagentRules subagent-rules.js",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/plugin-gate.js\" codemapNudge codemap-search-nudge.js",
             "timeout": 5
           }
         ]

@@ -176,6 +176,21 @@
             { "type": "command", "command": "node __HOME__/.claude/hooks/codemap-search-nudge.js", "timeout": 5 }
           ]
         }
+      ],
+      "SessionStart": [
+        {
+          "matcher": "startup|clear|compact",
+          "hooks": [
+            { "type": "command", "command": "node __HOME__/.claude/hooks/codemap-search-nudge.js", "timeout": 5 }
+          ]
+        }
+      ],
+      "SubagentStart": [
+        {
+          "hooks": [
+            { "type": "command", "command": "node __HOME__/.claude/hooks/codemap-search-nudge.js", "timeout": 5 }
+          ]
+        }
       ]
     },
     "codemapRefresh": {

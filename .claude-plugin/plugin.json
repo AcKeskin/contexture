@@ -96,13 +96,13 @@
     "codemap_nudge": {
       "type": "boolean",
       "title": "Codemap nudge",
-      "description": "On the first search of a session, point at .claude/codemap.md if it exists.",
+      "description": "Where .claude/codemap.md exists: a short project layout at session start, and a pointer for subagents and the first search.",
       "default": true
     },
     "codemap_refresh": {
       "type": "boolean",
       "title": "Codemap refresh",
-      "description": "Say when the codemap is out of date; refresh it in the background where Auto-update refresh is on.",
+      "description": "Refresh an out-of-date codemap in the background (untracked codemaps by default), or say it is out of date.",
       "default": true
     }
   },

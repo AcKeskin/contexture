@@ -29,7 +29,7 @@ const SKIP_DIRS = new Set([
 const SKIP_FILE_PATTERNS = [
   /\.lock$/i, /\.log$/i, /\.min\.[^/]+$/i, /\.map$/i,
   /\.gen\.cs$/i, /\.g\.cs$/i, /\.generated\./i, /\.designer\.cs$/i,
-  /\.meta$/i,
+  /\.meta$/i, /\.uid$/i, /\.import$/i, // Unity and Godot sidecar files
 ];
 
 const SKIP_FILENAMES = new Set([
@@ -350,13 +350,39 @@ function isBoilerplateComment(text) {
   return BOILERPLATE_RE.test(text) || COMMENT_RULE_RE.test(text);
 }
 
+// Lines that come before a file's description comment: shebang, directives,
+// C# usings, package/namespace and GDScript class headers. Skipped, not a
+// stop. JS/TS/Python imports still stop the scan: a comment after them
+// usually documents a member, not the file.
+const PREAMBLE_RE = /^(#!|['"]use [a-z ]+['"];?$|using\s+[\w.=\s]+;$|package\s+[\w.]+;?$|namespace\s+[\w.]+\s*[;{]?$|\{$|extends\s|class_name\s|@tool$|#include\s|#pragma\s)/;
+
+// `/// <summary>` style XML doc tags carry no words; keep the text between them.
+function stripDocTags(s) {
+  return s.replace(/<\/?[a-z]+[^>]*>/gi, '').trim();
+}
+
+// `description:` from leading YAML frontmatter (skills, agents, rules, memories).
+function frontmatterDescription(headLines) {
+  if (!headLines.length || headLines[0].trim() !== '---') return '';
+  for (let i = 1; i < headLines.length; i++) {
+    const l = headLines[i];
+    if (l.trim() === '---') return '';
+    const m = l.match(/^description:\s*(.+)$/);
+    if (m) return m[1].trim().replace(/^(["'])(.*)\1$/, '$2');
+  }
+  return '';
+}
+
 function derivePurpose(headLines, filename) {
+  const fm = frontmatterDescription(headLines);
+  if (fm && !/^[|>][-+]?$/.test(fm)) return clip(fm); // skip block-scalar markers
   for (let i = 0; i < Math.min(headLines.length, 20); i++) {
     const l = headLines[i].trim();
     if (!l) continue;
+    if (PREAMBLE_RE.test(l)) continue;
     let m, body = null;
-    if ((m = l.match(/^\/\/\s*(.+)$/))) body = m[1].trim();
-    else if ((m = l.match(/^#\s+(.+)$/))) body = m[1].trim();
+    if ((m = l.match(/^\/\/\/?\s*(.*)$/))) body = stripDocTags(m[1]) || null;
+    else if ((m = l.match(/^#{1,2}\s+(.+)$/))) body = m[1].trim();
     else if ((m = l.match(/^\/\*\s*(.+?)\s*\*\/?$/))) body = m[1].trim();
     else if ((m = l.match(/^\*\s*(.+)$/))) body = m[1].trim();
     else if ((m = l.match(/^"""\s*(.+?)(?:"""|$)/))) body = m[1].trim();
@@ -902,9 +928,9 @@ function loadPreviousCodemap(codemapPath) {
 // stale read. The cache is advisory: a miss just means "re-extract", so it can never
 // produce a wrong map, only a slower one.
 // Bumped on cached-entry schema changes (v2 added `calls`; v3 added `defines`; v4 added
-// `callSeq`; v5 added `callResolution`) — an older entry lacks the field, so the bump forces a
+// `callSeq`; v5 added `callResolution`; v7 re-derives file roles) — an older entry lacks the field, so the bump forces a
 // one-time cold rebuild rather than a partial read.
-const CACHE_VERSION = 5;
+const CACHE_VERSION = 7;
 
 function loadExtractCache(cachePath) {
   try {
@@ -946,6 +972,15 @@ function diffSummary(prev, current) {
 // These build the # Architecture header (Overview, Modules, Conventions, Hubs)
 // that ships above the structured sections consumed by visualise-codemap.
 
+function readmeProse(line) {
+  return line
+    .replace(/\[!\[[^\]]*\]\([^)]*\)\]\([^)]*\)/g, '') // linked badge
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, '') // image
+    .replace(/<[^>]+>/g, '') // HTML tag
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1') // link -> text
+    .trim();
+}
+
 function readReadmeH1(root) {
   try {
     const readme = path.join(root, 'README.md');
@@ -954,10 +989,11 @@ function readReadmeH1(root) {
     const lines = text.split(/\r?\n/);
     const h1Index = lines.findIndex((l) => /^#\s+/.test(l));
     if (h1Index < 0) return '';
-    // First paragraph after H1, skipping blank lines.
+    // First prose paragraph after H1. Badge rows, images and HTML carry no
+    // meaning for an agent, so they are dropped and links keep their text.
     const para = [];
     for (let i = h1Index + 1; i < Math.min(lines.length, h1Index + 30); i++) {
-      const l = lines[i].trim();
+      const l = readmeProse(lines[i]);
       if (!l) { if (para.length) break; else continue; }
       if (/^#/.test(l)) break;
       para.push(l);

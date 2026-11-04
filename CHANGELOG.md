@@ -8,6 +8,111 @@ File-level changes per public snapshot. Curate freely — this is the human-faci
 
 
 
+
+## 2026-11-04 — Skills fit the compaction budget, with detail in sibling files; skill bodies stop using $0 and lint flags it; a gate integrity scan in /review that also skips generated files; the codemap refreshes untracked maps by default, has better file roles, and shows a short layout at session start and to subagents; /brainstorm opens with a playback and one why question; test-quality rules for new and regression tests; bench preregistration notes.
+
+_50 added, 38 changed, 0 removed._
+
+### Architectural rules
+- changed `architectural-rules/config-authoring/skill-anatomy.md`
+- changed `architectural-rules/universal/test-quality.md`
+
+### Docs
+- changed `docs/reference.md`
+
+### Hooks
+- changed `hooks/codemap-refresh.js`
+- changed `hooks/codemap-search-nudge.js`
+- changed `hooks/hooks.json`
+- changed `hooks/lib/codemap-state.js`
+- changed `hooks/tests/context-hooks.test.js`
+
+### Other
+- added `evals/PREREG.md`
+- changed `.claude-plugin/plugin.json`
+- changed `evals/README.md`
+- changed `scripts/build-plugin.js`
+- changed `scripts/lint-skills.js`
+
+### Settings
+- changed `settings/settings.template.json`
+
+### Skills
+- added `skills/blueprint/reference.md`
+- added `skills/capture/reference.md`
+- added `skills/capture/relations.md`
+- added `skills/capture/secret-scan.md`
+- added `skills/close-out/reference.md`
+- added `skills/coordinate/reference.md`
+- added `skills/cycle/reference.md`
+- added `skills/cycle/review-mode.md`
+- added `skills/cycle/setup.md`
+- added `skills/discover/overlay.md`
+- added `skills/discover/reference.md`
+- added `skills/dispatch/consult.md`
+- added `skills/dispatch/harvest.md`
+- added `skills/dispatch/reference.md`
+- added `skills/draft-plan/cold-read.md`
+- added `skills/draft-plan/reference.md`
+- added `skills/draft-plan/strict-mode.md`
+- added `skills/draft-plan/templates.md`
+- added `skills/execute/delegation.md`
+- added `skills/execute/done-criteria.md`
+- added `skills/execute/reference.md`
+- added `skills/extract-conventions/reference.md`
+- added `skills/memory-audit/dimensions.md`
+- added `skills/memory-audit/reference.md`
+- added `skills/new-agent/reference.md`
+- added `skills/new-agent/template.md`
+- added `skills/new-agents-md/reference.md`
+- added `skills/new-agents-md/template.md`
+- added `skills/orchestrate/converge.md`
+- added `skills/orchestrate/reference.md`
+- added `skills/orchestrate/unit-contract.md`
+- added `skills/prep/reference.md`
+- added `skills/recap/reference.md`
+- added `skills/review/gate-scan.mjs`
+- added `skills/review/gate-scan.test.mjs`
+- added `skills/review/gates.md`
+- added `skills/review/outputs.md`
+- added `skills/review/persist.md`
+- added `skills/review/pr-target.md`
+- added `skills/review/pushback.md`
+- added `skills/review/reference.md`
+- added `skills/review/report.md`
+- added `skills/spec/prior-art.md`
+- added `skills/spec/reference.md`
+- added `skills/spec/templates.md`
+- added `skills/update-codemap/reference.md`
+- added `skills/update-codemap/spec.md`
+- added `skills/visualise-codemap/reference.md`
+- added `skills/visualise-codemap/spec.md`
+- changed `skills/blueprint/SKILL.md`
+- changed `skills/brainstorm/SKILL.md`
+- changed `skills/capture/SKILL.md`
+- changed `skills/close-out/SKILL.md`
+- changed `skills/coordinate/SKILL.md`
+- changed `skills/cycle/SKILL.md`
+- changed `skills/discover/SKILL.md`
+- changed `skills/dispatch/SKILL.md`
+- changed `skills/draft-plan/SKILL.md`
+- changed `skills/execute/SKILL.md`
+- changed `skills/extract-conventions/SKILL.md`
+- changed `skills/memory-audit/SKILL.md`
+- changed `skills/new-agent/SKILL.md`
+- changed `skills/new-agents-md/SKILL.md`
+- changed `skills/orchestrate/SKILL.md`
+- changed `skills/pr-triage/SKILL.md`
+- changed `skills/prep/SKILL.md`
+- changed `skills/recap/SKILL.md`
+- changed `skills/review/SKILL.md`
+- changed `skills/review/angles.md`
+- changed `skills/review/reconciliation.md`
+- changed `skills/spec/SKILL.md`
+- changed `skills/update-codemap/SKILL.md`
+- changed `skills/update-codemap/codemap.mjs`
+- changed `skills/visualise-codemap/SKILL.md`
+
 ## 2026-11-03 — Cold-reader agent and cold read for /spec and /draft-plan; spec open questions that gate the plan; a cycle decision trail with evidence pointers; a subagent rules hook and plan reuse lines to keep code small; an assumption trigger in change-discipline; a public README with a screenshot, install, uninstall and troubleshooting.
 
 _5 added, 35 changed, 0 removed._

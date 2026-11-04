@@ -95,3 +95,7 @@ resolutions:
 **How:** through `save-run.mjs` (SKILL.md §7b), since Claude Code blocks direct writes under `.claude/` in headless runs. **Atomicity:** write `v<N+1>.md` first, then rename `latest.md` → `v<N>.md` (if it exists), then copy `v<N+1>.md` → `latest.md`. If any step fails, leave the tree as-is and report the failure in the run summary; do not partially overwrite. Do not block §8 on write failure — the report has already been delivered to the user; the persistence step is a side effect.
 
 The artefact is committable — the version-to-version diff is a substrate for tracking architectural debt trends, not a substitute for fixing things.
+
+## Receipts
+
+**Receipts: skip what didn't change.** Before §3 on a repeat run, check the receipt: `node <skill dir>/receipts.mjs check .claude/reviews/<scope-slug> --list .review-run.tmp.txt` (the scope's files, one per line; same command shape as `save-run.mjs`). It prints `UNCHANGED` / `CHANGED` / `NEW` / `GONE` per file, by content hash. Re-read only `CHANGED` and `NEW` files; carry the baseline's open findings on `UNCHANGED` files as `CARRIED` without re-reading them; findings on `GONE` files are `RESOLVED`. Re-read everything when any stamped rule file changed, the angle list differs from the baseline's, there is no receipt, or the user passes `--full`. Say in the header how many files were skipped and why. Details: [reconciliation.md](reconciliation.md).

@@ -11,24 +11,41 @@ const CODEMAP_REL = '.claude/codemap.md';
 const CONFIG_REL = '.claude/codemap.config.md';
 const DIRTY_REL = '.claude/codemap.dirty';
 
-// `key: true` inside the `## Auto-update` section, before the next `##`.
-function autoUpdateFlag(root, key) {
+// `key: true|false` inside the `## Auto-update` section, before the next `##`.
+// Returns true, false, or null when the key is not set.
+function autoUpdateSetting(root, key) {
   let text;
   try {
     text = fs.readFileSync(path.join(root, CONFIG_REL), 'utf8');
   } catch {
-    return false;
+    return null;
   }
   let inSection = false;
+  const re = new RegExp('^\\s*-?\\s*' + key + '\\s*:\\s*(true|false)\\s*$', 'i');
   for (const line of text.split(/\r?\n/)) {
     if (/^##\s+Auto-update\s*$/.test(line)) {
       inSection = true;
       continue;
     }
-    if (inSection && /^##\s+/.test(line)) return false;
-    if (inSection && new RegExp('^\\s*-?\\s*' + key + '\\s*:\\s*true\\s*$', 'i').test(line)) return true;
+    if (inSection && /^##\s+/.test(line)) return null;
+    const m = inSection && line.match(re);
+    if (m) return m[1].toLowerCase() === 'true';
   }
-  return false;
+  return null;
+}
+
+function autoUpdateFlag(root, key) {
+  return autoUpdateSetting(root, key) === true;
+}
+
+// True when git tracks .claude/codemap.md, so a regen would show up as a diff.
+function codemapTracked(root) {
+  try {
+    git(root, ['ls-files', '--error-unmatch', CODEMAP_REL]);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function git(root, args) {
@@ -75,4 +92,4 @@ function codemapStaleness(root) {
   return { changed, dirty };
 }
 
-module.exports = { CODEMAP_REL, autoUpdateFlag, codemapStaleness };
+module.exports = { CODEMAP_REL, autoUpdateFlag, autoUpdateSetting, codemapTracked, codemapStaleness };

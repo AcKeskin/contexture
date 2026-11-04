@@ -18,7 +18,7 @@ claude plugin eval . --tag negative
 
 `--scaffold` lets `review-finds-bug` write its `cart.js` (`context.scaffold_script` in its `case.yaml`). Without it that case runs on an empty folder.
 
-Run it before and after changing a skill's `description`, and compare. A trigger grader (`tool_used: Skill`) is left out of the score in two-arm runs; it shows as a pass/fail indicator.
+Run it before and after changing a skill's `description`, and compare. For any paid A/B beyond this suite, write the bars first: [PREREG.md](PREREG.md). A trigger grader (`tool_used: Skill`) is left out of the score in two-arm runs; it shows as a pass/fail indicator.
 
 ## Cases
 
