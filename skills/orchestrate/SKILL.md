@@ -47,24 +47,6 @@ expensive; the user must opt in.
 
 **Do not** auto-decompose a goal, auto-fire on session start, or run on any hook.
 
-## What this skill is NOT
-
-- **Not a replacement for `dispatch`.** That skill owns dispatch mechanics; this one calls it.
-- **Not a replacement for `using-git-worktrees`.** That skill owns single-worktree setup; the
-  N-worktree registry is a deferred extension (see Deferred design).
-- **Not the harvest contract.** Harvest is *what a unit learned* crossing back (State, the `harvest:`
-  block). This skill is *where each unit works and how the goal reconverges* (Scope). It
-  *invites* harvest in its dispatch prompts, but harvest is orthogonal.
-- **Not auto-fire.** Mode A throughout. Nothing auto-decomposes a goal.
-- **Not a parallelizer of sequential work.** If Q1's graph is a single chain, the skill
-  refuses to fan out and says so. Orchestrating a sequential goal is pure overhead.
-- **Not an auto-merge / auto-resolve tool.** Q4 *surfaces* merge conflicts and unit
-  contradictions; the user resolves them. No silent convergence.
-- **Not a long-running daemon.** It does not poll, watch, or run in the background across
-  turns. It decomposes, dispatches, and reconverges within its own turns.
-- **Not Claude-Code-locked.** The unit return contract is tool-neutral — a human at a
-  worktree or a non-Claude worker could fill it in by hand.
-
 ## The protocol
 
 `/orchestrate` walks four questions plus a keep-on-track discipline, surfacing decisions
@@ -248,111 +230,10 @@ mechanism; no trusting a unit's self-assessed success — that is Q4's separate-
 
 ### Q4 — Converge
 
-This is the half neither existing organ owns. After the units return, convergence has **two
-stages — verify, then combine.** The verify stage is the backstop for everything Q3.5's
-dispatch-time prevention didn't catch. **A unit's self-reported success is never the verdict.**
-
-**The autonomy contract's `stopping` posture shapes convergence** ([autonomize](../autonomize/SKILL.md)):
-under **`criteria-met`** (default), converge only when every unit's success criteria are
-met — a BLOCKED or short unit is re-dispatched / re-scoped, not absorbed; under the other
-postures, freeze the best coherent result the returned units already give and record what each
-BLOCKED unit left outstanding. The contract selects whether Q4 *pushes to completeness or
-freezes a coherent best-so-far*; it does not change the verify discipline below (self-report
-is never the verdict, regardless).
-
-#### Stage 1 — verify each unit (independently, not by self-report)
-
-- **Boundary audit (a parent step).** Run `git status --porcelain --untracked-files=all` for
-  the unit (or its worktree) and compare the changed-file paths against the `scope_declared`
-  field of its `produced:` block. Files written outside the claim are flagged **before** any
-  combine. This is a near-free, ~98%-reliable catch for boundary breach and scope creep. **It
-  runs as an explicit parent step — no hook dependency, and it is the sole, load-bearing audit
-  control.**
-  - **Use `git status --porcelain --untracked-files=all`, not `git diff --name-only`.** A unit
-    that creates *new* files leaves them **untracked**, and `git diff` ignores untracked files —
-    it would report an empty diff and silently pass a real boundary breach. Porcelain with
-    `--untracked-files=all` lists tracked changes *and* new files, expanded per-path.
-  - **Why not an automatic `SubagentStop` hook?** It cannot surface output to the parent (no
-    model-visible channel), so the audit stays a parent step.
-- **Separate-verifier pass.** A unit's own `self_check` is *untrusted* — self-eval is
-  miscalibrated ("a grader can't grade a vibe"). For a unit whose correctness is **not
-  mechanically checkable** by the aggregate suite, grade the result against the unit's success
-  criteria **independently**. A unit returning `status: blocked` skips straight here — the
-  parent decides re-dispatch / re-scope / absorb.
-
-**Verifier threshold** (who grades):
-- **Mechanically checkable** (compiles, suite passes, lint clean) → the **aggregate suite** is
-  the verifier. No separate grader needed.
-- **Not mechanically checkable** (research correctness, prose quality, design soundness) →
-  the **parent grades** against the unit's stated success criteria.
-- **Grade needs isolation or expertise** (large surface, specialist domain) → escalate to a
-  **dispatched verifier unit** (itself a gated dispatch). Use this only when parent-grading
-  is genuinely insufficient — it costs a spawn.
-
-#### Stage 2 — combine the verified units (agent mode)
-
-Integrative **synthesis**, not collection. Unlike `dispatch`'s "read each
-summary," the units shared a *goal*, so the parent must **reconcile overlaps, resolve
-contradictions between unit conclusions, and produce a single artifact — not N stacked
-summaries.** The convergence contract (each unit's `produced:` block) is what makes this
-tractable: the parent reassembles structured pieces (`summary` + verified `files_changed`)
-rather than re-parsing prose. Contradictions between units are *surfaced* for the user, never
-silently resolved.
-
-*(Branch mode — merging verified worktree branches in dependency-layer order, conflicts
-surfaced not auto-resolved — is documented in Deferred design; v1 builds agent-mode only.)*
-
-#### Worked example — agent-mode, end to end
-
-A three-unit research fan-out worked end to end on the live runtime.
+After the units return, read [converge.md](converge.md) and follow it: verify each unit first (a unit's self-report is never the verdict), then combine. The autonomy contract's `stopping` posture decides whether Q4 pushes to completeness or freezes a coherent best-so-far; it never changes the verify step.
 
 ## Unit return contract
 
-Every dispatched unit returns in a **known shape** so the parent reassembles structured
-pieces instead of re-parsing prose. There are two *separately keyed* blocks:
+Every unit returns a `produced:` block (status, scope_declared, files_changed, summary, self_check; blocked_reason and needs when not done) and may add a `harvest:` block. The schema to paste into each dispatch prompt is in [unit-contract.md](unit-contract.md).
 
-- **`produced:`** — what the unit *did* (this section). Used by Q4 convergence.
-- **`harvest:`** — what the unit *learned* (decisions / lessons /
-  open_questions). Orthogonal; routed to `/capture` + `/recap` on Mode-A confirmation. A
-  unit may emit one, both, or neither.
-
-The `produced:` block is **tool-neutral and human-writable** — plain YAML with no Agent-tool
-return-semantics assumption. A human at a worktree, or a Codex / Cursor worker, could fill it
-in by hand. This matters for the cross-tool portability era: orchestration must not assume the
-Claude Agent tool is the only worker.
-
-```yaml
-produced:
-  status: done            # done | blocked | partial — the forced-loud signal from Q3.5; never a confident fake
-  scope_declared:         # echo of the POSITIVE scope handed at dispatch (Q3) — Q4's boundary-audit comparand
-    - docs/findings/<topic>.md   # paths the unit was told it may write
-  files_changed:          # the unit's CLAIM of what it wrote — cross-checked at Q4, never trusted
-    - docs/findings/<topic>.md
-  summary: >              # one paragraph: the integrative input to Q4 Stage-2 synthesis
-    Verified the platform-capability half of the findings: no mid-flight subagent
-    observability, SubagentStop/maxTurns exist, background agents are pollable peers.
-  self_check: "claims verified against code.claude.com docs"   # UNTRUSTED — Q4's separate verifier overrides it
-  # present only when status is blocked or partial:
-  # blocked_reason: "…"
-  # needs: ["…"]          # what the parent must supply / re-scope to unblock
-  # budget_used: "7/10 steps"
-```
-
-The `harvest:` block rides alongside, separately keyed.
-
-## Deferred design
-
-Future-work pieces — background-session runtime, branch-mode merge-convergence, the N-worktree registry, per-edge readiness scheduling, and the probed-but-unbuildable `SubagentStop` audit — are deferred, each with its own build trigger. None fire during an orchestrate run.
-
-The **one load-bearing takeaway is already inline in Q4 Stage-1**: the boundary audit is an explicit **parent step**, porcelain not diff.
-
-## Relationship to other organs
-
-- **`dispatch`:** the dispatch engine this skill calls; every unit dispatch walks its three gates.
-- **Subagent state coordination:** prompts carry the `harvest:` invitation — harvest = what a
-  unit *learned*; the convergence contract = what it *produced*.
-- **`using-git-worktrees`:** the isolation primitive Q2 places work into; N-worktree registry deferred.
-- **Plan/execute + done-criteria:** Q1's decomposition is a lightweight
-  plan over concurrent units; Q4's aggregate verification is their collective done-criteria.
-- **Harness vocabulary:** Scope subsystem — this pins each unit's boundary and
-  the aggregate's done-criteria.
+What this skill is not, deferred design, and related organs: [reference.md](reference.md).

@@ -118,26 +118,7 @@ For `type: feedback` and `type: project` bodies, the `**Why:**` / `**How to appl
 
 ### 6a. Cross-memory relations
 
-Before writing, find existing memories whose territory overlaps the new one. **Primary path:** query the engine — `mcp__project-memory__discover({ cwd, task_keywords: [<new memory's key terms>], scopes: [<new memory's scopes>], top_n: 8 })` — and treat its ranked hits as the relation candidates (out of context, and it already surfaces `⚡ contradicts` / `[related_to]` flags on neighbours). **Fallback** (MCP down): scan MEMORY.md in-context for entries whose title or hook overlaps the new memory's title / description / scope. For each plausible match:
-
-- **Read the candidate's body.** Decide whether the new memory replaces it (`supersedes`), disagrees with it (`contradicts`), reinforces it (`supports`), or is a sibling in territory (`related_to`).
-- **For `supersedes`:** confirm with the user before writing. Supersedes is the load-bearing relation — it hides the target from normal discovery. The prompt:
-
-  > Capturing this memory looks like it would supersede `<target-path>`. Confirm? (y / n / show target)
-  >
-  > - y → write `supersedes: <target>` on new memory; write `superseded_by: <new-path>` on target in the same step.
-  > - n → no relation written; new memory and target both stay active.
-  > - show target → display the target's body for the user to compare, then re-ask.
-
-- **For `contradicts`:** propose the link + `note:` capturing *why* they disagree; the user accepts/edits.
-- **For `supports` / `related_to`:** propose, accept-with-no-friction — low retrieval impact, cheap to roll back.
-
-Bidirectional integrity (mandatory for `supersedes`):
-- Writing `supersedes: target.md` on the new memory **always** also writes `superseded_by: <new-path>` on the target. Two file writes in one step. If the target write fails for any reason, abort the whole capture — don't leave a one-way relation in place.
-
-`related_to` and `supports` are bidirectional in spirit but not enforced — discovery treats them as soft hints either way.
-
-Skip 6a entirely when no plausible candidates surface — most captures have no cross-memory link; don't force a relation.
+Propose `relations:` to existing memories by reading [relations.md](relations.md). Confirm `supersedes` with the user before writing; propose the rest.
 
 ### 6b. Bloat budget guard (write-time)
 
@@ -164,36 +145,7 @@ Ask: *accept / edit / reject*.
 
 ### 7a. Pre-write secret scan
 
-After the user accepts in step 7 but **before** the disk write in step 8, run the secret-pattern set from [`secret-patterns.md`](secret-patterns.md) over the proposed body and over every frontmatter value (description, name, scope tags, relations notes, etc.). Frontmatter keys themselves are not scanned — they're a fixed schema.
-
-For each pattern in the set, walk the text and collect matches as `(pattern_name, type_label, matched_text, line_offset)`.
-
-**Zero matches** → continue to step 8.
-
-**Matches found** → halt the write. For each match, surface to the user:
-
-```
-Capture paused — possible secret detected.
-
-Pattern: <type_label> (matches /<regex>/)
-Line <N>: "<matched_text>"
-
-(r)edact and continue — replace with <REDACTED:<pattern_name>>
-(e)dit body manually before retrying
-(a)bort       — don't write this memory
-(i)gnore      — pattern misfire, write this match as-is (logs to false-positive table)
-```
-
-Process matches one at a time (not all at once). The user picks per match:
-
-- **r → redact and continue.** Substitute the matched text with `<REDACTED:<pattern_name>>` in the body / frontmatter value. Re-run the entire pattern set against the (now-modified) text — there may be more matches the first didn't expose, or new ones overlapping. Keep redacting until zero matches remain, then continue to step 8.
-- **e → edit body.** Drop back into step 7 with the current draft for the user to edit. Loop. (The user's edit may resolve all matches manually, in which case the next pass through 7a finds zero.)
-- **a → abort.** Discard the capture cleanly. No file, no MEMORY.md change, no residue. Same as step 8 reject.
-- **i → ignore (false positive).** Write the match as-is. Append a row to the false-positive table in `secret-patterns.md` capturing the pattern name, a *sanitized* version of the match (replace the secret-like token with `<example>`), and the user's one-line reason. Re-run the rest of the pattern set on the body to catch any unrelated matches; ignore is per-match, not per-capture.
-
-Per-match ignore avoids edit-around friction; the false-positive log feeds pattern refinement.
-
-The body that lands on disk is the post-redaction version; the original (with secrets) is never written anywhere — not to disk, not to the false-positive log, not to anywhere.
+Before every write, read [secret-scan.md](secret-scan.md) and run it on the drafted body. A hit pauses the write; the user picks redact, edit, abort or ignore per match.
 
 ### 8. Commit
 
@@ -215,21 +167,4 @@ The body that lands on disk is the post-redaction version; the original (with se
 1. Discard. No file, no index change, no residue.
 2. Acknowledge and move on.
 
-## Failure modes
-
-- **Cannot classify `kind` confidently** — propose best guess, flag the uncertainty in the proposal message, let the user override. Do not silently commit a fuzzy classification.
-- **Ambiguous target folder** (e.g. "is this a universal rule or a C++-specific rule?") — ask one clarifying question. Do not write to both locations.
-- **Project memory root missing (first creation)** — if no `~/.claude/projects/*/memory/` folder matches the project root, derive the slug from the project directory path with the platform's path-to-slug encoding (the same encoding visible in existing sibling project folders), create the tree, and note the creation in the commit summary. Seed `MEMORY.md` with a header line before writing the first file.
-- **`MEMORY.md` write race** (rare, but possible if user has another session open) — if the file has changed since read, re-read, reconcile, re-append. Never blind-overwrite.
-- **Content plainly duplicates an existing memory** — surface the duplicate in the proposal, ask whether to replace / merge / reject. Never silently overwrite.
-
-## What capture does NOT do
-
-- **Does not auto-fire.** Mode B parked.
-- **Does not decide when to capture.** Triggers live in calling context (user says "remember", review surfaces a correction). This skill owns the *how*, not the *when*.
-- **Does not modify existing memories for reasons beyond the specific capture.** Lazy migration of old files happens only when the user edits them for another reason (per `memory-capture.md`).
-- **Does not read stored memory.** That's discovery's job (`skills/discover`).
-- **Does not silent-redact.** Step 7a always halts and surfaces matches; never substitutes without user confirmation — the threat model is "I forgot the stack trace contained a key," not an adversary, so the user is in the loop on every match.
-- **Does not retroactively scan existing memories.** Step 7a runs at capture time only. Retrospective scanning of already-written memories lives in `/memory-audit` dimension 9.
-
-See [`docs/capture-organ.md`](../../docs/capture-organ.md) for the organ's scope map and relationship to the rest of the context family.
+More in [reference.md](reference.md): failure modes, What capture does NOT do.

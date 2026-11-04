@@ -14,7 +14,7 @@ Consumes [discover](../discover/SKILL.md), [deliver](../deliver/SKILL.md), the [
 ## When to run
 
 - `/review …` or `/pr-review …` (alias for `/review --pr …`).
-- Natural language: "review this", "audit the architecture", "check for drift", "review PR 123".
+- Natural language: "review this", "check for drift", "review PR 123".
 - **Never auto-fires.** No hook, session-end or task-end trigger.
 
 ## 1. Resolve target
@@ -37,18 +37,11 @@ Flags combine with any target:
 | `--expand` | Local vault output: force the subfolder layout |
 | `--full` | Repeat run: re-read every file, ignoring the receipt (§4b) |
 
-Natural language: infer the target; "save this to Obsidian" → `--vault`; "as a page" → `--artifact`.
+Natural language: infer the target and flags ("save to Obsidian" → `--vault`).
 
-**Local guard.** More than 50 files → *"Scope resolves to N files — context cost high. Narrow with `/review <subdir>` or `--since <ref>`? (proceed anyway: `y`)"*.
+**Local guard.** Over 50 files → *"N files in scope. Narrow with `/review <subdir>` or `--since <ref>`? (`y` to proceed)"*.
 
-**PR target.** Needs `gh` installed and authenticated, else bail with how to fix it. Then:
-
-1. `gh pr view <N> --json number,title,body,state,author,baseRefName,headRefName,url,additions,deletions,changedFiles,labels,commits`. If it fails (GraphQL is blocked in some cloud sessions), use REST: `gh api repos/{owner}/{repo}/pulls/<N>` (same fields as `base.ref`, `head.ref`, `user.login`, `merged_at`), or the GitHub MCP `pull_request_read`. No N → `gh pr view --json number`, else `gh api "repos/{owner}/{repo}/pulls?head={owner}:<branch>"`. Merged or closed → *"PR #N is `<state>`. Review anyway? (y/N)"*; draft → same warning, not blocking. Show a header: number, title, author, base ← head, files, +/−, labels, URL.
-2. `gh pr diff <N>`, parsed per file (path, added/removed lines with numbers, hunks). Skip binary files and count them in the header.
-3. More than 30 changed files → *"PR touches N files — narrow with a path or proceed? (y / path / abort)"*.
-4. Apply the path filter; report *"Reviewing N of M changed files (filtered to: …)"*.
-
-Work only from `gh` output and `git show <ref>:<path>`; never check out the PR branch, never run its tests.
+**PR target.** Needs `gh` installed and authenticated, else bail with how to fix it. Read [pr-target.md](pr-target.md) for the fetch, the diff parse and the size guard. Work only from `gh` output and `git show <ref>:<path>`; never check out the PR branch, never run its tests.
 
 ## 2. Load context
 
@@ -69,6 +62,8 @@ Only for `/review` and `/review <dir>`. Read manifests, README + `docs/`/`adr/` 
 
 Angle briefs live in [angles.md](angles.md); projects can add their own or set defaults in `.claude/review-angles.md` (format in angles.md).
 
+**Gate scan first on a diff target** (`--pr`, `--since`): follow [gates.md](gates.md). Drop `GENERATED` files from scope; read each `TAG` hunk with its one question. A `gate` finding always goes to the user; never apply it.
+
 | Input | Angles | How they run |
 | --- | --- | --- |
 | no `--angles` | Local: `architecture`. PR: `correctness, design, hygiene, security` | Inline in this session, as one pass (no extra agents) |
@@ -80,7 +75,7 @@ Angle briefs live in [angles.md](angles.md); projects can add their own or set d
 
 **Fan-out.** All agents in one message. Each gets only: the target and how to read it, its brief verbatim, the loaded rules and guidelines, the [findings schema](findings-schema.md) finding shape, and the grounding gate (contract §1a). Plus: *"Follow each call you depend on to its callers and callees and record the path in `chain`. Write `impact` as one plain line on what it costs, with no code. Keep `what`, `impact` and `fix` plain text: no mermaid or code fences. Return findings only for your angle, or `none`."* Never pass one angle's output to another. A reply that doesn't parse is re-run once, then recorded as `failed` in coverage.
 
-**Every finding** — inline or from an agent — cites `file:line` (new-file lines on a PR), quotes the real code there, and has been checked against its callers (contract §1a). No line → not a finding. A non-architecture finding needs no rule citation; an architecture finding does, except dead code and comment drift ([drift-checks.md](drift-checks.md)). Fixes that are ≤10 lines, one contiguous range, and mechanically actionable become ` ```suggestion ` blocks (contract §3).
+**Every finding** cites `file:line` (new-file lines on a PR), quotes the real code there, and was checked against its callers (contract §1a). No line, no finding. A non-architecture finding needs no rule citation; an architecture finding does, except dead code and comment drift ([drift-checks.md](drift-checks.md)). Fixes that are ≤10 lines, one contiguous range, and mechanically actionable become ` ```suggestion ` blocks (contract §3).
 
 ## 4. Merge, verify, rank
 
@@ -95,24 +90,11 @@ Angle briefs live in [angles.md](angles.md); projects can add their own or set d
 
 Local targets with a prior `.claude/reviews/<scope-slug>/latest.md`: run mode = repeat; tag each finding `NEW` / `CARRIED` (keeps its id) / `WONT_FIX` / `RESOLVED`; resolved ones get their own section. Malformed baseline → warn, treat as fresh. Mechanics: [reconciliation.md](reconciliation.md). PR re-reviews use §10's iteration rules.
 
-**Receipts: skip what didn't change.** Before §3 on a repeat run, check the receipt: `node <skill dir>/receipts.mjs check .claude/reviews/<scope-slug> --list .review-run.tmp.txt` (the scope's files, one per line; same command shape as `save-run.mjs`). It prints `UNCHANGED` / `CHANGED` / `NEW` / `GONE` per file, by content hash. Re-read only `CHANGED` and `NEW` files; carry the baseline's open findings on `UNCHANGED` files as `CARRIED` without re-reading them; findings on `GONE` files are `RESOLVED`. Re-read everything when any stamped rule file changed, the angle list differs from the baseline's, there is no receipt, or the user passes `--full`. Say in the header how many files were skipped and why. Details: [reconciliation.md](reconciliation.md).
+**Receipts.** On a repeat run, check the receipt first and re-read only `CHANGED` and `NEW` files (unless `--full`, a stamped rule changed, or the angles differ). Command and rules: [reconciliation.md](reconciliation.md), *Receipts*.
 
 ## 5. Report
 
-Shape per the [review output contract](../../docs/review-output-contract.md); on divergence the contract wins. Header:
-
-```
-Review of: <target> (N files, M lines)        # PR: "PR #N: <title>", author, base <- head, +/-
-Rules loaded: K | none                        Run mode: fresh | repeat (baseline v<N>, date)
-Angles: correctness (12 files, 4) · performance (12, none) · security (failed)
-Metrics: change +412/-88 in 3 modules · blast radius 23 files · public surface +3/~1/-0 · tests 2 of 5
-```
-
-**Metrics** come from sources, never estimates: change size (`git diff --stat` / PR metadata), blast radius (files importing a touched file — codemap File deps, else grep), public surface (codemap exports, else the diff; for a path target, exported symbols in scope), tests (changed source files with a changed test; for a path target, source files with a test), plus angle metrics such as calls added to the request path. Each names its source.
-
-The Metrics line is never skipped; a metric with no source shows `n/a (<why>)`.
-
-Then: Orientation (2c) → Severity × Category matrix (category = drift check or angle) → mandatory diagram (contract §2: flowchart for boundary findings, split sketch, sequence for ordering bugs, ASCII bar chart for many small findings, or a one-line N/A with the why) → per-file findings (severity-first locally, line-ascending on a PR) → findings table → quick wins → Tensions → Needs validation → resolved/carried (repeat runs) → looks bad but actually fine (≥2, contract §4). Files with no findings render as one line. PR targets end with `Verdict: APPROVE | REQUEST_CHANGES | COMMENT` and a 1–2 sentence reason; only confirmed Critical/High drive `REQUEST_CHANGES`. Zero findings → *"No findings."* (+ `Verdict: APPROVE` on a PR), still with the diagram line and looks-bad-but-fine.
+Before writing the report, read [report.md](report.md): the header, the Metrics line (from sources, never estimated; `n/a (<why>)` when a source is missing) and the section order. The [review output contract](../../docs/review-output-contract.md) wins on divergence. A PR report ends with `Verdict: APPROVE | REQUEST_CHANGES | COMMENT`; only confirmed Critical/High drive `REQUEST_CHANGES`.
 
 ## 6. Decide
 
@@ -137,17 +119,9 @@ keep · drop · wontfix "<reason>" · edit · ask <question> · code · back · 
 
 `code` shows code, chain and verifier note; `ask` answers from the code (following calls as needed) and adds a note; `edit` changes severity, fix or wording; `back` goes back; `stop` leaves the rest `open`. Tensions follow the findings with `a · b · skip`. The cursor and answers are saved to findings.json after each step, so a later `walk` resumes.
 
-**Page** (`--artifact` or `page`) — `node <skill dir>/render-page.mjs <findings.json> <out.html> [--artifact]`, resolving the skill dir from this SKILL.md's real path. With the Artifact tool: render with `--artifact` and publish (icon `review`), to `run.artifact_url` when set so re-runs update one page; say it is private until shared. Without it: render without `--artifact` to `.claude/reviews/<slug>/v<N>.html` and give the path. The page opens on metrics, keeps code folded, and has Keep / Drop / Won't fix buttons with a Copy pick line to paste back.
+**Page** (`page`, `--artifact`) and **Apply vault picks**: commands in [outputs.md](outputs.md).
 
-**Apply vault picks** — `node <skill dir>/render-note.mjs --read-picks <note.md>` prints the pick line from ticked boxes; apply it as typed, then re-render the note.
-
-**Pushing back on a finding.** These rules apply whenever you argue a finding is wrong: in a walk, a `wontfix` reason, or a cold read for `spec` or `draft-plan`.
-
-- **Contest only with evidence the reviewer could read:** a `path:line`, a symbol, or a line in the doc under review. "This was intentional" is not evidence.
-- **Escalate when the evidence is out of reach.** A team convention, a verbal decision or an outside constraint goes to the user as `escalate`, with the fact stated. Do not fix it and do not drop it.
-- **Do not argue down a comprehension gap.** If a fresh reader got lost, the text is missing context.
-- **Add text for human readers only.** If only a no-context agent needs it, escalate instead of padding the doc.
-- **Never change severity to win.** Contest it and say why.
+**Pushing back on a finding** (in a walk, a `wontfix` reason, or a cold read): contest only with evidence the reviewer could read, never change severity to win. The full rules: [pushback.md](pushback.md).
 
 **After the pick:**
 
@@ -156,7 +130,7 @@ keep · drop · wontfix "<reason>" · edit · ask <question> · code · back · 
 
 ## 7. Summary and persistence
 
-Report counts: applied / skipped / edited / won't-fix / suppressed (local), kept / dropped / won't-fix (PR); repeat-mode counts when relevant.
+Report counts: applied, skipped, edited, won't-fix, suppressed (local); kept, dropped, won't-fix (PR).
 
 ### 7b. Persist
 
@@ -165,9 +139,7 @@ Every run writes [findings.json](findings-schema.md) — the terminal report, pa
 - Local: `.claude/reviews/<scope-slug>/` gets `v<N>.md` + `v<N>.json`, `latest.md` + `latest.json`, written atomically ([reconciliation.md](reconciliation.md)). `--since` runs write only `latest.json` under `.claude/reviews/since-<ref-slug>/` as working state, never a baseline.
 - PR: `.claude/reviews/pr-<NNN>/v<N>.json` + `latest.json`, even when the vault is unset.
 
-**How to write.** Claude Code blocks Write/Edit under `.claude/` in headless runs, so never write there directly. Write the file to `.review-run.tmp.json` (or `.md`) at the project root, then move it in with `node <skill dir>/save-run.mjs <slug> json|md|latest <tmp>` — json first, then md; `latest` for `--since`. Run it with the Bash tool as one plain command: the skill dir written out as an absolute path with forward slashes (e.g. `<home>/.claude/skills/review`, with `<home>` written out), no variables, no `&&`, no `cd`. The allow rule only matches that shape. It numbers versions, writes atomically and deletes the temp file. Bootstrap allows the temp write and that command for headless runs. Always save both, json then md; never skip either on the guess that it will be denied.
-
-After the json and md are saved, stamp the receipt with every file in scope plus the rule files loaded in §2a (rule files by absolute path): `node <skill dir>/receipts.mjs stamp .claude/reviews/<scope-slug> --list <list>`. Write the list to `.review-run.tmp.txt` at the project root first; the script deletes it. Not for `--since` or PR runs.
+**How to write.** Never Write or Edit under `.claude/` directly: headless runs block it. Read [persist.md](persist.md) and use `save-run.mjs` (json first, then md), then stamp the receipt. Always save both.
 
 A write failure is reported, never blocks the next step.
 
@@ -185,55 +157,6 @@ Local targets, every run: *"Did this catch what you wanted? (y / n)"*. `n` or a 
 
 ## 10. PR vault note
 
-PR reviews are always written to the vault (skip with a note when `vaultRoot` is unset). `<ProjectFolder>`: match an existing `Projects/` subfolder from the repo name, else create; ask once when two fit. File: `<Vault>/Projects/<ProjectFolder>/Code Reviews/PR-<NNN> — <Short Title>.md` (NNN zero-padded to 3, 4 past 999; title 3–6 words, title case with spaces).
+PR reviews are always written to the vault (skip with a note when `vaultRoot` is unset). File name, the `render-note.mjs` call and the frontmatter keys: [outputs.md](outputs.md), *PR vault note*. Re-reviews: [pr-vault-iterations.md](pr-vault-iterations.md). Never commit or push the vault file.
 
-Body: `node <skill dir>/render-note.mjs <findings.json> <note.md>` — metrics, needs your call, where the change sits, one section per finding (impact, `keep / drop / wontfix:` boxes, code and call path folded in a callout), trade-offs, needs validation, pack sections when `--pack`, coverage, looks bad but fine. Put these keys in `run.frontmatter`; the script adds counts and `metric_*` after them:
-
-```yaml
-pr: <NNN>
-title: <Short Title>
-repo: <repo>
-url: <PR url>
-ticket: <id or null>
-author: <author>
-base: <base>
-head: <head>
-state: open | merged | closed | draft
-files_changed: <N>
-additions: <A>
-deletions: <D>
-reviewer: <git config user.name>     # never hardcode
-reviewed_on: <YYYY-MM-DD>
-last_reviewed: <YYYY-MM-DD>
-iterations: 1
-iteration_log:
-  - { n: 1, date: <YYYY-MM-DD>, verdict: <verdict>, findings: { critical: 0, high: 0, medium: 0, low: 0 }, head_sha: <sha> }
-verdict: <verdict>
-```
-
-Re-reviews: read [pr-vault-iterations.md](pr-vault-iterations.md) — subfolder promotion, `open / claimed / fixed / wontfix` with verify-before-fixed, iteration bodies via `render-note.mjs --body-only`. Older notes in the previous layout stay as they are. Never commit or push the vault file.
-
-## Failure modes
-
-- `gh` missing / unauthenticated, no GitHub remote, PR not found, network error → bail with the exact fix or the `gh` error verbatim.
-- Empty PR diff → *"PR #N has no file changes."*
-- Scope over the guard and the user proceeds → flag the context cost in the summary.
-- Zero rules on a local run → rule-free checks only, stated in the header.
-
-## What review does NOT do
-
-- **Does not auto-fire**, post to GitHub, check out PR branches, or run tests.
-- **Does not replace a linter.** Security goes deeper with `security-reviewer`; fit-and-intent is `checkpoint`; bug-hunting your own diff is the built-in `code-review`.
-- **Does not apply fixes silently** or on a PR target.
-- **Does not settle tensions** — it shows both sides and what would decide.
-- **Does not spawn agents without `--angles`.**
-- **Does not track findings actively** — the persisted artefacts are read only by the next run.
-
-## Relationship to other organs
-
-- **discover / deliver** — rule retrieval and rendering. **capture** — feedback-loop writeback. **prep** — primes before writing; review detects after.
-- **retrospect-core** — the same orient / baseline / render / persist ideas, generalised for checkpoint. When one changes, check the other.
-- **human-view** — the plan-side projection; the code-side pack lives here in [pack.md](pack.md).
-- **security-reviewer** — verifier for security findings. **pr-triage / pre-push / pr-author** — the reviewee side of a PR.
-
-See [`docs/review-organ.md`](../../docs/review-organ.md) for rationale.
+Failure modes, what review does not do, and related organs: [reference.md](reference.md).

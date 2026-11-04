@@ -4,14 +4,16 @@
 // Keeps .claude/codemap.md current. Runs on SessionStart (startup/resume) and
 // Stop, only in projects that already have a codemap.
 //
-// Projects with `- refresh: true` under `## Auto-update` in
-// .claude/codemap.config.md: when the codemap is behind, regenerate it in a
-// detached background process (incremental via the extraction cache, about a
-// second on a warm cache). Needs the update-codemap tree-sitter deps; without
-// them a refresh would drop to the regex fallback, so it only advises.
+// Auto-refresh: when the codemap is behind, regenerate it in a detached
+// background process (incremental via the extraction cache, about a second on
+// a warm cache). On by default when git does not track the codemap; a tracked
+// codemap needs `- refresh: true` under `## Auto-update` in
+// .claude/codemap.config.md, so regens don't turn into diffs. `- refresh: false`
+// turns it off. Needs the update-codemap tree-sitter deps; without them a
+// refresh would drop to the regex fallback, so it only advises.
 //
-// Other projects: SessionStart says how many files changed since the codemap
-// was written, once it is behind by STALE_AT files. Never regenerates.
+// Otherwise SessionStart says how many files changed since the codemap was
+// written, once it is behind by STALE_AT files. Never regenerates.
 //
 // `codemap-refresh.js --run <root>` is the background worker. Fails open.
 
@@ -19,7 +21,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawn, execFileSync } = require('child_process');
 const io = require('./lib/hook-io');
-const { autoUpdateFlag, codemapStaleness } = require('./lib/codemap-state');
+const { autoUpdateSetting, codemapTracked, codemapStaleness } = require('./lib/codemap-state');
 
 const STALE_AT = 5;
 const LOCK_REL = '.claude/codemap.refresh.lock';
@@ -80,7 +82,12 @@ async function main() {
   const s = codemapStaleness(root);
   if (!s || !behind(s)) return io.allow();
 
-  if (autoUpdateFlag(root, 'refresh')) {
+  const setting = autoUpdateSetting(root, 'refresh');
+  if (setting === null && !codemapTracked(root) && hasTreeSitter()) {
+    startWorker(root);
+    return io.allow();
+  }
+  if (setting === true) {
     if (hasTreeSitter()) {
       startWorker(root);
       return io.allow();
@@ -98,10 +105,15 @@ async function main() {
   if (event !== 'SessionStart') return io.allow();
   if (!s.dirty && s.changed < STALE_AT) return io.allow();
   const what = s.changed !== null ? `${s.changed} file(s) changed since it was written` : 'files changed since it was written';
+  let auto = '';
+  if (setting === null && !codemapTracked(root)) {
+    auto = ` To keep it current automatically, run \`npm install\` in ${io.normalise(ENGINE_DIR)} once.`;
+  } else if (setting === null) {
+    auto = ' To keep it current automatically, add `- refresh: true` under `## Auto-update` in .claude/codemap.config.md.';
+  }
   io.addContext(
     'SessionStart',
-    `.claude/codemap.md is out of date: ${what}. Trust it for structure, check the code for details. ` +
-      'Run /update-codemap to refresh, or add `- refresh: true` under `## Auto-update` in .claude/codemap.config.md to keep it current automatically.'
+    `.claude/codemap.md is out of date: ${what}. Trust it for structure, check the code for details. Run /update-codemap to refresh.${auto}`
   );
 }
 

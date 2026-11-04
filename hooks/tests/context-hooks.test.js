@@ -176,6 +176,25 @@ function memoryDir(home, project) {
 
   r = run('codemap-search-nudge', grep('n2'), home, project);
   t.assert('nudge: once per session', r.stdout.trim() === '', r.stdout);
+
+  fs.writeFileSync(
+    path.join(project, '.claude', 'codemap.md'),
+    '# Architecture\n\n## Overview\nA game.\n\n## Map\n| File | Importers | Role |\n|---|---|---|\n| `src/core.gd` | 4 | Core loop |\n\n' +
+      '## Modules\n### .github/\n**Role:** ci\n\n### src/\n**Role:** game code\n\n## Hubs\n'
+  );
+  const start = (source, session) => ({ session_id: session, hook_event_name: 'SessionStart', source });
+  r = run('codemap-search-nudge', start('startup', 'n3'), home, project);
+  const layout = h.additionalContext(r.stdout, 'SessionStart') || '';
+  t.assert('nudge: session start gives the layout', layout.includes('A game.') && layout.includes('- src/ game code') && layout.includes('src/core.gd (4 importers) Core loop'), r.stdout);
+  t.assert('nudge: layout skips dot folders', !layout.includes('.github/'), layout);
+  r = run('codemap-search-nudge', grep('n3'), home, project);
+  t.assert('nudge: no search nudge after the layout', r.stdout.trim() === '', r.stdout);
+  r = run('codemap-search-nudge', start('compact', 'n3'), home, project);
+  t.assert('nudge: layout again after compaction', (h.additionalContext(r.stdout, 'SessionStart') || '').includes('A game.'), r.stdout);
+  r = run('codemap-search-nudge', start('resume', 'n4'), home, project);
+  t.assert('nudge: resume is silent', r.stdout.trim() === '', r.stdout);
+  r = run('codemap-search-nudge', { session_id: 'n3', hook_event_name: 'SubagentStart', agent_type: 'Explore' }, home, project);
+  t.assert('nudge: subagents get the pointer', (h.additionalContext(r.stdout, 'SubagentStart') || '').includes('## Symbol index'), r.stdout);
 }
 
 // codemap-refresh
@@ -187,6 +206,9 @@ function memoryDir(home, project) {
   fs.mkdirSync(path.join(project, '.claude'));
   const codemap = path.join(project, '.claude', 'codemap.md');
   fs.writeFileSync(codemap, '# old codemap\n');
+  // Tracked by git, so refreshing needs the opt-in.
+  git('add', '.claude/codemap.md');
+  git('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-q', '-m', 'codemap');
   const old = new Date(Date.now() - 60 * 60 * 1000);
   fs.utimesSync(codemap, old, old);
   const start = { session_id: 'r1', hook_event_name: 'SessionStart', source: 'startup' };
@@ -198,7 +220,7 @@ function memoryDir(home, project) {
   for (let i = 0; i < 5; i++) fs.writeFileSync(path.join(project, `f${i}.ts`), `export const v${i} = ${i};\n`);
   r = run('codemap-refresh', start, home, project);
   const ctx = h.additionalContext(r.stdout, 'SessionStart') || '';
-  t.assert('refresh: six changed files are reported', ctx.includes('6 file(s) changed') && ctx.includes('/update-codemap'), r.stdout);
+  t.assert('refresh: six changed files are reported', ctx.includes('6 file(s) changed') && ctx.includes('/update-codemap') && ctx.includes('refresh: true'), r.stdout);
 
   // Work committed after a regen it was part of does not count.
   const regen = new Date(Date.now() + 1000);
@@ -238,6 +260,42 @@ function memoryDir(home, project) {
 
   r = run('codemap-search-nudge', { session_id: 'r9', hook_event_name: 'PreToolUse', tool_name: 'Glob', tool_input: {} }, home, project);
   t.assert('nudge: names the Symbol index', (h.additionalContext(r.stdout, 'PreToolUse') || '').includes('## Symbol index'), r.stdout);
+}
+
+// codemap-refresh: an untracked codemap refreshes by default; `refresh: false` stops it.
+{
+  const { home, project } = setup();
+  const git = (...a) => spawnSync('git', a, { cwd: project, encoding: 'utf8' });
+  git('init', '-q');
+  git('-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-q', '--allow-empty', '-m', 'init');
+  fs.mkdirSync(path.join(project, '.claude'));
+  const codemap = path.join(project, '.claude', 'codemap.md');
+  fs.writeFileSync(codemap, '# old codemap\n');
+  const old = new Date(Date.now() - 60 * 60 * 1000);
+  fs.utimesSync(codemap, old, old);
+  for (let i = 0; i < 6; i++) fs.writeFileSync(path.join(project, `f${i}.ts`), `export const v${i} = ${i};\n`);
+  const start = { session_id: 'u1', hook_event_name: 'SessionStart', source: 'startup' };
+  const config = path.join(project, '.claude', 'codemap.config.md');
+
+  fs.writeFileSync(config, '# Codemap config\n\n## Auto-update\n\n- refresh: false\n');
+  let r = run('codemap-refresh', start, home, project);
+  const ctx = h.additionalContext(r.stdout, 'SessionStart') || '';
+  t.assert('refresh: refresh false only reports', ctx.includes('6 file(s) changed') && !ctx.includes('automatically'), r.stdout);
+  t.assert('refresh: refresh false never regenerates', fs.readFileSync(codemap, 'utf8') === '# old codemap\n');
+
+  fs.rmSync(config);
+  const engineDeps = path.join(h.HOOKS_DIR, '..', 'skills', 'update-codemap', 'node_modules', 'web-tree-sitter');
+  r = run('codemap-refresh', start, home, project);
+  if (fs.existsSync(engineDeps)) {
+    let fresh = false;
+    for (let i = 0; i < 100 && !fresh; i++) {
+      spawnSync('sleep', ['0.2']);
+      fresh = fs.readFileSync(codemap, 'utf8') !== '# old codemap\n' && !fs.existsSync(path.join(project, '.claude', 'codemap.refresh.lock'));
+    }
+    t.assert('refresh: untracked codemap is regenerated by default', fresh, fs.readFileSync(codemap, 'utf8').slice(0, 80));
+  } else {
+    t.assert('refresh: untracked codemap without deps points at npm install', (h.additionalContext(r.stdout, 'SessionStart') || '').includes('npm install'), r.stdout);
+  }
 }
 
 // subagent-rules

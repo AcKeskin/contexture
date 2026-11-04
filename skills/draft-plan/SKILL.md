@@ -5,13 +5,11 @@ description: "Produce a versioned plan under `.claude/plans/<slug>/v<N>.md` from
 
 # draft-plan
 
-Run the `plan` flow — turn an active spec (or a degraded `--task` description) into a versioned, stepped implementation plan. Upstream of `/execute`; downstream of `/spec`. Plans pin to the exact spec version they were drafted against.
+Turn an active spec (or a `--task` description) into a versioned, stepped plan, pinned to the spec version it was drafted against. Between `/spec` and `/execute`.
 
 ## When to run
 
-- User types `/draft-plan`, `/draft-plan <slug>`, or `/draft-plan <slug> --task "<text>"`.
-- User asks to "plan out", "break into steps", "draft an implementation plan" for a specced feature.
-- After `/spec` lands, before `/execute`.
+- `/draft-plan [<slug>] [--task "<text>"]`, or a request to plan out a specced feature, after `/spec` and before `/execute`.
 
 Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) will short-circuit and tell the user to just do it.
 
@@ -29,10 +27,7 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
 1. **Locate the trees.** `$CLAUDE_PROJECT_DIR/.claude/specs/` and `.claude/plans/` (cwd fallback if env var unset). Lazy mkdir.
 
 2. **Resolve the slug.**
-   - Slug given → use it.
-   - No slug, `default` is active in `.claude/specs/INDEX.md` → use `default`.
-   - No slug, no `default` but exactly one other active spec → use it.
-   - No slug, multiple active → list active slugs and ask which.
+   - Slug given → use it; no slug → the order under Forms.
    - No slug, no specs → only valid with `--task` (which itself requires an explicit slug); otherwise stop with: *"No specs and no task description. Run `/spec` first or pass `<slug> --task`."*
    - **Stale INDEX** — INDEX.md names an active version whose file is missing on disk → stop with: *"INDEX.md points at `<path>` but the file is missing. Reconcile by re-running `/spec <slug>`, or pass an explicit path."*
 
@@ -43,7 +38,7 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
    **Done-criteria gate** (default mode only — skipped with `--task` since no spec exists):
    - If the spec's frontmatter `done_criteria_provisional: true`, refuse to plan:
 
-     > Spec `<slug>` v<M> has provisional done-criteria. Plans cannot be drafted against an under-specified spec — re-run `/spec <slug>` to firm up the done-criteria probe, then re-run `/draft-plan <slug>`.
+     > Spec `<slug>` v<M> has provisional done-criteria. Re-run `/spec <slug>` to firm them up, then `/draft-plan <slug>`.
 
    - If the spec's `## Open questions` has any line tagged `blocks: plan`, refuse to plan and list those lines:
 
@@ -51,7 +46,7 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
 
    - If the spec's frontmatter has no `done_criteria` field at all (a legacy spec predating done-criteria), warn once and continue:
 
-     > Spec `<slug>` v<M> predates the done-criteria field. Continuing in legacy mode — the plan will not echo or verify done-criteria. Recommended: re-run `/spec <slug>` to add criteria; the next plan version will pick them up.
+     > Spec `<slug>` v<M> predates done-criteria. Continuing in legacy mode: the plan won't echo or verify them. Re-run `/spec <slug>` to add them.
 
    - Capture the `done_criteria` list (or empty list in legacy mode) for use in steps 8, 9, and the final synthesis step.
 
@@ -59,11 +54,11 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
    - If empty / does not exist → write `v1.md`.
    - Else → write `v<N+1>.md` where N is the highest existing version, and supersede the previous active plan per step 11.
 
-   No `--evolve` / `--new` distinction for plans. Plans are cheaper than specs and always evolve as a new version against the same slug. If the user wants a fresh plan tree under a new slug, that's a `/spec <new-slug> --new` operation upstream.
+   Plans always evolve as a new version of the same slug; a fresh tree means `/spec <new-slug> --new` upstream.
 
 5. **Prep.** Invoke `skills/prep/SKILL.md` with the spec topic / task text. Architectural rules must be loaded before steps are drafted.
 
-   **Autonomy-contract check** (optional): if no autonomy contract is set for this work (no `active.md`, no kickoff from `/spec`), optionally ask one question — *"How autonomous should the execute run be — push to all criteria or MVP-and-stop, interrupt every step or only on forks?"* — and call [autonomize](../autonomize/SKILL.md) to record it, so `/execute` reads a calibrated cadence/stopping instead of the bare default. Skip when the spec already set a contract, the user gave a terse preference, or the default obviously fits. One optional question, never a gate — the explicit `/autonomize` command stays available.
+   **Autonomy contract** (optional): if none is set (no `active.md`, no kickoff from `/spec`), you may ask one question — push to all criteria or MVP-and-stop, interrupt every step or only on forks — and record it with [autonomize](../autonomize/SKILL.md). Skip when the default obviously fits or the user prefers terse runs. Never a gate.
 
 6. **Discover.**
 
@@ -82,7 +77,7 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
 
 7. **Triviality check.** One-paragraph spec + one-step change + no architectural risk → ask:
 
-   > This looks small enough to skip plan/execute. Anthropic's rule: if you can describe the diff in one sentence, just do it. Want to proceed anyway? (y/N)
+   > This looks small enough to skip plan/execute: if you can describe the diff in one sentence, just do it. Plan anyway? (y/N)
 
    Stop unless the user confirms.
 
@@ -95,28 +90,22 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
    - **Smaller option** (only when one exists): when the step builds more than its criteria need (an option, abstraction, config or extra case nobody asked for), one line naming the smaller version. The user picks at the gate; never choose silently either way.
    - **Serves criteria:** list of done-criteria index numbers from the spec this step contributes to (e.g. `[1, 3]`). At least one criterion per step. A step that traces to no criterion is a planning smell — flag and ask the user:
 
-     > Step N doesn't trace to any done-criterion. Either the criterion is missing from the spec (re-run `/spec <slug>`) or the step is unnecessary (drop it). Resolve before continuing.
+     > Step N traces to no done-criterion: the spec is missing one (re-run `/spec <slug>`) or the step is unnecessary (drop it).
 
    - Optional tags: `[research]`, `[delegate]`.
 
-   **Skip the "Serves criteria" field in legacy mode** (spec had no `done_criteria`) — there's nothing to map to.
+   Skip "Serves criteria" in legacy mode (no `done_criteria`).
 
    **Self-containment for delegated steps.** When a step is tagged `[delegate]` (or otherwise destined for a fresh subagent — see execute §3b), the executing agent does **not** share this conversation's context and cannot re-derive it. Such a step needs two extra fields so it stands alone:
 
    - **Current state:** the relevant *before* excerpt of what the step modifies — the actual code/config lines being changed (a few lines, cited `file:line`), not a paraphrase. For a new-file step, state "new file" and the directory it lands in.
    - **Exemplar:** a concrete path in the repo to follow as the convention anchor (e.g. *"mirror the structure of `src/services/auth-service.ts`"*). The subagent reads it to match local idiom instead of inventing one.
 
-   Populate both only for `[delegate]`-tagged steps — they are noise on a step that runs in this context, where the conversation already carries that state. If a step is `[delegate]` but you cannot supply a concrete Current-state excerpt or an Exemplar path, that is a signal the step is under-specified for delegation: either Read the repo to fill them in, or drop the `[delegate]` tag and run it in-context. Do not delegate a step the plan can't make self-contained.
+   Populate both only for `[delegate]` steps; on in-context steps they are noise. If you can't supply them, Read the repo to fill them in or drop the `[delegate]` tag. Never delegate a step the plan can't make self-contained.
 
-   The closing done-criteria assessment is **not** a plan step — it's post-loop infrastructure inside `/execute`, run after the last real step's verification passes. The plan declares what done means; execute checks it.
+   Don't add a final "check done-criteria" step: `/execute` runs that assessment itself.
 
-8b. **Strict drafting mode (`--executor cheap` only).** A cheap-tier executor is functionally a fresh subagent with weaker inference: it does not share this conversation, cannot re-derive intent, and will not notice that a step left something open. Strictness is therefore a function of *who executes*, and in this mode it applies to **every** step, not just `[delegate]`-tagged ones:
-
-   - **Self-containment everywhere.** Every step carries the **Current state** excerpt and **Exemplar** path that step 8 requires only of delegated steps. The same failure test applies, now plan-wide: if you cannot supply a concrete before-excerpt and an exemplar path for a step, the step is under-specified for this mode — Read the repo and fill them in, or draft the plan for `main` instead.
-   - **Judgment calls closed at draft time.** Anything the main context would have decided *while executing* — a name, a file location, which of two shapes to follow, whether an edge case is in scope — is decided **now** and written into the step as a statement, not a choice. "Pick a sensible name for the helper" becomes the name. A step whose text still contains a choice is not ready for a cheap executor.
-   - **Commands spelled out.** Verification and any setup commands appear verbatim, not described ("run the test suite" → the exact command). The executor should never have to infer an invocation.
-
-   State the cost honestly at the review gate: strict drafting reads more of the repo, produces a longer plan, and goes stale faster (excerpts pin file state at draft time). It pays off on mechanical-heavy plans — migrations, scaffolding, rename sweeps, test authoring — and loses on small or judgment-heavy ones. When the user passes `--executor cheap` on a plan that looks judgment-heavy, say so once and let them decide.
+8b. **Strict drafting mode (`--executor cheap` only).** Read [strict-mode.md](strict-mode.md) first. In short: every step carries Current state and Exemplar, every judgment call is closed in the step text, and every command is spelled out. Say the cost at the gate; on a judgment-heavy plan, say so once and let the user decide.
 
 8c. **Classify each step: `[mechanical]` or `[judgment]`.** In strict mode every step carries exactly one of these tags; in `main` mode they are optional and purely informational. The tag is what `/execute` reads to decide where a step runs, so classify by what the step *needs*, never by its size:
 
@@ -125,19 +114,11 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
 
    **The verification-shape gate (hard rule).** A step may carry `[mechanical]` **only if its Verification is command-shaped**, or artifact-shaped with the exact check written out (the literal Grep/Read, not "confirm the function exists"). User-attested verification never qualifies.
 
-   The reason is worth stating, because it is the whole basis for routing work to a weaker executor: strict prose does not constrain a model, a failing command does. Everything else in strict mode raises the odds of a correct execution; only the verification catches an incorrect one. A step whose correctness cannot be checked mechanically must not be handed to an executor that is likelier to get it wrong.
-
-   When a step is genuinely mechanical but its verification is user-attested, do not downgrade the verification to make the tag fit — tag it `[judgment]` and leave the verification honest.
+   Mechanical but user-attested? Tag it `[judgment]`; never weaken the verification to fit the tag. Why: [strict-mode.md](strict-mode.md).
 
    The drafted plan is held **in-conversation** at this point — nothing is written to disk yet. The review gate (step 9) decides whether it lands.
 
-8d. **Cold read (`--cold`, or `cold` at the gate).** The plan was written by a context that remembers everything; a reader who doesn't will find what it skipped. Dispatch three [`cold-reader`](../../agents/cold-reader.md) agents in one message, one per lens: `comprehension`, `readiness`, `reuse`. Each gets only the plan text verbatim, the repo root, and its lens. Never the conversation, never another agent's output.
-
-   - **Sort each finding** as `fix`, `contest`, `escalate` or `skip` (nits only), per [review](../review/SKILL.md)'s *Pushing back on a finding*.
-   - **Show** the comprehension paraphrase first, then escalations, then the rest as `lens · severity · where · what · your call`. A wrong paraphrase is a finding even with no other findings.
-   - **Apply** the `fix` rows the user accepts to the in-conversation draft, then return to the gate. One cold read per draft: after an edit, re-run only if the user asks.
-   - **No Agent tool** → say the cold read did not run. Never role-play it in this context; that is not a cold read.
-   - **Cost:** three agents. Worth it on plans that `/execute` will hand off (`[delegate]` steps or `--executor cheap`); say so once when the plan has neither.
+8d. **Cold read (`--cold`, or `cold` at the gate).** Three [`cold-reader`](../../agents/cold-reader.md) agents in one message, lenses `comprehension`, `readiness`, `reuse`, each given only the plan text, the repo root and its lens. Procedure (sorting, showing, applying, cost): [cold-read.md](cold-read.md). No Agent tool → say it did not run; never role-play it.
 
 9. **Review gate — present the plan and confirm before writing.** The plan is the last cheap checkpoint before `/execute` ("plan changes are cheap, implementation changes are not"). Do **not** write the file silently; present the drafted plan and ask the user how to proceed. For a non-trivial plan, offer a [human-view](../human-view/SKILL.md) projection alongside — *"want the plain-prose approval view? (/human-view)"* — so approval reads the decisions, not the artefact format. Pick the presentation mode by plan size:
 
@@ -154,61 +135,11 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
    - **cold** → run the cold read (step 8d), then re-present.
    - **reject** → discard the draft. Write nothing. Acknowledge (*"Plan discarded — nothing written."*) and stop.
 
-   This is a gate on the **in-conversation draft**, not a second file. No `v<N>-draft.md` scratch file is created — only the confirmed plan becomes `v<N>.md`. The gate fires identically in degraded `--task` mode (arguably more important there, since there is no spec to fall back on). It mirrors the propose-confirm-commit flow recap / capture / rules / memory-audit already use.
+   The gate works on the in-conversation draft: no scratch file, and only the confirmed plan becomes `v<N>.md`. It fires the same in `--task` mode.
 
 10. **Write the plan file.** Path: `.claude/plans/<slug>/v<N>.md`. Reached only on **accept** in step 9.
 
-   Frontmatter:
-
-   ```yaml
-   ---
-   slug: <slug>
-   version: <N>
-   status: active
-   spec: ../../specs/<slug>/v<M>.md   # pin to the spec version this plan is built against
-   supersedes: v<N-1>.md              # omit on v1
-   executor: main                     # or `cheap` — see step 8b; omit on main for brevity
-   created: YYYY-MM-DD
-   description: <one-line — what this plan accomplishes>
-   ---
-   ```
-
-   **`--task` plans (no spec):** write `spec: none — task description in Context` and put the task description in the plan's Context section. A plan whose `spec:` is `none` is exempt from the stale-pin check and the done-criteria echo — there is no pinned version to go stale and no criteria list to read.
-
-   Body:
-
-   ```markdown
-   # Plan — <slug> (v<N>)
-   Spec: <relative path to pinned spec version, or "no spec — task description below">
-   Generated: YYYY-MM-DD
-
-   ## Context
-   <1–3 paragraphs from the spec or task text.>
-
-   ## Done-criteria (from spec)
-   <Echo the spec's done_criteria list verbatim, numbered. Each criterion gets a stable index that step "Serves criteria" lines reference. Skip this section entirely in legacy mode.>
-
-   1. <criterion 1 verbatim>
-   2. <criterion 2 verbatim>
-
-   ## Step 1: <goal>
-   - Files: <concrete paths>
-   - Outcome: <what is true after this step>
-   - Verification: <command or specific check>
-   - Builds on: <path:line | stdlib/platform: <what> | dependency: <name> | new code: <why>>
-   - Smaller option: <one line>   ← only when one exists
-   - Serves criteria: [<list of criterion indices, e.g. 1, 3>]   ← skipped in legacy mode
-   - Tags: [research] [delegate] [mechanical|judgment]   ← optional on main; [mechanical]/[judgment] mandatory in strict mode
-   - Current state: <before-excerpt, file:line>   ← [delegate] steps; every step in strict mode ("new file" for new-file steps)
-   - Exemplar: <path to follow as convention anchor>   ← [delegate] steps; every step in strict mode
-
-   ## Step 2: <goal>
-   ...
-
-   ## Notes
-   - Architectural rules loaded: <names only>
-   - Open risks: <list, or "none">
-   ```
+   Use the frontmatter and body template in [templates.md](templates.md): `spec:` pins the spec version, `executor: cheap` only in strict mode, Done-criteria echoed verbatim and numbered, and each step's fields as drafted in step 8. **`--task` plans:** `spec: none — task description in Context`; such a plan is exempt from the stale-pin check and the done-criteria echo.
 
 11. **Update previous active plan** (when N > 1). Versioning follows spec's canonical contract ([spec SKILL.md § Versioning contract](../spec/SKILL.md)): mark the previous version superseded with a `superseded_by` pointer and regenerate the INDEX.
 
@@ -234,18 +165,6 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
 
     Offer it once, in the close only. Do not push it; `/blueprint` is a deliberate choice, and small plans rarely need it.
 
-    **Offer a changelog decision line — significant changes only.** A *new* plan for a slug (v1) is a significant planning-artifact change worth recording: offer *"Drafted the &lt;slug&gt; plan — log a decision line to CHANGELOG? (y/N)"*. On `y`, invoke [`update-changelog`](../update-changelog/SKILL.md) (it composes a `◆` decision line behind its own accept/edit/reject gate). **Do not offer on a routine plan re-draft (v→v+1)** — that is authoring churn, already tracked by the plan version chain + INDEX (changelog-contract §5). draft-plan is a *doorway*, not the writer.
+    **Changelog:** offer *"Drafted the &lt;slug&gt; plan — log a decision line to CHANGELOG? (y/N)"* only for a new plan (v1), never for a v→v+1 re-draft. On `y`, invoke [`update-changelog`](../update-changelog/SKILL.md).
 
-## Spec pinning
-
-A plan's `spec:` frontmatter pins the exact spec version it was drafted against. If the spec evolves to a higher version after the plan is written, the plan does NOT silently update — it stays pinned. This is deliberate: a plan reflects decisions made against a specific spec snapshot. To rebuild the plan against a newer spec, run `/draft-plan <slug>` again, which produces a new plan version pinned to the new spec version.
-
-## What /draft-plan does not do
-
-- Does not implement anything.
-- Does not run `/execute`.
-- Does not modify spec files.
-- Does not silently overwrite an existing plan version. Every write creates a new `v<N>.md`.
-- Does not write the plan without confirmation. The review gate (step 9) presents the drafted plan and waits for *accept* before anything lands on disk — no silent write, no draft scratch file.
-
-See also: [`docs/plan-execute-workflow.md`](../../docs/plan-execute-workflow.md).
+Spec pinning, what /draft-plan does not do, and the workflow doc: [reference.md](reference.md).

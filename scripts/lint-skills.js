@@ -17,6 +17,10 @@ const SKILLS = path.join(__dirname, '..', 'skills');
 const DESCRIPTION_TRIPWIRE = 400;
 // Quoted phrases in a description beyond this read as a keyword pile.
 const QUOTED_PHRASES_TRIPWIRE = 2;
+// After compaction Claude Code re-attaches the first 5,000 tokens of each
+// invoked skill. Skill bodies measured ~2.75 chars/token (2026-11-04), so text
+// past ~13,700 chars is lost for the rest of the session.
+const BODY_CHAR_LIMIT = 13700;
 
 function frontmatter(text) {
   if (!text.startsWith('---\n')) return {};
@@ -46,6 +50,13 @@ function lintSkill(name) {
   const body = text.slice(text.indexOf('\n---', 4) + 4);
   const crossRefs = body.match(/\]\(\.\.\/[\w-]+\/SKILL\.md\)\s*§\s*\d[\w.]*/g) || [];
   if (crossRefs.length) findings.push(`points at another skill by section number: ${crossRefs.slice(0, 3).join(', ')}`);
+  if (body.length > BODY_CHAR_LIMIT) {
+    const lost = (body.slice(BODY_CHAR_LIMIT).match(/^#{1,3} .*$/gm) || []).slice(0, 4);
+    findings.push(`body is ${body.length} chars (limit ${BODY_CHAR_LIMIT}); after compaction Claude Code drops the rest${lost.length ? `: ${lost.join(' | ')}` : ''}. Move reference parts to a sibling file`);
+  }
+  // Claude Code replaces $0, $1 ... in a skill body with the invocation's arguments.
+  const argRefs = body.match(/(^|[^\\])\$\d/g) || [];
+  if (argRefs.length) findings.push(`body has ${argRefs.length} unescaped $<digit>; Claude Code puts the Nth argument there. Write \\$ for a literal, \${CLAUDE_SKILL_DIR} for the skill folder`);
 
   return findings;
 }
