@@ -147,6 +147,16 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/plugin-gate.js\" commandFacts command-facts.js",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -179,6 +189,36 @@
             "timeout": 60
           }
         ]
+      },
+      {
+        "matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/plugin-gate.js\" loopGuard loop-guard.js",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/plugin-gate.js\" commandFacts command-facts.js",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/plugin-gate.js\" proseLint prose-lint.js",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
@@ -187,6 +227,15 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/plugin-gate.js\" rulePrime rule-prime.js",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/plugin-gate.js\" loopGuard loop-guard.js",
             "timeout": 5
           }
         ]
@@ -230,6 +279,27 @@
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/plugin-gate.js\" codemapRefresh codemap-refresh.js",
             "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/plugin-gate.js\" loopGuard loop-guard.js",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/plugin-gate.js\" commandFacts command-facts.js",
+            "timeout": 5
           }
         ]
       }

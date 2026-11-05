@@ -8,6 +8,7 @@ Shape per the [review output contract](../../docs/review-output-contract.md); on
 Review of: <target> (N files, M lines)        # PR: "PR #N: <title>", author, base <- head, +/-
 Rules loaded: K | none                        Run mode: fresh | repeat (baseline v<N>, date)
 Angles: correctness (12 files, 4) · performance (12, none) · security (failed)
+Checks: ruff ok (2 findings) · tsc ok · dotnet build failed to start | none found
 Metrics: change +412/-88 in 3 modules · blast radius 23 files · public surface +3/~1/-0 · tests 2 of 5
 ```
 

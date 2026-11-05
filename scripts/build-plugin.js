@@ -50,6 +50,9 @@ const BUNDLE_INFO = {
   editChecks: ['Edit checks', 'Run trusted checks from .claude/edit-checks.json after edits; report only new problems.'],
   subagentRules: ['Subagent rules', 'Give each subagent the change-discipline rule (minimal change, no unrequested scope).'],
   codemapNudge: ['Codemap nudge', 'Where .claude/codemap.md exists: a short project layout at session start, and a pointer for subagents and the first search.'],
+  loopGuard: ['Loop guard', 'When a turn keeps hitting the same failure, suggest a different approach once, then tell you how to interrupt.'],
+  commandFacts: ['Command facts', 'When a command is not found but another spelling works, track it; after 3 sessions, offer to save it as a memory.'],
+  proseLint: ['Prose check', 'After an edit to a README or docs/ page, point out dense AI-style words and long sentences.'],
   codemapRefresh: ['Codemap refresh', 'Refresh an out-of-date codemap in the background (untracked codemaps by default), or say it is out of date.'],
 };
 
@@ -61,8 +64,9 @@ const CURSOR_EVENTS = [
   ['PreToolUse', /\bBash\b/, 'beforeShellExecution'],
   ['PostToolUse', /\b(Write|Edit)\b/, 'afterFileEdit'],
 ];
-// Bundles that need an event Cursor lacks. editChecks needs a pre-edit baseline.
-const CURSOR_SKIP = new Set(['editChecks']);
+// Bundles that need an event Cursor lacks. editChecks needs a pre-edit baseline;
+// loopGuard and commandFacts need tool-failure events.
+const CURSOR_SKIP = new Set(['editChecks', 'loopGuard', 'commandFacts']);
 
 const MCP_SCRIPT = 'mcps/project-memory/dist/project-memory.cjs';
 

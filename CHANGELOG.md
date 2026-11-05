@@ -9,6 +9,76 @@ File-level changes per public snapshot. Curate freely — this is the human-faci
 
 
 
+
+## 2026-11-05 — A loop guard for turns that keep hitting the same failure; command spellings that work are remembered and offered to capture; an advisory plain-English check on README and docs edits; /review runs the repo's own linters and type checks first; pr-author leads with the problem; pr-triage --watch waits on a PR; a boundary-discipline rule and vacuous-test anti-pattern; a preregistered A/B for <important if> blocks.
+
+_27 added, 20 changed, 0 removed._
+
+### Architectural rules
+- added `architectural-rules/universal/boundary-discipline.md`
+- changed `architectural-rules/universal/prose-authenticity.md`
+- changed `architectural-rules/universal/test-quality.md`
+
+### Bootstrap
+- changed `bootstrap/lib/enablement.js`
+
+### Commands
+- changed `commands/pr-triage.md`
+
+### Cross-tool instructions
+- changed `.github/instructions/config-authoring.instructions.md`
+- changed `.github/instructions/universal.instructions.md`
+
+### Docs
+- changed `docs/reference.md`
+
+### Hooks
+- added `hooks/command-facts.js`
+- added `hooks/loop-guard.js`
+- added `hooks/prose-lint.js`
+- added `hooks/tests/command-facts.test.js`
+- added `hooks/tests/loop-guard.test.js`
+- added `hooks/tests/prose-lint.test.js`
+- changed `hooks/hooks.json`
+
+### Other
+- added `evals/PREREG-important-if-2026-11-05.md`
+- added `evals/claude-md-bare-migration/case.yaml`
+- added `evals/claude-md-bare-migration/graders/has-down.md`
+- added `evals/claude-md-bare-migration/graders/named-next-number.md`
+- added `evals/claude-md-bare-migration/scaffold.sh`
+- added `evals/claude-md-bare-money/case.yaml`
+- added `evals/claude-md-bare-money/graders/cents-column.md`
+- added `evals/claude-md-bare-money/graders/no-float.md`
+- added `evals/claude-md-bare-money/scaffold.sh`
+- added `evals/claude-md-if-migration/case.yaml`
+- added `evals/claude-md-if-migration/graders/has-down.md`
+- added `evals/claude-md-if-migration/graders/named-next-number.md`
+- added `evals/claude-md-if-migration/scaffold.sh`
+- added `evals/claude-md-if-money/case.yaml`
+- added `evals/claude-md-if-money/graders/cents-column.md`
+- added `evals/claude-md-if-money/graders/no-float.md`
+- added `evals/claude-md-if-money/scaffold.sh`
+- changed `.claude-plugin/plugin.json`
+- changed `cursor/hooks.json`
+- changed `cursor/rules/config-authoring.mdc`
+- changed `cursor/rules/universal.mdc`
+- changed `evals/README.md`
+- changed `scripts/build-plugin.js`
+
+### Settings
+- changed `settings/settings.template.json`
+
+### Skills
+- added `skills/pr-triage/pr-wait.mjs`
+- added `skills/pr-triage/pr-wait.test.mjs`
+- added `skills/review/checks.md`
+- changed `skills/capture/SKILL.md`
+- changed `skills/pr-author/SKILL.md`
+- changed `skills/pr-triage/SKILL.md`
+- changed `skills/review/SKILL.md`
+- changed `skills/review/report.md`
+
 ## 2026-11-04 — Skills fit the compaction budget and $0 args are fixed; a /review gate-integrity scan that skips generated files; tests must fail before the fix; bench preregistration; brainstorm opens with one why question; the codemap refreshes itself, names files better and gives a short layout at session start.
 
 _50 added, 38 changed, 0 removed._

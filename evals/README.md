@@ -28,6 +28,7 @@ Run it before and after changing a skill's `description`, and compare. For any p
 | `user-only-improve-prompt` | a user-only skill does not fire from natural phrasing |
 | `unrelated-arithmetic` | nothing fires on an unrelated question |
 | `review-finds-bug` | a review finds an off-by-one and cites the line |
+| `claude-md-bare-*`, `claude-md-if-*` | A/B: does wrapping CLAUDE.md sections in `<important if>` raise adherence? Bars in [PREREG-important-if-2026-11-05.md](PREREG-important-if-2026-11-05.md) |
 
 ## Baseline, 2026-11-01
 

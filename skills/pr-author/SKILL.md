@@ -44,11 +44,11 @@ All read-only:
 **Title:**
 - One line, **≤70 chars** (hard cap — `gh` truncates the title bar otherwise).
 - Lowercase verb start (per [git.md](../../architectural-rules/universal/git.md) commit-format convention), no trailing period, no ticket prefix unless project convention requires it.
-- Describes the **change**, not the branch — don't restate the branch name verbatim.
+- Says what the change does for the reader, not how. "cut websocket frames by 70% with gzip", not "negotiate permessage-deflate on the websocket". Don't restate the branch name.
 
 **Body** — per the contract below, layered on any existing template:
 - Detect a PR template in order: `.github/PULL_REQUEST_TEMPLATE.md` → `.github/pull_request_template.md` → `docs/PULL_REQUEST_TEMPLATE.md`. If one exists, its content is the **baseline**; fill the skill's sections on top of it rather than replacing it. (Multiple templates under `.github/PULL_REQUEST_TEMPLATE/` → v2; for v1, surface that they exist and let the user pick one to paste.)
-- **## Summary** — 1–3 bullets: what changed and why. Not a commit-log copy; synthesise.
+- **## Summary** — open with the problem in one or two plain sentences, in the user's words where they gave them (from the session, the issue, or the commit messages). Then 1–3 bullets on the fix. Not a list of every file or function touched; not a commit-log copy.
 - **## Test plan** — a checklist of how the change was verified or how a reviewer can verify it.
 - **Closes line** — `Closes #NNN` when a commit referenced an issue and it's the issue this PR resolves. Only when confident; otherwise omit.
 - **No AI-attribution footer.**

@@ -18,6 +18,7 @@ Manual trigger **via this description** (per [skill-auto-fire](../../architectur
 ## When to run
 
 - The user types `/pr-triage` or `/pr-triage <PR>`.
+- The user types `/pr-triage --watch [PR]`, or asks to watch or babysit a PR: see *Watch* below.
 - The user says "work through the PR comments", "triage the review feedback", "let's go through what they flagged", or equivalent — and wants to *act* on the comments, not have replies drafted.
 
 Skip when:
@@ -134,6 +135,21 @@ Still open (you respond on GitHub):
 
 Suggest re-running [pre-push](../pre-push/SKILL.md) when the acted-on changes are ready to push.
 
+## Watch
+
+`/pr-triage --watch [PR]` waits on the PR instead of polling by hand. Run, from this skill's folder (`${CLAUDE_SKILL_DIR}`):
+
+```
+node ${CLAUDE_SKILL_DIR}/pr-wait.mjs <PR> [--until ready|green|any-change]
+```
+
+Run it under the Monitor tool (timeout about an hour) so each printed line wakes the session; without Monitor, run it as one long command. One watcher per PR; it refuses to start a second. It is read-only, like the rest of this skill.
+
+- Exit 0: `ready` (checks green, no open threads, no conflict) or merged. Tell the user it is ready; merging stays theirs.
+- Exit 1: a check failed, a conflict, changes requested, or a new comment or open thread. Tell the user what it printed. For comments, run the procedure above (§1-§5).
+- Exit 3: timed out; start it again. It remembers what it printed, so only news shows.
+- When a line needs nothing, stay quiet. Never post "still waiting".
+
 ## Open behaviours (v1 choices)
 
 - **Resuming mid-flow.** If the user triages some rows then drops the session, the next invocation **re-fetches and re-derives** the checklist — state is cheap and comments may have moved. (Stateful resume is a later concern if it proves needed.)
@@ -148,7 +164,7 @@ Suggest re-running [pre-push](../pre-push/SKILL.md) when the acted-on changes ar
 - **Does not edit code inline.** Act rows are routed to /dispatch or /orchestrate; pr-triage classifies and hands off, it does not apply changes itself.
 - **Does not commit or push.** The downstream organs make the changes; the user decides commit granularity and pushes via [pre-push](../pre-push/SKILL.md).
 - **Does not silently drop a comment.** Every fetched comment gets a row and an explicit outcome; deferred and noted rows stay visible to the close-out.
-- **Does not auto-fire.** Manual `/pr-triage` only.
+- **Does not auto-fire.** Manual `/pr-triage` only. `--watch` waits only when asked.
 
 ## Relationship to other organs
 

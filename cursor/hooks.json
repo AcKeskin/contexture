@@ -18,6 +18,9 @@
     "afterFileEdit": [
       {
         "command": "node \"${CURSOR_PLUGIN_ROOT}/hooks/plugin-gate.js\" codemapDirty codemap-dirty-marker.js"
+      },
+      {
+        "command": "node \"${CURSOR_PLUGIN_ROOT}/hooks/plugin-gate.js\" proseLint prose-lint.js"
       }
     ]
   }

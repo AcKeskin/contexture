@@ -62,7 +62,7 @@ Only for `/review` and `/review <dir>`. Read manifests, README + `docs/`/`adr/` 
 
 Angle briefs live in [angles.md](angles.md); projects can add their own or set defaults in `.claude/review-angles.md` (format in angles.md).
 
-**Gate scan first on a diff target** (`--pr`, `--since`): follow [gates.md](gates.md). Drop `GENERATED` files from scope; read each `TAG` hunk with its one question. A `gate` finding always goes to the user; never apply it.
+**First, on a checked-out target:** the repo's own linters and type checks ([checks.md](checks.md)). **Then on a diff** (`--pr`, `--since`): the gate scan ([gates.md](gates.md)). Drop `GENERATED` files; read each `TAG` hunk with its one question; `gate` findings go to the user.
 
 | Input | Angles | How they run |
 | --- | --- | --- |
@@ -94,7 +94,7 @@ Local targets with a prior `.claude/reviews/<scope-slug>/latest.md`: run mode = 
 
 ## 5. Report
 
-Before writing the report, read [report.md](report.md): the header, the Metrics line (from sources, never estimated; `n/a (<why>)` when a source is missing) and the section order. The [review output contract](../../docs/review-output-contract.md) wins on divergence. A PR report ends with `Verdict: APPROVE | REQUEST_CHANGES | COMMENT`; only confirmed Critical/High drive `REQUEST_CHANGES`.
+Before writing the report, read [report.md](report.md): the header, the Metrics line (from sources, never estimated) and the section order. The [review output contract](../../docs/review-output-contract.md) wins on divergence. A PR report ends with `Verdict: APPROVE | REQUEST_CHANGES | COMMENT`; only confirmed Critical/High drive `REQUEST_CHANGES`.
 
 ## 6. Decide
 

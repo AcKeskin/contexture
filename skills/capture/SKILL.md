@@ -17,7 +17,8 @@ Before classifying or writing anything, **Read `../../claude-md/memory-capture.m
 - User says "remember that…", "save this as a memory," "capture this lesson."
 - Another skill invokes capture programmatically (e.g. review's user-correction feedback loop).
 - **High-stakes auto-propose.** Claude *proposes* a capture unprompted — **at the moment it happens, mid-session** — when a genuinely high-stakes item surfaces: (a) a decision that reverses or supersedes a prior shipped decision; (b) a correction the user phrases with finality ("never do X again", "this is the rule now"); (c) a `kind: warning`-shaped event ("I did X, it broke Z, hard to undo"). This is auto-***propose***, never auto-***write*** — the standard accept/edit/reject (§7) still gates every write, so the collaborator principle holds. Fire **on the event, not at session close** — deferring to `/recap` loses it when no recap runs. Keep it **rare**: only the three shapes above; never auto-propose ordinary lessons.
-- **Otherwise do not auto-fire.** No session-start or per-turn triggers. Mode B (silent episodic auto-*write*) stays parked — see the auto-propose bullet above.
+- **Command facts.** The `command-facts` hook may ask at session start to offer a command spelling confirmed in 3+ sessions (`pytest` not found, `python -m pytest` works). Offer it once; on yes, run this procedure with `type: project`.
+- **Otherwise do not auto-fire.** No other session-start or per-turn triggers. Mode B (silent episodic auto-*write*) stays parked — see the auto-propose bullet above.
 
 ## Inputs
 

@@ -104,6 +104,24 @@
       "title": "Codemap refresh",
       "description": "Refresh an out-of-date codemap in the background (untracked codemaps by default), or say it is out of date.",
       "default": true
+    },
+    "loop_guard": {
+      "type": "boolean",
+      "title": "Loop guard",
+      "description": "When a turn keeps hitting the same failure, suggest a different approach once, then tell you how to interrupt.",
+      "default": true
+    },
+    "command_facts": {
+      "type": "boolean",
+      "title": "Command facts",
+      "description": "When a command is not found but another spelling works, track it; after 3 sessions, offer to save it as a memory.",
+      "default": true
+    },
+    "prose_lint": {
+      "type": "boolean",
+      "title": "Prose check",
+      "description": "After an edit to a README or docs/ page, point out dense AI-style words and long sentences.",
+      "default": true
     }
   },
   "mcpServers": {

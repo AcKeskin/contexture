@@ -12,6 +12,15 @@ The default autonomy posture for this project is **balanced effort / stop-at-cri
 Override this default per project by placing an `autonomy-default.md` in the user or project overlay tier (`~/.claude/architectural-rules/universal/` or `<repo>/.claude/rules/universal/`) with a different `autonomy:` block — the standard overlay cascade (project > user > shipped) applies, no parallel config engine. `/autonomize`'s save-as-default flow writes the project-tier file for you.
 `/autonomize` and the organs read the **typed `autonomy:` frontmatter values** from the resolved file directly — not via the rule-body resolver (`resolve-rules.js`), which emits prose bodies for priming and does not carry custom frontmatter keys. This file is a rule (it lives in the overlay tree for cascade + override + disable) whose *payload* is its frontmatter, not its body. `relevance: on-demand` keeps it off the always-on floor — the values are read when the contract resolves, never paid every turn.
 
+## Boundary discipline
+
+- Parse outside data once, where it enters (request, file, CLI arg, IPC message). Inside, take the parsed type and trust it; no re-checks deep in the call stack.
+- Shape types so an illegal state can't be written: a sum type or enum over a pair of flags, a non-empty type over a list plus a runtime check. If the code is already clear and local, leave it.
+- Don't silence the type checker (`as any`, `!`, `#pragma warning disable`, unchecked casts) to get past a shape mismatch. Fix the shape.
+- Make operations idempotent: running one twice, or again after a crash halfway through, ends in the same state.
+
+**Why:** a check scattered through the core gets missed in one place; one check at the entry plus a type that can't hold bad data catches it once. Re-runnable operations make retries and crash recovery free. Adapted from `unclebob/ub-mode`, read 2026-10-29.
+
 ## Canonical tool commands
 
 Pin the **command** next to the **verb**, not just the verb. The verb is the
@@ -428,6 +437,10 @@ Mock at **seams, not internals** — substitute true external dependencies (netw
 **Arrange–Act–Assert** structure, one logical behavior per test. The three phases are visually distinct; a reader sees setup, the single action, and the assertions at a glance.
 **No test interdependence** — each test sets up its own state and passes in isolation and in any order. Tests that depend on execution order or shared mutable state fail mysteriously and can't be run in parallel.
 
+**A new test answers four questions first:** what behavior it protects, what regression would make it fail, why existing tests miss that regression, and whether it needs a seam no production caller needs. If existing tests nearly cover it, add a row to their table or fixture instead of a near-duplicate. If it needs a test-only seam, test at the real boundary.
+**A regression test must fail before the fix.** Run it on the unfixed code: it fails in its own assertion (an import or fixture error doesn't count), then passes after the fix. Report both runs. A test that passes before the fix is not a regression test.
+**When a mock or fixture stands in for a real dependency, say what green does not prove**, in one line (e.g. "provider acceptance not covered: provider mocked").
+
 **Anti-patterns** (the negative list — a test exhibiting these is a finding):
 - **Brittle assertions** — asserting on exact whitespace, full object dumps, or internal structure that changes for reasons unrelated to the behavior.
 - **Over-mocking** — mocking so much that the test exercises mocks talking to mocks, not real code.
@@ -435,5 +448,6 @@ Mock at **seams, not internals** — substitute true external dependencies (netw
 - **Test interdependence** — order-dependent or shared-state-dependent tests.
 - **One giant test** — a single test asserting a dozen unrelated behaviors; a failure tells you nothing about which broke.
 - **Weakened to green** — an assertion loosened, a case skipped, or a test disabled so the suite passes. The change that made it green is the finding; the code it was protecting is still broken.
+- **Vacuous test** — it would still pass if the code under test returned nothing (null, empty, default). It asserts no result a caller would see.
 
-**Why:** tests exist to let you change code with confidence. A test coupled to implementation, dependent on order, or mocking its own subject inverts that — it breaks on safe refactors and stays green on real regressions, training the team to ignore or delete it. The standard above is what keeps a suite a safety net rather than a maintenance tax. When authoring to this standard hits friction (can't test without reaching into internals), that's a *testability* signal in the code, surfaced as a finding — not a reason to lower the test standard.
+**Why:** tests exist to let you change code with confidence. A test coupled to implementation, dependent on order, or mocking its own subject inverts that — it breaks on safe refactors and stays green on real regressions, training the team to ignore or delete it. The standard above is what keeps a suite a safety net rather than a maintenance tax. When authoring to this standard hits friction (can't test without reaching into internals), that's a *testability* signal in the code, surfaced as a finding — not a reason to lower the test standard. The earns-its-place questions and the fail-before-fix proof are adapted from `garrytan/gstack` `/test-audit`, read 2026-11-04. The vacuous-test check is from `unclebob/ub-mode`, read 2026-10-29.

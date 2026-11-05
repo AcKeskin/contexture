@@ -8,4 +8,6 @@ It fetches the unresolved review comments (read-only), groups them into an edita
 
 It **never drafts or posts replies** and makes no GitHub call beyond the read-only comment fetch. You write every response yourself.
 
+`/pr-triage --watch [PR]` waits on the PR with `pr-wait.mjs` (read-only) and stops when it is ready, or when a check fails or a new comment needs you.
+
 Manual trigger only — the skill does not auto-fire. See `~/.claude/skills/pr-triage/SKILL.md` for the full procedure.
