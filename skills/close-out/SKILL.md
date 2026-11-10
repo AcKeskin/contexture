@@ -40,7 +40,7 @@ Locate, under `$CLAUDE_PROJECT_DIR/.claude/` (cwd fallback if the env var is uns
 
 - **Spec:** `.claude/specs/<slug>/` — read INDEX.md for the active version (`v<M>.md`). This is the **reconcile target**.
 - **Plan:** `.claude/plans/<slug>/` — active + superseded versions. **Retire target.**
-- **Blueprint / design doc:** `.claude/docs/<slug>/` — active + superseded versions (the blueprint tree, per `/blueprint`). **Retire target.**
+- **Blueprint / design doc:** `.claude/docs/<slug>/` — active + superseded versions and `sketch.md` (the blueprint tree, per `/blueprint`). **Retire target.**
 - **Superseded spec versions:** any `v<K>.md` in the spec folder with `status: superseded`. **Retire target** (the *active* reconciled spec stays).
 
 State the resolved set before proposing anything: *"Found for `<slug>`: spec v<M> (active), plan v<N>, blueprint v<P>, 2 superseded spec versions."* If the slug resolves to nothing, stop: *"No `<slug>` artefacts under `.claude/`. Nothing to close out."*

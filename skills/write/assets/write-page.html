@@ -350,8 +350,11 @@ function render() {
 
 function renderDoc() {
   const doc = $("#doc"); doc.replaceChildren();
-  parts.forEach(p => {
-    const sec = el("section", { id: "part-" + p.id }, [el("h2", {}, [p.num ? el("span", { class: "num", text: p.num }) : null, p.label])]);
+  parts.forEach((p, i) => {
+    // File mode: a part with no heading of its own continues the section above, so no title.
+    const titled = p.heading == null ? !!(p.num || p.label) : !!p.heading;
+    const sec = el("section", { id: "part-" + p.id }, titled ? [el("h2", {}, [p.num ? el("span", { class: "num", text: p.num }) : null, p.label])] : []);
+    if (p.kind === "locked" && !p.text) { doc.append(sec); return; }
     if (p.kind === "locked") {
       const kind = (p.tag || "locked").replace(/^locked\s*·\s*/, "");
       sec.append(el("div", { class: "locked" }, [
@@ -602,9 +605,13 @@ $("#all-btn").addEventListener("click", rephraseAll);
 // With "heading" on parts (file mode) the copy is the file's own markdown; otherwise title and labels.
 function finalText() {
   const fileMode = parts.some(p => p.heading != null);
-  const head = p => fileMode ? (p.heading || "") : (p.num ? p.num + " " : "") + (p.label || "");
-  const body = parts.map(p => [head(p), partText(p)].filter(Boolean).join("\n\n")).join("\n\n");
-  return fileMode ? body + "\n" : DOC.title + "\n\n" + body;
+  if (!fileMode) {
+    const head = p => (p.num ? p.num + " " : "") + (p.label || "");
+    return DOC.title + "\n\n" + parts.map(p => [head(p), partText(p)].filter(Boolean).join("\n\n")).join("\n\n");
+  }
+  // File mode (prep.mjs textOf): gap before each part, hgap after its heading, tail at the end.
+  const out = parts.map((p, i) => { const b = partText(p); return (p.gap ?? (i ? "\n\n" : "")) + (p.heading ? p.heading + (b ? (p.hgap ?? "\n\n") : "") : "") + b; }).join("") + (DATA.tail ?? "\n");
+  return DATA.eol === "\r\n" ? out.replace(/\r?\n/g, "\r\n") : out;
 }
 $("#copy-btn").addEventListener("click", () => {
   const note = $("#copy-note");

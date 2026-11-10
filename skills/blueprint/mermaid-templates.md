@@ -114,6 +114,36 @@ stateDiagram-v2
   Abandoned --> [*]
 ```
 
+## `hierarchy`
+
+Where parts live: packages, modules, folders. Used by sketch mode.
+
+```mermaid
+mindmap
+  root((<system>))
+    model
+      Entity
+      Status
+    store
+      Repository
+    service
+      Handler
+```
+
+Keep it to names; relations go in `class` or `c4-architecture`. Cap: > ~25 leaves → split per top-level package.
+
+## `build-order`
+
+What gets built first. Nodes on the same row can be built in parallel. Used by sketch mode and part 2's build order.
+
+```mermaid
+flowchart TD
+  S1["1 · Entity, Status"] --> S2["2 · Repository"]
+  S1 --> S3["3 · Policy"]
+  S2 --> S4["4 · Handler"]
+  S3 --> S4
+```
+
 ## `activity`
 
 Process flow with decision branches (Mermaid has no native activity diagram — use a flowchart).

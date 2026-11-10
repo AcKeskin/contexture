@@ -47,6 +47,8 @@ Do **not** auto-fire. Do **not** run for one-line fixes, refactors, or tasks wit
 
 4.5 **Prior-art pass** (port or parity work only). When the user frames the work against something that exists ("like X but for Y", "port", "parity with") or the interview surfaces a sibling already built, read [prior-art.md](prior-art.md) and run it before step 5: locate candidate bases (codemap first), have the user confirm the canonical one, surface drift between candidates as a question, and never sweep other projects unasked. No trigger, no pass.
 
+4.6 **Sketch pass.** If `.claude/docs/<slug>/sketch.md` exists (from `/blueprint <slug> --sketch`), read it before step 5. Its `## Decisions` are settled: do not re-ask them. Its `## Open questions` seed the interview. Technical approach links the sketch instead of copying its diagrams. When the interview stalls on shape (states, flows, types), offer `/blueprint <slug> --sketch` once.
+
 5. **Interview** (`AskUserQuestion`, fall back to plain text if unavailable):
    - **Create flow** — full interview. Probe technical implementation, UI/UX, edge cases, constraints, tradeoffs, concerns. Skip obvious questions. Stop when the user signals done, coverage is complete, or after ~10 questions ask the meta-question *"I've asked 10 questions. Are there areas we haven't covered that matter?"* and respect the answer.
    - **Create flow with a confirmed base** — interview on the delta, not from zero, and always ask the shared-core question (port vs. extract a common core). Procedure: [prior-art.md](prior-art.md), *Delta interview*.

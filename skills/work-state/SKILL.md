@@ -56,7 +56,7 @@ Walk the trees and classify each stage as `missing` / `present` / `stale` / `don
   - Active plan present, read its `spec:` frontmatter pin (`../../specs/<slug>/v<K>.md` → version `vK`). A plan whose `spec:` is `none` (the `--task` convention) is **exempt from the stale-pin check** — report it `present` with the note "task plan, no spec pin." **Otherwise compare `vK` to the spec's active `vM`:**
     - `vK == vM` → `present`.
     - `vK <  vM` → **`stale`** — the load-bearing finding. Name it: "plan pins spec v<K>, active spec is v<M>."
-- **blueprint** — `.claude/docs/<slug>/` active version present → `present` (optional stage; its absence is never a blocker, never the `next:` action unless explicitly asked). Apply the same spec-pin staleness if the blueprint records a pin. Else `missing` (and *not* blocked — it's optional).
+- **blueprint** — `.claude/docs/<slug>/` active version present → `present` (`sketch.md` alone is a draft, not a version: it does not count) (optional stage; its absence is never a blocker, never the `next:` action unless explicitly asked). Apply the same spec-pin staleness if the blueprint records a pin. Else `missing` (and *not* blocked — it's optional).
 - **execute** — has **no versioned artefact**. v1 is honest about this: report `execute` as **not inspectable from artefacts** unless a clear external signal exists (an `.claude/archive/<date>-<slug>/` implies execute completed → `done`; a recap or git mention of the slug's completion may be cited as a soft signal, never asserted as fact). Default: `present?` with the note "execute leaves no versioned file — confirm from recap/git." Never guess `done`.
 - **archive** — `.claude/archive/<date>-<slug>/` exists → `done` (the chain is closed; close-out ran). Else `missing`.
 

@@ -11,6 +11,41 @@ File-level changes per public snapshot. Curate freely — this is the human-faci
 
 
 
+
+## 2026-11-10 — /blueprint --sketch designs a feature together one view at a time; /write splits text with a script so the model writes only new options for flagged sentences, and stops on a dropped term.
+
+_4 added, 16 changed, 0 removed._
+
+### Commands
+- changed `commands/blueprint.md`
+
+### Docs
+- changed `docs/blueprint-organ.md`
+- changed `docs/skills-catalog.md`
+
+### Other
+- changed `README.md`
+
+### Settings
+- changed `settings/settings.template.json`
+
+### Skills
+- added `skills/blueprint/sketch-check.mjs`
+- added `skills/blueprint/sketch-check.test.mjs`
+- added `skills/blueprint/sketch-mode.md`
+- added `skills/write/prep.mjs`
+- changed `skills/blueprint/SKILL.md`
+- changed `skills/blueprint/mermaid-templates.md`
+- changed `skills/blueprint/reference.md`
+- changed `skills/close-out/SKILL.md`
+- changed `skills/spec/SKILL.md`
+- changed `skills/work-state/SKILL.md`
+- changed `skills/write/SKILL.md`
+- changed `skills/write/assets/write-page.html`
+- changed `skills/write/drafts-schema.md`
+- changed `skills/write/render-page.mjs`
+- changed `skills/write/render-page.test.mjs`
+
 ## 2026-11-10 — /write drafts or rewrites user-facing text on a page with options per sentence, modes and a terms check, with /humanize folded in; /visual groups findings by cause and adds match mode; /review calibration evals, inline questions and an agent-config lens; tests a change reaches run first; rm-rf-blocker closes eight gaps; lint-skills catches hidden Unicode; migration-safety, api-safety and Godot 4.4+ rules; /execute keeps its step across compaction.
 
 _49 added, 63 changed, 0 removed._

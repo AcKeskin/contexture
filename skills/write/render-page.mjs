@@ -1,17 +1,21 @@
 #!/usr/bin/env node
-// Render the write page from drafts.json (see drafts-schema.md).
+// Render the write page from drafts.json (see drafts-schema.md). No dependencies.
+//   node render-page.mjs --split <file.md> [--all]   skeleton + flagged sentences (prep.mjs)
+//   node render-page.mjs <tmp.json> --save <slug> [--force]
+//   node render-page.mjs <tmp.json> --text [--force]  picked text only, no page
 //   node render-page.mjs <drafts.json> [out.html]
-//   node render-page.mjs <tmp.json> --save <slug>
-// Default out: next to the input, same name with .html. No dependencies.
-// --save: Claude Code blocks Write/Edit under .claude/, so the skill writes
-// .write-run.tmp.json at the project root and this copies it to
-// .claude/writes/<slug>/v<N>.json + v<N>.html (N = next free), then deletes it.
+// --split writes .write-run.skel.json at the project root and prints only the flagged
+// sentences, so the model never types the text back. A tmp.json with `options` is merged
+// onto that skeleton. Options are checked first: a dropped term stops the run unless --force.
+// --save: Claude Code blocks Write/Edit under .claude/, so this copies the result to
+// .claude/writes/<slug>/v<N>.json + v<N>.html (N = next free) and deletes the temp files.
 // Adds `lexicon` from section A of the newest references/ai-vocabulary.v<N>.md,
 // parsed the same way as hooks/prose-lint.js.
 
-import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync, rmSync } from 'node:fs';
-import { dirname, join, basename } from 'node:path';
+import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync, rmSync, realpathSync } from 'node:fs';
+import { dirname, join, basename, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { split, report, merge, check, textOf } from './prep.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -41,12 +45,14 @@ export function lexicon(dir = join(here, 'references')) {
 // Throws with a message that names the bad part, so the skill can fix drafts.json.
 export function validate(d) {
   if (!d || !Array.isArray(d.parts) || !d.parts.length) throw new Error('drafts.json: "parts" must be a non-empty array');
+  if (d.tail !== undefined && typeof d.tail !== 'string') throw new Error('drafts.json: "tail" must be a string');
+  if (d.eol !== undefined && d.eol !== '\r\n') throw new Error('drafts.json: "eol" can only be "\\r\\n"');
   const ids = new Set();
   d.parts.forEach((p, i) => {
     const at = `parts[${i}]${p?.id ? ` (${p.id})` : ''}`;
     if (!p.id || ids.has(p.id)) throw new Error(`${at}: needs a unique "id"`);
     ids.add(p.id);
-    if (p.heading !== undefined && typeof p.heading !== 'string') throw new Error(`${at}: "heading" must be a string`);
+    for (const k of ['heading', 'gap', 'hgap']) if (p[k] !== undefined && typeof p[k] !== 'string') throw new Error(`${at}: "${k}" must be a string`);
     if (p.kind === 'locked') {
       if (typeof p.text !== 'string') throw new Error(`${at}: locked part needs "text"`);
       return;
@@ -79,33 +85,82 @@ export function nextVersion(dir) {
   return ns.length ? Math.max(...ns) + 1 : 1;
 }
 
-export function save(input, slug, root = process.cwd()) {
+export const SKEL = '.write-run.skel.json';
+
+// Read the model's file; merge it onto the skeleton when it has `options`, `pick` or `lock`.
+export function load(input, root = process.cwd()) {
+  const d = JSON.parse(readFileSync(input, 'utf8'));
+  const temps = [input];
+  if (!d.parts) {
+    const skel = join(dirname(input), SKEL);
+    if (!existsSync(skel)) throw new Error(`no "parts" and no ${SKEL}: run --split first`);
+    temps.push(skel);
+    Object.assign(d, merge(JSON.parse(readFileSync(skel, 'utf8')), d));
+    for (const k of ['options', 'pick', 'lock']) delete d[k];
+  }
+  if (Array.isArray(d.like)) {
+    d.samples = [...(d.samples || []), ...d.like.map((f) => ({ title: f, text: readFileSync(resolve(root, f), 'utf8').slice(0, 4000) }))];
+    delete d.like;
+  }
+  return { d, temps };
+}
+
+function checked(d, force, lex) {
+  validate(d);
+  const { errors, warnings } = check(d, lex);
+  if (errors.length && !force) throw new Error(`options drop terms (fix them, or rerun with --force):\n${errors.join('\n')}`);
+  return [...errors, ...warnings];
+}
+
+export function save(input, slug, root = process.cwd(), { force = false, lex = lexicon() } = {}) {
   if (!slug || /[\\/]|\.\./.test(slug)) throw new Error('--save needs a slug without slashes or ..');
-  const text = readFileSync(input, 'utf8');
-  const html = render(JSON.parse(text));
+  const { d, temps } = load(input, root);
+  const notes = checked(d, force, lex);
+  const html = render(d, { lex });
   const dir = join(root, '.claude', 'writes', slug);
   mkdirSync(dir, { recursive: true });
   const n = nextVersion(dir);
   const json = join(dir, `v${n}.json`), page = join(dir, `v${n}.html`);
-  writeFileSync(json, text);
+  writeFileSync(json, JSON.stringify(d, null, 1));
   writeFileSync(page, html);
-  rmSync(input);
-  return [json, page];
+  temps.forEach((f) => rmSync(f, { force: true }));
+  return { paths: [json, page], notes };
+}
+
+export function text(input, root = process.cwd(), { force = false, lex = lexicon() } = {}) {
+  const { d, temps } = load(input, root);
+  const notes = checked(d, force, lex);
+  temps.forEach((f) => rmSync(f, { force: true }));
+  return { text: textOf(d), notes };
+}
+
+export function splitFile(src, root = process.cwd(), { all = false, lex = lexicon() } = {}) {
+  const r = split(readFileSync(src, 'utf8'), { lex, all, title: basename(src).startsWith('.write-run.') ? undefined : basename(src) });
+  writeFileSync(join(root, SKEL), JSON.stringify(r.skeleton));
+  if (basename(src).startsWith('.write-run.')) rmSync(src, { force: true });
+  return report(r);
 }
 
 function main() {
   const args = process.argv.slice(2);
-  const at = args.indexOf('--save');
-  const slug = at >= 0 ? args.splice(at, 2)[1] : null;
+  const flag = (name, arity = 0) => { const at = args.indexOf(name); if (at < 0) return null; return args.splice(at, arity + 1)[arity] ?? ''; };
+  const force = flag('--force') != null, all = flag('--all') != null, asText = flag('--text') != null;
+  const src = flag('--split', 1), slug = flag('--save', 1);
   const [input, output] = args;
-  if (!input || (at >= 0 && !slug)) {
-    process.stderr.write('usage: node render-page.mjs <drafts.json> [out.html] | <tmp.json> --save <slug>\n');
+  if ((src == null && !input) || src === '' || slug === '') {
+    process.stderr.write('usage: node render-page.mjs --split <file> [--all] | <tmp.json> --save <slug> | <tmp.json> --text | <drafts.json> [out.html]\n');
     process.exit(2);
   }
+  const notes = (n) => (n.length ? n.join('\n') + '\n' : '');
   try {
-    if (slug) {
-      process.stdout.write(save(input, slug).join('\n') + '\n');
-      return;
+    if (src != null) return void process.stdout.write(splitFile(src, process.cwd(), { all }));
+    if (slug != null) {
+      const r = save(input, slug, process.cwd(), { force });
+      return void process.stdout.write(r.paths.join('\n') + '\n' + notes(r.notes));
+    }
+    if (asText) {
+      const r = text(input, process.cwd(), { force });
+      return void process.stdout.write(r.text + (r.notes.length ? '\n---\n' + notes(r.notes) : ''));
     }
     const out = output || join(dirname(input), basename(input).replace(/\.json$/, '') + '.html');
     writeFileSync(out, render(JSON.parse(readFileSync(input, 'utf8'))));
@@ -116,4 +171,5 @@ function main() {
   }
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) main();
+// realpath: skills are often installed as symlinks, and import.meta.url is the real path.
+if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) main();

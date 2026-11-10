@@ -8,6 +8,7 @@ Forms:
 
 - `/blueprint <slug>` — **Mode 1 (intent-driven).** Author from `.claude/visions/<slug>/`, `.claude/specs/<slug>/v<M>.md` (active), and `.claude/plans/<slug>/v<N>.md` (active, optional). The "after planning, before coding" path.
 - `/blueprint <slug> --from-code` — **Mode 2 (from code).** Author from the codebase + `.claude/codemap.md` for a system that was never specced. Inferred runtime flows are labelled "inferred — verify".
+- `/blueprint <slug> --sketch` — **Sketch mode.** Design the feature together, one view per turn (states, sequence, classes, hierarchy, build order, interfaces), in one living `.claude/docs/<slug>/sketch.md`. Works before or alongside `/spec`; no spec needed, no review gate. `/spec` and the later blueprint read it. See `~/.claude/skills/blueprint/sketch-mode.md`.
 - `/blueprint` (no slug) — resolve the slug like `/draft-plan`: `default` if active, else the single active slug, else list and ask. Auto-selects Mode 2 if the resolved slug has no vision/spec.
 
 A blueprint shows **what we wanted** (intent from vision + spec) and **what we're building now** (the mature concrete shape: classes, interfaces, dependencies, module relationships, build order) — the commit-point view, not a process narrative. Output is presented for **accept / edit / reject** before anything is written (the accept/edit/reject review gate). On accept, writes `.claude/docs/<slug>/v<N>.md` (versioned, spec-pinned) and an Obsidian vault artefact under `Projects/<ProjectFolder>/Docs/`.

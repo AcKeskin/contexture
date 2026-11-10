@@ -1,6 +1,6 @@
 ---
 name: blueprint
-description: "Author a concrete blueprint for a slug: the intent (from vision and spec) and the shape being built now (classes, interfaces, dependencies, module relationships, build order) as Mermaid UML. Optional, after /draft-plan; also re-blueprints existing code (--from-code). Use on /blueprint [slug] or when the user asks to see the concrete shape before coding. Never auto-fires."
+description: "Author a concrete blueprint for a slug: intent plus the shape being built (classes, interfaces, dependencies, build order) as Mermaid UML. After /draft-plan, from code (--from-code), or sketched together one view per turn next to /spec (--sketch). Use on /blueprint [slug], or when the user wants to see or design the concrete shape before coding. Never auto-fires."
 ---
 
 # blueprint
@@ -16,7 +16,11 @@ It is **optional and post-planning** — reached for *after* `/draft-plan` when 
 
 ```
 envision → spec → draft-plan → [ blueprint ] → execute      (blueprint optional)
+            ↑
+     [ blueprint --sketch ]                                   (sketch optional, any time)
 ```
+
+**Sketch mode** (`--sketch`) is the early, hands-on form: the user and Claude design the feature together, one view per turn (states, sequence, classes, hierarchy, build order, interfaces), in one living `.claude/docs/<slug>/sketch.md`. It needs no spec and has no review gate; `/spec` and the later blueprint read it. Procedure: [sketch-mode.md](sketch-mode.md). `sketch-check.mjs` syncs the vault copy and runs the name check, so a turn costs one small read and one Edit. The rest of this file covers Modes 1 and 2.
 
 It **authors** (writes new diagrams + the concrete shape). It is **not** `visualise-codemap` (which *renders* structure from finished code — derived, post-hoc). Mermaid templates live in [`mermaid-templates.md`](mermaid-templates.md).
 
@@ -24,7 +28,8 @@ The point is *intent + mature concrete shape*, aligned. It is **not** a process 
 
 ## When to run
 
-- User types `/blueprint [slug] [--from-code]`.
+- User types `/blueprint [slug] [--from-code | --sketch]`.
+- User asks to "sketch the design", "draw the states / sequence / classes with me", or design a feature visually → `--sketch`.
 - User asks to "blueprint this", "show the concrete shape", "give me the classes/interfaces/deps before I build".
 - `/draft-plan`'s close offers it — but the user still invokes it explicitly.
 - Do **not** auto-fire. Manual only (per `universal/skill-auto-fire.md` — a blueprint is a deliberate act, not a post-plan side effect). Optional by design: small plans rarely need it.
@@ -32,7 +37,7 @@ The point is *intent + mature concrete shape*, aligned. It is **not** a process 
 ## Inputs
 
 1. **Slug.** From `/blueprint <slug>`, or resolved like `/draft-plan` (default → single active → ask) when omitted.
-2. **Mode.** Mode 1 (intent-driven) by default; Mode 2 (`--from-code`, or auto-selected when the slug has no vision/spec).
+2. **Mode.** Mode 1 (intent-driven) by default; Mode 2 (`--from-code`, or auto-selected when the slug has no vision/spec); sketch (`--sketch`, never auto-selected).
 3. **Project root.** `$CLAUDE_PROJECT_DIR` if set, else cwd.
 4. **Obsidian vault root + project folder.** The vault root (`<Vault>`) is read from machine-local config — `vaultRoot` in `~/.claude/hook-config.json` — **never hardcoded** (per `universal/no-hardcoded-machine-paths.md`). If `vaultRoot` is absent, do **not** guess: surface *"Set `vaultRoot` in `~/.claude/hook-config.json` to write vault artefacts."* and write only the in-repo blueprint. `<ProjectFolder>` inference (match an existing `Projects/<Name>/` subfolder under `<Vault>`, else ask once) — the **root** comes from config, not a literal.
 
@@ -42,6 +47,7 @@ The point is *intent + mature concrete shape*, aligned. It is **not** a process 
 
 - **Slug:** given → use it. Omitted → resolve via `.claude/specs/INDEX.md` per draft-plan's canonical slug-resolution cascade ([draft-plan SKILL.md § Forms](../draft-plan/SKILL.md)). With `--from-code` and no slug, there is usually nothing to resolve against — **ask for the slug** (it names the output directory); never derive one silently from a path or a directory name.
 - **Mode:**
+  - `--sketch` flag → read [sketch-mode.md](sketch-mode.md) and follow it instead of steps 2–8.
   - `--from-code` flag → Mode 2.
   - Else check for `.claude/specs/<slug>/` (active) and/or `.claude/visions/<slug>/`. Present → Mode 1. Absent → Mode 2 (announce: *"No spec/vision for `<slug>` — running from code + codemap."*).
   - **Both a stale spec and live code exist:** prefer Mode 1 (spec is the intent) but add a Notes line: *"Code may have diverged from spec v<M> — verify."*
@@ -52,6 +58,7 @@ The point is *intent + mature concrete shape*, aligned. It is **not** a process 
 - `.claude/visions/<slug>/` active (if present) — intent, UX shape, module partition, boundaries → feeds **What we wanted**.
 - `.claude/specs/<slug>/v<M>.md` active — the authoritative requirements + `done_criteria` → feeds **What we wanted** + the concrete surface.
 - `.claude/plans/<slug>/v<N>.md` active (optional) — build order + the entities the steps name → feeds **What we're building** (dependencies/build order). Soft-referenced.
+- `.claude/docs/<slug>/sketch.md` (if present) — the design the user sketched. Start part 2 from its diagrams and signatures instead of drawing from scratch; its `## Decisions` are settled. Where the blueprint departs from the sketch, say so in Alignment.
 
 **Mode 2 (from-code):**
 - `.claude/codemap.md` (if present) — module/file/class structure, exports, dependency edges. Drives the concrete shape structurally.
@@ -59,7 +66,7 @@ The point is *intent + mature concrete shape*, aligned. It is **not** a process 
 
 ### 3. Determine output version and paths
 
-- In-repo: `.claude/docs/<slug>/`. Empty/absent → `v1.md`. Else → `v<N+1>.md`. Versioning follows spec's canonical contract ([spec SKILL.md § Versioning contract](../spec/SKILL.md)): mark the previous version superseded with a `superseded_by` pointer and regenerate the INDEX.
+- In-repo: `.claude/docs/<slug>/`. No `v*.md` yet → `v1.md`. Else → `v<N+1>.md`. `sketch.md` is not a version. Versioning follows spec's canonical contract ([spec SKILL.md § Versioning contract](../spec/SKILL.md)): mark the previous version superseded with a `superseded_by` pointer and regenerate the INDEX.
 - Vault: `<Vault>/Projects/<ProjectFolder>/Docs/<slug>-blueprint.md` (or per-section split — see step 7). Reuse visualise-codemap's `<ProjectFolder>` inference and allowlist-surfacing.
 
 ### 4. Author the blueprint (adaptive — omit empty)

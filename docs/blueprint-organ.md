@@ -15,10 +15,11 @@ It is **optional and post-planning** — reached for *after* `/draft-plan` when 
 envision → spec → draft-plan → [ blueprint ] → execute      (blueprint optional)
 ```
 
-## Two modes
+## Modes
 
 - **Mode 1 (intent-driven, default):** reads `.claude/visions/<slug>/` + `.claude/specs/<slug>/` (+ the plan, optional). Where a source is silent, batches the gap into a single `AskUserQuestion` round; never invents.
 - **Mode 2 (`--from-code`):** reads `.claude/codemap.md` + the codebase. Structural parts are reliable; behavioral (runtime-flow) diagrams are labelled `%% inferred — verify`.
+- **Sketch (`--sketch`):** design together, early, one view per turn, next to `/spec`. One living `.claude/docs/<slug>/sketch.md` (Mermaid + signatures + open questions + decisions), mirrored to the vault; a name check across views after each change. No spec needed, no review gate, never writes the spec or a version. Procedure: [`skills/blueprint/sketch-mode.md`](../skills/blueprint/sketch-mode.md).
 
 ## The three parts (omit empty)
 
