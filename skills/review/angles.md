@@ -34,7 +34,7 @@ Can the next person follow it without the author? Look for names that don't say 
 Can someone build on this without editing it? Read it as the next developer who must add a case, call it from new code, or depend on it from outside. Look for: public surface added, changed or removed (and whether that breaks callers); missing or awkward extension points (a switch every new case must edit, a hardcoded list, a type that can't be swapped); leaky internals in the public API; inputs that are hard to construct; behaviour that is undocumented but callers will rely on. Do not ask for hooks nobody needs yet; name the concrete next case that would hit the wall.
 
 ### security
-Can it be made to do something it shouldn't? Look for untrusted input reaching queries, shells, paths, templates or deserializers; missing or wrong auth checks; secrets in code or logs; unsafe defaults. Route findings to the `security-reviewer` agent's verify mode in the verify step.
+Can it be made to do something it shouldn't? Look for untrusted input reaching queries, shells, paths, templates or deserializers; missing or wrong auth checks; secrets in code or logs; unsafe defaults. Agent config (skills, CLAUDE.md, `.mcp.json`, settings, hooks) is attack surface too: read its `agent-*` tags ([gates.md](gates.md#agent-config)). Route findings to the `security-reviewer` agent's verify mode in the verify step.
 
 ### hygiene
 Is the PR itself in good shape? Empty or vague commit messages, unrelated changes mixed in (formatting-only files, drive-by refactors), new logic with no test change or only tests that mirror it, public API changes with no doc update, new TODOs without a tracking reference, hardcoded values standing in for config, debug leftovers (`console.log`, `print()`, `debugger`) in non-test code. Skipped tests, suppressions and loosened checks belong to the gate scan ([gates.md](gates.md)). PR targets only.
@@ -50,7 +50,7 @@ The target's default angles always run (`architecture` locally; `correctness, de
 | --- | --- |
 | extensibility | changes exported / public symbols, a package entry point, a plugin or interface type, or a file other modules import heavily (codemap hub) |
 | performance | touches loops over I/O or queries, request handlers, per-frame or per-item code, caches, or a file on the review orientation's hot list |
-| security | touches auth, input parsing, file paths, shell or SQL calls, crypto, or config with secrets |
+| security | touches auth, input parsing, file paths, shell or SQL calls, crypto, config with secrets, or agent config (any `AGENT` line from the gate scan) |
 | design | adds a file, a module, or an import across top-level modules |
 | tests | changes source with no test file changed alongside |
 | readability | adds more than ~200 lines, or a new file over the language's monolith threshold |

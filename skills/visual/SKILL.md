@@ -1,6 +1,6 @@
 ---
 name: visual
-description: "Visual organ for UI projects: one design contract (tokens, references, screen states), captures by named state through the project's own command, deterministic checks, and a fresh critic that decides within the contract while the user reviews after. Use on /visual setup, /visual audit, /visual verify, /visual rollback, /visual break, or when /cycle runs a UI project."
+description: "Visual organ for UI projects: one design contract (tokens, references, screen states), captures by named state, deterministic checks, and a fresh critic that decides within the contract while the user reviews after. Use on /visual setup, audit, verify, rollback, break, match (rebuild a UI to match a reference image, scored), or when /cycle runs a UI project."
 disable-model-invocation: true
 ---
 
@@ -19,6 +19,7 @@ Its rules come from a hand-run on a real UI project, where an uninstructed criti
 - `/visual verify <run>` — inside a cycle's stage 4: capture what the change touched and hand it to the loop's critic.
 - `/visual critic <run>` — **only** as the loop's headless critic session.
 - `/visual rollback <state>` — restore an earlier baseline.
+- `/visual match <reference> [--level structure|faithful|exact]` — rebuild a screen or component to match a reference image, scored until it passes. No contract needed.
 - `/visual break <component>` — render one component under every worst case that can reach it, on a throwaway page, and report what broke. Procedure: [break.md](break.md).
 - User-invoked, or run by `/cycle` when `.claude/visual/contract.json` exists. Never on its own.
 
@@ -57,7 +58,7 @@ Inside a `/cycle` run, **the loop** takes the captures, not the stage: after sta
 
 What stage 4 still does:
 1. Leave the run branch's worktree in place and built.
-2. Run `styles` when a dump exists, and write findings to `<run>/visual/findings.json`. Optionally write `<run>/visual/touched.json` with `regions` (`{ "<state>": "x,y,w,h" }`) for the parts you changed; the loop keeps them.
+2. Run `styles` when a dump exists, and write findings to `<run>/visual/findings.json`. `styles` groups findings by likely cause and puts the biggest effect first: when one selector holds all the others in a group, it is the `cause`, so fix it there and the rest follow. Fix from the top. Optionally write `<run>/visual/touched.json` with `regions` (`{ "<state>": "x,y,w,h" }`) for the parts you changed; the loop keeps them.
 3. Stop there. **Do not judge your own work.** The loop starts the critic as its own session once stage 4 records its outcome. On a rerun of stage 4 after the critic asked for a revision, read `<run>/visual/verdicts.json` and fix each `needs-revision` first.
 
 ## The critic (`/visual critic <run>`, headless only)
@@ -73,9 +74,21 @@ You are the critic: a fresh session that has not seen how the change was made. J
 4. **Check each claim against the code** before you write it (grep the selector, the token, the comment near it), and set `checked_against_code: true`. A claim you could not check is not a verdict; leave it out and say so in `evidence` of the nearest one.
 5. Write the list to `<run>/visual/verdicts.json` and stop. The loop validates it, rejects stale captures, records each decision and moves baselines on approval.
 
+## Match (`/visual match`)
+
+Rebuild what the user points at in their own code, then prove it with a score. Done is when `match` exits 0, not when it looks right to you.
+
+1. **Scope.** State the reference, the destination file or route, the stack, and the level. `structure` (0.80 of pixels): "like this, with our brand". `faithful` (0.90, default): "clone this". `exact` (0.97): "pixel-perfect". Ask only when two readings lead to different work.
+2. **Reference.** An image as given. A URL: screenshot it at the viewport you will ship with the project's capture tool (Playwright when nothing else). Save it under `.claude/visual/match/<name>/reference.png`.
+3. **Build** with the project's own stack and tokens: tokens, layout, type, paint, then media. Take sizes and colors from the reference, not from memory of similar sites.
+4. **Score.** Capture the build at the reference's size, then `node <skill-dir>/visual.mjs match <reference.png> <capture.png> --out .claude/visual/match/<name>/round-<N> --level <level>`. It passes when the whole frame and the reference's content both clear the bar (`layout`, any color, for structure; `content` for the others), so an empty page of the right background fails. Open `diff.png`, fix the top hotspot (or the top 2-3 if they share a cause), recapture, score again.
+5. **Stop** at a pass or after 5 rounds. Report the score per round. After 5, list each area that still differs with the reason (licensed font, missing asset, motion).
+
+Never game the score: no screenshot of the reference embedded in the build, no iframe of it, no editing files under `.claude/visual/match/`, no lowering the level. Use the user's own assets and copy; say which reference assets you reused. Pixels only: motion is not scored here (try `NiazMorshed2007/reanimate`), so say so when the reference moves.
+
 ## Before you finish
 
-Applies to audit, verify, critic and break. Report only checks that ran on the final captures; name a skipped check as skipped.
+Applies to audit, verify, critic, break and match. Report only checks that ran on the final captures; name a skipped check as skipped.
 
 | Mistake | Fix |
 | --- | --- |

@@ -26,7 +26,7 @@ Commit messages are out of scope — they have their own hygiene rule.
 
 ## Catalogue (source of truth — imported, not inlined)
 
-- <!-- id: tells-lexicon --> Tells + lexicon: `skills/humanize/references/ai-vocabulary.v2.md`
-- <!-- id: false-positive-carve-out --> The refuted/false-positive carve-out: `skills/humanize/references/false-positives.md`
+- <!-- id: tells-lexicon --> Tells + lexicon: `skills/write/references/ai-vocabulary.v3.md`
+- <!-- id: false-positive-carve-out --> The refuted/false-positive carve-out: `skills/write/references/false-positives.md`
 - <!-- id: passive-check-prose-lint --> Passive check: the `prose-lint` hook reports section-A density and long sentences after edits to README and `docs/` pages, under the same scope-guard and density rules.
-- <!-- id: active-organ-humanize --> Active organ: `/humanize` (detect → score → rewrite, voice-calibrated per run). When this rule catches a miss the catalogue lacks, route it through `/capture` — never self-edit.
+- <!-- id: active-organ-humanize --> Active organ: `/write` and its `/humanize` alias (detect → score → rewrite, voice-calibrated per run; `/write` also offers options per sentence on a page). When this rule catches a miss the catalogue lacks, route it through `/capture` — never self-edit.

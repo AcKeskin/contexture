@@ -63,7 +63,7 @@ Directories are created lazily as proposals require them — no speculative scaf
 
 | Hook | Event | What it does |
 |------|-------|--------------|
-| `rm-rf-blocker` | PreToolUse / Bash | Blocks destructive `rm -rf` on top-level paths (root, home, parent directories) |
+| `rm-rf-blocker` | PreToolUse / Bash | Blocks `rm -rf` on top-level paths (root, home, parents, system dirs), `.git`, `~/.claude`, `~/.ssh`, unguarded `$VAR` targets, and `find -delete` with no name test |
 | `env-file-write-blocker` | PreToolUse / Write* | Blocks writes to `.env`, credentials, API keys, and certificates |
 | `force-push-main-blocker` | PreToolUse / Bash | Blocks force pushes to main/master; feature branches are unrestricted |
 | `git-config-write-blocker` | PreToolUse / Bash | Blocks global/system git config writes; local project-level config allowed |
@@ -77,7 +77,7 @@ Directories are created lazily as proposals require them — no speculative scaf
 | `wrap-terminus-recovery` | SessionStart [clear/compact] | Advisory, **off by default** (`wrapTerminus` bundle). Scans the prior transcript for a shipped/closed unit whose closing terminus never ran and, if found, proposes `/wrap` via `hookSpecificOutput.additionalContext` at the next session start; string/structure match, no model call; never blocks. The auto-fire seam for the session-terminus driver |
 | `coordinate-autoregister` | SessionStart [startup/clear/compact/resume] | Advisory, **off by default** (`coordinateAuto` bundle). When coordinate auto mode is enabled, surfaces a nudge to auto-register this session's board row + run a start-of-session check via `hookSpecificOutput.additionalContext`; the board write is coordinate's action, keyed off the nudge; never blocks |
 | `file-history-precheck` | PreToolUse / Write* | Advisory (`fileHistory` bundle). Before the first edit of a file in a session, lists warning and lesson memories that name the file (project-relative path, or a specific basename). Once per file per session |
-| `compact-snapshot` | PreCompact + SessionStart [compact] | Advisory (`compactSnapshot` bundle). PreCompact saves the last user request, open todos, edited files and recent tool errors (max 2 KB); the post-compaction SessionStart injects it once and deletes it |
+| `compact-snapshot` | PreCompact + SessionStart [compact] | Advisory (`compactSnapshot` bundle). PreCompact saves the last user request, a running `/execute` and its last verified step, open todos, edited files and recent tool errors (max 2 KB); the post-compaction SessionStart injects it once and deletes it |
 | `edit-checks` | PreToolUse + PostToolUse / Write* | Advisory, **off by default** (`editChecks` bundle; it runs project commands). Runs the checks in `.claude/edit-checks.json` (`{"checks":[{"glob":"*.ts","command":"npx eslint --format unix {file}"}]}`) before the first edit of a file and after each edit, and reports only output lines the edit added (line numbers ignored), each once. Runs only after you trust the file on this machine: `node ~/.claude/hooks/edit-checks.js --trust <project>` (stores its hash; any change needs a new trust). Not on Cursor (no pre-edit event) |
 | `subagent-rules` | SubagentStart | Advisory (`subagentRules` bundle). Gives each subagent the resolved change-discipline rule, since SessionStart context reaches only the main thread. Skips read-only built-ins (Explore, Plan, claude-code-guide, statusline-setup) |
 | `codemap-search-nudge` | SessionStart [startup/clear/compact] + SubagentStart + PreToolUse / Grep, Glob | Advisory (`codemapNudge` bundle). In a project with `.claude/codemap.md`: a short layout (overview, modules, top hubs, about 400 tokens) at session start and after compaction; a one-line pointer for each subagent and for the first search of a session that didn't get the layout |
@@ -206,7 +206,7 @@ Each skill has a `SKILL.md` that defines when it fires, what it does, and how it
 | `coordinate` | Keeps multiple live sessions aligned via a shared gitignored session board — register / check / hand-off / collision-detect; a session can claim coordinator. Peer-session alignment, distinct from subagents |
 | `checkpoint` | Scope-dialed fit-and-intent check (diff / module / corpus) — "does this serve the point + cohere + what did I learn?"; diff scope composes `/code-review` + a fit-pass. Absorbed the retired `retrospect` + `system-review` organs (corpus passes) |
 | `retrospect-core` | Shared engine for the meta-review organs (`checkpoint`'s corpus scope) — orient, NEW/CARRIED/RESOLVED baseline diff, propose-confirm-commit-with-routing, batched review-output-contract render, persist. Library-only — not user-invoked |
-| `humanize` | Detects, scores, and rewrites AI-texture in user-facing prose (tech docs / email / PR-proposal-issue) — density-not-instance, advisory likelihood not a binary verdict, voice-calibrated rewrite that preserves every argument. Refuses the terse model corpus (memory, codemap, specs) |
+| `write` | Drafts or rewrites user-facing text as a page with options per sentence, modes (incl. My style from samples and Humanize) and a terms check; `/humanize` = `/write --humanize` (density-not-instance AI-texture pass, refuses the model corpus) |
 | `update-codemap` | Regenerates `.claude/codemap.md` with file tree, purposes, exports + signatures, entry points, layers, inter-module dependency adjacency, a class graph, a call graph (syntactic, with TypeScript/C# receiver-type resolution to `Type.method`), and a call sequence — tree-sitter AST extraction across ~18 languages. Honours per-directory `.gitignore` to denoise build output; warns on scoped runs about ancestor ignore/config it can't see. Clears the dirty sentinel after a successful write |
 | `visualise-codemap` | Renders a UML-heavy document from `.claude/codemap.md` — ASCII Structure tree, a top-down Module map (labeled edges, hub + cycle highlighting, legend), per-module class diagrams + subfolder-clustered file graphs, a cross-module class relations diagram, per-module call-graph diagrams, and Mermaid sequence diagrams for high-signal entry points. Writes to `.claude/codemap.diagrams.md` and the Obsidian vault under `Projects/<ProjectFolder>/Codemap/` |
 | `brainstorm` | Shapes a half-formed idea or crystallizes a blurry one (name, one-line description, in/out edges, end-goal) — upstream of `/envision`; writes a light `.claude/ideas/<slug>.md` note |
@@ -268,7 +268,8 @@ Each file is a thin entrypoint that delegates to the corresponding skill. One fi
 | `/new-mcp` | `skills/new-mcp` |
 | `/memory-audit` | `skills/memory-audit` |
 | `/rules` | `skills/rules` |
-| `/humanize` | `skills/humanize` |
+| `/write` | `skills/write` |
+| `/humanize` | Alias for `/write --humanize` |
 | `/orchestrate` | `skills/orchestrate` |
 | `/autonomize` | `skills/autonomize` |
 | `/new-agents-md` | `skills/new-agents-md` |

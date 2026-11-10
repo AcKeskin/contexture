@@ -53,6 +53,7 @@ function card(f) {
   return `<article class="card" id="${esc(f.id)}" data-kind="finding" data-sev="${esc(f.severity)}" data-severity="${esc(f.severity)}" data-angle="${esc(angles.join(' '))}" data-status="${esc(f.status || 'open')}">
   <div class="head"><span class="id">${esc(f.id)}</span><span class="sev">${esc(f.severity)}</span><span class="title">${inline(f.title)}</span></div>
   ${f.impact ? `<p class="impact">${inline(f.impact)}</p>` : ''}
+  ${f.question ? `<p class="question"><b>Question for the author:</b> ${inline(f.question)}</p>` : ''}
   <div class="meta"><span>${esc(loc(f))}</span>${angles.map((a) => `<span class="tag">${esc(a)}</span>`).join('')}${f.verdict ? `<span class="tag v-${esc(f.verdict)}">${esc(f.verdict)}</span>` : ''}${f.effort ? `<span class="tag">effort ${esc(f.effort)}</span>` : ''}</div>
   ${detail ? `<details><summary>Code and call path</summary><div class="detail">${detail}</div></details>` : ''}
   ${pickControls(f.id, 'finding')}

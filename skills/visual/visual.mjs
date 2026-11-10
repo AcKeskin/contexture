@@ -20,6 +20,7 @@
 //   rate <repo> <decision-id> <agree|disagree>        the user's review of a critic decision
 //   agreement <repo>                                  rated, agreed, rate
 //   status <repo>                                     what the cycle status page shows, as JSON
+//   match <reference.png> <capture.png> --out <dir> [--level structure|faithful|exact]   score a rebuild against a reference; exit 1 until it passes
 
 import { existsSync, readFileSync, writeFileSync, appendFileSync, mkdirSync, copyFileSync, readdirSync, realpathSync } from 'node:fs';
 import { join, dirname, resolve, relative, basename, extname } from 'node:path';
@@ -331,6 +332,84 @@ const parseRegion = (s) => {
   return { x, y, w, h };
 };
 
+// --- match a reference ---------------------------------------------------------------------
+
+const rgb = (d, i) => (d[i] << 16) | (d[i + 1] << 8) | d[i + 2];
+
+// Share of pixels that must match for each level. `structure` keeps the layout and lets the
+// look differ (own fonts, brand, copy); `exact` is pixel-perfect within anti-aliasing.
+export const MATCH_LEVELS = { structure: 0.8, faithful: 0.9, exact: 0.97 };
+export const MATCH_ROUNDS = 5;
+
+/**
+ * Scores a capture against a reference image: { level, bar, score, pass, hotspots, finding }.
+ * `score` is the share of matching pixels. `hotspots` are the grid cells that differ most,
+ * worst first, each { x, y, w, h, changed }: fix the top one, recapture, score again.
+ */
+export function matchScore(refPath, capPath, outDir, level = 'faithful', grid = 4) {
+  if (!(level in MATCH_LEVELS)) throw new Error(`unknown level "${level}" (structure, faithful, exact)`);
+  const bar = MATCH_LEVELS[level];
+  const a = PNG.sync.read(readFileSync(refPath));
+  const b = PNG.sync.read(readFileSync(capPath));
+  if (a.width !== b.width || a.height !== b.height) {
+    return { level, bar, score: 0, pass: false, hotspots: [], finding: `size differs: reference ${a.width}x${a.height}, capture ${b.width}x${b.height}. Capture at the reference's size first` };
+  }
+  const out = new PNG({ width: a.width, height: a.height });
+  const changed = pixelmatch(a.data, b.data, out.data, a.width, a.height, { threshold: 0.1, diffColor: [255, 0, 0], alpha: 0.2 });
+  if (outDir) {
+    mkdirSync(outDir, { recursive: true });
+    writeFileSync(join(outDir, 'diff.png'), PNG.sync.write(out));
+  }
+  const cw = Math.ceil(a.width / grid);
+  const ch = Math.ceil(a.height / grid);
+  const cells = [];
+  for (let gy = 0; gy < grid; gy += 1) {
+    for (let gx = 0; gx < grid; gx += 1) {
+      const x0 = gx * cw; const y0 = gy * ch;
+      const w = Math.min(cw, a.width - x0); const h = Math.min(ch, a.height - y0);
+      if (w <= 0 || h <= 0) continue;
+      let n = 0;
+      for (let y = y0; y < y0 + h; y += 1) {
+        for (let x = x0; x < x0 + w; x += 1) {
+          const i = (y * a.width + x) * 4;
+          if (out.data[i] === 255 && out.data[i + 1] === 0 && out.data[i + 2] === 0) n += 1;
+        }
+      }
+      if (n) cells.push({ x: x0, y: y0, w, h, changed: Number((n / (w * h)).toFixed(4)) });
+    }
+  }
+  cells.sort((p, q) => q.changed - p.changed);
+  const score = Number((1 - changed / (a.width * a.height)).toFixed(4));
+  // The whole-frame score alone passes an empty page of the right background whenever the
+  // background is most of the frame. So the bar also applies to the reference's content (pixels
+  // not in its most common color): `content` = share that match, for faithful and exact;
+  // `layout` = share where the capture also has something, any color, for structure.
+  const top = (img) => {
+    const n = new Map();
+    for (let i = 0; i < img.data.length; i += 4) { const k = rgb(img.data, i); n.set(k, (n.get(k) || 0) + 1); }
+    return [...n].reduce((m, e) => (e[1] > m[1] ? e : m))[0];
+  };
+  const bgA = top(a); const bgB = top(b);
+  let inside = 0; let matched = 0; let filled = 0;
+  for (let i = 0; i < a.data.length; i += 4) {
+    if (rgb(a.data, i) === bgA) continue;
+    inside += 1;
+    if (!(out.data[i] === 255 && out.data[i + 1] === 0 && out.data[i + 2] === 0)) matched += 1;
+    if (rgb(b.data, i) !== bgB) filled += 1;
+  }
+  const content = inside ? Number((matched / inside).toFixed(4)) : score;
+  const layout = inside ? Number((filled / inside).toFixed(4)) : score;
+  const gate = level === 'structure' ? layout : content;
+  const pass = score >= bar && gate >= bar;
+  const gateName = level === 'structure' ? 'layout' : 'content';
+  const finding = pass ? `passes ${level} (${score}, ${gateName} ${gate} >= ${bar})`
+    : score < bar ? `${score} < ${bar} for ${level}; fix the top hotspot first`
+      : `${gateName} ${gate} < ${bar} for ${level}: the reference's content is missing or off; fix the top hotspot first`;
+  const result = { level, bar, score, content, layout, pass, hotspots: cells.slice(0, 5), finding };
+  if (outDir) writeFileSync(join(outDir, 'score.json'), JSON.stringify(result, null, 2) + '\n');
+  return result;
+}
+
 // --- style-dump checks -------------------------------------------------------------------
 
 function luminance(hex) {
@@ -364,11 +443,40 @@ export function styleFindings(dump, tokens, source) {
     if (isHex(color) && isHex(bg)) {
       const ratio = contrast(color, bg);
       const large = parseFloat(fs) >= 24;
-      if (ratio < (large ? 3 : 4.5)) out.push({ state: el.state, selector: el.selector, check: 'contrast below WCAG AA', value: ratio.toFixed(2), line: 'WCAG 2 AA' });
+      if (ratio < (large ? 3 : 4.5)) out.push({ state: el.state, selector: el.selector, check: 'contrast below WCAG AA', value: ratio.toFixed(2), pair: `${color} on ${bg}`, line: 'WCAG 2 AA' });
     }
     if (Number(el.scrollWidth) > Number(el.clientWidth) + 1) out.push({ state: el.state, selector: el.selector, check: 'horizontal overflow', value: `${el.scrollWidth} > ${el.clientWidth}`, line: 'layout: no horizontal overflow' });
   }
   return out;
+}
+
+const CHECK_WEIGHT = { 'contrast below WCAG AA': 3, 'horizontal overflow': 3, 'off-contract color': 2, 'off-contract background': 2, 'off-contract font size': 1 };
+
+const isInside = (outer, inner) => inner !== outer && (inner.startsWith(`${outer} `) || inner.startsWith(`${outer}>`));
+
+/**
+ * Groups style findings by likely cause and ranks them by effect. One state, one check, one value
+ * (or color pair for contrast) is one group. When one selector in a group contains all the others,
+ * it is the `cause`: fix it there and the rest follow. Sorted by weight x element count, so the
+ * fix worth the most comes first. Returns [{ state, check, value, line, selectors, count, cause, note }].
+ */
+export function groupFindings(findings) {
+  const groups = new Map();
+  for (const f of findings) {
+    const key = `${f.state}|${f.check}|${f.pair || f.value}`;
+    if (!groups.has(key)) groups.set(key, { state: f.state, check: f.check, value: f.pair ? `${f.pair} (${f.value}:1)` : f.value, line: f.line, selectors: [] });
+    if (f.selector && !groups.get(key).selectors.includes(f.selector)) groups.get(key).selectors.push(f.selector);
+  }
+  const out = [...groups.values()].map((g) => {
+    const count = Math.max(1, g.selectors.length);
+    const cause = g.selectors.find((sel) => g.selectors.every((o) => o === sel || isInside(sel, o))) || null;
+    let note = '';
+    if (count > 1 && cause) note = `fix ${cause}; the ${count - 1} inside it ${count === 2 ? 'follows' : 'follow'}`;
+    else if (count > 1) note = `same value in ${count} places: likely one token or shared class`;
+    return { ...g, count, cause: count > 1 ? cause : null, note };
+  });
+  const score = (g) => (CHECK_WEIGHT[g.check] || 1) * g.count;
+  return out.sort((a, b) => score(b) - score(a));
 }
 
 // --- the critic's input and verdicts ---------------------------------------------------------
@@ -542,6 +650,12 @@ function main(argv) {
   const repo = pos[0] ? resolve(pos[0]) : process.cwd();
   try {
     switch (cmd) {
+      case 'match': {
+        const r = matchScore(resolve(pos[0]), resolve(pos[1]), flag(rest, '--out') ? resolve(flag(rest, '--out')) : null, flag(rest, '--level') || 'faithful');
+        console.log(JSON.stringify(r, null, 2));
+        if (!r.pass) process.exit(1);
+        return;
+      }
       case 'contract': {
         const c = readContract(repo);
         console.log(`contract ok: ${c.states.length} state(s), ${c.references.length} reference(s), tokens ${c.tokens.source}`);
@@ -569,7 +683,7 @@ function main(argv) {
       }
       case 'styles': {
         const c = readContract(repo);
-        const findings = styleFindings(JSON.parse(readFileSync(resolve(pos[1]), 'utf8')), readTokens(resolve(repo, c.tokens.source)), c.tokens.source);
+        const findings = groupFindings(styleFindings(JSON.parse(readFileSync(resolve(pos[1]), 'utf8')), readTokens(resolve(repo, c.tokens.source)), c.tokens.source));
         console.log(JSON.stringify(findings, null, 2));
         if (findings.length) process.exit(1);
         return;

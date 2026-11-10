@@ -10,6 +10,141 @@ File-level changes per public snapshot. Curate freely — this is the human-faci
 
 
 
+
+## 2026-11-10 — /write drafts or rewrites user-facing text on a page with options per sentence, modes and a terms check, with /humanize folded in; /visual groups findings by cause and adds match mode; /review calibration evals, inline questions and an agent-config lens; tests a change reaches run first; rm-rf-blocker closes eight gaps; lint-skills catches hidden Unicode; migration-safety, api-safety and Godot 4.4+ rules; /execute keeps its step across compaction.
+
+_49 added, 63 changed, 0 removed._
+
+### Architectural rules
+- added `architectural-rules/backend/api-safety.md`
+- added `architectural-rules/godot/version-breaks.md`
+- added `architectural-rules/sql/migration-safety.md`
+- changed `architectural-rules/README.md`
+- changed `architectural-rules/universal/prose-authenticity.md`
+
+### Bootstrap
+- changed `bootstrap/bootstrap.js`
+
+### Commands
+- added `commands/write.md`
+- changed `commands/humanize.md`
+
+### Cross-tool instructions
+- added `.github/instructions/backend.instructions.md`
+- changed `.github/instructions/godot.instructions.md`
+- changed `.github/instructions/sql.instructions.md`
+- changed `.github/instructions/universal.instructions.md`
+
+### Docs
+- changed `docs/architectural-rules.md`
+- changed `docs/reference.md`
+- changed `docs/security-hooks.md`
+- changed `docs/skills-catalog.md`
+
+### Hooks
+- added `hooks/tests/hook-io.test.js`
+- changed `hooks/command-facts.js`
+- changed `hooks/compact-snapshot.js`
+- changed `hooks/edit-checks.js`
+- changed `hooks/lib/hook-io.js`
+- changed `hooks/loop-guard.js`
+- changed `hooks/prose-lint.js`
+- changed `hooks/rm-rf-blocker.js`
+- changed `hooks/rm-rf-blocker.test.js`
+- changed `hooks/tests/context-hooks.test.js`
+- changed `hooks/tests/prose-lint.test.js`
+
+### Other
+- added `cursor/rules/backend.mdc`
+- added `evals/REVIEW-CALIBRATION.md`
+- added `evals/api-checkout-race/case.yaml`
+- added `evals/api-checkout-race/graders/atomic-stock.md`
+- added `evals/api-checkout-race/graders/one-transaction.md`
+- added `evals/api-checkout-race/scaffold.sh`
+- added `evals/api-login-limit/case.yaml`
+- added `evals/api-login-limit/graders/no-user-enumeration.md`
+- added `evals/api-login-limit/graders/rate-limited.md`
+- added `evals/api-login-limit/scaffold.sh`
+- added `evals/api-order-scope/case.yaml`
+- added `evals/api-order-scope/graders/bad-id-4xx.md`
+- added `evals/api-order-scope/graders/scoped-to-caller.md`
+- added `evals/api-order-scope/scaffold.sh`
+- added `evals/review-cal-async-foreach/case.yaml`
+- added `evals/review-cal-async-foreach/graders/finds-bug.md`
+- added `evals/review-cal-async-foreach/scaffold.sh`
+- added `evals/review-cal-clean-paginate/case.yaml`
+- added `evals/review-cal-clean-paginate/graders/no-false-alarm.md`
+- added `evals/review-cal-clean-paginate/scaffold.sh`
+- added `evals/review-cal-clean-slugify/case.yaml`
+- added `evals/review-cal-clean-slugify/graders/no-false-alarm.md`
+- added `evals/review-cal-clean-slugify/scaffold.sh`
+- added `evals/review-cal-null-deref/case.yaml`
+- added `evals/review-cal-null-deref/graders/finds-bug.md`
+- added `evals/review-cal-null-deref/scaffold.sh`
+- added `evals/review-cal-numeric-sort/case.yaml`
+- added `evals/review-cal-numeric-sort/graders/finds-bug.md`
+- added `evals/review-cal-numeric-sort/scaffold.sh`
+- added `evals/review-cal-sql-injection/case.yaml`
+- added `evals/review-cal-sql-injection/graders/finds-bug.md`
+- added `evals/review-cal-sql-injection/scaffold.sh`
+- added `scripts/lint-skills.test.js`
+- changed `README.md`
+- changed `cursor/rules/godot.mdc`
+- changed `cursor/rules/sql.mdc`
+- changed `cursor/rules/universal.mdc`
+- changed `evals/README.md`
+- changed `evals/review-finds-bug/case.yaml`
+- changed `scripts/census-shims.js`
+- changed `scripts/lint-skills.js`
+
+### Settings
+- changed `settings/settings.template.json`
+
+### Skills
+- added `skills/update-codemap/affected-tests.mjs`
+- added `skills/update-codemap/test/affected-tests.test.mjs`
+- added `skills/write/SKILL.md`
+- added `skills/write/assets/example-drafts.json`
+- added `skills/write/assets/write-page.html`
+- added `skills/write/drafts-schema.md`
+- added `skills/write/modes.md`
+- added `skills/write/references/ai-vocabulary.v3.md`
+- added `skills/write/render-page.mjs`
+- added `skills/write/render-page.test.mjs`
+- changed `skills/design-proposal/SKILL.md`
+- changed `skills/design-proposal/references/page-recipe.md`
+- changed `skills/execute/SKILL.md`
+- changed `skills/review/SKILL.md`
+- changed `skills/review/angles.md`
+- changed `skills/review/assets/example-findings.json`
+- changed `skills/review/assets/review-page.html`
+- changed `skills/review/findings-schema.md`
+- changed `skills/review/gate-scan.mjs`
+- changed `skills/review/gate-scan.test.mjs`
+- changed `skills/review/gates.md`
+- changed `skills/review/render-note.mjs`
+- changed `skills/review/render-page.mjs`
+- changed `skills/review/report.md`
+- changed `skills/update-codemap/SKILL.md`
+- changed `skills/update-codemap/treesitter.mjs`
+- changed `skills/visual/SKILL.md`
+- changed `skills/visual/test/visual.test.mjs`
+- changed `skills/visual/visual.mjs`
+- changed `skills/write/agents/openai.yaml`
+- changed `skills/write/fixtures/density-high.md`
+- changed `skills/write/fixtures/density-low.md`
+- changed `skills/write/fixtures/negative-model-corpus.md`
+- changed `skills/write/fixtures/sample-email.md`
+- changed `skills/write/fixtures/sample-project-internal.md`
+- changed `skills/write/fixtures/sample-tech-doc.md`
+- changed `skills/write/humanize.md`
+- changed `skills/write/references/ai-vocabulary.v1.md`
+- changed `skills/write/references/ai-vocabulary.v2.md`
+- changed `skills/write/references/email.md`
+- changed `skills/write/references/false-positives.md`
+- changed `skills/write/references/project-internal.md`
+- changed `skills/write/references/tech-doc.md`
+
 ## 2026-11-05 — A loop guard for turns that keep hitting the same failure; command spellings that work are remembered and offered to capture; an advisory plain-English check on README and docs edits; /review runs the repo's own linters and type checks first; pr-author leads with the problem; pr-triage --watch waits on a PR; a boundary-discipline rule and vacuous-test anti-pattern; a preregistered A/B for <important if> blocks.
 
 _27 added, 20 changed, 0 removed._

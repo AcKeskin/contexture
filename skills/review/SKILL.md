@@ -7,7 +7,7 @@ description: "Review code from one or more angles — local code (/review [path 
 
 One review skill. What changes between a local review and a PR review is the **target** and the **default angles**; everything else (verify, rank, metrics, pick, walk, page, vault note, pack) is shared.
 
-**Who does what.** The model does the mechanical work: reads the raw code, follows every call to its callers and callees, checks guards and types, confirms lines, verifies. The human decides: they see metrics, where the change sits, a one-line `impact` per finding, and the trade-offs. Code stays folded until asked for. Never ask the human to trace a call or confirm a line.
+**Who does what.** The model does the mechanical work: reads the code, follows every call to its callers and callees, checks guards and types, confirms lines, verifies. The human decides: they see metrics, where the change sits, a one-line `impact` per finding, and the trade-offs. Code stays folded until asked for. Never ask the human to trace a call or confirm a line.
 
 Consumes [discover](../discover/SKILL.md), [deliver](../deliver/SKILL.md), the [architectural-rules tree](../../architectural-rules/README.md); routes corrections through [capture](../capture/SKILL.md). Output shape: [review output contract](../../docs/review-output-contract.md).
 
@@ -56,7 +56,7 @@ Local targets: read `.claude/review-out-of-scope/` if present, indexed by `scope
 
 ### 2c. Orientation
 
-Only for `/review` and `/review <dir>`. Read manifests, README + `docs/`/`adr/` (≈10 files / 3000 lines cap), map top-level structure, take churn (`git log --oneline -200`, last-6-months `--stat`; one plain `git log` per call, run from the project root, no `git -C` or `;` chains, so headless allow rules match), and intersect the top-20 largest with the top-20 most-changed files (the hot list, scanned first). Write a 1–2 paragraph mental model; a contradiction with the README is itself a comment-drift finding citing the README line. Rendered as the report's `## Orientation` block.
+Only for `/review` and `/review <dir>`. Read manifests, README + `docs/`/`adr/` (≈10 files / 3000 lines cap), map top-level structure, take churn (`git log --oneline -200`, last-6-months `--stat`; one plain `git log` per call, run from the project root, no `git -C` or `;` chains, so headless allow rules match), and intersect the top-20 largest with the top-20 most-changed files (the hot list, scanned first). Write a 1–2 paragraph mental model; a contradiction with the README is itself a comment-drift finding citing the README line.
 
 ## 3. Run the angles
 
@@ -73,7 +73,7 @@ Angle briefs live in [angles.md](angles.md); projects can add their own or set d
 
 `auto` runs at most 5 agents and doesn't ask: past 5, drop the latest picks. `all` → ask once with the count. A typed list runs as typed. State the resolved list; for `auto`, one line per angle picked or skipped and why.
 
-**Fan-out.** All agents in one message. Each gets only: the target and how to read it, its brief verbatim, the loaded rules and guidelines, the [findings schema](findings-schema.md) finding shape, and the grounding gate (contract §1a). Plus: *"Follow each call you depend on to its callers and callees and record the path in `chain`. Write `impact` as one plain line on what it costs, with no code. Keep `what`, `impact` and `fix` plain text: no mermaid or code fences. Return findings only for your angle, or `none`."* Never pass one angle's output to another. A reply that doesn't parse is re-run once, then recorded as `failed` in coverage.
+**Fan-out.** All agents in one message. Each gets only: the target and how to read it, its brief verbatim, the loaded rules and guidelines, the [findings schema](findings-schema.md) finding shape, and the grounding gate (contract §1a). Plus: *"Follow each call you depend on to its callers and callees and record the path in `chain`. Write `impact` as one plain line on what it costs, with no code. Keep `what`, `impact` and `fix` plain text: no mermaid or code fences. A question only the author can answer goes in `question`. Return findings only for your angle, or `none`."* Never pass one angle's output to another. A reply that doesn't parse is re-run once, then recorded as `failed` in coverage.
 
 **Every finding** cites `file:line` (new-file lines on a PR), quotes the real code there, and was checked against its callers (contract §1a). No line, no finding. A non-architecture finding needs no rule citation; an architecture finding does, except dead code and comment drift ([drift-checks.md](drift-checks.md)). Fixes that are ≤10 lines, one contiguous range, and mechanically actionable become ` ```suggestion ` blocks (contract §3).
 
@@ -113,11 +113,12 @@ When `--pack` is set, show the [pack](pack.md) first. Then the **decide view**, 
 F002 · 2/7 · medium · extensibility · unverified
 Limits are a hardcoded table.
 Impact: adding a limit for a new route means editing this file; plugins can't register their own.
-Fix: accept limits through createLimiter(options).            (effort M)
+Fix: accept limits through createLimiter(options). (effort M)
+Question: do plugins need their own limits yet?
 keep · drop · wontfix "<reason>" · edit · ask <question> · code · back · stop
 ```
 
-`code` shows code, chain and verifier note; `ask` answers from the code (following calls as needed) and adds a note; `edit` changes severity, fix or wording; `back` goes back; `stop` leaves the rest `open`. Tensions follow the findings with `a · b · skip`. The cursor and answers are saved to findings.json after each step, so a later `walk` resumes.
+`code` shows code, chain and verifier note; `ask` answers from the code and adds a note; `edit` changes severity, fix or wording; `stop` leaves the rest `open`. Tensions follow the findings with `a · b · skip`. The cursor and answers are saved to findings.json after each step, so a later `walk` resumes.
 
 **Page** (`page`, `--artifact`) and **Apply vault picks**: commands in [outputs.md](outputs.md).
 

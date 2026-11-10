@@ -1,10 +1,6 @@
----
-name: humanize
-description: "Detect, score, and rewrite AI-generated texture in user-facing prose — docs, professional email, PR/proposal/issue — preserving every argument; verdicts are advisory, never binary. Use on /humanize or \"make this sound human / does this read like AI\". Refuses the terse model corpus."
-disable-model-invocation: true
----
+# Humanize pass
 
-# Humanize
+The detect, score and rewrite procedure behind `/write --humanize` (alias `/humanize`). `/write` also uses the catalogue and false-positive filter here to check every option it writes.
 
 ## Overview
 
@@ -18,7 +14,7 @@ Make user-facing prose read like a person wrote it, without changing what it say
 
 ## When to use
 
-- User types `/humanize` (on a pasted draft, a selection, or a file path).
+- `/humanize` or `/write --humanize` on a pasted draft, a selection, or a file path.
 - User asks to "humanize / de-AI / make this human / does this sound like AI / voice-check this".
 
 **Refuse (scope-guard):** if the target is the terse model corpus — memory bodies (`~/.claude/projects/*/memory/`), `codemap.md`, spec/plan artefacts, Claude-facing docs — stop and say:
@@ -36,7 +32,7 @@ Classify as **tech-doc**, **email**, or **project-internal**. State the detectio
 If under ~120 words (classifiers) / ~200 (GPT-4-class), say so and **score conservatively or aggregate** (e.g. across a sender's recent messages / a PR author's recent descriptions). **Never** a confident per-message verdict below the floor — it's a plateau, not a cliff, but short text is unreliable.
 
 ### 2. Detect (density)
-Scan against `ai-vocabulary.v2.md` (lexicon + structural patterns) and the active register module. Flag **clusters**, with exact quotes + the reason. Apply `false-positives.md` as a hard filter: do **not** flag em-dashes, single catchphrases, low-perplexity/diversity, or register-native structure (headers/bold/lists in doc registers). A lone marker is not a finding.
+Scan against the newest `ai-vocabulary.v<N>.md` (lexicon + structural patterns) and the active register module. Flag **clusters**, with exact quotes + the reason. Apply `false-positives.md` as a hard filter: do **not** flag em-dashes, single catchphrases, low-perplexity/diversity, or register-native structure (headers/bold/lists in doc registers). A lone marker is not a finding.
 
 ### 3. Score (four dimensions)
 Each presented as advisory density with the "signs, not proof" caveat — not a verdict.
@@ -76,7 +72,7 @@ Ask for (or accept an in-context) **writing sample** — this run calibrates to 
 If the run surfaces a tell the catalogue lacks, propose `/capture` to add it to a **new catalogue version** (`ai-vocabulary.v3.md`). **Never** self-edit the catalogue or this file — the catalogue grows through propose-confirm capture only.
 
 ## References (imported, not inlined)
-- `references/ai-vocabulary.v2.md` — lexicon + structural patterns (versioned source of truth)
+- `references/ai-vocabulary.v3.md` — lexicon + structural patterns (versioned source of truth; use the newest version)
 - `references/false-positives.md` — the refuted / convention carve-out
 - `references/{tech-doc,email,project-internal}.md` — per-register tells + preserve-sets
 - `fixtures/` — labelled acceptance corpus (density LOW/HIGH pair, per-register samples, model-corpus negative)

@@ -24,6 +24,7 @@ const SHIM_EXCEPTIONS = {
   'allow-skip-hooks': 'self-contained procedure, no skill',
   status: 'alias for work-state',
   'pr-review': 'alias for review --pr',
+  humanize: 'alias for write --humanize',
 };
 // Skills that intentionally ship no shim: library-only (not user-invoked) or
 // model-triggered (fire on a described condition, not a slash command).

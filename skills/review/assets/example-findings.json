@@ -20,7 +20,7 @@
       "chain": ["routes.ts:18 POST /batch handler", "limit.ts:40 checkAll(keys)", "limit.ts:44 redis.incr(k)"],
       "what": "One round-trip per key; 50 keys means 50 calls before the handler runs.", "quote": "for (const k of keys) await redis.incr(k)",
       "fix": "Batch with a pipeline.", "suggestion": "await redis.pipeline(keys.map(k => ['incr', k])).exec()",
-      "verifier": "Confirmed: `keys` comes from the request body and is unbounded (routes.ts:18).", "status": "open", "reason": null, "notes": [] },
+      "verifier": "Confirmed: `keys` comes from the request body and is unbounded (routes.ts:18).", "question": "Is `keys` capped upstream of this handler, for example by the API gateway?", "status": "open", "reason": null, "notes": [] },
     { "id": "F002", "file": "src/api/limit.ts", "line": "12", "severity": "medium", "effort": "M", "category": "extensibility", "angles": ["extensibility"], "verdict": "unverified",
       "title": "Limits are a hardcoded table", "impact": "Adding a limit for a new route means editing this file; plugins can't register their own.",
       "chain": ["limit.ts:12 const LIMITS = {...}"], "quote": "const LIMITS = { '/batch': 50, '/upload': 5 }", "fix": "Accept limits through `createLimiter(options)`.", "status": "open", "reason": null, "notes": [] },

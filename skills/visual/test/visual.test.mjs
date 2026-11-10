@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import {
-  readContract, readTokens, tokenDrift, normValue, regionDiff, styleFindings, contrast,
+  readContract, readTokens, tokenDrift, normValue, regionDiff, styleFindings, groupFindings, contrast, matchScore,
   criticStates, criticInput, verdictProblems, record, rollback, rate, agreement, staleCaptures, visualStatus,
 } from '../visual.mjs';
 
@@ -23,7 +23,8 @@ Object.assign(process.env, {
 const RUN = '2026-10-25-run1';
 
 const git = (cwd, ...a) => spawnSync('git', ['-C', cwd, ...a], { encoding: 'utf8' });
-const draw = (out, bg, box = '', rect = '') => `node ${DRAW} ${out} ${bg} ${box} ${rect}`.trim();
+// Colors are quoted: an unquoted `#` starts a comment in sh, so the stub got no arguments on Linux and macOS.
+const draw = (out, bg, box = '', rect = '') => `node ${DRAW} ${out} "${bg}" ${box ? `"${box}"` : ''} ${rect}`.trim();
 
 /** A repo with canonical tokens, a CSS copy that differs in one token, two states and a contract. */
 function fixtureRepo(contractExtra = {}) {
@@ -203,6 +204,26 @@ test('style checks flag off-contract color, low contrast and overflow', () => {
   assert.ok(contrast('#ffffff', '#000000') > 20);
 });
 
+test('style findings group by cause and rank by effect', () => {
+  const f = [
+    { state: 'editor', selector: '.card', check: 'off-contract color', value: '#ff00ff', line: 't' },
+    { state: 'editor', selector: '.card .title', check: 'off-contract color', value: '#ff00ff', line: 't' },
+    { state: 'editor', selector: '.card > .meta', check: 'off-contract color', value: '#ff00ff', line: 't' },
+    { state: 'editor', selector: '.hint', check: 'off-contract font size', value: '13px', line: 't' },
+    { state: 'editor', selector: '.a', check: 'contrast below WCAG AA', value: '1.20', pair: '#111111 on #222222', line: 'w' },
+    { state: 'editor', selector: '.b', check: 'contrast below WCAG AA', value: '1.20', pair: '#111111 on #222222', line: 'w' },
+    { state: 'present', selector: '.card', check: 'off-contract color', value: '#ff00ff', line: 't' },
+  ];
+  const g = groupFindings(f);
+  assert.equal(g.length, 4);
+  assert.deepEqual(g[0], { state: 'editor', check: 'off-contract color', value: '#ff00ff', line: 't', selectors: ['.card', '.card .title', '.card > .meta'], count: 3, cause: '.card', note: 'fix .card; the 2 inside it follow' });
+  assert.equal(g[1].check, 'contrast below WCAG AA');
+  assert.equal(g[1].cause, null);
+  assert.match(g[1].note, /same value in 2 places/);
+  assert.equal(g[3].check, 'off-contract font size', 'lowest weight x count last');
+  assert.equal(g.find((x) => x.state === 'present').note, '');
+});
+
 test('critic scope is touched plus one sibling by default, or all', () => {
   const repo = fixtureRepo();
   assert.deepEqual(criticStates(readContract(repo), ['present']), ['present', 'editor']);
@@ -302,7 +323,8 @@ test('states sharing a command run it once, and every tracked file it rewrote is
   const repo = fixtureRepo();
   spawnSync(draw('shots/saved.png', '#110e18'), { cwd: repo, shell: true });
   writeFileSync(join(repo, 'notes.txt'), 'original\n');
-  git(repo, 'add', '.');
+  // Not `add .`: that would commit the contract, which this test rewrites below.
+  git(repo, 'add', 'shots/saved.png', 'notes.txt');
   git(repo, 'commit', '-q', '-m', 'more tracked files');
   writeFileSync(join(repo, 'notes.txt'), 'my unsaved edit\n');
   const shared = `${draw('shots/editor.png', '#110e18', '#c9a04e', '1,1,5,5')} && ${draw('shots/saved.png', '#110e18', '#f2e8d5', '1,1,5,5')} && node -e "require('fs').appendFileSync('runs.log','x')"`;
@@ -343,4 +365,48 @@ test('diff has a noise floor, and says "across the frame" without a region', () 
   assert.match(regionDiff(join(dir, 'base.png'), join(dir, 'speck.png'), null).finding, /no change above the noise floor/);
   assert.match(regionDiff(join(dir, 'base.png'), join(dir, 'big.png'), null).finding, /changed across the frame/);
   assert.match(regionDiff(join(dir, 'base.png'), join(dir, 'speck.png'), null, null, 0).finding, /changed across the frame/, 'noise 0 reports any change');
+});
+
+/** A w x h PNG filled with `bg`, with an optional `box` color over [x, y, bw, bh]. */
+function png(file, w, h, bg, box, rect = [0, 0, 0, 0]) {
+  const { PNG } = createRequire(import.meta.url)('pngjs');
+  const img = new PNG({ width: w, height: h });
+  const [bx, by, bw, bh] = rect;
+  for (let y = 0; y < h; y += 1) {
+    for (let x = 0; x < w; x += 1) {
+      const c = box && x >= bx && x < bx + bw && y >= by && y < by + bh ? box : bg;
+      img.data.set([...c, 255], (y * w + x) * 4);
+    }
+  }
+  writeFileSync(file, PNG.sync.write(img));
+  return file;
+}
+
+test('match scores a rebuild against a reference, per level, worst hotspot first', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'visual-match-'));
+  const ref = png(join(dir, 'ref.png'), 40, 40, [17, 14, 24], [201, 160, 78], [0, 0, 10, 10]);
+  const same = png(join(dir, 'same.png'), 40, 40, [17, 14, 24], [201, 160, 78], [0, 0, 10, 10]);
+  const off = png(join(dir, 'off.png'), 40, 40, [17, 14, 24], [201, 160, 78], [30, 30, 10, 10]);
+  assert.equal(matchScore(ref, same, null).score, 1);
+  const r = matchScore(ref, off, join(dir, 'round-1'), 'exact');
+  assert.equal(r.score, 0.875);
+  assert.equal(r.pass, false);
+  assert.deepEqual(r.hotspots.map((h) => [h.x, h.y]), [[0, 0], [30, 30]]);
+  assert.ok(existsSync(join(dir, 'round-1', 'diff.png')) && existsSync(join(dir, 'round-1', 'score.json')));
+  assert.equal(r.content, 0, 'the box is not where the reference has it');
+  assert.equal(matchScore(ref, off, null, 'structure').pass, false, 'whole-frame 0.875 passes 0.80, but layout is 0');
+  const blank = png(join(dir, 'blank.png'), 40, 40, [17, 14, 24]);
+  assert.equal(matchScore(ref, blank, null, 'structure').score, 0.9375);
+  assert.equal(matchScore(ref, blank, null, 'faithful').pass, false, 'an empty page of the right background fails');
+  const rebrand = png(join(dir, 'rebrand.png'), 40, 40, [17, 14, 24], [40, 120, 220], [0, 0, 10, 10]);
+  const s = matchScore(ref, rebrand, null, 'structure');
+  assert.equal(s.layout, 1);
+  assert.equal(s.pass, true, 'structure lets the color differ');
+  assert.equal(matchScore(ref, rebrand, null, 'faithful').pass, false);
+  const small = png(join(dir, 'small.png'), 20, 20, [17, 14, 24]);
+  assert.match(matchScore(ref, small, null).finding, /size differs/);
+  assert.throws(() => matchScore(ref, same, null, 'close-enough'), /unknown level/);
+  const cli = spawnSync(process.execPath, [SCRIPT, 'match', ref, off, '--level', 'faithful'], { encoding: 'utf8' });
+  assert.equal(cli.status, 1);
+  assert.equal(JSON.parse(cli.stdout).pass, false);
 });

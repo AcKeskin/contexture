@@ -107,7 +107,7 @@ Plan drift is cheap to fix; silent scope creep is not.
 
 Run the step's Verification. Three kinds:
 
-- **Command-shaped** (`tests in src/auth pass`, `npm run build succeeds`, `eslint no errors`). Run the corresponding command. Pass = zero exit + matching expectation.
+- **Command-shaped** (`tests in src/auth pass`, `npm run build succeeds`, `eslint no errors`). Run the corresponding command. Pass = zero exit + matching expectation. For a test suite, run the tests `../update-codemap/affected-tests.mjs` lists first, to fail fast; then the full command.
 - **Artifact-shaped** (`file X contains function Y`, `export Z is defined`). Use Read + Grep to verify.
 - **User-attested** (`button renders red`, `loading state is smooth`). No automated test. Mark the step as `unverified, user-attested` and ask the user:
 
@@ -174,7 +174,7 @@ Skip the offer on `abort completion` (nothing shipped). A `--task` run still get
 - Does not draft plans (plan's job).
 - Does not load the architectural rules itself (prep does, via 3a).
 - Does not run review or capture (separate user-invoked organs).
-- Does not save state between invocations. If the user aborts mid-run, re-running `/execute --from N` is how to resume. No hidden progress file.
+- Does not save state between invocations. If the user aborts mid-run, re-running `/execute --from N` is how to resume. No hidden progress file; after compaction the compact-snapshot hook restores the last verified step from the ✓ lines.
 - Does not trust subagent self-reports — every step still goes through local verification (3d).
 - Does not auto-confirm done-criteria assessment (4a). The user is the final judge of whether the spec's intent was actually achieved. Per-step verification passing is necessary but not sufficient.
 

@@ -34,6 +34,7 @@ Universal / language / domain rules are **global** — they sync across PCs via 
 ├── openxr/                          scope: [openxr]          (domain  — when-domain-openxr)
 ├── rendering/                       scope: [rendering]       (domain  — when-domain-rendering)
 ├── webrtc/                          scope: [webrtc]          (domain  — when-domain-webrtc)
+├── backend/                         scope: [backend]         (domain  — when-domain-backend)
 └── codecs/                          scope: [codecs]          (domain  — when-domain-codecs)
 ```
 

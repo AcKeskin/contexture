@@ -55,7 +55,7 @@ function load(p) {
 
 function save(p, s) {
   try {
-    fs.writeFileSync(p, JSON.stringify(s) + '\n');
+    io.writeFileAtomic(p, JSON.stringify(s) + '\n');
   } catch {
     // Not fatal: the next call starts from an older count.
   }

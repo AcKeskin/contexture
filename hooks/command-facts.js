@@ -81,7 +81,7 @@ function readLedger() {
 function writeLedger(l) {
   try {
     fs.mkdirSync(path.dirname(LEDGER()), { recursive: true });
-    fs.writeFileSync(LEDGER(), JSON.stringify(l, null, 2) + '\n');
+    io.writeFileAtomic(LEDGER(), JSON.stringify(l, null, 2) + '\n');
   } catch {
     // Not fatal: this session's confirmation is lost.
   }
@@ -171,7 +171,7 @@ async function main() {
   if (event === 'PostToolUseFailure') onFailure(payload, st);
   else onSuccess(payload, st, sid);
   try {
-    fs.writeFileSync(sp, JSON.stringify(st) + '\n');
+    io.writeFileAtomic(sp, JSON.stringify(st) + '\n');
   } catch {
     // Not fatal.
   }

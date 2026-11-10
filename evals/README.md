@@ -1,6 +1,6 @@
 # evals
 
-Cases for `claude plugin eval` (Claude Code 2.1.269+). Each case is a prompt plus graders. Most check whether a skill fires on natural phrasing; two check that nothing fires when it shouldn't; one checks review quality.
+Cases for `claude plugin eval` (Claude Code 2.1.269+). Each case is a prompt plus graders. Most check whether a skill fires on natural phrasing; two check that nothing fires when it shouldn't; seven check review quality.
 
 Every run is a real model call on your account.
 
@@ -28,6 +28,8 @@ Run it before and after changing a skill's `description`, and compare. For any p
 | `user-only-improve-prompt` | a user-only skill does not fire from natural phrasing |
 | `unrelated-arithmetic` | nothing fires on an unrelated question |
 | `review-finds-bug` | a review finds an off-by-one and cites the line |
+| `review-cal-*` | review calibration: 4 more seeded bugs and 2 correct files; misses and false alarms. See [REVIEW-CALIBRATION.md](REVIEW-CALIBRATION.md) |
+| `api-*` | backend safety with checks the prompt never mentions: oversold stock under concurrent buyers, reading another user's order, unlimited password guessing. Tag `backend-safety`; run with and without the plugin to see what `backend/api-safety` adds |
 | `claude-md-bare-*`, `claude-md-if-*` | A/B: does wrapping CLAUDE.md sections in `<important if>` raise adherence? Bars in [PREREG-important-if-2026-11-05.md](PREREG-important-if-2026-11-05.md) |
 
 ## Baseline, 2026-11-01

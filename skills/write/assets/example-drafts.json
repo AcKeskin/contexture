@@ -1,0 +1,65 @@
+{
+  "title": "XR_SAMPLE_controller_pulse",
+  "ask": "tighten my draft of this extension section, OpenXR spec style.",
+  "register": "tech-doc",
+  "style": "OpenXR specification style",
+  "mode": "My style",
+  "example": true,
+  "keep": ["XR_SUCCESS"],
+  "rules": "Plain verbs, no puffery, no stock AI words.",
+  "samples": [
+    { "title": "12.31.1 Overview · XR_SAMPLE_eye_blink", "text": "This extension reports when the user blinks. The runtime sends one event per blink. Applications can use it to hide scene changes. It does not report gaze direction." },
+    { "title": "12.36.3 Description · xrGetHandPoseSAMPLE", "text": "xrGetHandPoseSAMPLE returns the latest pose of one hand. The runtime MUST fill poseInfo->joints in the order given by XrHandJointSAMPLE. If tracking is lost, the runtime MUST set isActive to XR_FALSE. Applications should check isActive before reading joints." }
+  ],
+  "style_notes": [
+    "Short sentences, mostly under 14 words.",
+    "Opens with the subject: \"This extension\", \"The runtime\", or the function name.",
+    "One fact per sentence. Few \"because\" or \"so that\" chains.",
+    "Present tense, plain verbs: \"reports\", \"returns\", not \"allows\" or \"is able to\"."
+  ],
+  "parts": [
+    { "id": "overview", "num": "12.42.1", "label": "Overview", "kind": "text", "sentences": [
+      { "pick": 3, "options": [
+        { "text": "This extension allows applications to send a short haptic pulse to a controller that is being tracked by the runtime." },
+        { "text": "This extension lets an application send a short haptic pulse to a tracked controller.", "tone": "Plain" },
+        { "text": "This extension adds a way to trigger a single, short haptic pulse on a tracked controller.", "tone": "Reword" },
+        { "text": "This extension sends a short haptic pulse to a tracked controller.", "from": "A", "tone": "My style" }
+      ]},
+      { "pick": 3, "options": [
+        { "text": "Because the pulse has a fixed shape and a fixed length, a runtime is able to play it with lower latency than a general vibration." },
+        { "text": "The pulse has a fixed shape and length, so runtimes can play it with lower latency than a general vibration.", "tone": "Plain" },
+        { "text": "A fixed shape and length let the runtime play the pulse with lower latency.", "tone": "Shorter" },
+        { "text": "The pulse has a fixed shape and length. The runtime can play it with low latency.", "from": "A", "tone": "My style" }
+      ]},
+      { "pick": 3, "options": [
+        { "text": "Applications which need to control amplitude, frequency or duration should use xrApplyHapticFeedback instead." },
+        { "text": "Applications that need to control amplitude, frequency or duration should use xrApplyHapticFeedback.", "tone": "Plain" },
+        { "text": "For control over amplitude, frequency or duration, use xrApplyHapticFeedback.", "tone": "Shorter" },
+        { "text": "Applications that need amplitude, frequency or duration control should use xrApplyHapticFeedback.", "from": "A", "tone": "My style" }
+      ]}
+    ]},
+    { "id": "functions", "num": "12.42.2", "label": "New functions", "kind": "locked", "tag": "locked · code",
+      "text": "XrResult xrSendControllerPulseSAMPLE(\n    XrSession                             session,\n    const XrControllerPulseInfoSAMPLE*    pulseInfo);" },
+    { "id": "description", "num": "12.42.3", "label": "Description", "kind": "text", "sentences": [
+      { "options": [
+        { "text": "xrSendControllerPulseSAMPLE plays one pulse on the controller identified by pulseInfo->subactionPath." },
+        { "text": "xrSendControllerPulseSAMPLE plays one pulse on the controller given by pulseInfo->subactionPath.", "tone": "Plain" },
+        { "text": "Calling xrSendControllerPulseSAMPLE plays a pulse on the controller at pulseInfo->subactionPath.", "tone": "Reword" }
+      ]},
+      { "options": [
+        { "text": "If a pulse is already playing on that controller, the runtime MUST replace it with the new pulse." },
+        { "text": "If a pulse is already playing there, the runtime MUST replace it.", "tone": "Shorter" },
+        { "text": "A new pulse replaces one that is still playing.", "tone": "Shorter" }
+      ]}
+    ]},
+    { "id": "usage", "num": "12.42.4", "label": "Valid usage (implicit)", "kind": "locked", "tag": "locked · generated",
+      "text": "- The XR_SAMPLE_controller_pulse extension MUST be enabled prior to calling xrSendControllerPulseSAMPLE\n- session MUST be a valid XrSession handle\n- pulseInfo MUST be a pointer to a valid XrControllerPulseInfoSAMPLE structure" },
+    { "id": "note", "num": "12.42.5", "label": "Note", "kind": "text", "sentences": [
+      { "options": [
+        { "text": "Note: Runtimes on devices without a haptic motor should return XR_SUCCESS and do nothing, so that applications do not need a separate code path." },
+        { "text": "Note: On devices with no haptic motor, runtimes should return XR_SUCCESS and play nothing, so applications need no separate code path.", "tone": "Plain" },
+        { "text": "Note: If the device has no haptic motor, the runtime should still return XR_SUCCESS so applications keep one code path.", "tone": "Reword" }
+      ]}
+    ]}
+  ]
+}

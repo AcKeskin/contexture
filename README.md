@@ -175,7 +175,7 @@ flowchart TB
 | **Authoring** | `/new-hook`, `/new-agent`, `/new-mcp` scaffold extensions by interview. `/new-agents-md` writes an `AGENTS.md` for other agents. `/improve-prompt` rewrites a prompt for any model. |
 | **Unattended loop** | `/cycle` runs audit, plan, implement, review and a draft PR on its own, one headless session per stage, within limits on cost, hours and plan usage. A status page shows each run. Each run logs its decisions with evidence pointers, audits the log before the PR, and puts a cold reader's flags under `## Attention` in the PR body. `/visual` adds a design contract and screenshot checks for UI projects. |
 | **Shortcuts** | Deliberate cut corners get a `shortcut:` comment; `/shortcuts` lists them. |
-| **Prose** | `/humanize` flags and rewrites AI texture in user-facing writing. Advisory density, never a binary verdict. |
+| **Prose** | `/write` drafts or rewrites user-facing text on a page: options per sentence, modes including your own style from samples, and checks for dropped terms. `/humanize` (alias) flags AI texture by density, never a binary verdict. |
 | **Design pages** | `design-proposal` builds a page a team discusses together: the plan, the other options and their limits. |
 
 Every hook, skill, agent and MCP tool is listed in [docs/reference.md](docs/reference.md).

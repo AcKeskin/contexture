@@ -8,7 +8,7 @@ Belt-and-braces on top of Claude Code's built-in permission classifier. Protecti
 
 | Hook | Event / Matcher | What it blocks |
 | --- | --- | --- |
-| `rm-rf-blocker.js` | `PreToolUse` / `Bash` | `rm -rf` on `/`, `~`, `$HOME`, `.`, `..`, or any path that resolves to an ancestor of (or equal to) the project root — analyzed per chained/piped segment (incl. `$(...)`, backticks, quoted strings); path comparison is case-insensitive on Windows and understands MSYS `/c/...` spellings |
+| `rm-rf-blocker.js` | `PreToolUse` / `Bash` | `rm -rf` on `/`, `~`, `$HOME`, `.`, `..`, the project root or its ancestors, a top-level system directory, `.git`, `~/.claude`, `~/.ssh`; a target that starts with an unguarded `$VAR` or `$(...)` (`"${D:?}"` is allowed); `dir/*` judged as `dir`; `cd X && rm -rf Y` resolved against X; `find -delete` with no `-name`/`-path` test before it; a `cd` inside `( )` stays there. Analyzed per chained/piped segment (incl. `$(...)`, backticks, quoted strings); case-insensitive on Windows, understands MSYS `/c/...` |
 | `env-file-write-blocker.js` | `PreToolUse` / `Write\|Edit\|MultiEdit\|NotebookEdit` | Writes to `.env*`, `*credentials*`, `*secrets*`, `*api_keys*`, `*.pem`, `*.key`, `*.p12`, `*.pfx` |
 | `outside-project-write-blocker.js` | `PreToolUse` / `Write\|Edit\|MultiEdit\|NotebookEdit` | Writes whose resolved path is not under `$CLAUDE_PROJECT_DIR`, `~/.claude/`, or `tmpdir()` |
 | `force-push-main-blocker.js` | `PreToolUse` / `Bash` | `git push --force` / `-f` / `--force-with-lease` to `main` / `master` (or ambiguous push while on main) |
@@ -98,6 +98,14 @@ The counter lives in `~/.claude/session-state.json` under `allowSkipHooks`. Decr
 3. **Hook failing (non-zero exit other than 2)** — hooks fail open by catching all exceptions. If you see genuine crashes, check the payload shape: Claude Code may have changed field names. Update `hook-io.js` readPayload usage.
 4. **Force-push-main-blocker misfiring** — the resolver runs `git symbolic-ref --short HEAD` to detect current branch. In a detached HEAD state it fails closed only if the push command also fails to specify a target. Specify the branch explicitly to bypass the check.
 5. **Hook-skip-blocker not consuming arming** — check `~/.claude/session-state.json` after running `/allow-skip-hooks`. If `sessionId` is `<unknown>` (env var absent), the blocker still honours the counter for simplicity. Parallel sessions share the counter — a documented concern.
+
+## Built-in settings that overlap
+
+Claude Code has grown settings that cover parts of these hooks. Checked on 2.1.319:
+
+- **`permissions.blockWritesOutsideWorkingDirectories`** (2.1.314) refuses Write, Edit and NotebookEdit outside the working directories in every mode. It has no allow-list, so it also blocks `~/.claude` (memory, hook config). Keep `outside-project-write-blocker` and leave this off, unless you add `~/.claude` as a working directory.
+- **`permissions.denyInsteadOfPrompting`** (2.1.319) denies a call that would wait on a permission prompt and lets the turn go on, in the main session, subagents and teammates. Useful for a terminal session you leave running with background agents (`/dispatch`, `/orchestrate`), so nothing stalls on a prompt nobody sees. Not in the template: in a normal session it turns every prompt into a denial. `/cycle` runs `claude -p`, which cannot prompt anyway.
+- **PostToolUse after an interrupt** (2.1.319): these hooks now also run on calls that finish after an interrupt, capped at 10 s. Hook state is written through `writeFileAtomic` (temp file + rename), so a kill leaves the old file. `edit-checks` keeps all its checks inside a 45 s budget.
 
 ## What this is not
 

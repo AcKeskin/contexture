@@ -82,17 +82,21 @@ async function main(argv) {
     // an unrecognized relevance token silently drops out of priming/resolution;
     // that must fail the audit, not pass quietly.
     const rulesOk = runRulesLint(repoRoot, log);
-    // Skills lint — report only. Its findings are tripwires (description
-    // length, keyword piles, section-number cross-refs), not failures.
+    // Skills lint — report only, except hidden Unicode (exit 1), which fails
+    // the audit. Other findings are tripwires (description length, keyword
+    // piles, section-number cross-refs), not failures.
     const skillsLint = path.join(repoRoot, 'scripts', 'lint-skills.js');
+    let hiddenOk = true;
     if (fs.existsSync(skillsLint)) {
       try {
         log(execFileSync(process.execPath, [skillsLint], { stdio: ['ignore', 'pipe', 'pipe'] }).toString().trim());
       } catch (err) {
-        log(`skills-lint: ${err.message}`);
+        const out = `${err.stdout || ''}${err.stderr || ''}`.trim();
+        log(out || `skills-lint: ${err.message}`);
+        if (/hidden-unicode:/.test(out)) hiddenOk = false;
       }
     }
-    if (!result.clean || !rulesOk) process.exitCode = 1;
+    if (!result.clean || !rulesOk || !hiddenOk) process.exitCode = 1;
     return;
   }
 

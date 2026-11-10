@@ -42,7 +42,7 @@ Before any page, list each tab and each topic block as one line: the claim it ma
 
 ### 6. Copy pass
 
-- Run the `humanize` skill on the prose when it is installed. Otherwise apply the copy rules in `references/page-recipe.md`.
+- When the `write` skill is installed, read its `humanize.md` and follow it on the prose, text only (as `--no-page`). Otherwise apply the copy rules in `references/page-recipe.md`.
 - Then run the tripwires in `references/page-recipe.md` against the file. Every hit is removed or rewritten before publishing.
 
 ### 7. Publish and iterate
@@ -59,5 +59,5 @@ When the user wants to present or discuss on the page itself, build a second art
 ## Relationship to other skills
 
 - `artifact-design`, `artifact-diagramming`: the page contract and diagram mechanics this skill builds on.
-- `humanize`: the copy pass.
+- `write` (`humanize.md`, text only): the copy pass.
 - `human-view`: projects an LLM planning artefact for one approver. This skill builds a team-facing discussion page.

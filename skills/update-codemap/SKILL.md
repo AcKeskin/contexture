@@ -39,6 +39,8 @@ Without the deps the script **degrades gracefully**: TS/C#/C++ still extract via
 
 The script honors `$CLAUDE_PROJECT_DIR`, reads `.claude/codemap.config.md` (skip patterns, layers, auto-update toggle), clears `.claude/codemap.dirty` after a successful write, and prints the diff summary on stdout. Surface the diff summary to the user; do not paraphrase. If the script fails, the error message tells you which spec step it choked on — fix the input or extend the script.
 
+**Tests a change reaches.** `node <skill-dir>/affected-tests.mjs [--base <ref>] [-- <file>...]` reads `## File deps` backwards from the changed files (default: uncommitted, untracked and `<base>...HEAD`) and prints the test files it reaches, each with its import path, plus changed source files no test reaches (`untested`). Static imports and `require` only, so it orders tests, never replaces the full run. Files committed after the codemap was written count as changed, so a stale map widens the list. `/execute` runs these tests first; `/review` uses `untested` for its tests metric.
+
 ## When to run
 
 - User types `/update-codemap`.

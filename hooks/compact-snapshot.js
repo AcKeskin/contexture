@@ -6,7 +6,8 @@
 //   SessionStart compact  inject the snapshot back, then delete it
 //
 // The snapshot is what a summary tends to lose: the last real user request,
-// files edited, open todos, and recent tool errors. Capped at MAX_CHARS.
+// a running /execute and its last verified step, files edited, open todos,
+// and recent tool errors. Capped at MAX_CHARS.
 // Fails open: no transcript or no snapshot means no output.
 
 const fs = require('fs');
@@ -16,6 +17,14 @@ const io = require('./lib/hook-io');
 const MAX_CHARS = 2000;
 const TAIL_BYTES = 2 * 1024 * 1024;
 const EDIT_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
+// /execute, typed or through the Skill tool, with or without a plugin prefix.
+const EXEC_COMMAND = /<command-name>\/?(?:[\w-]+:)?execute<\/command-name>/;
+const EXEC_ARGS = /<command-args>([^<]*)<\/command-args>/;
+const EXEC_SKILL = /^(?:[\w-]+:)?execute$/;
+// execute's own result lines (skills/execute/SKILL.md 3e, 4b).
+const STEP_DONE = /✓ Step (\d+) complete: ([^\n]*?)(?:\. Verified|\n|$)/g;
+const STEP_FAILED = /Step (\d+) failed verification/g;
+const PLAN_DONE = /Plan complete\. \d+ steps? done/;
 
 // Last TAIL_BYTES of the transcript, parsed per line; partial first line dropped.
 function readTranscript(file) {
@@ -68,11 +77,28 @@ function collect(entries) {
   const tasks = new Map();
   const pendingCreates = new Map();
   const errors = [];
+  let exec = null;
   for (const entry of entries) {
     const role = entry.message && entry.message.role;
     const meta = entry.isMeta || entry.isCompactSummary;
     for (const b of blocks(entry)) {
       if (role === 'user' && !meta && b.type === 'text' && b.text && !b.text.trim().startsWith('<')) request = b.text;
+      if (role === 'user' && b.type === 'text' && EXEC_COMMAND.test(b.text || '')) {
+        const m = EXEC_ARGS.exec(b.text);
+        exec = { args: m ? m[1].trim() : '', step: 0, goal: '', failed: 0, done: false };
+      }
+      if (b.type === 'tool_use' && b.name === 'Skill' && b.input && EXEC_SKILL.test(String(b.input.skill || ''))) {
+        exec = { args: String(b.input.args || '').trim(), step: 0, goal: '', failed: 0, done: false };
+      }
+      if (exec && role === 'assistant' && b.type === 'text' && b.text) {
+        for (const m of b.text.matchAll(STEP_DONE)) {
+          exec.step = Number(m[1]);
+          exec.goal = m[2];
+          if (exec.failed && exec.failed <= exec.step) exec.failed = 0;
+        }
+        for (const m of b.text.matchAll(STEP_FAILED)) exec.failed = Number(m[1]);
+        if (PLAN_DONE.test(b.text)) exec.done = true;
+      }
       if (b.type === 'tool_use' && EDIT_TOOLS.has(b.name)) {
         const f = b.input && (b.input.file_path || b.input.notebook_path);
         if (f) {
@@ -102,11 +128,25 @@ function collect(entries) {
     files: files.slice(-10),
     todos: all.filter((t) => t.status !== 'completed' && t.status !== 'deleted').map((t) => `[${t.status}] ${t.content}`),
     errors: errors.slice(-3),
+    exec: exec && !exec.done ? exec : null,
   };
+}
+
+// Where a /execute run stood, so the summary can't drop or blur the step.
+function execLine(e) {
+  const cmd = `/execute${e.args ? ' ' + e.args : ''}`;
+  const last = e.step ? `last verified step ${e.step} (${oneLine(e.goal, 100)})` : 'no step verified yet';
+  const from = /--from\s+(\d+)/.exec(e.args);
+  const nextStep = e.step ? e.step + 1 : from ? Number(from[1]) : 1;
+  const next = e.failed
+    ? `Step ${e.failed} failed verification; wait for the user's choice (fix, edit plan, skip, abort) before going on.`
+    : `Continue with step ${nextStep}. Do not redo verified steps.`;
+  return `Plan run in progress: ${cmd}, ${last}. ${next} If the user aborted the run since, ignore this line.`;
 }
 
 function render(s) {
   const parts = ['State saved before compaction. Check the summary against it:'];
+  if (s.exec) parts.push(execLine(s.exec));
   if (s.request) parts.push('Last request: ' + oneLine(s.request, 500));
   if (s.todos.length) parts.push('Open todos:\n' + s.todos.map((t) => '- ' + oneLine(t, 120)).join('\n'));
   if (s.files.length) parts.push('Files edited:\n' + s.files.map((f) => '- ' + io.normalise(f)).join('\n'));

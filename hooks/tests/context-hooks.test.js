@@ -107,6 +107,46 @@ function memoryDir(home, project) {
   t.assert('compact: missing transcript fails open', r.exit === 0 && r.stdout.trim() === '', r.stdout);
 }
 
+// compact-snapshot: a running /execute keeps its step
+{
+  const { home, project } = setup();
+  const write = (name, lines) => {
+    const f = path.join(project, name);
+    fs.writeFileSync(f, lines.map((l) => JSON.stringify(l)).join('\n') + '\n');
+    return f;
+  };
+  const say = (text) => ({ message: { role: 'assistant', content: [{ type: 'text', text }] } });
+  const snap = (id, transcript) => {
+    run('compact-snapshot', { session_id: id, hook_event_name: 'PreCompact', transcript_path: transcript }, home, project);
+    const r = run('compact-snapshot', { session_id: id, hook_event_name: 'SessionStart', source: 'compact' }, home, project);
+    return h.additionalContext(r.stdout, 'SessionStart') || '';
+  };
+  const typed = { message: { role: 'user', content: '<command-message>execute</command-message>\n<command-name>/contexture:execute</command-name>\n<command-args>auth-redirect</command-args>' } };
+
+  let ctx = snap('e1', write('e1.jsonl', [typed,
+    say('✓ Step 1 complete: add redirect helper. Verified by command.'),
+    say('✓ Step 2 complete: wire login route. Verified by artifact.')]));
+  t.assert('compact: execute run and last step restored', ctx.includes('/execute auth-redirect, last verified step 2 (wire login route)') && ctx.includes('Continue with step 3'), ctx);
+
+  ctx = snap('e2', write('e2.jsonl', [typed, say('✓ Step 1 complete: add helper. Verified by command.'), say('Step 2 failed verification.\nVerification: tests pass')]));
+  t.assert('compact: failed step waits for the user', ctx.includes("Step 2 failed verification; wait for the user's choice"), ctx);
+
+  ctx = snap('e3', write('e3.jsonl', [
+    { message: { role: 'assistant', content: [{ type: 'tool_use', name: 'Skill', input: { skill: 'execute', args: 'billing --from 3' } }] } },
+    say('✓ Step 3 complete: add cents column. Verified by command.'),
+    say('Plan complete. 3 steps done, 0 user-attested, 0 failed.'),
+    { message: { role: 'user', content: [{ type: 'text', text: 'thanks, now look at the README' }] } }]));
+  t.assert('compact: finished run is not restored', !ctx.includes('Plan run') && ctx.includes('README'), ctx);
+
+  ctx = snap('e5', write('e5.jsonl', [
+    { message: { role: 'assistant', content: [{ type: 'tool_use', name: 'Skill', input: { skill: 'contexture:execute', args: 'billing --from 3' } }] } },
+    say('Starting from step 3 (skipped steps 1..2).')]));
+  t.assert('compact: --from run with no verified step resumes at N', ctx.includes('no step verified yet. Continue with step 3'), ctx);
+
+  ctx = snap('e4', write('e4.jsonl', [{ message: { role: 'user', content: [{ type: 'text', text: 'Fix the bug' }] } }, say('✓ Step 1 complete: x.')]));
+  t.assert('compact: step lines without /execute are ignored', !ctx.includes('Plan run'), ctx);
+}
+
 // edit-checks
 {
   const { home, project } = setup();

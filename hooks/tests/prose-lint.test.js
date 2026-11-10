@@ -1,6 +1,6 @@
 'use strict';
 
-// Runner for prose-lint. Uses the humanize fixtures as text.
+// Runner for prose-lint. Uses the write skill's humanize fixtures as text.
 
 const fs = require('fs');
 const os = require('os');
@@ -9,7 +9,7 @@ const { spawnSync } = require('child_process');
 const h = require('./harness');
 
 const t = h.makeAsserter('prose-lint');
-const FIX = path.join(h.HOOKS_DIR, '..', 'skills', 'humanize', 'fixtures');
+const FIX = path.join(h.HOOKS_DIR, '..', 'skills', 'write', 'fixtures');
 
 function run(home, project, rel, tool = 'Write', sid = 's1') {
   const env = { ...process.env, HOME: home, USERPROFILE: home, CLAUDE_PROJECT_DIR: project };

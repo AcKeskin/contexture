@@ -20,6 +20,11 @@
 // file on this machine: `node edit-checks.js --trust [root]` stores its hash
 // in ~/.claude/edit-checks-trusted.json. Any change to the file needs a new
 // --trust. Advisory only. Fails open; a check that times out is skipped.
+//
+// All checks for one edit share BUDGET_MS, under the 60 s hook timeout, so the
+// hook ends on its own instead of being killed. Since Claude Code 2.1.319 a
+// PostToolUse hook also runs after an interrupt, capped at 10 s: a slow check
+// is cut there, the state is left as it was, and the next edit reports it.
 
 const fs = require('fs');
 const path = require('path');
@@ -30,6 +35,7 @@ const io = require('./lib/hook-io');
 const WRITE_TOOLS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit']);
 const CONFIG_REL = '.claude/edit-checks.json';
 const TIMEOUT_MS = 20000;
+const BUDGET_MS = 45000;
 const MAX_LINES = 20;
 const TRUST_FILE = path.join(io.homeClaude(), 'edit-checks-trusted.json');
 
@@ -77,11 +83,14 @@ function checksFor(root, rel) {
 
 function run(checks, abs, root) {
   const lines = [];
+  const end = Date.now() + BUDGET_MS;
   for (const c of checks) {
+    const left = end - Date.now();
+    if (left < 1000) break;
     const cmd = c.command.split('{file}').join(JSON.stringify(abs));
     let out = '';
     try {
-      out = execSync(cmd, { cwd: root, timeout: TIMEOUT_MS, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      out = execSync(cmd, { cwd: root, timeout: Math.min(TIMEOUT_MS, left), encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (err) {
       if (err.signal) continue;
       out = (err.stdout || '') + (err.stderr || '');
@@ -114,7 +123,7 @@ async function main() {
 
   const statePath = io.hookStateFile('edit-checks', io.sessionId(payload));
   const state = io.readJsonIfExists(statePath) || {};
-  const save = () => fs.writeFileSync(statePath, JSON.stringify(state) + '\n');
+  const save = () => io.writeFileAtomic(statePath, JSON.stringify(state) + '\n');
 
   if (!isTrusted(root)) {
     if (payload.hook_event_name !== 'PreToolUse' || state.untrustedNoticed) return io.allow();

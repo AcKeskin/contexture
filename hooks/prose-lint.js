@@ -5,7 +5,7 @@
 // Markdown (README, CHANGELOG, CONTRIBUTING, docs/). Advisory, never blocks.
 //
 // Two signals, both by density, never a single hit (prose-authenticity rule):
-//   - words from section A of the humanize catalogue (ai-vocabulary.v<N>.md):
+//   - words from section A of the write skill's catalogue (ai-vocabulary.v<N>.md):
 //     AI lexicon, puffery, long words with a short twin, filler connectives
 //   - share of sentences over LONG_SENTENCE words
 // Code blocks, inline code, links, tables and front matter are skipped. Text
@@ -36,7 +36,7 @@ function inScope(rel) {
 }
 
 function catalogue() {
-  const dir = path.join(__dirname, '..', 'skills', 'humanize', 'references');
+  const dir = path.join(__dirname, '..', 'skills', 'write', 'references');
   let files = [];
   try {
     files = fs.readdirSync(dir).filter((f) => /^ai-vocabulary\.v\d+\.md$/.test(f));
@@ -133,7 +133,7 @@ async function main() {
   if (seen[rel] === key) return io.allow();
   seen[rel] = key;
   try {
-    fs.writeFileSync(p, JSON.stringify(seen) + '\n');
+    io.writeFileAtomic(p, JSON.stringify(seen) + '\n');
   } catch {
     // Not fatal: the same report may show twice.
   }

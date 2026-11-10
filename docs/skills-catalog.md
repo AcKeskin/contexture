@@ -88,7 +88,7 @@ The main pipeline. Each stage writes a versioned artefact the next stage reads.
 
 | Skill | Mode | What it does |
 |---|---|---|
-| `humanize` | Manual | Detects, scores, and rewrites AI texture in *user-facing* prose (docs, professional email, PR/proposal/issue). Flags by aggregate density, never single instances; scores four dimensions; produces a voice-calibrated rewrite preserving every argument. Advisory likelihood, never a binary verdict. Refuses the terse model corpus (memory, codemap, specs). |
+| `write` | Manual | Drafts or rewrites *user-facing* text as a page: the full text, a card of 2–4 options per sentence, a mode menu (My style from your writing samples, Humanize, Plain, Shorter, Formal, Strict spec, Academic, Reword), live rephrasing in a Claude artifact, and checks for dropped numbers, names, citations and MUST/SHOULD/MAY. `/humanize` is an alias for `/write --humanize`: flags AI texture by aggregate density, never a binary verdict, and refuses the model corpus. |
 | `improve-prompt` | Manual | Improves any prompt — LLM/chat/agent or generative image/video/audio. Model-agnostic techniques; interviews to fill real gaps, returns a rewritten prompt plus rationale. |
 | `design-proposal` | Manual | Builds a page a team discusses together: what is planned and, where they exist, the other options with their limits. Works for an API, a service split, a data model, a UI flow or a process change. |
 

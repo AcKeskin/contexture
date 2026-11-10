@@ -1,0 +1,19 @@
+---
+applyTo: "**"
+---
+
+# backend rules
+
+> Auto-loaded by Copilot when editing files matching `**`. Generated from `architectural-rules/backend/` — do not hand-edit.
+
+## Endpoints and data races
+
+Applies to any server handler: HTTP routes, RPC methods, webhooks, queue consumers. Follow the repo's existing auth helper, error format and rate limiter when there is one; add none of your own if one exists.
+
+**Every query a handler runs is scoped to the caller.** Load by `id` and owner (`where id = $1 and user_id = $2`), or check ownership before returning. An `id` from the URL or body is a claim, not a permission. A missing row and a row owned by someone else both return 404.
+**Bad input is a 4xx, not a 500.** Parse and validate at the handler edge (types, ranges, lengths). Never build SQL, paths or shell commands from request text; use parameters.
+**Rate-limit login, sign-up, password reset, OTP and costly routes.** Per account and per IP. Without it, password guessing is a loop.
+**Read-then-write is a race under concurrent requests.** Stock, balances, seat counts, "only one active X": use a conditional update (`update ... set stock = stock - 1 where id = $1 and stock > 0`, check rows affected), a row lock (`select ... for update` in a transaction), or a unique constraint. A check in code followed by a separate write is not enough.
+**Anything that charges, refunds or sends takes an idempotency key.** Retries and duplicate webhooks happen; store the key with the result and return the stored result on a repeat. Webhooks: verify the signature and tolerate out-of-order events.
+
+**Why:** these pass the happy-path test and fail only under a second user, a retry, or two requests at once, so nobody sees them before production. Source: globalmpc/backendskills api-endpoint and data-integrity (MIT): in their bench, login with no rate limit appeared in 10 of 10 runs without the rule, 0 with it.

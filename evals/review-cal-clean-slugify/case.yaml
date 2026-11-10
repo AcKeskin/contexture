@@ -1,0 +1,10 @@
+schema_version: "1.0"
+name: review-cal-clean-slugify
+description: "Calibration, clean: correct code; the right result is no Critical or High finding."
+tags: [quality, review-calibration]
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: Review slug.js for bugs. Report findings only.
+  max_turns: 25
+  allowed_tools: [Read, Glob, Grep, Skill, AskUserQuestion]

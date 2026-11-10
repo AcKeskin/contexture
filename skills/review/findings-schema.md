@@ -45,6 +45,7 @@ One file per review run. The terminal report, the vault markdown and the review 
     "fix": "Batch with a pipeline.",
     "suggestion": "await redis.pipeline(keys.map(k => ['incr', k])).exec()", // literal block or null
     "verifier": "Confirmed: keys comes from the request body, unbounded (routes.ts:18).",
+    "question": null,                     // one question only the author can answer, shown on the finding; null when the code settles it
     "status": "open",                     // open | kept | dropped | wontfix
     "reason": null,                       // wontfix reason
     "notes": []                           // walk Q&A, one line each

@@ -57,6 +57,7 @@ function finding(f) {
   return [
     `### ${heading(f)}`,
     f.impact ? one(f.impact) : '',
+    f.question ? `**Question for the author:** ${one(f.question)}` : '',
     [`\`${loc(f)}\``, anglesOf(f).join(', '), f.verdict, f.effort ? `effort ${f.effort}` : ''].filter(Boolean).join(' · '),
     [box('keep', st === 'kept'), box('drop', st === 'dropped'), box(`wontfix: ${st === 'wontfix' ? one(f.reason) : ''}`.trimEnd(), st === 'wontfix')].join('\n'),
     detail ? quote('[!example]- Code and call path\n' + detail) : '',

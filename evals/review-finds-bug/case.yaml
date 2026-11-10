@@ -1,7 +1,7 @@
 schema_version: "1.0"
 name: review-finds-bug
 description: "A review request on a file with an off-by-one; the review should find it, cite the line, and not post anywhere."
-tags: [quality]
+tags: [quality, review-calibration]
 context:
   scaffold_script: scaffold.sh
 execution:

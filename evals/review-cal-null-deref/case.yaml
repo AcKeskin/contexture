@@ -1,0 +1,10 @@
+schema_version: "1.0"
+name: review-cal-null-deref
+description: "Calibration, bug: a lookup can return undefined and the next line reads a field from it."
+tags: [quality, review-calibration]
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: Review notify.js for bugs. Report findings only.
+  max_turns: 25
+  allowed_tools: [Read, Glob, Grep, Skill, AskUserQuestion]

@@ -140,6 +140,20 @@ function hookConfig(hookName) {
   return cfg[hookName] || {};
 }
 
+// Write via a temp file and rename, so a hook killed mid-write leaves the old
+// file, not a truncated one. Since Claude Code 2.1.319, PostToolUse hooks also
+// run after an interrupt with a 10 s cap, so a kill mid-write can happen.
+function writeFileAtomic(target, text) {
+  const tmp = `${target}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, text);
+  try {
+    fs.renameSync(tmp, target);
+  } catch (err) {
+    try { fs.unlinkSync(tmp); } catch {}
+    throw err;
+  }
+}
+
 function sessionStatePath() {
   return path.join(homeClaude(), 'session-state.json');
 }
@@ -151,7 +165,7 @@ function sessionState() {
 function writeSessionState(next) {
   const target = sessionStatePath();
   fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.writeFileSync(target, JSON.stringify(next, null, 2) + '\n');
+  writeFileAtomic(target, JSON.stringify(next, null, 2) + '\n');
 }
 
 // Per-session scratch file under ~/.claude/hook-state/, for hooks that need
@@ -234,6 +248,7 @@ module.exports = {
   hookConfig,
   sessionState,
   writeSessionState,
+  writeFileAtomic,
   hookStateFile,
   sessionId,
   normalise,

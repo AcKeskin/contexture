@@ -523,6 +523,18 @@ const EXTRACTORS = {
           if (raw) imports.push(raw);
         }
       }
+      // CommonJS `require('./x')` and dynamic `import('./x')`: a string literal argument only.
+      if (n.type === 'call_expression') {
+        const fn = childField(n, 'function');
+        if (fn && (fn.type === 'import' || (fn.type === 'identifier' && fn.text === 'require'))) {
+          const arg = childField(n, 'arguments')?.namedChild(0);
+          if (arg && arg.type === 'string') {
+            const frag = firstOfType(arg, 'string_fragment');
+            const raw = (frag ? frag.text : arg.text).replace(/^['"`]|['"`]$/g, '');
+            if (raw) imports.push(raw);
+          }
+        }
+      }
       if (n.type === 'class_declaration' || n.type === 'interface_declaration') {
         const nameNode = childField(n, 'name') || firstOfType(n, 'type_identifier');
         const name = nameNode?.text;

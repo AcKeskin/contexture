@@ -30,6 +30,7 @@ architectural-rules/
 ├── android/             scope: [android],    relevance: when-platform-android
 ├── linux/               scope: [linux],      relevance: when-platform-linux
 │   # domain scopes — gate on the problem domain the task touches
+├── backend/             scope: [backend],    relevance: when-domain-backend
 ├── openxr/              scope: [openxr],     relevance: when-domain-openxr
 ├── rendering/           scope: [rendering],  relevance: when-domain-rendering
 ├── webrtc/              scope: [webrtc],     relevance: when-domain-webrtc

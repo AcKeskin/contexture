@@ -19,7 +19,7 @@ Write for the room: no notes addressed to the presenter, no pacing cues, no "ask
 
 ## Copy rules
 
-Apply these when the `humanize` skill is not available, and keep them in mind when it is.
+Apply these when the `write` skill is not available, and keep them in mind when it is.
 
 - Short sentences. One idea per sentence.
 - Plain verbs, active voice. "The client half writes into the app's image", not "the image is populated by".
