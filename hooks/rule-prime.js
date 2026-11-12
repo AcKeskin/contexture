@@ -46,7 +46,8 @@ const WATERMARK_KEY = 'rulePrime';
 //
 // DELIBERATE BOUNDARY: the mechanical maps (here and KEYWORD_TO_SCOPE) carry
 // only scopes an unambiguous file/keyword signal can witness — the language
-// scopes plus godot (.gd is engine-unique). The domain/platform/engine scopes
+// scopes plus godot (.gd is engine-unique) and ui-craft (.css, .html and the
+// like only ever mean UI; see UI_EXTS). The domain/platform/engine scopes
 // (unity, web, android, linux, openxr, rendering, webrtc, codecs) are absent
 // ON PURPOSE: membership there is a task property no extension can witness
 // (.cs cannot distinguish Unity from plain C#; .tsx always means typescript,
@@ -556,7 +557,13 @@ const KEYWORD_TO_SCOPE = {
   sql: 'sql',
   bash: 'bash', shell: 'bash',
   godot: 'godot', gdscript: 'godot',
+  css: 'ui-craft', tailwind: 'ui-craft', frontend: 'ui-craft', ui: 'ui-craft', ux: 'ui-craft',
 };
+
+// UI-only extensions prime the ui-craft tier per turn. Kept out of EXT_TO_SCOPE so
+// the language census (single-language detection) does not count them.
+const UI_EXTS = new Set(['.css', '.scss', '.less', '.html', '.vue', '.svelte', '.uss', '.uxml']);
+const scopeForExt = (ext) => EXT_TO_SCOPE[ext] || (UI_EXTS.has(ext) ? 'ui-craft' : undefined);
 
 function detectScopesFromText(text) {
   const scopes = new Set();
@@ -565,7 +572,7 @@ function detectScopesFromText(text) {
 
   // 1. File extensions named anywhere in the prompt (e.g. "edit src/lib.rs").
   for (const m of lc.matchAll(/\.([a-z0-9]+)\b/g)) {
-    const scope = EXT_TO_SCOPE['.' + m[1]];
+    const scope = scopeForExt('.' + m[1]);
     if (scope) scopes.add(scope);
   }
 
@@ -588,7 +595,7 @@ function detectScopesFromFiles(payload) {
     .concat(payload.edited_files || []);
   for (const f of candidates) {
     if (typeof f !== 'string') continue;
-    const scope = EXT_TO_SCOPE[path.extname(f).toLowerCase()];
+    const scope = scopeForExt(path.extname(f).toLowerCase());
     if (scope) scopes.add(scope);
   }
   return scopes;

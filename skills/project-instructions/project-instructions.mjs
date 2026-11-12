@@ -36,6 +36,7 @@ const SCOPE_GLOBS = {
   rust: '**/*.rs',
   sql: '**/*.sql',
   typescript: '**/*.{ts,tsx}',
+  'ui-craft': '**/*.{html,css,scss,less,vue,svelte,jsx,tsx,uss,uxml}',
   unity: '**/*.cs',
   web: '**/*.{html,css,jsx,tsx}',
 };

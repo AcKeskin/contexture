@@ -387,6 +387,7 @@ Queryable rules consumed by prep (before coding) and review (after coding). Each
 | `rust/` (10) | dependability, documentation, error-handling, flexibility, future-proofing, interoperability, macros, naming, predictability, type-safety |
 | `sql/` (3) | formatting, query-structure, schema |
 | `typescript/` (4) | async, modules, narrowing, type-system |
+| `ui-craft/` (4) | direction, craft-floor, refuse-defaults, interaction |
 | `unity/` (8) | component-design, input-actions-on-pointer, meta-files, namespaces-and-imports, serialization-and-inspector, ugui-skill-usage, ui-code, uitoolkit-uss-limits |
 | `universal/` (21) | autonomy-default, boundary-discipline, canonical-commands, change-discipline, code-standards, config-is-truth, deep-modules, docs-and-comments, git, git-workflow, layering, naming, naming-and-comments, no-hardcoded-machine-paths, persist-before-discard, planning-depth, prose-authenticity, session-scope-boundary, skill-auto-fire, solid-and-responsibilities, test-quality |
 | `web/` (3) | async, layering, state |

@@ -34,7 +34,8 @@ architectural-rules/
 ├── openxr/              scope: [openxr],     relevance: when-domain-openxr
 ├── rendering/           scope: [rendering],  relevance: when-domain-rendering
 ├── webrtc/              scope: [webrtc],     relevance: when-domain-webrtc
-└── codecs/              scope: [codecs],     relevance: when-domain-codecs
+├── codecs/              scope: [codecs],     relevance: when-domain-codecs
+└── ui-craft/            scope: [ui-craft],   relevance: when-domain-ui-craft — also primed per turn by UI file extensions (.css, .html, .vue, …) and words (ui, css, frontend)
 ```
 
 New languages / domains: create a new sub-folder. Do not nest further.
@@ -48,7 +49,7 @@ New languages / domains: create a new sub-folder. Do not nest further.
 | `when-language-<x>` | a file of that language is in scope | cpp, csharp, python, typescript, web, sql, bash |
 | `when-engine-<x>` | the project targets that engine | unity (`when-domain-unity`, historical), godot |
 | `when-platform-<x>` | the build targets that OS/platform | android, linux |
-| `when-domain-<x>` | the task touches that problem domain | openxr, rendering, webrtc, codecs |
+| `when-domain-<x>` | the task touches that problem domain | openxr, rendering, webrtc, codecs, ui-craft |
 
 These are orthogonal and compose: an OpenXR app built for Android pulls `openxr/` **and** `android/`; a Godot project on Linux pulls `godot/` **and** `linux/`. (`unity/` predates the split and is tagged `when-domain-unity`; left as-is for stability — the engine/platform/domain distinction is what `discover`/`prep` filter on, and an exact-string match still works.)
 

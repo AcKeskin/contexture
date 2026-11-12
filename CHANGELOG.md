@@ -12,6 +12,41 @@ File-level changes per public snapshot. Curate freely — this is the human-faci
 
 
 
+
+## 2026-11-12 — New ui-craft rule tier stops generic AI-looking UI: settle a direction from the feeling first, a craft floor checked on the rendered result, a refuse list and interaction basics, primed by UI files and words; /visual tells grow from 8 to 35.
+
+_6 added, 10 changed, 0 removed._
+
+### Agents
+- changed `agents/react-pro.md`
+- changed `agents/unity-ui-pro.md`
+
+### Architectural rules
+- added `architectural-rules/ui-craft/craft-floor.md`
+- added `architectural-rules/ui-craft/direction.md`
+- added `architectural-rules/ui-craft/interaction.md`
+- added `architectural-rules/ui-craft/refuse-defaults.md`
+- changed `architectural-rules/README.md`
+
+### Cross-tool instructions
+- added `.github/instructions/ui-craft.instructions.md`
+
+### Docs
+- changed `docs/architectural-rules.md`
+- changed `docs/reference.md`
+
+### Hooks
+- changed `hooks/rule-prime.js`
+
+### Other
+- added `cursor/rules/ui-craft.mdc`
+- changed `copilot/agents/react-pro.agent.md`
+- changed `copilot/agents/unity-ui-pro.agent.md`
+
+### Skills
+- changed `skills/project-instructions/project-instructions.mjs`
+- changed `skills/visual/contract-defaults.json`
+
 ## 2026-11-10 — /blueprint --sketch designs a feature together one view at a time; /write splits text with a script so the model writes only new options for flagged sentences, and stops on a dropped term.
 
 _4 added, 16 changed, 0 removed._

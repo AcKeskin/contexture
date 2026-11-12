@@ -35,7 +35,8 @@ Universal / language / domain rules are **global** — they sync across PCs via 
 ├── rendering/                       scope: [rendering]       (domain  — when-domain-rendering)
 ├── webrtc/                          scope: [webrtc]          (domain  — when-domain-webrtc)
 ├── backend/                         scope: [backend]         (domain  — when-domain-backend)
-└── codecs/                          scope: [codecs]          (domain  — when-domain-codecs)
+├── codecs/                          scope: [codecs]          (domain  — when-domain-codecs)
+└── ui-craft/                        scope: [ui-craft]        (domain  — when-domain-ui-craft)
 ```
 
 One sub-folder per scope. Flat within each sub-folder — one file per coherent rule cluster, not one file per rule, not one giant file per language.
