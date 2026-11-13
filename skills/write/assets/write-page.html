@@ -154,6 +154,7 @@ svg { flex: none; }
       <div class="eyebrow" id="eyebrow"></div>
       <h1 id="doc-title"></h1>
     </div>
+    <span data-zoom-page></span>
     <label class="mode"><span class="wide">Mode</span> <select id="mode" aria-label="Rewrite mode"></select></label>
     <button id="style-btn" type="button" aria-controls="style" aria-pressed="false">Your style</button>
     <button id="all-btn" type="button">Rephrase all</button>
@@ -636,3 +637,4 @@ active = first && !window.matchMedia("(max-width: 640px)").matches ? first.s.id 
 renderStyle();
 render();
 </script>
+{{ZOOM}}

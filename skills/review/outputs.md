@@ -2,7 +2,7 @@
 
 ## Page and vault picks
 
-**Page** (`--artifact` or `page`) — `node <skill dir>/render-page.mjs <findings.json> <out.html> [--artifact]`, resolving the skill dir from this SKILL.md's real path. With the Artifact tool: render with `--artifact` and publish (icon `review`), to `run.artifact_url` when set so re-runs update one page; say it is private until shared. Without it: render without `--artifact` to `.claude/reviews/<slug>/v<N>.html` and give the path. The page opens on metrics, keeps code folded, and has Keep / Drop / Won't fix buttons with a Copy pick line to paste back.
+**Page** (`--artifact` or `page`) — `node <skill dir>/render-page.mjs <findings.json> <out.html> [--artifact]`, resolving the skill dir from this SKILL.md's real path. With the Artifact tool: render with `--artifact` and publish (icon `review`), to `run.artifact_url` when set so re-runs update one page; say it is private until shared. Without it: render without `--artifact` to `.claude/reviews/<slug>/v<N>.html` and give the path. The page opens on metrics, keeps code folded, and has Keep / Drop / Won't fix buttons with a Copy pick line to paste back. Each diagram has zoom, pan and full screen; the header has page zoom.
 
 **Apply vault picks** — `node <skill dir>/render-note.mjs --read-picks <note.md>` prints the pick line from ticked boxes; apply it as typed, then re-render the note.
 

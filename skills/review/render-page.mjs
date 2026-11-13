@@ -5,7 +5,7 @@
 // --artifact: for publishing as a Claude artifact, which draws mermaid itself.
 // Without it the page loads mermaid from cdnjs so a local file shows diagrams.
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -77,6 +77,10 @@ function filterGroup(label, group, values) {
   return `<div class="filters"><span class="lbl">${label}</span>${chips}</div>`;
 }
 
+// Diagram and page zoom. The one copy lives in design-proposal; skip it when that skill is absent.
+const ZOOM = join(here, '..', 'design-proposal', 'assets', 'zoom.js');
+const zoom = () => (existsSync(ZOOM) ? `<script>\n${readFileSync(ZOOM, 'utf8')}</script>` : '');
+
 const MERMAID_LOCAL = `<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
 <script>try{mermaid.initialize({startOnLoad:true,theme:matchMedia("(prefers-color-scheme: dark)").matches?"dark":"default"});}catch(e){}</script>`;
 
@@ -121,7 +125,7 @@ function render(d, { artifact = false } = {}) {
   const json = JSON.stringify(d).replace(/</g, '\\u003c');
 
   const tpl = readFileSync(join(here, 'assets', 'review-page.html'), 'utf8');
-  return tpl.replace('{{TITLE}}', () => esc(run.title || 'Review'))
+  return tpl.replace('{{ZOOM}}', zoom).replace('{{TITLE}}', () => esc(run.title || 'Review'))
     .replace('{{HEADER}}', () => header).replace('{{TABS}}', () => tabs)
     .replace('{{BODY}}', () => body).replace('{{DATA}}', () => json)
     .replace('{{MERMAID}}', () => (artifact ? '' : MERMAID_LOCAL));

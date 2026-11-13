@@ -67,7 +67,7 @@ The script merges the options onto the skeleton, checks every option, saves `.cl
 
 **With the Artifact tool:** publish the HTML with `capabilities: {"sample": {}}` and icon `pen`, to the same URL on re-runs. The page then rephrases live through Claude. Say it is private until shared. **Without it:** give the local path. Live rewrites need Claude, so a local file offers only the options already in it.
 
-The page: full text, changed sentences tinted, a dotted underline on a sentence that drops or adds a key term. Clicking a sentence opens a card under its paragraph (a bottom sheet on phones): the options as a list with new words marked, one tag each, and a warning only when an option drops or adds a term or has catalogue words. Rephrase in the current mode, Edit, Use mine. A mode menu, Rephrase all, Smooth joins, a "Your style" panel (samples, style notes, style fit), Copy text.
+The page: full text, changed sentences tinted, a dotted underline on a sentence that drops or adds a key term. Clicking a sentence opens a card under its paragraph (a bottom sheet on phones): the options as a list with new words marked, one tag each, and a warning only when an option drops or adds a term or has catalogue words. Rephrase in the current mode, Edit, Use mine. A mode menu, page zoom, Rephrase all, Smooth joins, a "Your style" panel (samples, style notes, style fit), Copy text.
 
 ## 4. Bring it back
 

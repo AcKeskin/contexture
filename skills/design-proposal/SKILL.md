@@ -32,7 +32,7 @@ Before any page, list each tab and each topic block as one line: the claim it ma
 
 - Search the project for its own brand: theme or color token files, a design-system package, a logo SVG's fills, an app style sheet. Use those colors and the brand font, provided it is on Google Fonts.
 - When the project has none, ask the user once which brand to follow, or use a neutral palette. Never carry a brand over from another project.
-- Start from `assets/page-shell.html`: tabbed pages, topic blocks, signature highlighting and diagram classes, all driven by color tokens. Fill its token slots and follow the `artifact-design` skill's page contract (load it before writing).
+- Start from `assets/page-shell.html`: tabbed pages, topic blocks, signature highlighting, diagram classes and zoom (each diagram in `figure > .fw` gets zoom, pan and full screen; the header gets page zoom), all driven by color tokens. Keep the zoom script at the end of the shell as it is. Fill its token slots and follow the `artifact-design` skill's page contract (load it before writing).
 
 ### 5. Write the pages
 

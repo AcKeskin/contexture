@@ -13,6 +13,23 @@ File-level changes per public snapshot. Curate freely — this is the human-faci
 
 
 
+
+## 2026-11-13 — Diagrams on review and design-proposal pages get zoom, pan and a full-screen view that fits the diagram; review, write and design-proposal pages get a page zoom control.
+
+_2 added, 8 changed, 0 removed._
+
+### Skills
+- added `skills/design-proposal/assets/zoom.js`
+- added `skills/design-proposal/zoom.test.mjs`
+- changed `skills/design-proposal/SKILL.md`
+- changed `skills/design-proposal/assets/page-shell.html`
+- changed `skills/review/assets/review-page.html`
+- changed `skills/review/outputs.md`
+- changed `skills/review/render-page.mjs`
+- changed `skills/write/SKILL.md`
+- changed `skills/write/assets/write-page.html`
+- changed `skills/write/render-page.mjs`
+
 ## 2026-11-12 — New ui-craft rule tier stops generic AI-looking UI: settle a direction from the feeling first, a craft floor checked on the rendered result, a refuse list and interaction basics, primed by UI files and words; /visual tells grow from 8 to 35.
 
 _6 added, 10 changed, 0 removed._

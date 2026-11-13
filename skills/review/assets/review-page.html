@@ -39,6 +39,8 @@ ul{margin:0 0 10px;padding-left:20px;max-width:72ch}
 
 .band{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:var(--band);margin-left:calc(-1*max(16px,env(safe-area-inset-left,0px)));margin-right:calc(-1*max(16px,env(safe-area-inset-right,0px)));padding:14px max(16px,env(safe-area-inset-right,0px)) 0 max(16px,env(safe-area-inset-left,0px))}
 .band-in{max-width:1040px;margin:0 auto}
+.band-top{display:flex;gap:8px 14px;align-items:flex-start;justify-content:space-between}
+.band-top [data-zoom-page]{color:var(--on-band)}
 .run{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline}
 .run b{color:var(--on-band);font-size:17px}
 .run span{color:var(--on-band-muted);font-size:14px}
@@ -117,7 +119,7 @@ ol.chain{margin:0;padding-left:20px;font:13px var(--f-mono)}
 </style>
 
 <div class="band"><div class="band-in">
-  {{HEADER}}
+  <div class="band-top">{{HEADER}}<span data-zoom-page></span></div>
   <nav class="tabs" aria-label="Views">{{TABS}}</nav>
 </div></div>
 
@@ -213,3 +215,4 @@ document.getElementById("pick-copy").addEventListener("click",()=>{
 paint();
 })();
 </script>
+{{ZOOM}}

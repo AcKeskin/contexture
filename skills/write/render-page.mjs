@@ -69,13 +69,17 @@ export function validate(d) {
   return d;
 }
 
+// Page zoom. The one copy lives in design-proposal; skip it when that skill is absent.
+const ZOOM = join(here, '..', 'design-proposal', 'assets', 'zoom.js');
+const zoom = () => (existsSync(ZOOM) ? `<script>\n${readFileSync(ZOOM, 'utf8')}</script>` : '');
+
 export function render(d, { lex = lexicon() } = {}) {
   validate(d);
   const data = { ...d, lexicon: d.lexicon || lex };
   // Inside <script>: escape "<" so text like "</script>" in a draft cannot end the block.
   const json = JSON.stringify(data).replace(/</g, '\\u003c');
   const tpl = readFileSync(join(here, 'assets', 'write-page.html'), 'utf8');
-  return tpl.replace('{{TITLE}}', () => esc(d.title || 'Draft')).replace('{{DATA}}', () => json);
+  return tpl.replace('{{ZOOM}}', zoom).replace('{{TITLE}}', () => esc(d.title || 'Draft')).replace('{{DATA}}', () => json);
 }
 
 // Next free v<N> in dir.
