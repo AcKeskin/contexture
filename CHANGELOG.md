@@ -17,6 +17,27 @@ File-level changes per public snapshot. Curate freely — this is the human-faci
 
 
 
+
+## 2026-11-18 — Skill descriptions no longer contain angle brackets, which the Claude app rejected as XML tags.
+
+_0 added, 12 changed, 0 removed._
+
+### Other
+- changed `.claude-plugin/marketplace.json`
+- changed `.claude-plugin/plugin.json`
+- changed `scripts/lint-skills.js`
+
+### Skills
+- changed `skills/brainstorm/SKILL.md`
+- changed `skills/close-out/SKILL.md`
+- changed `skills/cycle/SKILL.md`
+- changed `skills/draft-plan/SKILL.md`
+- changed `skills/envision/SKILL.md`
+- changed `skills/human-view/SKILL.md`
+- changed `skills/review/SKILL.md`
+- changed `skills/spec/SKILL.md`
+- changed `skills/work-state/SKILL.md`
+
 ## 2026-11-18 — The contexture-ui manifest now lives in marketplace.json, so the Claude app no longer skips contexture and contexture-lite when it syncs the marketplace.
 
 _0 added, 2 changed, 1 removed._

@@ -1,6 +1,6 @@
 ---
 name: spec
-description: Interview the user in detail using AskUserQuestion, then write a versioned spec under `.claude/specs/<slug>/`. Specs evolve via versioned files (v1, v2, …); INDEX.md tracks the active version per slug. Use when the user types /spec, or asks to spec out / write requirements for a non-trivial feature before building. Mode A only — never auto-fires.
+description: Interview the user in detail using AskUserQuestion, then write a versioned spec under `.claude/specs/{slug}/`. Specs evolve via versioned files (v1, v2, …); INDEX.md tracks the active version per slug. Use when the user types /spec, or asks to spec out / write requirements for a non-trivial feature before building. Mode A only — never auto-fires.
 ---
 
 # spec

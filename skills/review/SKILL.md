@@ -1,6 +1,6 @@
 ---
 name: review
-description: "Review code from one or more angles — local code (/review [path | --since <ref>]) or a GitHub PR (/review --pr N, alias /pr-review). Defaults: rule drift locally, correctness/design/hygiene/security on a PR; --angles adds performance, extensibility and more. Ends with your pick, a one-by-one walk, a review page (--artifact) or an Obsidian note (--vault). User-invoked only; never posts to GitHub."
+description: "Review code from one or more angles — local code (/review [path | --since {ref}]) or a GitHub PR (/review --pr N, alias /pr-review). Defaults: rule drift locally, correctness/design/hygiene/security on a PR; --angles adds performance, extensibility and more. Ends with your pick, a one-by-one walk, a review page (--artifact) or an Obsidian note (--vault). User-invoked only; never posts to GitHub."
 ---
 
 # review

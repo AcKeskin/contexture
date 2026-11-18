@@ -59,6 +59,8 @@ function lintSkill(name) {
   if (!desc) findings.push('no description');
   if (desc.length > DESCRIPTION_TRIPWIRE) findings.push(`description is ${desc.length} chars (tripwire ${DESCRIPTION_TRIPWIRE})`);
   const quoted = desc.match(/"[^"]+"/g) || [];
+  // claude.ai rejects a description with XML-like tags and strips < and >.
+  if (/[<>]/.test(desc)) findings.push('description has < or >; claude.ai rejects it as XML tags. Write {slug}, not <slug>');
   if (quoted.length > QUOTED_PHRASES_TRIPWIRE) findings.push(`description quotes ${quoted.length} trigger phrases; state the trigger as a clause`);
   if (/^["']?true["']?\s*(#.*)?$/i.test(fm['disable-model-invocation'] || '') && /never auto-fire/i.test(desc)) {
     findings.push('user-only skill repeats "never auto-fires" in its description; the field is the contract');

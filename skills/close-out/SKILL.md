@@ -1,6 +1,6 @@
 ---
 name: close-out
-description: "Close out the scope chain on a shipped slug: reconcile the canonical spec with what shipped, archive the spent plan and blueprint, and record one ship line. The terminus after /execute meets done-criteria. Use on /close-out <slug> or when the user asks to reconcile or wrap up a shipped slug. Mode A — never auto-fires; all writes behind propose-confirm."
+description: "Close out the scope chain on a shipped slug: reconcile the canonical spec with what shipped, archive the spent plan and blueprint, and record one ship line. The terminus after /execute meets done-criteria. Use on /close-out {slug} or when the user asks to reconcile or wrap up a shipped slug. Mode A — never auto-fires; all writes behind propose-confirm."
 ---
 
 # close-out

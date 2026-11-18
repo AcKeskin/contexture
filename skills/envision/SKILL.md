@@ -1,6 +1,6 @@
 ---
 name: envision
-description: Interview-driven top-level project vision — intent, UX shape, module partition, boundaries, non-goals — into a versioned .claude/visions/<slug>/. Breadth-over-depth, mandatory module-map; the once-per-project doc upstream of /spec. Use on /envision or "sketch / partition / shape a new project". Not for one piece of an existing system (use /spec). Never auto-fires.
+description: Interview-driven top-level project vision — intent, UX shape, module partition, boundaries, non-goals — into a versioned .claude/visions/{slug}/. Breadth-over-depth, mandatory module-map; the once-per-project doc upstream of /spec. Use on /envision or "sketch / partition / shape a new project". Not for one piece of an existing system (use /spec). Never auto-fires.
 ---
 
 # envision

@@ -1,6 +1,6 @@
 ---
 name: human-view
-description: Project an LLM-optimized planning artefact (a plan, blueprint, spec, or vision) into a human-readable approval view — the goal + the concrete decisions in plain prose, so you can approve it and check the discussions were pointing at the right thing. Callable by the draft-plan / blueprint review gates; also /human-view <artefact|slug> on demand. Extends two-doc-tracks to the working set. Mode A.
+description: Project an LLM-optimized planning artefact (a plan, blueprint, spec, or vision) into a human-readable approval view — the goal + the concrete decisions in plain prose, so you can approve it and check the discussions were pointing at the right thing. Callable by the draft-plan / blueprint review gates; also /human-view {artefact|slug} on demand. Extends two-doc-tracks to the working set. Mode A.
 ---
 
 # human-view

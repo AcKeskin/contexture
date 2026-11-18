@@ -1,6 +1,6 @@
 ---
 name: cycle
-description: "Unattended dev-cycle loop: after one setup conversation it runs cycle after cycle (audit with online prior art, plan, implement, review/fix, draft PR) while the user is away, and the user can watch or jump in at any time. Use on /cycle, /cycle <run>, /cycle status, /cycle watch, /cycle stop, /cycle projects-template, or \"keep working on this project while I'm away\"."
+description: "Unattended dev-cycle loop: after one setup conversation it runs cycle after cycle (audit with online prior art, plan, implement, review/fix, draft PR) while the user is away, and the user can watch or jump in at any time. Use on /cycle, /cycle {run}, /cycle status, /cycle watch, /cycle stop, /cycle projects-template, or \"keep working on this project while I'm away\"."
 disable-model-invocation: true
 ---
 
