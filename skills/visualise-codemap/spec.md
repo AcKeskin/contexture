@@ -21,7 +21,7 @@ Parse the existing codemap structure:
 - **`## Entry points`** section, if present → Module map highlighted nodes (`:::entry` class).
 - **`## Dependencies`** section, if present → module-level adjacency for Module map edges. If absent, edges are synthesised from `## File deps` (counted per cross-module file→file edge).
 - **`## File deps`** section, if present → file-level adjacency. Drives per-module File graphs and the module-edge fallback.
-- **`## Class graph`** section, if present → class kind, namespace, extends, implements, attributes, fields. Drives per-module class diagrams and cross-module class relations.
+- **`## Class graph`** section, if present → class kind, namespace, extends, implements, attributes, fields. Drives per-module class diagrams and cross-module class relations. When `.claude/codemap.json` exists beside the codemap, its `classes` replace the markdown's (the markdown's class graph may be cut by update-codemap's size cap), and its `callSequences` fill in when the markdown has no `## Call sequence`.
 
 If the codemap predates the extended format and lacks Layers / Entry points / Dependencies / File deps / Class graph, render what is available and add Notes lines surfacing each gap.
 

@@ -7,6 +7,8 @@
 //   imports: [ "target", ... ]   (bare module/path strings, resolved later by resolveImport)
 //   calls:   [{ caller, callee }] (attached by extractWithTreeSitter via extractCalls(),
 //            NOT by the per-language extractors; syntactic / name-matched call edges)
+//   symbols: [{ name, kind, line, endLine, parent? }] (attached via extractOutline(): the
+//            file's classes and functions with 1-based line ranges)
 //
 // Design:
 //   - Grammars ship as prebuilt WASM via the optional `tree-sitter-wasms` dep. If the
@@ -87,14 +89,54 @@ export function isTreeSitterLang(lang) {
 
 // --- small tree-walk helpers -------------------------------------------------
 
-function* descendants(node) {
-  // Pre-order DFS over named children. Cursor-free (clearer; trees here are small).
+// The tree being extracted, walked once: every named node in pre-order, so a node's
+// subtree is the slice [start, end). Set by extractWithTreeSitter for one file at a time.
+// Each extractor pass reads this list instead of re-walking (and re-marshalling) the tree.
+let walked = null;
+
+function indexTree(root) {
+  const nodes = [];
+  const start = new Map();
+  const end = new Map();
+  const open = [];
+  const cursor = root.walk();
+  const enter = () => {
+    if (!cursor.nodeIsNamed) { open.push(null); return; }
+    const node = cursor.currentNode;
+    // Read the type once; the getter crosses into WASM on every access.
+    Object.defineProperty(node, 'type', { value: cursor.nodeType });
+    start.set(node.id, nodes.length);
+    nodes.push(node);
+    open.push(node.id);
+  };
+  const leave = () => {
+    const id = open.pop();
+    if (id !== null) end.set(id, nodes.length);
+  };
+  enter();
+  for (;;) {
+    if (cursor.gotoFirstChild()) { enter(); continue; }
+    leave();
+    while (!cursor.gotoNextSibling()) {
+      if (!cursor.gotoParent()) { cursor.delete(); return { nodes, start, end }; }
+      leave();
+    }
+    enter();
+  }
+}
+
+// Pre-order named descendants of `node`, itself first.
+function descendants(node) {
+  const s = walked && walked.start.get(node.id);
+  if (s !== undefined && s !== null) return walked.nodes.slice(s, walked.end.get(node.id));
+  const out = [];
   const stack = [node];
   while (stack.length) {
     const n = stack.pop();
-    yield n;
+    out.push(n);
     for (let i = n.namedChildCount - 1; i >= 0; i--) stack.push(n.namedChild(i));
   }
+  return out;
 }
 
 function childField(node, field) {
@@ -104,6 +146,11 @@ function childField(node, field) {
 // First descendant (incl. self) of one of the given types.
 function firstOfType(node, types) {
   const set = new Set(Array.isArray(types) ? types : [types]);
+  const s = walked && walked.start.get(node.id);
+  if (s !== undefined && s !== null) {
+    for (let i = s, e = walked.end.get(node.id); i < e; i++) if (set.has(walked.nodes[i].type)) return walked.nodes[i];
+    return null;
+  }
   for (const d of descendants(node)) if (set.has(d.type)) return d;
   return null;
 }
@@ -200,6 +247,18 @@ const EXTRACTORS = {
         const mod = childField(n, 'module_name');
         // `from core.shape import X` → core/shape ; leading dots are relative (drop them).
         if (mod) imports.push(modulePathTarget(mod.text.replace(/^\.+/, ''), { sep: '.' }));
+        // `from app import util` may import a submodule: `py-from:<dots><path>/<name>`, which
+        // codemap.mjs resolves only on an exact `<path>/<name>.py` (or package) match.
+        if (mod) {
+          const dots = mod.text.match(/^\.*/)[0];
+          const base = modulePathTarget(mod.text.slice(dots.length), { sep: '.' });
+          for (let i = 0; i < n.namedChildCount; i++) {
+            const c = n.namedChild(i);
+            if (c.id === mod.id) continue;
+            const nameNode = c.type === 'aliased_import' ? childField(c, 'name') : c;
+            if (nameNode && nameNode.type === 'dotted_name') imports.push(`py-from:${dots}${base ? base + '/' : ''}${nameNode.text.replace(/\./g, '/')}`);
+          }
+        }
       } else if (n.type === 'import_statement') {
         const mod = childField(n, 'name') || n.namedChild(0);
         if (mod) imports.push(modulePathTarget(mod.text, { sep: '.' }));
@@ -514,6 +573,15 @@ const EXTRACTORS = {
       return false;
     };
     for (const n of descendants(root)) {
+      // `export { a } from './x'` / `export * from './x'` depend on ./x like an import does.
+      if (n.type === 'export_statement') {
+        const src = childField(n, 'source');
+        if (src) {
+          const frag = firstOfType(src, 'string_fragment');
+          const raw = (frag ? frag.text : src.text).replace(/^['"`]|['"`]$/g, '');
+          if (raw) imports.push(raw);
+        }
+      }
       if (n.type === 'import_statement') {
         const src = firstOfType(n, 'string');
         // `import {X} from '../core/shape'` → bare module target (resolveImport handles it).
@@ -1199,6 +1267,45 @@ TYPE_RESOLVERS.csharp = resolveTypesCSharp;
 //             sets miss. Collected from the same fnTypes nodes the call walk already visits.
 // Self-recursive and language-builtin calls are kept — the schema caps per module, and
 // de-noising is a future type-resolution layer's job, not this one's.
+// Type-declaration node types across the grammars, for the per-file outline (symbols with
+// line ranges). Kind is the first word of the node type, mapped where it differs.
+const CONTAINER_KIND = {
+  class_declaration: 'class', class_definition: 'class', class_specifier: 'class', class: 'class',
+  abstract_class_declaration: 'class', object_declaration: 'class',
+  struct_specifier: 'struct', struct_item: 'struct', struct_declaration: 'struct',
+  interface_declaration: 'interface', protocol_declaration: 'interface', trait_item: 'interface', trait_declaration: 'interface',
+  enum_declaration: 'enum', enum_item: 'enum', enum_specifier: 'enum',
+  record_declaration: 'record', module: 'module', type_spec: 'type', type_alias_declaration: 'type',
+};
+
+// The outline: classes and functions with 1-based line ranges, methods tagged with the
+// class that holds them. One more pass over the tree, kept apart from the call walk.
+function extractOutline(root, lang) {
+  const cfg = CALL_CONFIG[lang];
+  const fnTypes = new Set(cfg ? cfg.fn : []);
+  const symbols = [];
+  const visit = (node, parent) => {
+    let next = parent;
+    const kind = CONTAINER_KIND[node.type];
+    if (kind) {
+      const nameNode = childField(node, 'name');
+      const name = nameNode ? nameNode.text.split(/::|\./).pop() : null;
+      if (name && /^[A-Za-z_$][\w$]*$/.test(name)) {
+        symbols.push({ name, kind, line: node.startPosition.row + 1, endLine: node.endPosition.row + 1, ...(parent ? { parent } : {}) });
+        next = name;
+      }
+    } else if (fnTypes.has(node.type)) {
+      const name = functionName(node, cfg);
+      if (name && name !== '<anonymous>') {
+        symbols.push({ name, kind: parent ? 'method' : 'function', line: node.startPosition.row + 1, endLine: node.endPosition.row + 1, ...(parent ? { parent } : {}) });
+      }
+    }
+    for (let i = 0; i < node.namedChildCount; i++) visit(node.namedChild(i), next);
+  };
+  visit(root, null);
+  return symbols;
+}
+
 function extractCalls(root, lang) {
   const cfg = CALL_CONFIG[lang];
   if (!cfg) return { edges: [], defines: [], callSeq: [], callDetails: [] };
@@ -1270,11 +1377,28 @@ export async function extractWithTreeSitter(text, lang) {
   const language = await loadLanguage(ts, lang);
   if (!language) return null;
 
-  const parser = new ts.Parser();
-  parser.setLanguage(language);
+  let parser = parsers.get(lang);
+  if (!parser) {
+    parser = new ts.Parser();
+    parser.setLanguage(language);
+    parsers.set(lang, parser);
+  }
   let tree;
   try { tree = parser.parse(text); } catch { return null; }
-  const root = tree.rootNode;
+  if (!tree) return null;
+  try {
+    walked = indexTree(tree.rootNode);
+    return extractTree(tree.rootNode, lang, extractor);
+  } finally {
+    walked = null;
+    tree.delete(); // WASM memory is not garbage-collected
+  }
+}
+
+// One parser per grammar, reused across files.
+const parsers = new Map();
+
+function extractTree(root, lang, extractor) {
 
   let result;
   try { result = extractor(root); } catch { return null; }
@@ -1302,5 +1426,6 @@ export async function extractWithTreeSitter(text, lang) {
       catch { result.callResolution = []; }
     }
   } catch { result.calls = []; result.defines = []; result.callSeq = []; result.callResolution = []; }
+  try { result.symbols = extractOutline(root, lang); } catch { result.symbols = []; }
   return result;
 }

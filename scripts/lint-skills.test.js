@@ -6,7 +6,7 @@ const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { scanHidden } = require('./lint-skills');
+const { scanHidden, overlapPairs } = require('./lint-skills');
 
 function tree(files) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lint-hidden-'));
@@ -42,4 +42,19 @@ test('allows a leading BOM, emoji joiners, and plain text', () => {
 test('skips files outside the scanned dirs and other extensions', () => {
   const root = tree({ 'docs/x.md': 'a​b', 'skills/a/img.png': 'a​b' });
   assert.deepEqual(scanHidden(root), []);
+});
+
+test('flags skill pairs whose descriptions share most words', () => {
+  const pairs = overlapPairs({
+    plan: 'Draft a versioned plan from the active spec for review.',
+    planner: 'Draft a versioned plan from the spec, then review it.',
+    deploy: 'Ship the build to production servers.',
+  });
+  assert.equal(pairs.length, 1);
+  assert.deepEqual([pairs[0].a, pairs[0].b], ['plan', 'planner']);
+  assert.ok(pairs[0].score >= 0.4);
+});
+
+test('ignores stop words and empty descriptions', () => {
+  assert.deepEqual(overlapPairs({ a: 'the skill for the user', b: 'a skill when the user asks', c: '' }), []);
 });

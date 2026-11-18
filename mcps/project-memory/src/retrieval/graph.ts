@@ -12,6 +12,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { loadCodemapJson, codemapJsonPath, type CodemapJson } from "./codemap-json.js";
 
 export const CALL_GRAPH_CAVEAT =
   "Edges are syntactic / name-matched: a callee is matched by bare name, receiver types are " +
@@ -35,6 +36,8 @@ export interface CodemapGraph {
   codemapPath: string;
   /** True when the codemap was found and read (vs absent). */
   present: boolean;
+  /** True when the edges came from codemap.json (full, never size-capped). */
+  fromJson?: boolean;
 }
 
 function emptyDiGraph(): DiGraph {
@@ -118,6 +121,10 @@ export function loadCodemapGraph(
   projectRoot: string,
   edgeKinds: EdgeKind[] = ["call"],
 ): CodemapGraph {
+  const json = loadCodemapJson(projectRoot);
+  if (json) {
+    return { ...graphFromJson(json, edgeKinds), codemapPath: codemapJsonPath(projectRoot), present: true, fromJson: true };
+  }
   const codemapPath = join(projectRoot, ".claude", "codemap.md");
   const graphs = new Map<EdgeKind, DiGraph>();
   if (!existsSync(codemapPath)) {
@@ -146,6 +153,26 @@ export function parseCodemapGraph(
     if (kind === "call") parseCallGraph(raw, g);
     else if (kind === "file-dep") parseFileDeps(raw, g);
     else if (kind === "class") parseClassGraph(raw, g);
+    graphs.set(kind, g);
+  }
+  return { graphs };
+}
+
+// Same graphs from codemap.json, which holds every edge (codemap.md may trim the class graph).
+export function graphFromJson(
+  json: CodemapJson,
+  edgeKinds: EdgeKind[] = ["call"],
+): { graphs: Map<EdgeKind, DiGraph> } {
+  const graphs = new Map<EdgeKind, DiGraph>();
+  for (const kind of new Set<EdgeKind>(["call", ...edgeKinds])) {
+    const g = emptyDiGraph();
+    if (kind === "call") for (const c of json.calls ?? []) addEdge(g, c.caller, c.callee);
+    else if (kind === "file-dep") for (const [f, info] of Object.entries(json.files)) for (const t of info.imports) addEdge(g, f, t);
+    else if (kind === "class") {
+      for (const c of json.classes ?? []) {
+        for (const base of [...(c.extends ?? []), ...(c.implements ?? [])]) addEdge(g, c.name, base.trim().replace(/<.*$/, ""));
+      }
+    }
     graphs.set(kind, g);
   }
   return { graphs };

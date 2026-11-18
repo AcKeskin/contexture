@@ -35,6 +35,8 @@ Before reading code, identify what you're reviewing and which checks matter most
 
 Pick 3-5 most relevant check categories. Don't sweep everything when 3 risks dominate.
 
+**Threat model.** If the prompt hands you one, or `.claude/reviews/threat-model/threat-model.md` exists, start from it: its entry points and sinks tell you where to look. Say which version you used. It is a map, not proof; a finding still needs its trace. An entry point or sink it misses goes under **Threat model gaps** in your output, so the caller can update it.
+
 ## Step 1 — OWASP Top 10
 
 For each finding, present **Vulnerable** code and **Secure** code side-by-side, then explain the failure mode.
@@ -99,7 +101,7 @@ Gap: <the hop you could not see>
 To confirm: <what to read or run>
 ```
 
-Then a **Checked and fine** list: one line per rejected finding, with the guard that stops it.
+Then a **Checked and fine** list: one line per rejected finding, with the guard that stops it. Then **Threat model gaps**, if any.
 
 In Verify mode, return only:
 

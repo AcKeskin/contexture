@@ -43,7 +43,7 @@ Every option keeps every claim, number, name, citation, normative word (MUST, SH
 - **Pasted or selected text:** Write it to `.write-run.src.md` at the project root, then split that path (the script deletes it).
 - **From scratch:** no split. Write full `parts` per [drafts-schema.md](drafts-schema.md) with `from_scratch: true`, and go to step 3.
 
-The script writes `.write-run.skel.json` (the parts, sentences, headings and spacing; code, tables, quotes and front matter locked) and prints one line per flagged sentence: `p3.2 [ai: leverage; long] The text…`. Flags: catalogue words, sentences over 25 words, or `all`.
+The script writes `.write-run.skel.json` (the parts, sentences, headings and spacing; code, tables, quotes and front matter locked) and prints one line per flagged sentence: `p3.2 [ai: leverage; long] The text…`. Flags: catalogue words, instructions over 20 words and other sentences over 25, or `all`.
 
 ## 2. Draft options
 

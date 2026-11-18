@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+<style>
+/* Rendered by feedback-page.mjs from a plan file. Do not edit the DATA line by hand.
+   Click a line (shift-click for a range), write a note, then Copy feedback and paste it at the gate. */
+:root {
+  --bg: #f7f6f2; --paper: #ffffff; --ink: #1b1c1f; --ink-2: #3b3d42; --muted: #5f6168;
+  --line: #e3e0d8; --line-2: #d4d0c6;
+  --accent: #2451b3; --on-accent: #ffffff; --accent-soft: #e6edfa; --sel: #d3e0f7;
+  --change: #2451b3; --question: #7a4fb0; --drop: #b4361f; --code: #efede7;
+  --shadow: 0 6px 24px rgba(27, 28, 31, .08);
+  --f-ui: system-ui, -apple-system, "Segoe UI", Inter, sans-serif;
+  --f-mono: ui-monospace, Menlo, Consolas, "IBM Plex Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131417; --paper: #1c1d21; --ink: #e8e7e3; --ink-2: #c9c8c3; --muted: #a2a3a8;
+    --line: #2e3036; --line-2: #3d4047;
+    --accent: #8eaaf0; --on-accent: #0f1a33; --accent-soft: #233150; --sel: #2d3f66;
+    --change: #8eaaf0; --question: #c2a0ee; --drop: #f08a76; --code: #24262b;
+    --shadow: 0 6px 24px rgba(0, 0, 0, .4); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #131417; --paper: #1c1d21; --ink: #e8e7e3; --ink-2: #c9c8c3; --muted: #a2a3a8;
+  --line: #2e3036; --line-2: #3d4047;
+  --accent: #8eaaf0; --on-accent: #0f1a33; --accent-soft: #233150; --sel: #2d3f66;
+  --change: #8eaaf0; --question: #c2a0ee; --drop: #f08a76; --code: #24262b;
+  --shadow: 0 6px 24px rgba(0, 0, 0, .4); color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--f-ui); font-size: 15px; line-height: 1.5; }
+header { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); }
+.bar { max-width: 860px; margin: 0 auto; padding: 10px 16px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.bar h1 { font-size: 15px; font-weight: 600; margin: 0; flex: 1 1 200px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.count { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+button { font: inherit; font-size: 13px; cursor: pointer; border-radius: 6px; border: 1px solid var(--line-2); background: var(--paper); color: var(--ink); padding: 5px 10px; }
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+button:focus-visible, .ln:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+main { max-width: 860px; margin: 0 auto; padding: 16px 16px 80px; }
+.hint { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+.general { margin: 0 0 16px; }
+.general textarea { min-height: 60px; }
+.doc { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 12px 0; }
+.ln { display: grid; grid-template-columns: 44px 1fr; align-items: baseline; gap: 8px; padding: 1px 16px 1px 0; cursor: pointer; border-left: 3px solid transparent; }
+.ln:hover { background: var(--accent-soft); }
+.ln .no { color: var(--muted); font: 12px var(--f-mono); text-align: right; user-select: none; }
+.ln .tx { min-width: 0; overflow-wrap: anywhere; }
+.ln.sel { background: var(--sel); }
+.ln.noted { border-left-color: var(--change); }
+.ln.noted.k-question { border-left-color: var(--question); }
+.ln.noted.k-drop { border-left-color: var(--drop); }
+.ln.noted.k-drop .tx { text-decoration: line-through; text-decoration-color: var(--drop); }
+.k-h { padding-top: 10px; } .k-h .tx { font-weight: 600; }
+.k-h.lv1 .tx { font-size: 20px; } .k-h.lv2 .tx { font-size: 17px; } .k-h.lv3 .tx { font-size: 15px; }
+.k-code .tx, .k-table .tx { font: 13px/1.6 var(--f-mono); white-space: pre-wrap; background: var(--code); padding: 0 8px; }
+.k-blank { height: 10px; cursor: default; } .k-blank:hover { background: none; }
+.k-fence { display: none; }
+.tx code { font: 13px var(--f-mono); background: var(--code); padding: 0 4px; border-radius: 3px; }
+.card { margin: 6px 16px 10px 47px; padding: 10px 12px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--paper); box-shadow: var(--shadow); }
+.card .kinds { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+.card .kinds button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+textarea { width: 100%; min-height: 70px; font: inherit; font-size: 14px; color: var(--ink); background: var(--bg); border: 1px solid var(--line-2); border-radius: 6px; padding: 8px; resize: vertical; }
+.card .acts { display: flex; gap: 6px; justify-content: flex-end; margin-top: 8px; flex-wrap: wrap; }
+.note { margin: 2px 16px 8px 47px; padding: 6px 10px; border-left: 3px solid var(--change); background: var(--accent-soft); border-radius: 0 6px 6px 0; font-size: 14px; display: flex; gap: 8px; align-items: baseline; }
+.note.k-question { border-left-color: var(--question); } .note.k-drop { border-left-color: var(--drop); }
+.note b { font-weight: 600; } .note .body { flex: 1; min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.note button { padding: 2px 8px; font-size: 12px; }
+.dialog { position: fixed; inset: 0; z-index: 20; background: rgba(0, 0, 0, .4); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.dialog > div { background: var(--paper); border-radius: 10px; padding: 14px; width: min(640px, 100%); box-shadow: var(--shadow); }
+.dialog .dacts { display: flex; justify-content: flex-end; margin-top: 8px; }
+.dialog textarea { min-height: 260px; font: 13px/1.5 var(--f-mono); }
+.toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 6px 12px; border-radius: 6px; font-size: 13px; }
+@media (max-width: 560px) {
+  .ln { grid-template-columns: 30px 1fr; }
+  .card, .note { margin-left: 16px; margin-right: 8px; }
+}
+</style>
+</head>
+<body>
+<header><div class="bar">
+  <h1 id="title"></h1>
+  <span class="count" id="count">0 notes</span>
+  <span data-zoom-page></span>
+  <button id="clear">Clear</button>
+  <button class="primary" id="copy">Copy feedback</button>
+</div></header>
+<main>
+  <p class="hint">Click a line to add a note. Shift-click to mark a range. Then Copy feedback and paste it in chat.</p>
+  <div class="general"><textarea id="general" placeholder="General note on the whole plan (optional)" aria-label="General note"></textarea></div>
+  <div class="doc" id="doc"></div>
+</main>
+<div class="dialog" id="dialog" hidden><div>
+  <p class="hint">Copy this text and paste it in chat.</p>
+  <textarea id="out" readonly aria-label="Feedback text"></textarea>
+  <div class="dacts"><button id="close">Close</button></div>
+</div></div>
+<script>
+const DATA = {{DATA}};
+</script>
+<script>
+"use strict";
+const KINDS = ["Change", "Question", "Drop"];
+const lines = DATA.lines;
+const byN = new Map(lines.map((l, i) => [l.n, i]));
+const key = "plan-feedback:" + DATA.title + ":" + lines.length + ":" + lines.reduce((h, l) => (h * 31 + l.text.length + l.n) % 1e9, 7);
+let state = { notes: [], general: "" };
+let anchor = null, sel = null, editing = null;
+
+function load() { try { const s = JSON.parse(localStorage.getItem(key) || "null"); if (s && Array.isArray(s.notes)) state = s; } catch (e) { /* storage blocked: start empty */ } }
+function store() { try { localStorage.setItem(key, JSON.stringify(state)); } catch (e) { /* storage blocked: notes live until the page closes */ } }
+const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const inline = (s) => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+const range = (a, b) => (a === b ? "line " + a : "lines " + a + "-" + b);
+
+function noteAt(n) { return state.notes.find((x) => n >= x.from && n <= x.to); }
+
+function draw() {
+  document.getElementById("title").textContent = DATA.title;
+  const k = state.notes.length;
+  document.getElementById("count").textContent = k + (k === 1 ? " note" : " notes");
+  const doc = document.getElementById("doc");
+  doc.textContent = "";
+  for (const l of lines) {
+    const row = document.createElement("div");
+    row.className = "ln k-" + l.kind + (l.level ? " lv" + l.level : "");
+    row.dataset.n = l.n;
+    const nt = noteAt(l.n);
+    if (nt) row.classList.add("noted", "k-" + nt.kind.toLowerCase());
+    if (sel && l.n >= sel.from && l.n <= sel.to) row.classList.add("sel");
+    if (l.kind !== "blank" && l.kind !== "fence") row.tabIndex = 0;
+    const pad = l.kind === "li" ? "padding-left:" + l.indent * 18 + "px" : "";
+    row.innerHTML = '<span class="no">' + (l.kind === "blank" ? "" : l.n) + '</span><span class="tx" style="' + pad + '">' +
+      (l.kind === "code" || l.kind === "table" ? esc(l.text) : inline(l.text)) + "</span>";
+    doc.appendChild(row);
+    for (const x of state.notes) if (x.to === l.n && x !== editing) doc.appendChild(noteEl(x));
+    if (sel && sel.to === l.n) doc.appendChild(composer());
+  }
+}
+
+function noteEl(x) {
+  const d = document.createElement("div");
+  d.className = "note k-" + x.kind.toLowerCase();
+  d.innerHTML = "<b>" + x.kind + "</b><span class='body'></span><button>Edit</button><button>Delete</button>";
+  d.querySelector(".body").textContent = x.text || (x.kind === "Drop" ? "drop these lines" : "");
+  const [ed, del] = d.querySelectorAll("button");
+  ed.onclick = () => { editing = x; sel = { from: x.from, to: x.to }; draw(); focusBox(); };
+  del.onclick = () => { state.notes = state.notes.filter((y) => y !== x); store(); draw(); };
+  return d;
+}
+
+function composer() {
+  const c = document.createElement("div");
+  c.className = "card";
+  let kind = editing ? editing.kind : "Change";
+  c.innerHTML = "<div class='kinds'></div><textarea aria-label='Note'></textarea><div class='acts'><span class='count' style='flex:1'>" + range(sel.from, sel.to) +
+    "</span><button data-a='cancel'>Cancel</button><button class='primary' data-a='save'>Save note</button></div>";
+  const ks = c.querySelector(".kinds");
+  for (const k of KINDS) {
+    const b = document.createElement("button");
+    b.textContent = k;
+    b.setAttribute("aria-pressed", String(k === kind));
+    b.onclick = () => { kind = k; ks.querySelectorAll("button").forEach((y) => y.setAttribute("aria-pressed", String(y === b))); };
+    ks.appendChild(b);
+  }
+  const ta = c.querySelector("textarea");
+  ta.value = editing ? editing.text : "";
+  ta.placeholder = "What should change here?";
+  const save = () => {
+    const text = ta.value.trim();
+    if (!text && kind !== "Drop") { ta.focus(); return; }
+    if (editing) Object.assign(editing, { kind, text });
+    else state.notes.push({ from: sel.from, to: sel.to, kind, text });
+    state.notes.sort((a, b) => a.from - b.from);
+    close();
+  };
+  c.querySelector("[data-a=save]").onclick = save;
+  c.querySelector("[data-a=cancel]").onclick = () => { editing = null; sel = null; draw(); };
+  ta.onkeydown = (e) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) save();
+    if (e.key === "Escape") { editing = null; sel = null; draw(); }
+  };
+  return c;
+}
+
+function close() { editing = null; sel = null; anchor = null; store(); draw(); }
+function focusBox() { const t = document.querySelector(".card textarea"); if (t) t.focus(); }
+
+function pick(n, extend) {
+  if (lines[byN.get(n)].kind === "blank") return;
+  const has = noteAt(n);
+  if (has && !extend) { editing = has; sel = { from: has.from, to: has.to }; draw(); focusBox(); return; }
+  editing = null;
+  if (extend && anchor !== null) sel = { from: Math.min(anchor, n), to: Math.max(anchor, n) };
+  else { anchor = n; sel = { from: n, to: n }; }
+  draw();
+  focusBox();
+}
+
+function feedback() {
+  const out = [];
+  const k = state.notes.length;
+  out.push("Plan feedback: " + DATA.title + " (" + k + (k === 1 ? " note" : " notes") + ")", "");
+  state.notes.forEach((x, i) => {
+    const first = lines[byN.get(x.from)];
+    out.push((i + 1) + ". " + x.kind + (first.under && first.kind !== "h" ? ', under "' + first.under + '"' : "") + ", " + range(x.from, x.to) + ":");
+    for (let n = x.from; n <= x.to; n++) {
+      const l = lines[byN.get(n)];
+      if (l && l.kind !== "blank" && l.kind !== "fence") out.push("   > " + (l.kind === "h" ? "#".repeat(l.level) + " " : "") + l.text);
+    }
+    out.push("   " + (x.text || "Drop these lines."), "");
+  });
+  if (state.general.trim()) out.push("General: " + state.general.trim());
+  return out.join("\n").trim() + "\n";
+}
+
+function toast(msg) {
+  const t = document.createElement("div");
+  t.className = "toast"; t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 1600);
+}
+
+function showText(text) {
+  const out = document.getElementById("out");
+  out.value = text;
+  document.getElementById("dialog").hidden = false;
+  out.focus(); out.select();
+}
+
+document.getElementById("doc").addEventListener("click", (e) => {
+  const row = e.target.closest(".ln");
+  if (row && !e.target.closest(".card, .note")) pick(Number(row.dataset.n), e.shiftKey);
+});
+document.getElementById("doc").addEventListener("keydown", (e) => {
+  const row = e.target.closest(".ln");
+  if (row && e.target === row && e.key === "Enter") { e.preventDefault(); pick(Number(row.dataset.n), e.shiftKey); }
+});
+document.getElementById("copy").onclick = async () => {
+  const text = feedback();
+  if (!state.notes.length && !state.general.trim()) { toast("No notes yet"); return; }
+  try { await navigator.clipboard.writeText(text); toast("Copied. Paste it in chat."); }
+  catch (e) { showText(text); }
+};
+document.getElementById("clear").onclick = () => {
+  if (!state.notes.length && !state.general.trim()) return;
+  const btn = document.getElementById("clear");
+  if (btn.dataset.armed) { state = { notes: [], general: "" }; document.getElementById("general").value = ""; delete btn.dataset.armed; btn.textContent = "Clear"; close(); return; }
+  btn.dataset.armed = "1"; btn.textContent = "Clear all notes?";
+  setTimeout(() => { delete btn.dataset.armed; btn.textContent = "Clear"; }, 3000);
+};
+document.getElementById("close").onclick = () => { document.getElementById("dialog").hidden = true; };
+document.getElementById("general").oninput = (e) => { state.general = e.target.value; store(); };
+
+load();
+document.getElementById("general").value = state.general || "";
+draw();
+</script>
+{{ZOOM}}
+</body>
+</html>

@@ -70,8 +70,8 @@ The merge is set union: `effective_skip = default_skip ∪ config_skip`. The con
 Classify each included file by extension. Languages marked **(AST)** route through tree-sitter (`treesitter.mjs`) for class graph + exports + import edges when the optional deps are installed, else fall back as noted:
 
 - **C++ headers/impl** (AST): `.h`, `.hpp`, `.hxx`, `.hh`, `.cpp`, `.cc`, `.cxx` → classes, fields, includes. Regex fallback (headers only) when AST unavailable.
-- **C#**: `.cs` → regex extractor (mature; not routed through AST).
-- **TypeScript/JavaScript**: `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs` → regex extractor (not routed through AST).
+- **C#** (AST): `.cs` → regex extractor when AST unavailable.
+- **TypeScript/JavaScript** (AST): `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs` → regex extractor when AST unavailable.
 - **Python** (AST): `.py` → classes, `self.` fields, `import`/`from` edges. Imports-only fallback.
 - **Java** (AST): `.java`. **Kotlin** (AST): `.kt`, `.kts` (grammar is best-effort — see risks). **Swift** (AST): `.swift` (no file-level import syntax → no file edges). **Rust** (AST): `.rs` → struct/trait + `impl Trait for T` → implements. **Go** (AST): `.go` → struct/interface, embedding → implements, package-path edges.
 - **Web presentation**: `.html`, `.htm`, `.css`, `.scss`, `.sass`, `.less` → tree + purpose, no exports.
@@ -85,9 +85,12 @@ AST languages read the **full file** (not the head-cap) so declarations past the
 For each included file:
 
 - **Read cap**: read the first 80 lines. If exports clearly extend past line 80 (rare), bump to 200 lines for that file. If still clipped, include the file in the codemap with purpose line and add `exports: <partial — extend read cap>` — do not silently truncate.
-- **Purpose line**: derive from
-  1. First top-of-file docblock / comment block, single-lined and trimmed to ≤ 100 chars. **Skip license/copyright boilerplate and banner-rule lines** (`Copyright`, `SPDX-License-Identifier`, `Licensed under`, `All rights reserved`, GNU/Apache/MIT/BSD notices, and decoration rules like `*****` / `----`) — these are not the file's purpose. Keep scanning past the banner for the first real description comment.
-  2. Else inferred from filename + top declarations. Active voice. No trailing punctuation.
+- **Purpose line**: derive from, first hit wins:
+  1. `description:` in leading YAML frontmatter; for `.yaml`/`.yml` a top-level `description:`; for `.json` a top-level `"description"`.
+  2. Markdown: the first heading, or the first paragraph when that heading only repeats the filename (`# Contributing` in `CONTRIBUTING.md`). Frontmatter is skipped.
+  3. The first top-of-file comment paragraph (its continuation lines in the same comment style are joined, up to a blank comment line or a `@tag`). **Skip license/copyright boilerplate and banner-rule lines** (`Copyright`, `SPDX-License-Identifier`, `Licensed under`, `All rights reserved`, GNU/Apache/MIT/BSD notices, and decoration rules like `*****` / `----`) — these are not the file's purpose. Keep scanning past the banner for the first real description comment.
+  4. Else `Exports A, B, C, D` from the file's top exports, else the humanized filename.
+  Whole sentences are kept while they fit ≤ 100 chars (`e.g.` / `i.e.` don't end a sentence); a single longer sentence is cut at a word with `…`. No trailing period.
 - **Exports**: extract per language rules (§5).
 
 ### 5. Per-language extraction rules
@@ -129,7 +132,7 @@ For each included file:
 
 The output is structured for LLM consumption: a ranked **Map** entry table first (the "start here" hub list), then the prose header (Overview, Modules, Conventions detected, Hubs, **Symbol index**), then the structured sections (Entry points, Layers, Dependencies, File deps, Class graph, **Call graph**, **Call sequence**), then per-module file groups. The visualize tool keys on the structured sections by name and on `## <name>/` group headings; the Map and Symbol index sections are additive agent aids it ignores; everything else is benign noise.
 
-The **Call graph** is the function→function edges (caller → callee). For most languages these are syntactic name-matches; for TypeScript and C# they are receiver-type-resolved where possible (`user.save()` → `User.save`), with a confidence floor and an honest degrade to the syntactic bare name when the receiver type can't be resolved. The **Call sequence** preserves the *order* calls appear in each function's source (the raw material the visualizer turns into sequence diagrams) — it is static call-structure order, not a runtime trace.
+The **Call graph** is the function→function edges (caller → callee). For most languages these are syntactic name-matches; for TypeScript and C# they are receiver-type-resolved where possible (`user.save()` → `User.save`), with a confidence floor and an honest degrade to the syntactic bare name when the receiver type can't be resolved. A bare-name edge is kept only when the callee is defined (function, method, export or type) in the call's **scope**: the calling file, the files it imports, the header/impl twin of each (`foo.h` ↔ `foo.cpp`), and for package-scoped languages (Go, Java, Kotlin, Swift, Rust, C#, PHP, C, C++) the files in the same folder and, for C#/PHP, the files of its own and its imported namespaces. Calls to builtins, stdlib and packages are left out and counted in the section header. The Call sequence keeps only in-scope callees too. The **Call sequence** preserves the *order* calls appear in each function's source (the raw material the visualizer turns into sequence diagrams) — it is static call-structure order, not a runtime trace.
 
 Template (exact, sections present only when they have content):
 
@@ -167,6 +170,10 @@ Start here — the most-depended-on files, ranked by importers:
 ## Symbol index
 - `<SymbolName>` → `<defining-file>`
 
+## Recent activity
+Files changed most in the last 90 days:
+- `<file>` — <N> commits, last <YYYY-MM-DD>
+
 ## Entry points
 - `<path>` — <one-line role>
 
@@ -178,6 +185,9 @@ Start here — the most-depended-on files, ranked by importers:
 
 ## File deps
 - `<source-file>` → `<target-file>`, `<target-file>`
+
+## References
+- `<doc-or-config-file>` → `<target-file>`, `<target-file>`
 
 ## Class graph
 - <kind>: `<ClassName>` in `<file>`
@@ -229,6 +239,8 @@ Start here — the most-depended-on files, ranked by importers:
 
 **Symbol index section** — the "where is X" lookup: each exported/public symbol → its defining file, one bullet per symbol (`` `<SymbolName>` → `<file>` ``). Ranked by the defining file's inbound count so the most-used symbols lead and survive `--map-tokens` truncation. Bare names only (signatures live in the module surface). Deduped; first definer wins on a name collision. Capped at 200 entries (then further trimmed by `--map-tokens`). The agent greps this section instead of the repo. Omit when nothing is exported.
 
+**Recent activity section** — the 12 indexed files with the most commits in the last 90 days (`git log --since=90.days.ago --no-merges --relative --name-only`), ties broken by latest change then path, each with its commit count and last change date. Omitted outside git or when nothing changed.
+
 **Entry points section** — detect from:
 - Root `package.json` `main` / `bin` / `module` fields.
 - Root `pyproject.toml` `[project.scripts]`.
@@ -248,10 +260,15 @@ Start here — the most-depended-on files, ranked by importers:
   - C++: both `#include "<path>"` and `#include <path>`. Angle-bracket includes are matched against the in-tree file list — if the basename / suffix resolves to a file in the project, the edge counts. Otherwise the include is external and dropped.
   - Python: `import <module>`, `from <module> import ...`.
 - Resolve each target in three steps: relative path → repo-relative path or top-level segment → basename lookup against the in-tree file index (prefers same-module on collision). Bare-name C++ includes (`#include "openxr_core.h"`) resolve via the basename step.
+- TS/JS first try the project's own names (`project-paths.mjs`): the nearest `tsconfig.json`/`jsconfig.json`'s `paths` and `baseUrl` (following a relative `extends`), then a workspace `package.json` `name` (its `source`/`types`/`module`/`main` entry, `src/index`, `index`; `name/sub` → `<pkg>/sub` or `<pkg>/src/sub`). A relative import that lands in a tsconfig's `outDir` (build output, usually gitignored) is mapped to the same path under its `rootDir` (default `<config dir>/src`), so `../build/cli.js` resolves to `src/cli.ts`.
+- TS/JS `export ... from '<target>'` counts as an import. Python `from <pkg> import <name>` links to `<pkg>/<name>.py` when that file exists, else to the package.
+- A Go import path, or a C#/PHP namespace, that maps to a folder of several files links only to the files that define a name the source file uses (calls, types). When none match it falls back to the old best-effort target.
 - Weight each edge by the number of distinct (source-file, target-file) pairs that resolved to it. Rendered as `<target> (<weight>)`.
 - Drop module-level self-edges (`auth → auth`); intra-module file-to-file edges still appear in `## File deps`.
 - Sort targets per source by weight desc, then name asc.
 - If no imports are detected (e.g. a docs-only repo), omit the section.
+
+**References section** — files that point at other files without importing them (`refs.mjs`): markdown links (`[x](path)`, `[x]: path`) and backtick spans holding a path with a `/` and a known extension, and path tokens in `.json`/`.jsonc`/`.yaml`/`.yml`/`.toml` files (`node ${CLAUDE_PLUGIN_ROOT}/hooks/x.js`). A reference resolves relative to its file's folder, then to the repo root (`/path` and `${VAR}/path` from the root only), and counts only on an exact match with an indexed file. Pairs already in File deps are left out. References never count as importers (Map, Hubs, module importance) and affected-tests ignores them. Same line format as File deps. Omitted when there are none.
 
 **File deps section** — file-level adjacency list, both intra-module and inter-module:
 - Every resolved import that maps to an in-tree file produces one entry.
@@ -260,7 +277,7 @@ Start here — the most-depended-on files, ranked by importers:
 - Used by `visualise-codemap` to draw L2 file→file edges. Without this section, L2 graphs are nodes-only.
 - Omit if no file-level edges resolve.
 
-**Class graph section** — class-level data extracted from TS/JS, C#, and C++ headers. One block per class, in (file, name) alphabetical order:
+**Class graph section** — class-level data extracted from TS/JS, C#, and C++ headers. One block per class, ordered by the file's importer count (most-imported first, so the size cap drops the least-used), then (file, name):
 - Header line: `` - <kind>: `<ClassName>` in `<file>` `` where `<kind>` is `class` / `interface` / `struct` / `record` / `enum`. The parser keys off this prefix.
 - Sub-lines (indented two spaces) — each starts with a stable keyword and a colon. Emitted only when non-empty:
   - `namespace: <ns>` (C# only).
@@ -273,7 +290,7 @@ Start here — the most-depended-on files, ranked by importers:
 - Drives both `## Conventions detected` (same run) and `visualise-codemap`'s UML output (downstream).
 
 **Ordering rules (mandatory):**
-- Section order in the file: `# Architecture` header, then `## Overview`, `## Map`, `## Modules`, `## Conventions detected`, `## Hubs`, `## Symbol index`, `## Entry points`, `## Layers`, `## Dependencies`, `## File deps`, `## Class graph`, `## Call graph`, `## Call sequence`, then the per-module `## <top-level-dir>/` groups. Sections with no content are omitted (except Overview and Modules, which are always emitted when any file exists).
+- Section order in the file: `# Architecture` header, then `## Overview`, `## Map`, `## Modules`, `## Conventions detected`, `## Hubs`, `## Symbol index`, `## Recent activity`, `## Entry points`, `## Layers`, `## Dependencies`, `## File deps`, `## References`, `## Class graph`, `## Call graph`, `## Call sequence`, then the per-module `## <top-level-dir>/` groups. Sections with no content are omitted (except Overview and Modules, which are always emitted when any file exists).
 - `### <module>/` blocks inside `## Modules` ordered by module importance (sum of inbound edges) descending, ties alphabetical.
 - Top-level file groups in alphabetical order by directory name.
 - Files within a group in alphabetical order by relative path.
@@ -287,9 +304,13 @@ Start here — the most-depended-on files, ranked by importers:
 - No blank lines between entries within a group. One blank line between groups.
 - Last line of the file ends with a newline.
 
+### 6a. Size cap
+
+`--map-tokens N` caps `codemap.md` at ~N tokens (chars / 4); the default is 32000 and `0` turns it off. Over the cap, sections are trimmed in this order until it fits: `## Class graph` (whole class blocks from the tail; classes are ordered by their file's importer count, so the least-used go first), `## Call sequence` (whole body), `## References` (tail rows), `## Symbol index` (tail rows). Each trimmed section keeps its heading and gets a note line saying what was left out. `codemap.json` carries all four in full. The Map, Hubs, Recent activity, File deps, Dependencies, Call graph and per-module listings are never trimmed; when they alone exceed the cap, nothing is trimmed (it could not reach the cap) and the run logs it.
+
 ### 7. Write atomically
 
-Write the full new content to `<root>/.claude/codemap.md`. Create `.claude/` if it does not exist. Announce the regeneration first (e.g. "Regenerating `.claude/codemap.md` — full rewrite of the derived map"), then overwrite without prompting. The overwrite is intentionally **not** propose-confirm-gated: this is a derived artefact (regenerated from the source tree, not authored content), so a confirm on every run would be ceremony. But the write is announced, never silent.
+Write the full new content to `<root>/.claude/codemap.md` and `<root>/.claude/codemap.json`, each through a temp file and a rename so a reader never sees half a file. When the content equals the file on disk, leave it alone and only move its mtime to now (staleness checks compare file mtimes with the codemap's), and report `unchanged`. Create `.claude/` if it does not exist. Announce the regeneration first (e.g. "Regenerating `.claude/codemap.md` — full rewrite of the derived map"), then overwrite without prompting. The overwrite is intentionally **not** propose-confirm-gated: this is a derived artefact (regenerated from the source tree, not authored content), so a confirm on every run would be ceremony. But the write is announced, never silent.
 
 After a successful write, delete `<root>/.claude/codemap.dirty` if it exists. The sentinel's lifecycle is "marked stale by hook → cleared by this skill's next successful run".
 
@@ -318,3 +339,45 @@ warnings:
 ```
 
 Do not dump the full diff — just the counts and a pointer to `git diff .claude/codemap.md` for specifics.
+
+### 9. codemap.json
+
+Written beside `codemap.md` on every non-dry run, uncapped, deterministic (keys sorted, no timestamp beyond the day), one line of JSON:
+
+```jsonc
+{
+  "version": 1,
+  "project": "<name>",
+  "updated": "YYYY-MM-DD",
+  "entryPoints": [{ "rel": "<file>", "role": "<role>" }],
+  "files": {
+    "<rel>": {
+      "lang": "ts|js|python|…|markdown|other",
+      "size": 5656, "lines": 158,
+      "hash": "<first 16 hex of sha1 of the content>",
+      "purpose": "<purpose line>",
+      "vendored": true,            // only when vendored
+      "isTest": true,              // only for test files (affected-tests.mjs isTest)
+      "symbols": [                 // sorted by line
+        { "name": "Foo", "kind": "class|interface|struct|enum|record|type|module|function|method|export",
+          "line": 7, "endLine": 14, "parent": "<class, for methods>", "exported": true, "signature": "(x: string): void" }
+      ],
+      "imports": ["<rel>"],        // resolved file edges out
+      "importedBy": ["<rel>"],     // resolved file edges in
+      "tests": ["<rel>"],          // test files that reach this file through imports (affected-tests.mjs reach)
+      "refs": ["<rel>"], "referencedBy": ["<rel>"],   // References edges, when any
+      "commits": 4, "lastChange": "YYYY-MM-DD"   // git, last 90 days, when any
+    }
+  },
+  "modules": { "<mod>/": { "dependsOn": { "<mod>/": 3 } } },
+  "classes": [{ "name", "kind", "file", "namespace", "extends", "implements", "attributes", "fields", "methods" }],
+  "calls": [{ "file": "<rel>", "caller": "<fn>", "callee": "<fn or Type.method>" }],
+  "callSequences": [{ "file": "<rel>", "caller": "<fn>", "callees": ["<fn>"] }]
+}
+```
+
+`line`/`endLine` come from the AST outline (classes, functions, methods). An export or class the AST didn't place gets the line of its declaration found by text (a declaration keyword before the name, else the first mention); `endLine` is then absent, and so is `line` when the text never names it.
+
+**Readers:** the project-memory MCP's `trace_path`, `ranked_map`, `find_symbol` and `tests_for`, the contexture-ui codemap pane and visualise-codemap.
+
+**Files changed since the map:** a file whose mtime is newer than `codemap.json`'s, or whose sha1 prefix differs from `hash`, changed after the map was written; a file not in `files` (and not skipped) is new; a key whose file is gone was deleted.

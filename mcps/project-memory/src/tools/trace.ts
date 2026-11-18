@@ -40,7 +40,7 @@ export const traceSchema = {
     .describe("Working directory whose project's codemap to query. Defaults to process.cwd()."),
 };
 
-function renderResult(res: TraceResult, codemapPath: string): string {
+function renderResult(res: TraceResult, codemapPath: string, fromJson: boolean): string {
   const dirLabel =
     res.direction === "callers"
       ? "callers of"
@@ -59,9 +59,11 @@ function renderResult(res: TraceResult, codemapPath: string): string {
   if (res.empty) {
     lines.push(
       `No ${res.direction} found for \`${res.symbol}\` in the ${res.edgeKind} graph. ` +
-        `It may be a leaf, an external/builtin name, or absent from the codemap's rendered ` +
-        `(capped) edge set — the trace sees only edges present in \`${codemapPath}\`, not the ` +
-        `full uncapped graph. Re-run update-codemap if the map is stale.`,
+        `It may be a leaf, an external/builtin name, or ` +
+        (fromJson
+          ? `missing from \`${codemapPath}\`.`
+          : `absent from the codemap's rendered (capped) edge set — the trace sees only edges present in \`${codemapPath}\`, not the full uncapped graph.`) +
+        ` Re-run update-codemap if the map is stale.`,
     );
     return lines.join("\n");
   }
@@ -105,5 +107,5 @@ export async function traceHandler(args: {
     depth: args.depth,
     edgeKind,
   });
-  return textResponse(renderResult(res, graph.codemapPath));
+  return textResponse(renderResult(res, graph.codemapPath, graph.fromJson === true));
 }

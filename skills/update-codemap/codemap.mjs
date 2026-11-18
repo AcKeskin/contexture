@@ -6,6 +6,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { execFileSync } from 'node:child_process';
+import crypto from 'node:crypto';
+import os from 'node:os';
+import { Worker } from 'node:worker_threads';
+import { isTest, reach } from './affected-tests.mjs';
+import { aliasCandidates, buildToSource, loadProjectPaths } from './project-paths.mjs';
+import { extractRefs, resolveRef } from './refs.mjs';
 import { extractWithTreeSitter, isTreeSitterLang, initTreeSitter } from './treesitter.mjs';
 
 const SKIP_DIRS = new Set([
@@ -68,6 +75,10 @@ const CALL_SEQ_CALLEES_PER_CHAIN = 12;  // ordered callees shown per caller chai
 // confidence ≥ this; below it the syntactic edge stands (flagged), never a low-confidence guess.
 const CALL_RESOLUTION_FLOOR = 0.6;
 
+// Languages whose files see their whole package or namespace without a per-file import
+// (C/C++ via headers declared elsewhere in the folder). Call resolution widens to the folder.
+const PACKAGE_SCOPED_LANGS = new Set(['go', 'java', 'kotlin', 'swift', 'rust', 'csharp', 'php', 'c', 'cpp-header', 'cpp-impl']);
+
 const LANG_BY_EXT = {
   // `.h` stays on cpp-header: C++ headers dominate mixed codebases and the cpp grammar
   // parses C-style structs/unions fine, so a `.h`-to-`c` split would mis-route far more
@@ -99,17 +110,20 @@ const TREE_SITTER_TAG = {
   ts: 'ts', tsx: 'tsx', csharp: 'csharp', c: 'c', ruby: 'ruby', php: 'php',
 };
 
+// Default size cap for codemap.md, in ~tokens. The full data always goes to codemap.json.
+const DEFAULT_MAP_TOKENS = 32000;
+
 function parseArgs(argv) {
   // mapTokens null = no budget (emit everything). A positive value caps the document
   // size, truncating lowest-ranked detail first (document-size budget). noCache disables
   // the per-file extraction cache (per-file extraction cache) for a guaranteed full rebuild.
-  const args = { root: null, dryRun: false, quiet: false, mapTokens: null, noCache: false };
+  const args = { root: null, dryRun: false, quiet: false, mapTokens: DEFAULT_MAP_TOKENS, noCache: false };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--dry-run') args.dryRun = true;
     else if (a === '--quiet') args.quiet = true;
     else if (a === '--root') args.root = argv[++i];
-    else if (a === '--map-tokens') args.mapTokens = Math.max(0, parseInt(argv[++i], 10) || 0) || null;
+    else if (a === '--map-tokens') args.mapTokens = Math.max(0, parseInt(argv[++i], 10) || 0) || null; // 0 = no cap
     else if (a === '--no-cache') args.noCache = true;
     else if (a === '--help' || a === '-h') {
       console.log('usage: node skills/update-codemap/codemap.mjs [--root <dir>] [--dry-run] [--quiet] [--map-tokens <N>] [--no-cache]');
@@ -373,28 +387,145 @@ function frontmatterDescription(headLines) {
   return '';
 }
 
-function derivePurpose(headLines, filename) {
+// Line index just past a leading `---` frontmatter block, else 0.
+function frontmatterEnd(headLines) {
+  if (!headLines.length || headLines[0].trim() !== '---') return 0;
+  for (let i = 1; i < headLines.length; i++) if (headLines[i].trim() === '---') return i + 1;
+  return 0;
+}
+
+// Top-level `description` of a yaml or json file (eval cases, plugin manifests).
+function dataFileDescription(ext, headLines, text) {
+  if (ext === '.json') {
+    try {
+      const j = JSON.parse(text.replace(/^\uFEFF/, ''));
+      return j && typeof j.description === 'string' ? j.description : '';
+    } catch {
+      return '';
+    }
+  }
+  if (ext !== '.yaml' && ext !== '.yml') return '';
+  for (let i = 0; i < headLines.length; i++) {
+    const m = headLines[i].match(/^description:\s*(.*)$/);
+    if (!m) continue;
+    const v = m[1].trim();
+    if (!/^[|>][-+]?$/.test(v)) return v.replace(/^(["'])(.*)\1$/, '$2');
+    const block = [];
+    for (let j = i + 1; j < headLines.length && /^\s+\S/.test(headLines[j]); j++) block.push(headLines[j].trim());
+    return block.join(' ');
+  }
+  return '';
+}
+
+// The rest of a comment paragraph after its first line, in the same comment style.
+// Stops at a blank comment line, a doc tag (`@param`), or the end of the comment.
+function commentContinuation(headLines, from, style) {
+  const parts = [];
+  for (let j = from; j < headLines.length && parts.join(' ').length < PURPOSE_MAX * 2; j++) {
+    const l = headLines[j].trim();
+    let m = null;
+    if (style === '//') m = l.match(/^\/\/\/?\s*(.*)$/);
+    else if (style === '#') m = l.match(/^#{1,2}(?![#!])\s*(.*)$/);
+    else if (style === '*') m = l.match(/^\*(?!\/)\s*(.*)$/);
+    else if (style === '"""') m = l.includes('"""') ? [l, l.replace(/""".*$/, '')] : [l, l];
+    if (!m) break;
+    const t = stripDocTags(m[1].replace(/\*\/\s*$/, '')).trim();
+    if (!t || t.startsWith('@')) break;
+    parts.push(t);
+    if (/\*\/\s*$/.test(l) || (style === '"""' && l.includes('"""'))) break;
+  }
+  return parts.join(' ');
+}
+
+const ABBREV_RE = /\b(e\.g|i\.e|etc|vs|cf)\.$/i;
+
+// Whole sentences that fit PURPOSE_MAX; a single long sentence is cut at a word.
+function clipSentence(s) {
+  s = s.replace(/\s+/g, ' ').trim();
+  let out = '';
+  const re = /[.!?](?=\s|$)/g;
+  let m, start = 0;
+  while ((m = re.exec(s)) !== null) {
+    const end = m.index + 1;
+    if (ABBREV_RE.test(s.slice(0, end))) continue;
+    const next = s.slice(0, end);
+    if (next.length > PURPOSE_MAX) break;
+    out = next;
+    start = end;
+  }
+  if (out && (start >= s.length || out.length >= 40)) return clip(out);
+  if (s.length <= PURPOSE_MAX) return clip(s);
+  const cut = s.slice(0, PURPOSE_MAX - 1);
+  const sp = cut.lastIndexOf(' ');
+  return (sp > 40 ? cut.slice(0, sp) : cut).replace(/[\s,;:(—-]+$/, '') + '…';
+}
+
+// A file's purpose from its own words: frontmatter or data-file description, else the
+// first real comment (or markdown heading). Null when the file says nothing.
+function derivePurpose(headLines, filename, text = '') {
   const fm = frontmatterDescription(headLines);
-  if (fm && !/^[|>][-+]?$/.test(fm)) return clip(fm); // skip block-scalar markers
-  for (let i = 0; i < Math.min(headLines.length, 20); i++) {
+  if (fm && !/^[|>][-+]?$/.test(fm)) return clipSentence(fm); // skip block-scalar markers
+  const ext = path.extname(filename).toLowerCase();
+  const data = dataFileDescription(ext, headLines, text);
+  if (data) return clipSentence(data);
+  const start = frontmatterEnd(headLines);
+  if (ext === '.md' || ext === '.mdx') return markdownPurpose(headLines, start, filename);
+  for (let i = start; i < Math.min(headLines.length, start + 20); i++) {
     const l = headLines[i].trim();
     if (!l) continue;
     if (PREAMBLE_RE.test(l)) continue;
-    let m, body = null;
-    if ((m = l.match(/^\/\/\/?\s*(.*)$/))) body = stripDocTags(m[1]) || null;
-    else if ((m = l.match(/^#{1,2}\s+(.+)$/))) body = m[1].trim();
-    else if ((m = l.match(/^\/\*\s*(.+?)\s*\*\/?$/))) body = m[1].trim();
-    else if ((m = l.match(/^\*\s*(.+)$/))) body = m[1].trim();
-    else if ((m = l.match(/^"""\s*(.+?)(?:"""|$)/))) body = m[1].trim();
+    let m, body = null, style = null;
+    if ((m = l.match(/^\/\/\/?\s*(.*)$/))) { body = stripDocTags(m[1]) || null; style = '//'; }
+    else if ((m = l.match(/^#{1,2}\s+(.+)$/))) { body = m[1].trim(); style = '#'; }
+    else if ((m = l.match(/^\/\*\*?\s*(.+?)\s*\*\/$/))) body = m[1].trim();
+    else if ((m = l.match(/^\/\*\*?\s*(.+)$/))) { body = m[1].trim(); style = '*'; }
+    else if ((m = l.match(/^\*(?!\/)\s*(.+)$/))) { body = m[1].trim(); style = '*'; }
+    else if ((m = l.match(/^"""\s*(.+?)"""/))) body = m[1].trim();
+    else if ((m = l.match(/^"""\s*(.+)$/))) { body = m[1].trim(); style = '"""'; }
     else if ((m = l.match(/^---\s*$/))) break;
     else if (!l.startsWith('//') && !l.startsWith('#') && !l.startsWith('/*') && !l.startsWith('*')) break;
 
     if (body !== null) {
       // Skip license/copyright/banner-rule lines; keep scanning for a real description.
       if (isBoilerplateComment(body)) continue;
-      return clip(body);
+      const more = style ? commentContinuation(headLines, i + 1, style) : '';
+      return clipSentence(more ? `${body} ${more}` : body);
     }
   }
+  return null;
+}
+
+// A markdown file's first heading, or its first paragraph when the heading only repeats
+// the filename (`# Contributing` in CONTRIBUTING.md).
+function markdownPurpose(headLines, start, filename) {
+  const stem = path.parse(filename).name.toLowerCase().replace(/[-_.\s]+/g, '');
+  let heading = null;
+  for (let i = start; i < Math.min(headLines.length, start + 40); i++) {
+    const l = headLines[i].trim();
+    if (!l || /^(```|<|!\[|\||---|===)/.test(l)) continue;
+    const h = l.match(/^#{1,6}\s+(.+)$/);
+    if (h) {
+      const text = h[1].trim();
+      if (heading === null && text.toLowerCase().replace(/[-_.\s]+/g, '') !== stem) return clipSentence(text);
+      if (heading === null) heading = text;
+      continue;
+    }
+    const para = [l.replace(/^>\s*/, '')];
+    for (let j = i + 1; j < headLines.length && headLines[j].trim() && !/^#/.test(headLines[j].trim()); j++) para.push(headLines[j].trim());
+    return clipSentence(readmeProse(para.join(' ')));
+  }
+  return heading !== null ? clipSentence(heading) : null;
+}
+
+// Fallback when a file has no description of its own: name its top exports, else
+// humanize the filename.
+function fallbackPurpose(filename, exports) {
+  const names = [];
+  for (const e of exports || []) {
+    const bare = e.name.replace(/^default:\s+/, '').replace(/\s+—\s+.*$/, '').trim();
+    if (bare && !/\s/.test(bare) && !names.includes(bare)) names.push(bare);
+  }
+  if (names.length) return clip(`Exports ${names.slice(0, 4).join(', ')}${names.length > 4 ? ', …' : ''}`);
   return clip(path.parse(filename).name.replace(/[-_]+/g, ' '));
 }
 
@@ -688,7 +819,7 @@ function sliceBalanced(text, fromIndex) {
 function extractImports(text, lang) {
   const targets = [];
   if (lang === 'ts' || lang === 'tsx') {
-    const re1 = /\bimport\s+(?:[^'"`]+\s+from\s+)?['"]([^'"]+)['"]/g;
+    const re1 = /\b(?:import|export)\s+(?:[^'"`;]+\s+from\s+)?['"]([^'"]+)['"]/g;
     const re2 = /\brequire\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
     let m;
     while ((m = re1.exec(text)) !== null) targets.push(m[1]);
@@ -915,6 +1046,234 @@ function detectEntryPoints(root, files) {
   return entries.filter((e) => { if (seen.has(e.rel)) return false; seen.add(e.rel); return true; });
 }
 
+// Commits per file over the last ACTIVITY_DAYS and the date of the latest one, from one
+// `git log`. Paths are relative to `root` (`--relative`). Empty outside git or on error.
+const ACTIVITY_DAYS = 90;
+const ACTIVITY_TOP = 12;
+function gitActivity(root) {
+  const activity = new Map();
+  let text;
+  try {
+    text = execFileSync('git', ['log', `--since=${ACTIVITY_DAYS}.days.ago`, '--no-merges', '--relative', '--name-only', '--format=%x00%cs'],
+      { cwd: root, encoding: 'utf8', timeout: 15000, maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] });
+  } catch {
+    return activity;
+  }
+  for (const commit of text.split('\0')) {
+    const lines = commit.split('\n').map((l) => l.trim()).filter(Boolean);
+    const date = lines.shift();
+    for (const rel of new Set(lines)) {
+      const a = activity.get(rel);
+      if (a) a.commits++;
+      else activity.set(rel, { commits: 1, last: date });
+    }
+  }
+  return activity;
+}
+
+// rel → names a file defines: functions and methods, exports, classes and their methods.
+function buildSymbolsByFile(fileDefines, groups) {
+  const symbolsByFile = new Map();
+  const add = (rel, name) => {
+    if (!name) return;
+    if (!symbolsByFile.has(rel)) symbolsByFile.set(rel, new Set());
+    symbolsByFile.get(rel).add(name);
+  };
+  for (const [rel, defs] of fileDefines.entries()) for (const d of defs) add(rel, d);
+  for (const items of groups.values()) for (const it of items) {
+    for (const ex of (it.exports || [])) add(it.rel, ex.name.replace(/^default:\s+/, '').replace(/\s+—\s+.*$/, '').trim());
+    for (const c of (it.classes || [])) {
+      add(it.rel, c.name);
+      for (const m of (c.methods || [])) add(it.rel, m);
+    }
+  }
+  return symbolsByFile;
+}
+
+// Names a file uses from elsewhere: the callees of its calls and the types its classes
+// extend, implement or hold. Used to pick, among a package's or namespace's files, the
+// ones an import really depends on.
+function usedNames(rel, fileCalls, groups) {
+  const used = new Set();
+  for (const e of fileCalls.get(rel) || []) used.add(e.callee);
+  const items = groups.get(topLevelDirOf(rel)) || [];
+  const it = items.find((x) => x.rel === rel);
+  for (const c of (it && it.classes) || []) {
+    for (const t of [...(c.extends || []), ...(c.implements || []), ...(c.fields || []).map((f) => f.type)]) if (t) used.add(normalizeTypeRef(t));
+  }
+  return used;
+}
+
+// `from <dots><path> import <name>`: the submodule file `<path>/<name>.py` (or its package
+// `__init__.py`), relative to the source's folder for leading dots, else to the repo root
+// or `src/`. Exact matches only.
+function resolvePyFrom(spec, sourceRel, byRel) {
+  const dots = spec.match(/^\.*/)[0].length;
+  const tail = spec.slice(dots);
+  let bases = ['', 'src'];
+  if (dots) {
+    let dir = path.posix.dirname(sourceRel);
+    for (let i = 1; i < dots; i++) dir = path.posix.dirname(dir);
+    bases = [dir === '.' ? '' : dir];
+  }
+  for (const b of bases) {
+    const p = b ? `${b}/${tail}` : tail;
+    for (const c of [`${p}.py`, `${p}/__init__.py`]) if (byRel.has(c) && c !== sourceRel) return c;
+  }
+  return null;
+}
+
+// Writes `text` through a temp file and a rename, so a reader never sees half a file.
+// Same content: leaves the file alone but moves its mtime, so staleness checks (which
+// compare file mtimes with the codemap's) see it as current. Returns true when written.
+function writeIfChanged(file, text) {
+  let prev = null;
+  try { prev = fs.readFileSync(file, 'utf8'); } catch { /* first write */ }
+  if (prev === text) {
+    const now = new Date();
+    fs.utimesSync(file, now, now);
+    return false;
+  }
+  const tmp = `${file}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, text);
+  fs.renameSync(tmp, file);
+  return true;
+}
+
+const DECL_WORDS = 'class|struct|interface|enum|record|trait|type|def|fn|func|function|const|let|var|val|protocol|object|module|namespace|union|typedef';
+
+// 1-based line of `name`'s declaration: the first line with a declaration keyword before
+// it, else the first line that mentions it. Null when the text never names it.
+function declarationLine(lines, name) {
+  const esc = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const decl = new RegExp(`\\b(?:${DECL_WORDS})\\s+\\*?${esc}(?![\\w$])`);
+  const any = new RegExp(`(?:^|[^\\w$])${esc}(?![\\w$])`);
+  let first = null;
+  for (let i = 0; i < lines.length; i++) {
+    if (decl.test(lines[i])) return i + 1;
+    if (first === null && any.test(lines[i])) first = i + 1;
+  }
+  return first;
+}
+
+// A file's outline: the AST's classes and functions (with line ranges), plus each export
+// and class the AST didn't place, located by text. Exports are marked `exported` and keep
+// their signature. Sorted by line.
+function buildSymbols(astSymbols, exports, classes, text) {
+  const symbols = astSymbols.map((s) => ({ ...s }));
+  const byName = new Map();
+  for (const s of symbols) if (!byName.has(s.name)) byName.set(s.name, s);
+  let lines = null;
+  const place = (name, kind) => {
+    lines = lines || text.split(/\r?\n/);
+    const line = declarationLine(lines, name);
+    const s = { name, kind, ...(line ? { line } : {}) };
+    symbols.push(s);
+    byName.set(name, s);
+    return s;
+  };
+  for (const c of classes || []) if (c.name && !byName.has(c.name)) place(c.name, c.kind || 'class');
+  for (const e of exports || []) {
+    const [bare, ...sig] = e.name.replace(/^default:\s+/, '').split(' — ');
+    const name = bare.trim();
+    if (!name || /\s/.test(name) || name.startsWith('<')) continue;
+    const s = byName.get(name) || place(name, 'export');
+    s.exported = true;
+    const signature = sig.join(' — ').trim();
+    if (signature) s.signature = signature;
+  }
+  return symbols.sort((a, b) => (a.line ?? Infinity) - (b.line ?? Infinity) || a.name.localeCompare(b.name));
+}
+
+// The machine-readable codemap: per-file data (language, size, lines, content hash,
+// purpose, outline, resolved imports and importers, tests that reach the file, git
+// activity), module edges, every class and every in-scope call edge. Deterministic: no
+// timestamps beyond the day, keys in sorted order.
+function buildCodemapJson({ projectName, today, groups, sortedGroups, fileEdges, refEdges, moduleEdges, allClassEntries, jsonCalls, jsonCallSeq, activity, entryPoints }) {
+  const rev = new Map();
+  for (const [src, targets] of fileEdges.entries()) {
+    for (const t of targets) {
+      if (!rev.has(t)) rev.set(t, new Set());
+      rev.get(t).add(src);
+    }
+  }
+  const refBy = new Map();
+  for (const [src, targets] of refEdges.entries()) {
+    for (const t of targets) {
+      if (!refBy.has(t)) refBy.set(t, new Set());
+      refBy.get(t).add(src);
+    }
+  }
+  const files = {};
+  for (const g of sortedGroups) {
+    for (const it of [...groups.get(g)].sort((a, b) => a.rel.localeCompare(b.rel))) {
+      const a = activity.get(it.rel);
+      const tests = isTest(it.rel) ? [] : reach(rev, [it.rel]).tests.map((t) => t.file);
+      files[it.rel] = {
+        lang: JS_EXTS.has(path.extname(it.rel).toLowerCase()) ? 'js' : (LANG_BY_EXT[path.extname(it.rel).toLowerCase()] || 'other'),
+        size: it.size,
+        lines: it.lines,
+        hash: it.hash,
+        purpose: it.purpose,
+        ...(it.vendored ? { vendored: true } : {}),
+        ...(isTest(it.rel) ? { isTest: true } : {}),
+        symbols: it.symbols || [],
+        imports: [...(fileEdges.get(it.rel) || [])].sort(),
+        importedBy: [...(rev.get(it.rel) || [])].sort(),
+        tests,
+        ...(refEdges.has(it.rel) ? { refs: [...refEdges.get(it.rel)].sort() } : {}),
+        ...(refBy.has(it.rel) ? { referencedBy: [...refBy.get(it.rel)].sort() } : {}),
+        ...(a ? { commits: a.commits, lastChange: a.last } : {}),
+      };
+    }
+  }
+  const modules = {};
+  for (const m of [...moduleEdges.keys()].sort()) {
+    modules[m] = { dependsOn: Object.fromEntries([...moduleEdges.get(m).entries()].sort((x, y) => x[0].localeCompare(y[0]))) };
+  }
+  const classes = [...allClassEntries]
+    .sort((a, b) => a.file.localeCompare(b.file) || a.name.localeCompare(b.name))
+    .map(({ module, ...c }) => c);
+  const calls = [...jsonCalls].sort((a, b) => a.file.localeCompare(b.file) || a.caller.localeCompare(b.caller) || a.callee.localeCompare(b.callee));
+  const callSequences = [...jsonCallSeq].sort((a, b) => a.file.localeCompare(b.file) || a.caller.localeCompare(b.caller));
+  return { version: 1, project: projectName, updated: today, entryPoints, files, modules, classes, calls, callSequences };
+}
+
+// Parse many files at once: worker threads each run tree-sitter on part of `jobs`
+// ({ rel, abs, lang }). Returns rel → extraction result (null when the parser declined).
+// A worker that fails leaves its files out, and the caller parses those on the main thread.
+const PARALLEL_MIN_JOBS = 64;
+async function extractInParallel(jobs) {
+  const results = new Map();
+  const cores = os.availableParallelism?.() ?? os.cpus().length; // availableParallelism needs Node 18.14+
+  const count = Math.min(cores - 1, 8, Math.ceil(jobs.length / 32));
+  if (jobs.length < PARALLEL_MIN_JOBS || count < 2) return results;
+  let next = 0;
+  const runWorker = () => new Promise((resolve) => {
+    let worker;
+    try {
+      worker = new Worker(new URL('./extract-worker.mjs', import.meta.url));
+    } catch {
+      resolve();
+      return;
+    }
+    const send = () => {
+      if (next >= jobs.length) { worker.terminate().then(resolve, resolve); return; }
+      const id = next++;
+      worker.postMessage({ id, abs: jobs[id].abs, lang: jobs[id].lang });
+    };
+    worker.on('message', ({ id, result, error }) => {
+      if (!error) results.set(jobs[id].rel, result);
+      send();
+    });
+    worker.on('error', () => resolve());
+    worker.on('exit', () => resolve()); // a worker can exit with no error event
+    send();
+  });
+  await Promise.all(Array.from({ length: count }, runWorker));
+  return results;
+}
+
 function loadPreviousCodemap(codemapPath) {
   if (!fs.existsSync(codemapPath)) return null;
   return fs.readFileSync(codemapPath, 'utf8');
@@ -928,9 +1287,9 @@ function loadPreviousCodemap(codemapPath) {
 // stale read. The cache is advisory: a miss just means "re-extract", so it can never
 // produce a wrong map, only a slower one.
 // Bumped on cached-entry schema changes (v2 added `calls`; v3 added `defines`; v4 added
-// `callSeq`; v5 added `callResolution`; v7 re-derives file roles) — an older entry lacks the field, so the bump forces a
+// `callSeq`; v5 added `callResolution`; v7 re-derives file roles; v8 re-derives purposes; v9 adds `lines`, `hash`, `symbols`; v10 adds `refs`) — an older entry lacks the field, so the bump forces a
 // one-time cold rebuild rather than a partial read.
-const CACHE_VERSION = 7;
+const CACHE_VERSION = 11;
 
 function loadExtractCache(cachePath) {
   try {
@@ -958,10 +1317,22 @@ function fileStamp(abs) {
   }
 }
 
+// File bullets of the per-module `## <dir>/` groups only (other sections list files too).
+function groupFiles(md) {
+  const files = new Set();
+  let inGroup = false;
+  for (const line of md.split(/\r?\n/)) {
+    if (line.startsWith('## ')) { inGroup = line.trimEnd().endsWith('/'); continue; }
+    const m = inGroup && line.match(/^-\s+`([^`]+)`/);
+    if (m) files.add(m[1]);
+  }
+  return files;
+}
+
 function diffSummary(prev, current) {
   if (!prev) return { initial: true };
-  const prevFiles = new Set([...prev.matchAll(/^-\s+`([^`]+)`/gm)].map((m) => m[1]));
-  const curFiles = new Set([...current.matchAll(/^-\s+`([^`]+)`/gm)].map((m) => m[1]));
+  const prevFiles = groupFiles(prev);
+  const curFiles = groupFiles(current);
   let added = 0, removed = 0;
   for (const f of curFiles) if (!prevFiles.has(f)) added++;
   for (const f of prevFiles) if (!curFiles.has(f)) removed++;
@@ -1248,44 +1619,65 @@ function buildSymbolIndex(groups, inboundCounts) {
   return entries;
 }
 
-// Trim the rendered document to ~mapTokens by dropping tail bullet rows from the
-// agent-facing index sections only, in priority order (least-valuable first):
-//   1. ## Symbol index   (longest, most expendable — it's a lookup convenience)
-//   2. ## Map            (top hub table — keep at least a few rows)
-// Structured sections the visualizer parses are never touched. Returns the trimmed
-// text; logs a one-line summary of what was dropped. Best-effort: if still over
-// budget after trimming both, leaves the rest intact (correctness over a hard cap).
+// What the size cap removes first, least valuable first. `line` drops tail rows, `block`
+// drops tail `- ` entries with their indented sub-lines, `section` drops the whole section.
+// `floor` is the first line index (0 = the heading) a trim may remove. Sections are
+// pre-sorted by importance, so the tail is the least-used part.
+// Only sections codemap.json carries in full are trimmed; visualise-codemap reads classes
+// and call sequences from there. The Map, Hubs and per-module listings always stay.
+const TRIM_ORDER = [
+  { heading: '## Class graph', unit: 'block', floor: 1 },
+  { heading: '## Call sequence', unit: 'section' },
+  { heading: '## References', unit: 'line', floor: 1 },
+  { heading: '## Symbol index', unit: 'line', floor: 1 },
+];
+
+// Trim the rendered document to ~mapTokens following TRIM_ORDER, leaving a note in each
+// trimmed section. Trims nothing when the untrimmable sections alone exceed the budget,
+// since trimming could not reach it anyway.
 function truncateToBudget(out, mapTokens, args, log) {
-  const dropped = {};
-  // Section priority: drop from index first, then map. Each entry keeps a floor of rows.
-  const sections = [
-    { heading: '## Symbol index', floor: 0 },
-    { heading: '## Map', floor: 4 }, // 4 = header line + table header (2) + ≥1 data row
-  ];
-  for (const { heading, floor } of sections) {
-    while (estimateTokens(out) > mapTokens) {
-      const start = out.indexOf(heading + '\n');
-      if (start < 0) break;
-      // Section body runs until the next `\n## ` (or end of doc).
-      const bodyStart = start + heading.length + 1;
-      const next = out.indexOf('\n## ', bodyStart);
-      const end = next < 0 ? out.length : next + 1;
-      const body = out.slice(bodyStart, end);
-      const lines = body.split('\n');
-      // Find trailing non-empty bullet rows; drop the last one.
-      let lastRow = -1;
-      for (let i = lines.length - 1; i >= 0; i--) {
-        if (lines[i].trim()) { lastRow = i; break; }
-      }
-      if (lastRow < 0 || lastRow < floor) break; // hit the section floor
-      lines.splice(lastRow, 1);
-      dropped[heading] = (dropped[heading] || 0) + 1;
-      out = out.slice(0, bodyStart) + lines.join('\n') + out.slice(end);
-    }
+  const budget = mapTokens * 4; // estimateTokens is chars / 4
+  const parts = out.split(/\n(?=## )/);
+  const trimmable = (p) => TRIM_ORDER.some((r) => p.startsWith(r.heading + '\n'));
+  const fixedLen = parts.filter((p) => !trimmable(p)).reduce((n, p) => n + p.length + 1, 0);
+  if (fixedLen > budget) {
+    log(args, `--map-tokens ${mapTokens}: untrimmable sections alone are ~${Math.ceil(fixedLen / 4)} tokens; nothing trimmed`);
+    return out;
   }
+  let len = out.length;
+  const dropped = {};
+  for (const rule of TRIM_ORDER) {
+    if (len <= budget) break;
+    const ix = parts.findIndex((p) => p.startsWith(rule.heading + '\n'));
+    if (ix < 0) continue;
+    if (rule.unit === 'section') {
+      const kept = `${rule.heading}\n_Left out to fit the size cap; .claude/codemap.json has it._\n`;
+      len -= parts[ix].length - kept.length;
+      parts[ix] = kept;
+      dropped[rule.heading] = 'all';
+      continue;
+    }
+    const lines = parts[ix].split('\n');
+    let count = 0;
+    while (len > budget) {
+      let last = lines.length - 1;
+      while (last > 0 && !lines[last].trim()) last--;
+      let first = last;
+      if (rule.unit === 'block') while (first > 0 && !lines[first].startsWith('- ')) first--;
+      if (first < rule.floor || first === 0) break;
+      const removed = lines.splice(first, last - first + 1);
+      len -= removed.join('\n').length + 1;
+      count++;
+    }
+    if (!count) continue;
+    dropped[rule.heading] = count;
+    const what = rule.heading === '## Class graph' ? 'least-imported classes' : 'rows';
+    lines.splice(1, 0, `_${count} ${what} left out to fit the size cap; .claude/codemap.json has all of them._`);
+    parts[ix] = lines.join('\n');
+  }
+  out = parts.join('\n');
   const summary = Object.entries(dropped).map(([h, n]) => `${n} from ${h.replace('## ', '')}`).join(', ');
   if (summary) log(args, `--map-tokens ${mapTokens}: trimmed ${summary} to fit budget (~${estimateTokens(out)} tokens)`);
-  else if (estimateTokens(out) > mapTokens) log(args, `--map-tokens ${mapTokens}: over budget (~${estimateTokens(out)} tokens) but only structural sections remain — kept intact`);
   return out;
 }
 
@@ -1426,7 +1818,8 @@ async function main() {
   const fileCalls = new Map(); // rel → [{caller, callee}] (call edges)
   const fileCallSeq = new Map(); // rel → [{caller, callees: [...source order, deduped NOT]}] (call SEQUENCE, for sequence diagrams)
   const fileCallResolution = new Map(); // rel → [{caller, callee, receiver, qualified, confidence}] (type-resolved call edges)
-  const projectDefines = new Set(); // union of all defined function/method names (project-symbol signal for call-graph precision)
+  const fileDefines = new Map(); // rel → function/method names defined in that file (call-graph resolution)
+  const fileRefs = new Map(); // rel → raw doc/config path references (## References)
   // Collected during the scan; feeds the C# namespace→file index that resolveImport
   // consults for `using` directives. Built after the loop so heads are read once.
   const namespaceByRel = new Map();
@@ -1438,6 +1831,20 @@ async function main() {
   const prevCache = args.noCache ? {} : loadExtractCache(cachePath);
   const nextCache = {};
   let cacheHits = 0, cacheMisses = 0;
+
+  // Cache misses that need the AST, parsed in parallel up front when there are many.
+  const astJobs = [];
+  if (treeSitterReady) {
+    for (const f of allFiles) {
+      const tag = TREE_SITTER_TAG[LANG_BY_EXT[path.extname(f.rel).toLowerCase()] || 'other'];
+      if (!tag || isVendored(f.rel)) continue;
+      const stamp = fileStamp(f.abs);
+      const cached = !args.noCache && stamp ? prevCache[f.rel] : null;
+      if (cached && cached.size === stamp.size && cached.mtime === stamp.mtime) continue;
+      astJobs.push({ rel: f.rel, abs: f.abs, lang: tag });
+    }
+  }
+  const preParsed = await extractInParallel(astJobs);
 
   for (const f of allFiles) {
     const ext = path.extname(f.rel).toLowerCase();
@@ -1454,13 +1861,15 @@ async function main() {
       if (cached.generated) continue;
       const top = topLevelDirOf(f.rel);
       if (!groups.has(top)) groups.set(top, []);
-      groups.get(top).push({ rel: f.rel, purpose: cached.purpose, exports: cached.exports, classes: cached.classes, vendored: cached.vendored });
+      groups.get(top).push({ rel: f.rel, purpose: cached.purpose, exports: cached.exports, classes: cached.classes, vendored: cached.vendored,
+        size: cached.size, lines: cached.lines, hash: cached.hash, symbols: cached.symbols || [] });
+      if (cached.refs && cached.refs.length) fileRefs.set(f.rel, cached.refs);
       if (cached.imports && cached.imports.length) moduleImports.set(f.rel, cached.imports);
       if (cached.namespace) namespaceByRel.set(f.rel, cached.namespace);
       if (cached.calls && cached.calls.length) fileCalls.set(f.rel, cached.calls);
       if (cached.callSeq && cached.callSeq.length) fileCallSeq.set(f.rel, cached.callSeq);
       if (cached.callResolution && cached.callResolution.length) fileCallResolution.set(f.rel, cached.callResolution);
-      if (cached.defines && cached.defines.length) for (const d of cached.defines) projectDefines.add(d);
+      if (cached.defines && cached.defines.length) fileDefines.set(f.rel, cached.defines);
       continue;
     }
     cacheMisses++;
@@ -1481,12 +1890,13 @@ async function main() {
     let callSeq = [];        // ordered per-caller call sequence (AST-only); raw material for sequence diagrams
     let callResolution = []; // type-resolved call edges (TS/C# only); empty otherwise
     let defines = [];        // function/method names defined in this file (project-symbol signal)
+    let astSymbols = [];     // outline from the AST: classes and functions with line ranges
 
     const tsTag = TREE_SITTER_TAG[lang];
     if (!vendored && tsTag && treeSitterReady) {
       // AST languages get the FULL file — declarations past the head-cap matter.
       const full = readFull(f.abs);
-      const ast = await extractWithTreeSitter(full, tsTag);
+      const ast = preParsed.has(f.rel) ? preParsed.get(f.rel) : await extractWithTreeSitter(full, tsTag);
       if (ast) {
         text = full;
         exports = ast.exports;
@@ -1496,6 +1906,7 @@ async function main() {
         callSeq = ast.callSeq || [];
         callResolution = ast.callResolution || [];
         defines = ast.defines || [];
+        astSymbols = ast.symbols || [];
       }
     }
 
@@ -1512,10 +1923,15 @@ async function main() {
       else if (lang === 'cpp-header') { exports = extractExportsCppHeader(text); classes = extractClassesCpp(text); }
     }
 
-    const purpose = vendored ? '<vendored>' : derivePurpose(head.lines, f.rel);
+    const purpose = vendored ? '<vendored>' : (derivePurpose(head.lines, f.rel, head.text) ?? fallbackPurpose(f.rel, exports));
     const top = topLevelDirOf(f.rel);
     if (!groups.has(top)) groups.set(top, []);
-    groups.get(top).push({ rel: f.rel, purpose, exports, classes, vendored });
+    const lines = head.text === '' ? 0 : head.totalLines - (head.text.endsWith('\n') ? 1 : 0);
+    const hash = crypto.createHash('sha1').update(head.text).digest('hex').slice(0, 16);
+    const symbols = vendored ? [] : buildSymbols(astSymbols, exports, classes, head.text);
+    const refs = vendored ? [] : extractRefs(head.text, f.rel);
+    if (refs.length) fileRefs.set(f.rel, refs);
+    groups.get(top).push({ rel: f.rel, purpose, exports, classes, vendored, size: stamp ? stamp.size : head.text.length, lines, hash, symbols });
 
     let imports = [];
     if (!vendored) {
@@ -1526,7 +1942,7 @@ async function main() {
       if (calls.length) fileCalls.set(f.rel, calls);
       if (callSeq.length) fileCallSeq.set(f.rel, callSeq);
       if (callResolution.length) fileCallResolution.set(f.rel, callResolution);
-      for (const d of defines) projectDefines.add(d);
+      if (defines.length) fileDefines.set(f.rel, defines);
     }
 
     // C# namespace declaration → index entry, so `using` directives in other files
@@ -1546,7 +1962,7 @@ async function main() {
     }
 
     // Store this run's extraction so the next regen can skip it if unchanged.
-    if (stamp) nextCache[f.rel] = { ...stamp, purpose, exports, classes, vendored, imports, namespace, calls, callSeq, callResolution, defines };
+    if (stamp) nextCache[f.rel] = { ...stamp, purpose, exports, classes, vendored, imports, namespace, calls, callSeq, callResolution, defines, lines, hash, symbols, refs };
   }
   if (!args.noCache) log(args, `cache: ${cacheHits} hits, ${cacheMisses} misses`);
 
@@ -1558,10 +1974,78 @@ async function main() {
   //   fileEdges[from] = Set<targetRel>        (for ## File deps)
   const moduleEdges = new Map();
   const fileEdges = new Map();
+  // TS/JS: tsconfig `paths`/`baseUrl` and workspace package names before the generic
+  // resolver, and `outDir` build output mapped back to `rootDir` source after it.
+  const projectPaths = loadProjectPaths(root, allFiles);
+  const toFile = (rel) => {
+    const hit = rel && matchAgainstIndex(rel, fileIndex);
+    return hit ? { rel: hit, mod: topLevelDirOf(hit) } : null;
+  };
+  const symbolsByFile = buildSymbolsByFile(fileDefines, groups);
+  const filesInDir = new Map();
+  for (const f of allFiles) {
+    const dir = path.posix.dirname(f.rel);
+    if (!filesInDir.has(dir)) filesInDir.set(dir, []);
+    filesInDir.get(dir).push(f.rel);
+  }
+  // The files of the package (Go import path) or namespace (C#/PHP `using`) an import
+  // names, or null when it names neither.
+  const packageFiles = (t, lang) => {
+    if (lang === 'go') {
+      const segs = t.split('/');
+      for (let k = segs.length; k >= 1; k--) {
+        const tail = segs.slice(segs.length - k).join('/');
+        const dirs = [...filesInDir.keys()].filter((d) => d === tail || d.endsWith('/' + tail));
+        if (dirs.length === 1) return filesInDir.get(dirs[0]).filter((r) => r.endsWith('.go') && !r.endsWith('_test.go'));
+        if (dirs.length > 1) return null;
+      }
+      return null;
+    }
+    if ((lang === 'csharp' || lang === 'php') && fileIndex.byNamespace.has(t)) return fileIndex.byNamespace.get(t);
+    return null;
+  };
+  const addFileEdge = (sourceRel, rel) => {
+    if (rel === sourceRel) return;
+    if (!fileEdges.has(sourceRel)) fileEdges.set(sourceRel, new Set());
+    fileEdges.get(sourceRel).add(rel);
+  };
+  const addModuleEdge = (sourceMod, targetMod) => {
+    if (targetMod === sourceMod) return;
+    if (!moduleEdges.has(sourceMod)) moduleEdges.set(sourceMod, new Map());
+    const bucket = moduleEdges.get(sourceMod);
+    bucket.set(targetMod, (bucket.get(targetMod) || 0) + 1);
+  };
   for (const [sourceRel, targets] of moduleImports.entries()) {
     const sourceMod = topLevelDirOf(sourceRel);
+    const lang = LANG_BY_EXT[path.extname(sourceRel).toLowerCase()];
+    const isJsLike = lang === 'ts' || lang === 'tsx';
     for (const t of targets) {
-      const resolved = resolveImport(t, sourceRel, topLevelDirs, fileIndex);
+      if (t.startsWith('py-from:')) {
+        const rel = resolvePyFrom(t.slice('py-from:'.length), sourceRel, fileIndex.byRel);
+        if (rel) { addFileEdge(sourceRel, rel); addModuleEdge(sourceMod, topLevelDirOf(rel)); }
+        continue;
+      }
+      // A package or namespace import depends on the files that define what this file uses.
+      const pkg = packageFiles(t, lang);
+      if (pkg && pkg.length > 1) {
+        const used = usedNames(sourceRel, fileCalls, groups);
+        const hits = pkg.filter((r) => [...(symbolsByFile.get(r) || [])].some((n) => used.has(n)));
+        if (hits.length) {
+          for (const r of hits) addFileEdge(sourceRel, r);
+          addModuleEdge(sourceMod, topLevelDirOf(hits[0]));
+          continue;
+        }
+      }
+      const isRelative = t.startsWith('.');
+      let resolved = null;
+      if (isJsLike && !isRelative) {
+        for (const c of aliasCandidates(t, sourceRel, projectPaths)) if ((resolved = toFile(c))) break;
+      }
+      if (!resolved) resolved = resolveImport(t, sourceRel, topLevelDirs, fileIndex);
+      if (isJsLike && isRelative && !(resolved && resolved.rel)) {
+        const built = path.posix.normalize(path.posix.join(path.posix.dirname(sourceRel), t));
+        resolved = toFile(buildToSource(built, projectPaths)) || resolved;
+      }
       if (!resolved) continue;
       const targetMod = resolved.mod;
       if (!targetMod) continue;
@@ -1573,6 +2057,18 @@ async function main() {
       if (!moduleEdges.has(sourceMod)) moduleEdges.set(sourceMod, new Map());
       const bucket = moduleEdges.get(sourceMod);
       bucket.set(targetMod, (bucket.get(targetMod) || 0) + 1);
+    }
+  }
+
+  // Doc and config references (markdown links and path spans, paths in json/yaml/toml),
+  // minus any pair already joined by an import.
+  const refEdges = new Map();
+  for (const [sourceRel, raws] of fileRefs.entries()) {
+    for (const raw of raws) {
+      const target = resolveRef(raw, sourceRel, fileIndex.byRel);
+      if (!target || (fileEdges.get(sourceRel) && fileEdges.get(sourceRel).has(target))) continue;
+      if (!refEdges.has(sourceRel)) refEdges.set(sourceRel, new Set());
+      refEdges.get(sourceRel).add(target);
     }
   }
 
@@ -1712,6 +2208,19 @@ async function main() {
     out += `\n`;
   }
 
+  // ## Recent activity — where work is happening now: the files with the most commits in
+  // the last ACTIVITY_DAYS (git log is newest first, so `last` is the latest change).
+  const activity = gitActivity(root);
+  const indexed = new Set(allFiles.map((f) => f.rel));
+  const active = [...activity.entries()].filter(([rel]) => indexed.has(rel))
+    .sort((a, b) => b[1].commits - a[1].commits || b[1].last.localeCompare(a[1].last) || a[0].localeCompare(b[0]))
+    .slice(0, ACTIVITY_TOP);
+  if (active.length) {
+    out += `## Recent activity\nFiles changed most in the last ${ACTIVITY_DAYS} days:\n`;
+    for (const [rel, a] of active) out += `- \`${rel}\` — ${a.commits} commit${a.commits === 1 ? '' : 's'}, last ${a.last}\n`;
+    out += `\n`;
+  }
+
   if (entryPoints.length) {
     out += `## Entry points\n`;
     for (const e of entryPoints) out += `- \`${e.rel}\` — ${e.role}\n`;
@@ -1740,6 +2249,16 @@ async function main() {
     for (const s of sortedSources) {
       const targets = [...fileEdges.get(s)].sort();
       out += `- \`${s}\` → ${targets.map((t) => `\`${t}\``).join(', ')}\n`;
+    }
+    out += `\n`;
+  }
+
+  // ## References — doc and config files pointing at other files. Not imports: they
+  // never count as importers and affected-tests ignores them.
+  if (refEdges.size) {
+    out += `## References\n`;
+    for (const s of [...refEdges.keys()].sort()) {
+      out += `- \`${s}\` → ${[...refEdges.get(s)].sort().map((t) => `\`${t}\``).join(', ')}\n`;
     }
     out += `\n`;
   }
@@ -1805,7 +2324,9 @@ async function main() {
   }
   if (allClassEntries.length) {
     out += `## Class graph\n`;
-    const sorted = allClassEntries.sort((a, b) => a.file.localeCompare(b.file) || a.name.localeCompare(b.name));
+    // Most-imported files first, so the size cap drops the least-used classes.
+    const sorted = allClassEntries.sort((a, b) => (inboundCounts.get(b.file) || 0) - (inboundCounts.get(a.file) || 0) ||
+      a.file.localeCompare(b.file) || a.name.localeCompare(b.name));
     for (const c of sorted) {
       out += `- ${c.kind}: \`${c.name}\` in \`${c.file}\`\n`;
       if (c.namespace) out += `  namespace: ${c.namespace}\n`;
@@ -1820,64 +2341,78 @@ async function main() {
     out += `\n`;
   }
 
-  // ## Call graph — per-module subgraphs of caller→callee edges, mirroring
-  // the per-module ## File deps layout. SYNTACTIC / name-matched: the callee is matched by
-  // bare name only; receiver types are NOT resolved (`x.save()` → `save`), so an edge is a
-  // best-effort name match, never resolved ground truth. Edges are grouped by module, then
-  // ranked PROJECT-INTERNAL-FIRST: a callee that resolves to a project-defined symbol (a name
-  // that is a caller, an export, or a declared type/member anywhere in the repo) ranks above
-  // one that does not — so builtin/stdlib noise (`push`/`join`/`JSON`) is demoted below real
-  // internal edges instead of consuming the cap. Within each tier, ranked by callee in-degree.
-  // Capped per module with a `(+K more)` overflow that counts demoted-and-dropped edges too —
-  // never a silent drop (document budget + no-silent-caps). Parser leader: per-module
-  // `### <mod>` then `- \`file::caller\` → \`callee\`` lines (visualizer keys on the arrow).
-  if (fileCalls.size) {
-    // The project-defined symbol set. A callee in this set is a real in-repo target; one
-    // outside it is a builtin / stdlib / third-party call. Sources, highest-signal first:
-    //   - `projectDefines` — every function/method name DEFINED in any file (the load-bearing
-    //     source; catches non-exported leaf functions like a private `safeLstat`/`scanLeaks`
-    //     that the caller/export sets miss — the exact gap that made real internal edges read
-    //     as external). This is the cheap, flattened analogue of a per-language definition
-    //     registry: name-level, not type-level (receiver-type disambiguation is deferred).
-    //   - callers — functions that make calls (subset of defines in practice, kept for safety).
-    //   - exports + declared type names — public surface a callee may target.
-    // Field names are DELIBERATELY excluded: low-signal, and they shadow builtins (a field
-    // `entries`/`get` would mark every `.entries()`/`.get()` builtin call as project-internal).
-    const projectSymbols = new Set(projectDefines);
-    for (const edges of fileCalls.values()) for (const e of edges) projectSymbols.add(e.caller);
-    for (const items of groups.values()) for (const it of items) {
-      for (const ex of (it.exports || [])) {
-        const bare = ex.name.replace(/^default:\s+/, '').replace(/\s+—\s+.*$/, '').trim();
-        if (bare && !/\s/.test(bare)) projectSymbols.add(bare);
-      }
+  // Which files a call in `rel` can reach: itself, the files it imports, its package or
+  // namespace for languages that see those without an import, and the header/impl twin of
+  // each. A callee counts as project code only when one of these files defines it, so a
+  // builtin `split()` no longer matches some unrelated file's `split` function.
+  const filesByDir = new Map();
+  const filesByStem = new Map();
+  for (const f of allFiles) {
+    const dir = path.posix.dirname(f.rel);
+    if (!filesByDir.has(dir)) filesByDir.set(dir, []);
+    filesByDir.get(dir).push(f.rel);
+    const stem = f.rel.replace(/\.[^./]+$/, '');
+    if (!filesByStem.has(stem)) filesByStem.set(stem, []);
+    filesByStem.get(stem).push(f.rel);
+  }
+  const scopeCache = new Map();
+  const callScope = (rel) => {
+    if (scopeCache.has(rel)) return scopeCache.get(rel);
+    const files = new Set([rel, ...(fileEdges.get(rel) || [])]);
+    if (PACKAGE_SCOPED_LANGS.has(LANG_BY_EXT[path.extname(rel).toLowerCase()])) {
+      for (const f of filesByDir.get(path.posix.dirname(rel)) || []) files.add(f);
     }
-    for (const c of allClassEntries) if (c.name) projectSymbols.add(c.name);
+    for (const ns of [namespaceByRel.get(rel), ...(moduleImports.get(rel) || [])]) {
+      for (const f of (ns && fileIndex.byNamespace.get(ns)) || []) files.add(f);
+    }
+    for (const f of [...files]) for (const twin of filesByStem.get(f.replace(/\.[^./]+$/, '')) || []) files.add(twin);
+    const names = new Set();
+    for (const f of files) for (const n of symbolsByFile.get(f) || []) names.add(n);
+    scopeCache.set(rel, names);
+    return names;
+  };
 
-    // Group edges by top-level module; tag each with its source file + resolution status.
-    const byModule = new Map(); // mod → [{ file, caller, callee, resolved }]
+  // ## Call graph — per-module subgraphs of caller→callee edges, mirroring the per-module
+  // ## File deps layout. Only calls that resolve to a symbol defined in the call's scope
+  // (see callScope) are listed; calls to builtins, stdlib and packages are left out and
+  // counted in the header. TypeScript and C# edges render as `Type.method` when the
+  // receiver type resolved. Ranked by callee in-degree, capped per module with a `(+K more)`
+  // overflow line. Parser leader: per-module `### <mod>` then
+  // `- \`file::caller\` → \`callee\`` lines (visualizer keys on the arrow).
+  const jsonCalls = []; // every in-scope call edge, uncapped, for codemap.json
+  const jsonCallSeq = []; // every in-scope call sequence, uncapped, for codemap.json
+  if (fileCalls.size) {
+    const byModule = new Map(); // mod → [{ file, caller, callee, qualified }]
+    let externalCalls = 0;
     for (const [rel, edges] of fileCalls.entries()) {
       const mod = topLevelDirOf(rel);
-      if (!byModule.has(mod)) byModule.set(mod, []);
-      const bucket = byModule.get(mod);
+      const scope = callScope(rel);
       for (const e of edges) {
         // Attach the type-resolved qualified callee(s) (Type.method) when the resolver
         // produced them above the floor; one syntactic edge may expand into several resolved
         // ones (same method name, different typed receivers). Else the edge stays syntactic.
         const res = resolvedEdgeMap.get(`${rel} ${e.caller} ${e.callee}`);
-        const base = { file: rel, caller: e.caller, callee: e.callee, resolved: projectSymbols.has(e.callee) };
+        if (!(res && res.size) && !scope.has(e.callee)) { externalCalls++; continue; }
+        if (!byModule.has(mod)) byModule.set(mod, []);
+        const bucket = byModule.get(mod);
+        const base = { file: rel, caller: e.caller, callee: e.callee };
         if (res && res.size) {
-          for (const q of res) bucket.push({ ...base, qualified: q });
+          for (const q of res) {
+            bucket.push({ ...base, qualified: q });
+            jsonCalls.push({ file: rel, caller: e.caller, callee: q });
+          }
         } else {
           bucket.push({ ...base, qualified: null });
+          jsonCalls.push({ file: rel, caller: e.caller, callee: e.callee });
         }
       }
     }
     const anyTypeResolved = [...byModule.values()].some((es) => es.some((e) => e.qualified));
     out += `## Call graph\n`;
-    out += `_Syntactic / name-matched: caller → callee by bare name. Receiver types are unresolved ` +
-      `(e.g. \`x.save()\` is recorded as callee \`save\`), so edges are best-effort matches, not resolved ` +
-      `ground truth. Project-internal edges (callee resolves to a defined symbol) are prioritised; ` +
-      `external/builtin callees are demoted as unresolved. Per-module capped at ${CALL_EDGE_CAP_PER_MODULE} edges; overflow summarized._\n`;
+    out += `_Syntactic / name-matched: caller → callee by bare name, kept only when the callee is ` +
+      `defined in the calling file, a file it imports, or (for package-scoped languages) its package or namespace. ` +
+      `${externalCalls} calls to builtins, packages or unresolved names are left out. ` +
+      `Per-module capped at ${CALL_EDGE_CAP_PER_MODULE} edges; overflow summarized._\n`;
     if (anyTypeResolved) {
       out += `_**Type-resolved:** TypeScript and C# call edges shown as \`Type.method\` are ` +
         `receiver-type-resolved (the receiver's type was resolved via declarations/imports, confidence ≥ ${CALL_RESOLUTION_FLOOR}). ` +
@@ -1885,11 +2420,10 @@ async function main() {
     }
     for (const mod of [...byModule.keys()].sort()) {
       const edges = byModule.get(mod);
-      // Rank: project-internal first, then by callee in-degree so the genuine hubs survive.
+      // Rank by callee in-degree so the genuine hubs survive the cap.
       const calleeDegree = new Map();
       for (const e of edges) calleeDegree.set(e.callee, (calleeDegree.get(e.callee) || 0) + 1);
       edges.sort((a, b) =>
-        (Number(b.resolved) - Number(a.resolved)) ||
         (calleeDegree.get(b.callee) - calleeDegree.get(a.callee)) ||
         a.file.localeCompare(b.file) || a.caller.localeCompare(b.caller) || a.callee.localeCompare(b.callee));
       const shown = edges.slice(0, CALL_EDGE_CAP_PER_MODULE);
@@ -1919,7 +2453,12 @@ async function main() {
       if (!seqByModule.has(mod)) seqByModule.set(mod, []);
       const bucket = seqByModule.get(mod);
       for (const s of seqs) {
-        if (s && s.caller && s.callees && s.callees.length) bucket.push({ file: rel, caller: s.caller, callees: s.callees });
+        if (!s || !s.caller || !s.callees) continue;
+        const scope = callScope(rel);
+        const callees = s.callees.filter((c) => scope.has(c));
+        if (!callees.length) continue;
+        bucket.push({ file: rel, caller: s.caller, callees });
+        jsonCallSeq.push({ file: rel, caller: s.caller, callees });
       }
     }
     if ([...seqByModule.values()].some((b) => b.length)) {
@@ -1965,11 +2504,12 @@ async function main() {
     out += `\n`;
   }
 
-  // --map-tokens budget (document-size budget). Truncate ONLY the agent-facing index
-  // sections (Symbol index, then Map) — never the structured sections visualise-codemap
-  // parses (Class graph / File deps / Dependencies / per-module listings). Drop the
-  // lowest-ranked tail rows first (both sections are pre-sorted by importance) and log
-  // what was dropped — no silent caps (lessons/looks-bad-but-fine + no-silent-caps).
+  // codemap.json: everything above, uncapped, plus per-file outline, tests and git data.
+  const json = buildCodemapJson({ projectName, today, groups, sortedGroups, fileEdges, refEdges, moduleEdges, allClassEntries, jsonCalls, jsonCallSeq, activity, entryPoints });
+
+  // --map-tokens budget (document-size budget, default DEFAULT_MAP_TOKENS). Trims the
+  // least-valuable sections first (see TRIM_ORDER) and logs what was dropped — no silent
+  // caps. File deps, Dependencies and the per-module listings are never trimmed.
   if (args.mapTokens && estimateTokens(out) > args.mapTokens) {
     out = truncateToBudget(out, args.mapTokens, args, log);
   }
@@ -1981,6 +2521,7 @@ async function main() {
     try { dirtyClearedFrom = fs.readFileSync(dirtyPath, 'utf8').trim(); } catch {}
   }
 
+  const jsonPath = path.join(root, '.claude', 'codemap.json');
   if (args.dryRun) {
     log(args, '--- dry-run output ---');
     process.stdout.write(out);
@@ -1990,7 +2531,8 @@ async function main() {
 
   fs.mkdirSync(path.dirname(codemapPath), { recursive: true });
   const prev = loadPreviousCodemap(codemapPath);
-  fs.writeFileSync(codemapPath, out);
+  writeIfChanged(jsonPath, JSON.stringify(json) + '\n');
+  const isUnchanged = !writeIfChanged(codemapPath, out);
   // Persist the extraction cache (per-file extraction cache) only on a real write — dry-run
   // returns above, so its cache never diverges from the on-disk map. --no-cache skips.
   if (!args.noCache) saveExtractCache(cachePath, nextCache);
@@ -2012,7 +2554,7 @@ async function main() {
     for (const w of config.warnings) log(args, `  - line ${w.line}: ${w.text}`);
   }
   if (dirtyClearedFrom !== null) log(args, `dirty sentinel cleared (last marked: ${dirtyClearedFrom})`);
-  log(args, `wrote ${path.relative(root, codemapPath)}`);
+  log(args, isUnchanged ? `unchanged ${path.relative(root, codemapPath)}` : `wrote ${path.relative(root, codemapPath)}`);
 }
 
 main().catch((err) => { console.error(err); process.exit(1); });

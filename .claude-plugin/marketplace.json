@@ -24,6 +24,11 @@
         "./skills/recap",
         "./skills/systematic-debugging"
       ]
+    },
+    {
+      "name": "contexture-ui",
+      "source": "./mods/contexture-ui",
+      "description": "Work pane and status line for Claude Code (terminal, desktop app, VS Code): files, each slug's stage, the running plan step and the rules primed this session."
     }
   ]
 }

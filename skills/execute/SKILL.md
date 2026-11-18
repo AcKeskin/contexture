@@ -64,6 +64,14 @@ If a step is missing a verification line, stop:
 
 Anchoring on verification is deliberate — that's the discipline this skill enforces.
 
+### 1.5 Drift check
+
+On a fresh run (not `--from`), when the plan has `base:`, run `git diff --stat <base> -- <every step's Files>` before step 1. It covers commits and uncommitted edits since the plan was written. Empty → go on. Not empty → stop:
+
+> Files in this plan changed since it was written at <base>: <files>. The plan may be stale. Re-run /draft-plan <slug>, or say go to run it as is.
+
+No `base:` (older plans), or git does not know the sha → one warning line, then go on.
+
 ### 2. Respect --from
 
 If the user invoked `/execute --from N`, skip steps 1 to N-1 without executing them. Emit one line:
@@ -93,7 +101,7 @@ First step always triggers prep (no previous step to compare against).
 
 #### 3b. Delegation and routing
 
-A step tagged `[mechanical]`, `[delegate]` or `[research]` may run outside this context. Before routing it, read [delegation.md](delegation.md): the two criteria (self-contained, mechanically verifiable), the cheap-tier rule, the delegation prompt and its self-containment gate, and the precondition check. Untagged and `[judgment]` steps run here.
+A step tagged `[mechanical]`, `[delegate]` or `[research]` may run outside this context. Before routing it, read [delegation.md](delegation.md): the two criteria, the cheap-tier rule, the prompt, the self-containment gate and the precondition check. On return, run its accept check before 3d. Untagged and `[judgment]` steps run here.
 
 #### 3c. Implement
 
@@ -171,12 +179,7 @@ Skip the offer on `abort completion` (nothing shipped). A `--task` run still get
 
 ## What execute does not do
 
-- Does not draft plans (plan's job).
-- Does not load the architectural rules itself (prep does, via 3a).
-- Does not run review or capture (separate user-invoked organs).
-- Does not save state between invocations. If the user aborts mid-run, re-running `/execute --from N` is how to resume. No hidden progress file; after compaction the compact-snapshot hook restores the last verified step from the ✓ lines.
-- Does not trust subagent self-reports — every step still goes through local verification (3d).
-- Does not auto-confirm done-criteria assessment (4a). The user is the final judge of whether the spec's intent was actually achieved. Per-step verification passing is necessary but not sufficient.
+See [reference.md](reference.md), *What execute does not do*: no plan drafting, no hidden progress file, no trust in subagent self-reports, no auto-confirmed done-criteria.
 
 ## Edge cases
 

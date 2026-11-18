@@ -4,7 +4,7 @@ Authoritative implementation lives in [`mcps/project-memory/`](../mcps/project-m
 
 ## What it does
 
-Exposes the project memory tree (`~/.claude/projects/<slug>/memory/`) and the session rollups (`memory/sessions/`) as MCP tools. Three tools, all read-only. Stdio transport, launched on demand by Claude Code — no daemon.
+Exposes the project memory tree (`~/.claude/projects/<slug>/memory/`) and the session rollups (`memory/sessions/`) as MCP tools, plus lookups over the codemap. Read-only apart from scratch entries and handoffs. Stdio transport, launched on demand by Claude Code — no daemon.
 
 ## Tools
 
@@ -13,6 +13,10 @@ Exposes the project memory tree (`~/.claude/projects/<slug>/memory/`) and the se
 | `discover` | Ranked retrieval over the full memory tree, mirrors the `/discover` skill's query contract | the discover + deliver skills |
 | `recent_sessions` | Last N session rollups for the calling project, newest first | the session-rollup mechanism |
 | `get_memory` | Fetch a single memory by frontmatter `name` slug, full body | — |
+| `trace_path` | Callers / callees of a symbol through the codemap's call, import or class graph | update-codemap |
+| `ranked_map` | Files most relevant to a task (personalized PageRank over `codemap.json`), with purpose and symbol lines, within a token budget | update-codemap |
+| `find_symbol` | Where a name is defined (file, line span, kind) | update-codemap |
+| `tests_for` | Test files that reach a file or symbol through imports | update-codemap |
 
 ### `discover` parameters
 

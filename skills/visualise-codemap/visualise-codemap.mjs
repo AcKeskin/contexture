@@ -49,6 +49,29 @@ function readCodemap(root) {
   return { path: p, text: fs.readFileSync(p, 'utf8') };
 }
 
+// .claude/codemap.json (written beside codemap.md by update-codemap), or null.
+function readCodemapJson(root) {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(root, '.claude', 'codemap.json'), 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+// `dir/` of a repo-relative path, `./` at the root (codemap.md's module names).
+function topLevelOf(rel) {
+  const ix = rel.indexOf('/');
+  return ix < 0 ? './' : rel.slice(0, ix) + '/';
+}
+
+// A codemap.json class in the shape parseClassGraph returns.
+function classFromJson(c) {
+  return {
+    kind: c.kind, name: c.name, file: c.file, namespace: c.namespace || '',
+    extends: c.extends || [], implements: c.implements || [], attributes: c.attributes || [], fields: c.fields || [],
+  };
+}
+
 // Gitignore-style glob → regex. Mirrors codemap.mjs's configGlobToRegex.
 function configGlobToRegex(pattern) {
   const isDir = pattern.endsWith('/');
@@ -1568,6 +1591,12 @@ function main() {
   log(args, `source: ${codemap.path}`);
 
   const parsed = parseCodemap(codemap.text);
+  // The markdown's class graph may be cut to fit its size cap; codemap.json has every class.
+  const full = readCodemapJson(root);
+  if (full && Array.isArray(full.classes)) parsed.classes = full.classes.map(classFromJson);
+  if (full && Array.isArray(full.callSequences) && !parsed.callSequence.chains.length) {
+    parsed.callSequence = { chains: full.callSequences.map((c) => ({ mod: topLevelOf(c.file), file: path.posix.basename(c.file), caller: c.caller, callees: c.callees })) };
+  }
   const cfg = loadVisualizeConfig(root);
   log(args, `parsed: ${parsed.groups.length} module groups, ${parsed.dependencies.length} dependency lines, ${parsed.fileDeps.length} file-dep lines, ${parsed.classes.length} declared types`);
   if (cfg.skipPatterns.length) log(args, `visualize: ${cfg.skipPatterns.length} skip patterns`);

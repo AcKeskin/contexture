@@ -30,7 +30,7 @@ Flags combine with any target:
 
 | Flag | Effect |
 | --- | --- |
-| `--angles [list\|auto\|all]` | Angles to run (§3). Without it, the target's default angles run as before |
+| `--angles [list\|auto\|all]` | Angles to run (§3). Default: the target's own |
 | `--pack` | Build a review pack ([pack.md](pack.md)) shown before the pick |
 | `--artifact` | Render the review page (§6) |
 | `--vault` | Obsidian note: [vault-output.md](vault-output.md) for local targets, §10 for PRs |
@@ -39,7 +39,7 @@ Flags combine with any target:
 
 Natural language: infer the target and flags ("save to Obsidian" → `--vault`).
 
-**Local guard.** Over 50 files → *"N files in scope. Narrow with `/review <subdir>` or `--since <ref>`? (`y` to proceed)"*.
+**Local guard.** Over 50 files → *"N files in scope. Narrow with `/review <subdir>` or `--since <ref>`? (`y` goes on)"*.
 
 **PR target.** Needs `gh` installed and authenticated, else bail with how to fix it. Read [pr-target.md](pr-target.md) for the fetch, the diff parse and the size guard. Work only from `gh` output and `git show <ref>:<path>`; never check out the PR branch, never run its tests.
 
@@ -60,13 +60,13 @@ Only for `/review` and `/review <dir>`. Read manifests, README + `docs/`/`adr/` 
 
 ## 3. Run the angles
 
-Angle briefs live in [angles.md](angles.md); projects can add their own or set defaults in `.claude/review-angles.md` (format in angles.md).
+Angle briefs: [angles.md](angles.md); projects add their own or set defaults in `.claude/review-angles.md`.
 
-**First, on a checked-out target:** the repo's own linters and type checks ([checks.md](checks.md)). **Then on a diff** (`--pr`, `--since`): the gate scan ([gates.md](gates.md)). Drop `GENERATED` files; read each `TAG` hunk with its one question; `gate` findings go to the user.
+**First, on a checked-out target:** the repo's own linters and type checks ([checks.md](checks.md)). **Then on a diff** (`--pr`, `--since`): the gate scan ([gates.md](gates.md)). Drop `GENERATED` files; read each `TAG` hunk with its one question; `gate` findings go to the user. `security` runs: saved threat model first ([threat-model.md](threat-model.md)).
 
 | Input | Angles | How they run |
 | --- | --- | --- |
-| no `--angles` | Local: `architecture`. PR: `correctness, design, hygiene, security` | Inline in this session, as one pass (no extra agents) |
+| no `--angles` | Local: `architecture`. PR: `correctness, design, hygiene, security` | Inline, one pass, no extra agents |
 | `--angles a,b,c` | Exactly those | One fresh agent per angle |
 | `--angles auto` / bare | Project default if set, else the target defaults + up to 3 picked by the signals in angles.md | One fresh agent per angle |
 | `--angles all` | Every built-in + project angle | One fresh agent per angle |
@@ -88,7 +88,7 @@ Angle briefs live in [angles.md](angles.md); projects can add their own or set d
 
 ### 4b. Repeat-run reconciliation
 
-Local targets with a prior `.claude/reviews/<scope-slug>/latest.md`: run mode = repeat; tag each finding `NEW` / `CARRIED` (keeps its id) / `WONT_FIX` / `RESOLVED`; resolved ones get their own section. Malformed baseline → warn, treat as fresh. Mechanics: [reconciliation.md](reconciliation.md). PR re-reviews use §10's iteration rules.
+Local targets with a prior `.claude/reviews/<scope-slug>/latest.md`: run mode = repeat; tag each finding `NEW` / `CARRIED` (keeps its id) / `WONT_FIX` / `RESOLVED` (with proof) / `INCONCLUSIVE`. Malformed baseline → warn, treat as fresh. Mechanics: [reconciliation.md](reconciliation.md). PR re-reviews use §10's iteration rules.
 
 **Receipts.** On a repeat run, check the receipt first and re-read only `CHANGED` and `NEW` files (unless `--full`, a stamped rule changed, or the angles differ). Command and rules: [reconciliation.md](reconciliation.md), *Receipts*.
 

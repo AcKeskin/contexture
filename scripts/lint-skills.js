@@ -5,6 +5,8 @@
 //   node scripts/lint-skills.js            # report, exit 0
 //   node scripts/lint-skills.js --strict   # exit 1 on any finding
 //
+// Also flags skill pairs whose descriptions share most of their words.
+//
 // Findings are prompts to look, not verdicts: a long description may be right.
 // Hidden Unicode is the exception: it always exits 1 (see HIDDEN below).
 
@@ -22,6 +24,10 @@ const QUOTED_PHRASES_TRIPWIRE = 2;
 // invoked skill. Skill bodies measured ~2.75 chars/token (2026-11-04), so text
 // past ~13,700 chars is lost for the rest of the session.
 const BODY_CHAR_LIMIT = 13700;
+// Two descriptions sharing this share of their words may fire for the same
+// request. Word Jaccard, top pair draft-plan/spec at 0.30 (2026-11-18).
+const OVERLAP_TRIPWIRE = 0.4;
+const STOP_WORDS = new Set('the a an and or of to in on for with when use user asks this that it its is are be by as at from into not never only any each one via skill skills'.split(' '));
 
 // Characters that render as nothing or reorder text, so an instruction can sit
 // in a file unseen: zero-width, bidi controls, word joiners, Unicode tags.
@@ -71,6 +77,29 @@ function lintSkill(name) {
   return findings;
 }
 
+function descriptionWords(desc) {
+  return new Set((desc.toLowerCase().match(/[a-z][a-z-]{2,}/g) || []).filter((w) => !STOP_WORDS.has(w)));
+}
+
+// Pairs of skills whose descriptions overlap past the tripwire, highest first.
+// descs: { name: description }.
+function overlapPairs(descs, tripwire = OVERLAP_TRIPWIRE) {
+  const sets = Object.entries(descs).map(([name, d]) => [name, descriptionWords(d)]);
+  const pairs = [];
+  for (let i = 0; i < sets.length; i++) {
+    for (let j = i + 1; j < sets.length; j++) {
+      const [a, wa] = sets[i];
+      const [b, wb] = sets[j];
+      let shared = 0;
+      for (const w of wa) if (wb.has(w)) shared++;
+      const union = wa.size + wb.size - shared;
+      const score = union ? shared / union : 0;
+      if (score >= tripwire) pairs.push({ a, b, score });
+    }
+  }
+  return pairs.sort((x, y) => y.score - x.score);
+}
+
 function walk(dir, out) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     if (e.name === 'node_modules' || e.name === '.git') continue;
@@ -109,6 +138,11 @@ function main() {
     total += findings.length;
     for (const f of findings) console.log(`${s}: ${f}`);
   }
+  const descs = Object.fromEntries(skills.map((s) => [s, frontmatter(fs.readFileSync(path.join(SKILLS, s, 'SKILL.md'), 'utf8').replace(/\r\n/g, '\n')).description || '']));
+  for (const { a, b, score } of overlapPairs(descs)) {
+    total++;
+    console.log(`${a} + ${b}: descriptions share ${Math.round(score * 100)}% of their words (tripwire ${OVERLAP_TRIPWIRE * 100}%); the wrong one may fire. Name what sets each apart`);
+  }
   console.log(total ? `${total} finding(s) in ${skills.length} skills` : `ran on ${skills.length} skills, nothing found`);
   const hidden = scanHidden(path.join(__dirname, '..'));
   for (const f of hidden) console.error(`hidden-unicode: ${f}`);
@@ -117,4 +151,4 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { lintSkill, frontmatter, scanHidden };
+module.exports = { lintSkill, frontmatter, scanHidden, overlapPairs };

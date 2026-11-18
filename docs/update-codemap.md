@@ -39,13 +39,13 @@ When unsure → include. Over-inclusion costs tokens; under-inclusion silently r
 
 ## Per-language extraction
 
-Two extraction backends. **AST** languages are parsed by tree-sitter (`treesitter.mjs`, via the optional `web-tree-sitter` + `tree-sitter-wasms` deps) — uniform class graph (name / kind / extends / implements / fields), exports, and import edges. **Regex** languages use the hand-written extractors. TS and C# stay on regex (mature, no AST needed); the rest moved to AST to cover languages regex never reached.
+Two extraction backends. **AST** languages are parsed by tree-sitter (`treesitter.mjs`, via the optional `web-tree-sitter` + `tree-sitter-wasms` deps) — uniform class graph (name / kind / extends / implements / fields), exports, and import edges. The hand-written **regex** extractors are the fallback for TS, C# and C++ headers when the deps are missing.
 
 | Language | Files scanned | Backend | Extracted |
 | --- | --- | --- | --- |
 | C++ | `.h`, `.hpp`, `.hxx`, `.hh`, `.cpp`, `.cc`, `.cxx` | AST (regex fallback, headers) | classes/structs, fields, base classes, includes |
-| C# | `.cs` | regex | `public` types + members, namespace, `using` → namespace file edges |
-| TS/JS | `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs` | regex | top-level `export`s, `default:` separately, import edges |
+| C# | `.cs` | AST (regex fallback) | `public` types + members, namespace, `using` → namespace file edges |
+| TS/JS | `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs` | AST (regex fallback) | top-level `export`s, `default:` separately, import edges |
 | Python | `.py` | AST | classes, `self.` fields, base classes, `import`/`from` edges |
 | Java | `.java` | AST | classes/interfaces, extends/implements, fields, package imports |
 | Kotlin | `.kt`, `.kts` | AST | classes/interfaces, inheritance, properties, imports — *grammar best-effort* |
@@ -58,7 +58,7 @@ Two extraction backends. **AST** languages are parsed by tree-sitter (`treesitte
 
 **Optional deps.** Without `web-tree-sitter` + `tree-sitter-wasms` installed (`npm install` in `skills/update-codemap/`), the engine **degrades gracefully**: TS/C#/C++ still extract via regex, AST languages index as files with no class graph or edges, and a log line points to the install. `web-tree-sitter` is pinned `~0.25` — 0.26+ dropped the grammar ABI `tree-sitter-wasms@0.1.13` ships, and 0.24− is CommonJS-only.
 
-**Verification.** `skills/update-codemap/test/language-sweep.mjs` runs the real `update-codemap → visualise-codemap` pipeline on a fixture per language and asserts class / relation / field / edge / valid-mermaid. Must stay 45/45 (Swift file-edge is `n/a` — no file-level import syntax). Baseline at `test/baseline.json`; non-zero exit on regression.
+**Verification.** `skills/update-codemap/test/language-sweep.mjs` runs the real `update-codemap → visualise-codemap` pipeline on a fixture per language and asserts class / relation / field / edge / valid-mermaid. Must stay 96/96 (Swift file-edge is `n/a` — no file-level import syntax). Baseline at `test/baseline.json`; non-zero exit on regression. `test/accuracy.mjs` measures precision and recall of imports, refs, calls and symbols on small trap-filled projects (TS monorepo, Python package, Go, C#) against `test/accuracy-baseline.json`.
 
 ## Read cap
 

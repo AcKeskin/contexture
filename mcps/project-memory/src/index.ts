@@ -10,6 +10,14 @@ import {
 import { getMemorySchema, getMemoryHandler } from "./tools/get-memory.js";
 import { traceSchema, traceHandler } from "./tools/trace.js";
 import {
+  rankedMapSchema,
+  rankedMapHandler,
+  findSymbolSchema,
+  findSymbolHandler,
+  testsForSchema,
+  testsForHandler,
+} from "./tools/codemap-lookup.js";
+import {
   writeMemorySchema,
   writeMemoryHandler,
 } from "./tools/write-memory.js";
@@ -53,6 +61,27 @@ server.tool(
   "Trace transitive callers / callees of a symbol through the codemap's structural graph (call / file-dep / class edges). Answers 'who calls X', 'what does X reach', impact analysis. Syntactic / name-matched — best-effort, not type-resolved.",
   traceSchema,
   traceHandler,
+);
+
+server.tool(
+  "ranked_map",
+  "Map of the files most relevant to a task, ranked by personalized PageRank over the codemap's import and call graph, with each file's purpose and key symbols (line numbers), cut to a token budget. Pass the files and identifiers the task is about.",
+  rankedMapSchema,
+  rankedMapHandler,
+);
+
+server.tool(
+  "find_symbol",
+  "Where is X defined: file, line span, kind and whether it is exported, from the codemap. Exact name first, then case-insensitive, then partial.",
+  findSymbolSchema,
+  findSymbolHandler,
+);
+
+server.tool(
+  "tests_for",
+  "Which test files reach a file or symbol through imports, from the codemap. Use to pick the tests to run after a change.",
+  testsForSchema,
+  testsForHandler,
 );
 
 server.tool(

@@ -62,8 +62,8 @@ function pointer(root) {
   const stale = s && s.changed ? ` It is ${s.changed} changed file(s) behind, so check what it says against the code.` : '';
   return (
     `This project has a codemap at ${CODEMAP_REL}. Grep it instead of reading it whole: ` +
-    '`## Map` and `## Hubs` for where to start, `## Symbol index` for where a name is defined, ' +
-    `and the project-memory trace_path tool for callers/callees.${stale}`
+    '`## Map` and `## Hubs` for where to start, `## Symbol index` or the project-memory find_symbol tool for where a name is defined, ' +
+    `trace_path for callers/callees and tests_for for the tests that reach a file.${stale}`
   );
 }
 

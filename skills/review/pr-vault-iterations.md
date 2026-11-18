@@ -83,7 +83,7 @@ Every finding carries a status, stable with its ID across iterations:
 | `fixed` | **I verified it against the new diff** and cite the commit/hunk that resolved it |
 | `wontfix` | accepted as-is, with a reason |
 
-**Verify-before-fixed rule.** Never move a finding to `fixed` on the author's word or a GitHub "resolved" mark alone — that lands in `claimed` until *you* check the new diff and cite the evidence. Only evidence promotes `open`/`claimed` → `fixed`. **A review pass is not done while any finding is `open` or `claimed`** — that unverified-`claimed` bucket is exactly what otherwise slips through.
+**Verify-before-fixed rule.** What counts as proof, and what does not (a removed line, a rename, unrelated green tests, no new finding at that spot): [reconciliation.md](reconciliation.md), *What counts as fixed*. Never move a finding to `fixed` on the author's word or a GitHub "resolved" mark alone — that lands in `claimed` until *you* check the new diff and cite the evidence. Only evidence promotes `open`/`claimed` → `fixed`. **A review pass is not done while any finding is `open` or `claimed`** — that unverified-`claimed` bucket is exactly what otherwise slips through.
 
 ## Iteration delta in the body
 

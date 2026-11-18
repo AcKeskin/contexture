@@ -6,14 +6,15 @@
 //   node save-run.mjs <slug> json <tmp.json>   # v<N>.json + latest.json (N = next free)
 //   node save-run.mjs <slug> md <tmp.md>       # v<N>.md + latest.md (N = latest json's)
 //   node save-run.mjs <slug> latest <tmp.json> # latest.json only (--since working state)
+//   node save-run.mjs threat-model threat <tmp.md>  # threat-model.md (see threat-model.md)
 //
 // The temp file is deleted after a successful save. Prints the paths written.
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const [slug, kind, src] = process.argv.slice(2);
-if (!slug || !['json', 'md', 'latest'].includes(kind) || !src || /[\\/]|\.\./.test(slug)) {
-  console.error('usage: node save-run.mjs <slug> json|md|latest <tmp-file>');
+if (!slug || !['json', 'md', 'latest', 'threat'].includes(kind) || !src || /[\\/]|\.\./.test(slug)) {
+  console.error('usage: node save-run.mjs <slug> json|md|latest|threat <tmp-file>');
   process.exit(2);
 }
 
@@ -22,7 +23,7 @@ if (!existsSync(src)) {
   process.exit(1);
 }
 const text = readFileSync(src, 'utf8');
-if (kind !== 'md') {
+if (kind === 'json' || kind === 'latest') {
   try {
     JSON.parse(text);
   } catch (err) {
@@ -56,7 +57,8 @@ else if (kind === 'md') {
     process.exit(1);
   }
   written.push(put(`v${topJson}.md`), put('latest.md'));
-} else written.push(put('latest.json'));
+} else if (kind === 'threat') written.push(put('threat-model.md'));
+else written.push(put('latest.json'));
 
 if (existsSync(src)) rmSync(src);
 console.log(written.join('\n'));

@@ -23,6 +23,8 @@ Each hook bundle is an on/off option in `/plugin configure contexture@contexture
 
 For a small-context or local model, install `contexture-lite@contexture` instead. It keeps seven skills (prep, discover, deliver, review, capture, recap, systematic-debugging) and costs about 2.5K always-on tokens, against 7.4K for the full plugin. Install one of the two, not both.
 
+For a live view of the scope chain, add `contexture-ui@contexture` next to either one. It opens a **Work** pane (`/work`) with a **Plan** tab (`/chain`: each slug's stage, the next step, the running `/execute` step and the rules primed this session) and a **Files** tab (`/codemap`: `.claude/codemap.md` as a tree), plus a status line entry with a prompt-cache countdown and an expired-cache warning. It only reads `.claude/` and rule-prime's `~/.claude/session-state.json`. Claude Code only (terminal, desktop app, VS Code); see [mods/contexture-ui](mods/contexture-ui/README.md).
+
 **With bootstrap.** Clone, bootstrap, restart. Skills keep their bare names (`/review`).
 
 ```sh

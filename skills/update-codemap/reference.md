@@ -5,7 +5,7 @@ Read when the step you are on points here, or when something fails.
 ## What update-codemap does NOT do
 
 - Does not delete `.claude/codemap.md` when the project is empty (reports an empty codemap and stops).
-- Does not modify any file other than `.claude/codemap.md` and `.claude/codemap.dirty` (the latter is cleared after a successful write; `.claude/codemap.config.md` is read-only input).
+- Does not modify any file other than `.claude/codemap.md`, `.claude/codemap.json`, `.claude/codemap.cache.json` and `.claude/codemap.dirty` (the latter is cleared after a successful write; `.claude/codemap.config.md` is read-only input).
 - Does not render diagrams. Diagrams come from `visualise-codemap`, which consumes this skill's output.
 - Does not commit to git. User owns the commit.
 - Does not *modify* `.gitignore` (reading it per-directory is core walk behavior). Users choose their sync mode (local-only / git-tracked / external); the skill is indifferent to how the codemap itself is synced.

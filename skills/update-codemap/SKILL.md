@@ -16,12 +16,16 @@ Run the script from this skill's folder, never relative to CWD or a hardcoded pa
 ```sh
 # device-agnostic: resolve the skill's real dir (collapses the ~/.claude symlink), run the co-located script
 SKILL_DIR="${CLAUDE_SKILL_DIR}"
-node "$SKILL_DIR/codemap.mjs"                 # writes .claude/codemap.md
+node "$SKILL_DIR/codemap.mjs"                 # writes .claude/codemap.md + .claude/codemap.json
 node "$SKILL_DIR/codemap.mjs" --dry-run       # preview to stdout, no write
 node "$SKILL_DIR/codemap.mjs" --root <dir>    # explicit project root
-node "$SKILL_DIR/codemap.mjs" --map-tokens N  # cap doc size ~N tokens (trims index sections only)
+node "$SKILL_DIR/codemap.mjs" --map-tokens N  # cap codemap.md at ~N tokens (default 32000, 0 = no cap)
 node "$SKILL_DIR/codemap.mjs" --no-cache      # ignore the per-file cache, full re-parse
 ```
+
+**Two outputs.** `codemap.md` is the agent-facing document, kept under a size cap (default ~32k tokens: the class graph, call sequence, references and symbol index are trimmed, least-used first, each with a note; when the other sections alone are over the cap nothing is trimmed). `codemap.json` beside it holds everything uncapped for tools: per file its language, size, lines, content hash, purpose, outline (classes and functions with line ranges, exports with signatures), resolved imports and importers, the tests that reach it, and git activity; plus module edges, every class, every in-scope call edge and call sequence. The contexture-ui pane and visualise-codemap read it. Layout in [spec.md](spec.md) §9.
+
+**Speed.** Each file's syntax tree is walked once (`indexTree` in `treesitter.mjs`) and every extractor reads that list; with 64+ files to parse, worker threads (`extract-worker.mjs`, up to 8) parse them in parallel. A cold run on ~1,000 files takes about 2s.
 
 Regeneration is **incremental**: a per-file extraction cache at `.claude/codemap.cache.json` (gitignored, beside `codemap.md`) is validated by each file's size + mtime, so an unchanged file skips its read + parse (the tree-sitter pass is the expensive part). A changed/added/removed file re-extracts. `--no-cache` forces a cold rebuild; a bumped cache version or a corrupt cache file degrades safely to cold. The cache can only make a run slower on a miss, never produce a wrong map.
 
@@ -29,13 +33,13 @@ If the skill folder can't be found, the script also lives at the canonical `cont
 
 ### Multi-language extraction (tree-sitter)
 
-Class graph, exports, and import edges for **Python, Java, Kotlin, Swift, Rust, Go, and C++** come from tree-sitter (AST), via the optional deps in this skill's `package.json`. One-time install, from the skill folder:
+Class graph, exports, import edges and call edges for **TypeScript/JavaScript, C#, Python, Java, Kotlin, Swift, Rust, Go, C, C++, Ruby and PHP** come from tree-sitter (AST), via the optional deps in this skill's `package.json`. One-time install, from the skill folder:
 
 ```sh
 npm install --prefix "$SKILL_DIR"     # fetches web-tree-sitter + tree-sitter-wasms (~30 MB, gitignored)
 ```
 
-Without the deps the script **degrades gracefully**: TS/C#/C++ still extract via regex; the other languages index as files with no class graph or edges (a log line points here). TypeScript and C# always use the regex extractors (mature, no AST needed). Coverage is verified end-to-end by `test/language-sweep.mjs` — run it after any extractor change; it must pass with zero failures (currently 96/96 across 12 languages; Swift's file-edge is `n/a` — Swift has no file-level import syntax). The `web-tree-sitter` pin is `~0.25` deliberately: 0.26+ dropped the grammar ABI that `tree-sitter-wasms@0.1.13` ships, and 0.24− is CommonJS-only.
+Without the deps the script **degrades gracefully**: TS/C#/C++ still extract via regex; the other languages index as files with no class graph or edges (a log line points here). Coverage is verified end-to-end by `test/language-sweep.mjs` — run it after any extractor change; it must pass with zero failures (currently 96/96 across 12 languages; Swift's file-edge is `n/a` — Swift has no file-level import syntax). `test/accuracy.mjs` scores imports, refs, calls and symbols against hand-written ground truth (`test/accuracy-fixtures.mjs`) and fails when a score drops below `test/accuracy-baseline.json`; `--verbose` lists misses, `--update-baseline` records new scores. The `web-tree-sitter` pin is `~0.25` deliberately: 0.26+ dropped the grammar ABI that `tree-sitter-wasms@0.1.13` ships, and 0.24− is CommonJS-only.
 
 The script honors `$CLAUDE_PROJECT_DIR`, reads `.claude/codemap.config.md` (skip patterns, layers, auto-update toggle), clears `.claude/codemap.dirty` after a successful write, and prints the diff summary on stdout. Surface the diff summary to the user; do not paraphrase. If the script fails, the error message tells you which spec step it choked on — fix the input or extend the script.
 

@@ -1,0 +1,62 @@
+{
+  "ts-monorepo": {
+    "imports": {
+      "precision": 1,
+      "recall": 1
+    },
+    "refs": {
+      "precision": 1,
+      "recall": 1
+    },
+    "calls": {
+      "precision": 1,
+      "recall": 1
+    },
+    "symbols": {
+      "precision": 1,
+      "recall": 1
+    }
+  },
+  "python-pkg": {
+    "imports": {
+      "precision": 1,
+      "recall": 1
+    },
+    "calls": {
+      "precision": 0.833,
+      "recall": 1
+    },
+    "symbols": {
+      "precision": 1,
+      "recall": 1
+    }
+  },
+  "go-pkg": {
+    "imports": {
+      "precision": 1,
+      "recall": 1
+    },
+    "calls": {
+      "precision": 1,
+      "recall": 1
+    },
+    "symbols": {
+      "precision": 1,
+      "recall": 1
+    }
+  },
+  "csharp-ns": {
+    "imports": {
+      "precision": 1,
+      "recall": 1
+    },
+    "calls": {
+      "precision": 1,
+      "recall": 1
+    },
+    "symbols": {
+      "precision": 1,
+      "recall": 1
+    }
+  }
+}

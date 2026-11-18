@@ -48,8 +48,19 @@ const AGENT_ADDED = [
   ['agent-exfil', /\b(curl|wget|nc|Invoke-WebRequest)\b[^\n]*(\$\{?[A-Z_]*(TOKEN|KEY|SECRET|PASS)[A-Z_]*|@\.env\b|\benv\b\s*\||printenv)/i],
   ['agent-override', /ignore (all |any )?(previous|prior|above) instructions|do not (tell|inform|show) the user|without (asking|telling) the user|auto-?approve|skip (the )?confirmation|never ask for (permission|confirmation)/i],
   ['agent-remote-follow', /(fetch|download|read|curl)\b[^\n]{0,60}https?:\/\/[^\s)]+[^\n]{0,60}\b(follow|obey|execute|run)\b[^\n]{0,30}\binstructions?\b|follow (the|all|every) instructions? (at|from|in) https?:/i],
-  ['agent-encoded', /base64\s+(-d|--decode)[^\n]*\|\s*(ba|z)?sh\b|eval\s*\(\s*atob\s*\(|FromBase64String[^\n]*Invoke-Expression|\|\s*iex\b/i],
+  ['agent-encoded', /base64\s+(-d|--decode)[^\n]*\|\s*(ba|z)?sh\b|eval\s*\(\s*atob\s*\(|FromBase64String[^\n]*Invoke-Expression|\|\s*iex\b/i],  // From NVIDIA/SkillSpector's pattern list (Apache-2.0, read 2026-11-16).
+  ['agent-refusal-suppression', /\b(never|do not|don'?t|must not)\s+(refuse|decline)\b|\bno\s+(disclaimers?|caveats)\b|\bwithout\s+(any\s+)?(disclaimers?|caveats|safety (warnings?|notes?))\b|\b(never|do not|don'?t)\s+(add|include|give|mention)\s+(any\s+)?(disclaimers?|caveats|safety (warnings?|notes?))\b|\bcomply with (any|every|all) (requests?|instructions?)\b/i],
+  // A long run of spaces pushes the text after it out of view.
+  ['agent-whitespace-padding', /(^|\S)[ \t\u00A0]{80,}\S/],
+  ['agent-registry-change', /\bnpm\s+config\s+set\s+(@[\w-]+:)?registry\b|(^|[\s"'])(@[\w-]+:)?registry\s*=\s*\S|--registry[=\s]+https?:|--(extra-)?index-url[=\s]+\S|\bpip3?\s+install\b[^\n]*\s-i\s+https?:|\b(PIP_(EXTRA_)?INDEX_URL|UV_(EXTRA_)?INDEX_URL|UV_DEFAULT_INDEX|npm_config_registry|NPM_CONFIG_REGISTRY|YARN_NPM_REGISTRY_SERVER|BUN_CONFIG_REGISTRY)\b|\bnpmRegistryServer\s*:/i],
+  // Which model or provider runs, and so who bills.
+  ['agent-model-pin', /\b(ANTHROPIC_(BASE_URL|MODEL|SMALL_FAST_MODEL|DEFAULT_\w*MODEL|CUSTOM_HEADERS)|CLAUDE_CODE_(USE_BEDROCK|USE_VERTEX|SUBAGENT_MODEL)|OPENAI_(BASE_URL|API_BASE|MODEL))\b|"(model|apiKeyHelper)"\s*:|^\s*model:\s*\S|--model[\s=]+\S/],
 ];
+// Vertical padding: this many blank added lines before text hides it below the fold.
+const BLANK_RUN = 30;
+// Compiled Python shipped with a skill, plugin, hook or MCP server: code nobody can read in review.
+const COMPILED_PATH = /\.py[co]$|(^|\/)__pycache__\//;
+const AGENT_DIR = /(^|\/)(skills|plugins|hooks|agents|commands|mcps?|\.claude|\.claude-plugin)\//;
 const TEST_DECL = /^\s*(it|test|describe)\s*\(|^\s*def\s+test_|^\s*func\s+(Test\w+|test_\w+)\s*\(|^\s*\[(Test|Fact|Theory|TestMethod)\b|^\s*@Test\b|^\s*#\[test\]|^\s*fn\s+test_/;
 const LOOSER_UP = /\b(timeout|timeout_?ms|retries|retry|max_?retries|tolerance|epsilon|delta|jitter|max_?diff|maxDiff|rtol|atol|slow)\b/i;
 const LOOSER_DOWN = /\b(threshold|min_?score|minimum|min|coverage|required|fail_under|branches|lines|functions|statements|min_?coverage)\b/i;
@@ -83,6 +94,8 @@ export function parseDiff(text) {
       hunk = null;
     } else if (!cur) {
       continue;
+    } else if (raw.startsWith('deleted file mode')) {
+      cur.deleted = true;
     } else if (raw.startsWith('+++ ')) {
       const p = raw.slice(4).replace(/^b\//, '');
       if (p !== '/dev/null') cur.path = p;
@@ -120,9 +133,20 @@ export function scan(text) {
     const gatePath = kind !== 'product';
     if (gatePath) listed.push(f);
     const tag = (t, l) => tags.push({ tag: t, path: f.path, line: l.line, text: l.text.trim().slice(0, 160) });
-    if (AGENT_PATH.test(f.path)) {
-      agent.push(f);
-      for (const h of f.hunks) for (const l of h.add) for (const [t, re, only] of AGENT_ADDED) if ((!only || only.test(f.path)) && re.test(l.text)) tag(t, l);
+    const isAgent = AGENT_PATH.test(f.path);
+    const isCompiled = !f.deleted && COMPILED_PATH.test(f.path) && AGENT_DIR.test(f.path);
+    if (isAgent || isCompiled) agent.push(f);
+    if (isCompiled) tag('agent-compiled-code', { line: 1, text: 'compiled Python, not readable in review' });
+    if (isAgent) {
+      for (const h of f.hunks) {
+        let blanks = 0;
+        for (const l of h.add) {
+          for (const [t, re, only] of AGENT_ADDED) if ((!only || only.test(f.path)) && re.test(l.text)) tag(t, l);
+          if (!l.text.trim()) { blanks++; continue; }
+          if (blanks >= BLANK_RUN) tag('agent-whitespace-padding', { line: l.line, text: `${blanks} blank lines, then: ${l.text}` });
+          blanks = 0;
+        }
+      }
     }
     if (kind === 'snapshot' && !anyTestChanged) tag('snapshot-without-test', { line: f.hunks[0]?.start ?? 1, text: `+${f.added} -${f.removed}` });
     for (const h of f.hunks) {

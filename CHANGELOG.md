@@ -14,6 +14,117 @@ File-level changes per public snapshot. Curate freely — this is the human-faci
 
 
 
+
+## 2026-11-18 — New contexture-ui mod for the Claude app: a Work pane with Files, Plan, Changes, Problems and Agents tabs, a run bar of skill forms, a now line and a prompt-cache countdown; codemap.json with line ranges, tests per file and references, 10x faster cold runs; ranked_map, find_symbol and tests_for MCP tools; /execute drift and accept checks; /review saved threat model.
+
+_55 added, 39 changed, 0 removed._
+
+### Agents
+- changed `agents/security-reviewer.md`
+
+### Docs
+- changed `docs/mcp-memory.md`
+- changed `docs/update-codemap.md`
+
+### Hooks
+- changed `hooks/codemap-search-nudge.js`
+
+### MCP servers
+- added `mcps/project-memory/src/retrieval/codemap-json.ts`
+- added `mcps/project-memory/src/tools/codemap-lookup.ts`
+- added `mcps/project-memory/test/codemap-lookup.test.ts`
+- changed `mcps/project-memory/README.md`
+- changed `mcps/project-memory/dist/project-memory.cjs`
+- changed `mcps/project-memory/src/index.ts`
+- changed `mcps/project-memory/src/retrieval/graph.ts`
+- changed `mcps/project-memory/src/tools/trace.ts`
+
+### Other
+- added `mods/contexture-ui/.claude-plugin/plugin.json`
+- added `mods/contexture-ui/README.md`
+- added `mods/contexture-ui/hooks/agents-tab.tsx`
+- added `mods/contexture-ui/hooks/agents.ts`
+- added `mods/contexture-ui/hooks/cache.ts`
+- added `mods/contexture-ui/hooks/chain.ts`
+- added `mods/contexture-ui/hooks/changes-tab.tsx`
+- added `mods/contexture-ui/hooks/codemap.ts`
+- added `mods/contexture-ui/hooks/diff.ts`
+- added `mods/contexture-ui/hooks/files-tab.tsx`
+- added `mods/contexture-ui/hooks/focus-look.ts`
+- added `mods/contexture-ui/hooks/forms.ts`
+- added `mods/contexture-ui/hooks/git.ts`
+- added `mods/contexture-ui/hooks/hooks.json`
+- added `mods/contexture-ui/hooks/load.ts`
+- added `mods/contexture-ui/hooks/make-colors.d.ts`
+- added `mods/contexture-ui/hooks/make-colors.js`
+- added `mods/contexture-ui/hooks/now-band.tsx`
+- added `mods/contexture-ui/hooks/now.ts`
+- added `mods/contexture-ui/hooks/plan-tab.tsx`
+- added `mods/contexture-ui/hooks/problems-tab.tsx`
+- added `mods/contexture-ui/hooks/problems.ts`
+- added `mods/contexture-ui/hooks/register.tsx`
+- added `mods/contexture-ui/hooks/reply.ts`
+- added `mods/contexture-ui/hooks/run-bar.tsx`
+- added `mods/contexture-ui/hooks/work-open.ts`
+- added `mods/contexture-ui/hooks/work-pane.tsx`
+- added `mods/contexture-ui/tests/agents.test.ts`
+- added `mods/contexture-ui/tests/cache.test.ts`
+- added `mods/contexture-ui/tests/chain.test.ts`
+- added `mods/contexture-ui/tests/codemap.test.ts`
+- added `mods/contexture-ui/tests/diff.test.ts`
+- added `mods/contexture-ui/tests/fixtures.ts`
+- added `mods/contexture-ui/tests/forms.test.ts`
+- added `mods/contexture-ui/tests/now.test.ts`
+- added `mods/contexture-ui/tests/pane.test.tsx`
+- added `mods/contexture-ui/tests/problems.test.ts`
+- added `mods/contexture-ui/types/index.d.ts`
+- changed `.claude-plugin/marketplace.json`
+- changed `README.md`
+- changed `scripts/lint-skills.js`
+- changed `scripts/lint-skills.test.js`
+
+### Skills
+- added `skills/draft-plan/assets/feedback-page.html`
+- added `skills/draft-plan/feedback-page.md`
+- added `skills/draft-plan/feedback-page.mjs`
+- added `skills/draft-plan/feedback-page.test.mjs`
+- added `skills/review/threat-model.md`
+- added `skills/update-codemap/extract-worker.mjs`
+- added `skills/update-codemap/project-paths.mjs`
+- added `skills/update-codemap/refs.mjs`
+- added `skills/update-codemap/test/accuracy-baseline.json`
+- added `skills/update-codemap/test/accuracy-fixtures.mjs`
+- added `skills/update-codemap/test/accuracy.mjs`
+- added `skills/update-codemap/test/codemap-json.test.mjs`
+- added `skills/update-codemap/test/project-paths.test.mjs`
+- added `skills/update-codemap/test/refs.test.mjs`
+- changed `skills/draft-plan/SKILL.md`
+- changed `skills/draft-plan/templates.md`
+- changed `skills/execute/SKILL.md`
+- changed `skills/execute/delegation.md`
+- changed `skills/execute/reference.md`
+- changed `skills/review/SKILL.md`
+- changed `skills/review/angles.md`
+- changed `skills/review/gate-scan.mjs`
+- changed `skills/review/gate-scan.test.mjs`
+- changed `skills/review/gates.md`
+- changed `skills/review/persist.md`
+- changed `skills/review/pr-vault-iterations.md`
+- changed `skills/review/reconciliation.md`
+- changed `skills/review/save-run.mjs`
+- changed `skills/update-codemap/SKILL.md`
+- changed `skills/update-codemap/codemap.mjs`
+- changed `skills/update-codemap/reference.md`
+- changed `skills/update-codemap/spec.md`
+- changed `skills/update-codemap/treesitter.mjs`
+- changed `skills/visualise-codemap/spec.md`
+- changed `skills/visualise-codemap/visualise-codemap.mjs`
+- changed `skills/write/SKILL.md`
+- changed `skills/write/assets/write-page.html`
+- changed `skills/write/modes.md`
+- changed `skills/write/prep.mjs`
+- changed `skills/write/render-page.test.mjs`
+
 ## 2026-11-13 — Diagrams on review and design-proposal pages get zoom, pan and a full-screen view that fits the diagram; review, write and design-proposal pages get a page zoom control.
 
 _2 added, 8 changed, 0 removed._

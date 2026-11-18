@@ -12,7 +12,10 @@ Tools over `~/.claude/projects/<slug>/memory/` and its siblings:
 | `discover` | Ranked retrieval over the full memory tree (scope / relevance / keyword match). Mirrors the `/discover` skill's contract. |
 | `recent_sessions` | Last N session rollups for the calling project, newest first. |
 | `get_memory` | Fetch a single memory by its frontmatter `name` slug. |
-| `trace_path` | Callers / callees of a symbol through the codemap graph. |
+| `trace_path` | Callers / callees of a symbol through the codemap graph. Reads `codemap.json` when present (every edge), else `codemap.md`. |
+| `ranked_map` | Files most relevant to a task: personalized PageRank over the import and call graph from `codemap.json`, seeded by the task's files and identifiers, with purpose and symbol lines, cut to a token budget (default 1024). |
+| `find_symbol` | Where a name is defined: file, line span, kind, exported. |
+| `tests_for` | Test files that reach a file or symbol through imports. |
 | `write_memory` | Append a scratch observation. Canonical writes are refused; `/capture` owns them. |
 | `write_handoff` / `list_handoffs` / `claim_handoff` | Cross-tool handoffs in `<slug>/handoffs/`. One agent leaves a note (next steps, what failed, open questions); the next claims it. Each claim is a rename, so a handoff is claimed once. |
 
@@ -46,15 +49,19 @@ Restart Claude Code, then `/mcp` should list `project-memory`.
 
 ```
 src/
-├── index.ts                  stdio entrypoint, registers the three tools
+├── index.ts                  stdio entrypoint, registers the tools
 ├── tools/
 │   ├── discover.ts           full retrieval contract
 │   ├── recent-sessions.ts    last-N session rollups
-│   └── get-memory.ts         fetch by name slug
+│   ├── get-memory.ts         fetch by name slug
+│   ├── trace.ts              trace_path over the codemap graph
+│   └── codemap-lookup.ts     ranked_map, find_symbol, tests_for
 ├── retrieval/
 │   ├── load.ts               file-system scan over <memoryRoot>
 │   ├── score.ts              scope / relevance / keyword ranking
-│   └── render.ts             output formatting (per `/deliver` contract shape)
+│   ├── render.ts             output formatting (per `/deliver` contract shape)
+│   ├── graph.ts              codemap edge graphs + traversal
+│   └── codemap-json.ts       codemap.json lookups + ranking
 └── lib/
     ├── paths.ts              cwd → memory root resolution
     └── frontmatter.ts        gray-matter parse + normalisation

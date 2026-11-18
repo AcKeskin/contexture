@@ -122,9 +122,9 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
 
 9. **Review gate — present the plan and confirm before writing.** The plan is the last cheap checkpoint before `/execute` ("plan changes are cheap, implementation changes are not"). Do **not** write the file silently; present the drafted plan and ask the user how to proceed. For a non-trivial plan, offer a [human-view](../human-view/SKILL.md) projection alongside — *"want the plain-prose approval view? (/human-view)"* — so approval reads the decisions, not the artefact format. Pick the presentation mode by plan size:
 
-   - **Inline (default, small plans ≤ 6 steps).** Render the full plan body — Context, the Done-criteria echo, and every numbered step (goal / files / outcome / verification / serves-criteria) — in the conversation. Then ask: *accept / edit / cold / reject*.
-   - **Outline-first (large plans > 6 steps).** Render a compact outline — one line per step (`Step N: <goal>  → serves [criteria]`) — then ask: *"Show the full plan inline, write it to disk for you to open, or edit a step? (accept / show / write / edit / cold / reject)"*. Pull the full body inline only if the user asks for it.
-   - **Ask-only (terse preference — `--quiet` flag, or a stored `preferences/`-tier verbosity preference).** A single prompt: *"Plan drafted: K steps, pinned to spec v<M>. Review inline, or write and open? (review / write / reject)"*. Honour the stated preference for minimal conversation while still **asking** rather than silently writing.
+   - **Inline (default, small plans ≤ 6 steps).** Render the full plan body — Context, the Done-criteria echo, and every numbered step (goal / files / outcome / verification / serves-criteria) — in the conversation. Then ask: *accept / edit / page / cold / reject*.
+   - **Outline-first (large plans > 6 steps).** Render a compact outline — one line per step (`Step N: <goal>  → serves [criteria]`) — then ask: *"Show the full plan inline, write it to disk for you to open, or edit a step? (accept / show / write / edit / page / cold / reject)"*. Pull the full body inline only if the user asks for it.
+   - **Ask-only (terse preference — `--quiet` flag, or a stored `preferences/`-tier verbosity preference).** A single prompt: *"Plan drafted: K steps, pinned to spec v<M>. Review inline, or write and open? (review / write / reject)"*.
 
    Before asking, list every step's **Smaller option** line together, so the user can take or refuse each one (`take 2`, `keep all`). Skip when there are none.
 
@@ -132,6 +132,7 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
 
    - **accept** (or "write") → proceed to step 10 and write the file exactly as specified. The confirmed plan is what lands.
    - **edit** → the user describes changes in prose ("drop step 3", "swap 4 and 5", "step 2 should also touch `foo.ts`"). Apply them to the in-conversation draft, re-present per the same mode, and loop until accept or reject.
+   - **page** → notes page: [feedback-page.md](feedback-page.md). Pasted `Plan feedback:` text is an **edit**.
    - **cold** → run the cold read (step 8d), then re-present.
    - **reject** → discard the draft. Write nothing. Acknowledge (*"Plan discarded — nothing written."*) and stop.
 
@@ -139,7 +140,7 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
 
 10. **Write the plan file.** Path: `.claude/plans/<slug>/v<N>.md`. Reached only on **accept** in step 9.
 
-   Use the frontmatter and body template in [templates.md](templates.md): `spec:` pins the spec version, `executor: cheap` only in strict mode, Done-criteria echoed verbatim and numbered, and each step's fields as drafted in step 8. **`--task` plans:** `spec: none — task description in Context`; such a plan is exempt from the stale-pin check and the done-criteria echo.
+   Use the frontmatter and body template in [templates.md](templates.md): `spec:` pins the spec version, `base:` pins the commit, `executor: cheap` only in strict mode, Done-criteria echoed verbatim and numbered, and each step's fields as drafted in step 8. `--task` plans: see templates.md.
 
 11. **Update previous active plan** (when N > 1). Versioning follows spec's canonical contract ([spec SKILL.md § Versioning contract](../spec/SKILL.md)): mark the previous version superseded with a `superseded_by` pointer and regenerate the INDEX.
 

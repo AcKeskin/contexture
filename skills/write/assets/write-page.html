@@ -190,7 +190,7 @@ const TONES = [
   { label: "My style", get ask() { return styleAsk() + " Keep the register."; } },
   // Keep each ask in step with modes.md (render-page.test.mjs checks the labels).
   { label: "Humanize", ask: "Remove AI-sounding texture by density: puffery, stock AI words, not-X-but-Y, stacked threes, filler connectives, chatbot residue. Keep every claim and the register's native conventions (headers, lists, imperative mood)." },
-  { label: "Plain", ask: "Use short common words and short sentences. Keep terms of art." },
+  { label: "Plain", ask: "Use plain, common words with one meaning each. One idea per sentence. Instructions 20 words at most, other sentences 25. Condition first, then the command. Active voice; name who acts. Simple tenses. Put the action in the verb (decide, not make a decision). Keep articles. One term per thing. No semicolons; no however, furthermore or moreover. Keep terms of art and the source's certainty." },
   { label: "Shorter", ask: "Cut words and clauses. Keep every claim." },
   { label: "Formal", ask: "Use a more formal register, still clear. Keep plain verbs where they work." },
   { label: "Strict spec", ask: "Make the wording precise: one requirement per sentence, MUST/SHOULD/MAY in caps. Keep the normative strength exactly: never add a MUST, SHOULD or MAY that is not there, and never turn SHOULD into MUST or back." },

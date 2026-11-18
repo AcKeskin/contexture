@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync, mkdtempSync, existsSync, readdirSync } fro
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { render, validate, lexicon, save, text, splitFile, SKEL } from './render-page.mjs';
-import { split, sentences, merge, check, textOf, TERM_RE } from './prep.mjs';
+import { split, sentences, merge, check, textOf, TERM_RE, isInstruction } from './prep.mjs';
 
 const example = () => JSON.parse(readFileSync(new URL('./assets/example-drafts.json', import.meta.url), 'utf8'));
 const dataOf = (html) => JSON.parse(/const DATA = (.*);\n/.exec(html)[1]);
@@ -107,6 +107,14 @@ test('split keeps the file shape and locks code, tables and front matter', () =>
 
 test('split --all flags every sentence', () => {
   assert.equal(split('One. Two.', { all: true }).flagged.length, 2);
+});
+
+test('instructions over 20 words are long; descriptions get 25', () => {
+  const ins = 'Run the build script from the project root and then copy every file in the output folder to the shared drive before noon.';
+  const desc = 'The build script reads the config from the project root and then copies every file in the output folder to the drive.';
+  assert.ok(isInstruction(ins) && isInstruction('- If it fails, stop.') && !isInstruction(desc));
+  const r = split(`# T\n\n${ins}\n\n${desc}\n`);
+  assert.deepEqual(r.flagged.map((f) => f.text), [ins]);
 });
 
 test('merge adds options by ref, picks them, locks parts; bad refs fail', () => {

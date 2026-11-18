@@ -19,3 +19,12 @@ Not needed during a run. How execute relates to the other organs, and what to ch
 - **Execute keeps re-prepping between every step** — boundary detection is over-triggering (files share a parent directory within 2 levels). Flag via `/capture`.
 - **Subagent delegation asks on every step** — more than one step is tagged `[delegate]` or `[research]`. That's by design. If the user finds it noisy, they decline individually; don't auto-change the criteria silently. Note that `[mechanical]` tier routing does *not* ask — if you are being prompted per step, the steps are tagged for delegation, not routing.
 - **User-attested verification loop** — if a user-attested step fails and the user picks "fix and retry," the skill must re-verify with the same user-attestation, not advance on author's word.
+
+## What execute does not do
+
+- Does not draft plans (plan's job).
+- Does not load the architectural rules itself (prep does, via 3a).
+- Does not run review or capture (separate user-invoked organs).
+- Does not save state between invocations. If the user aborts mid-run, re-running `/execute --from N` is how to resume. No hidden progress file; after compaction the compact-snapshot hook restores the last verified step from the ✓ lines.
+- Does not trust subagent self-reports — every step still goes through local verification (3d).
+- Does not auto-confirm done-criteria assessment (4a). The user is the final judge of whether the spec's intent was actually achieved. Per-step verification passing is necessary but not sufficient.

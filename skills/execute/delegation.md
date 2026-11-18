@@ -1,6 +1,6 @@
 # execute: routed and delegated steps
 
-Read this when a step is tagged `[mechanical]`, `[delegate]` or `[research]`, and again when such a step fails verification. It lives outside SKILL.md so the main loop stays inside what Claude Code keeps after compaction.
+Read this when a step is tagged `[mechanical]`, `[delegate]` or `[research]`, when such a step returns, and when it fails verification. It lives outside SKILL.md so the main loop stays inside what Claude Code keeps after compaction.
 
 ## Delegation and routing decision
 
@@ -27,8 +27,8 @@ On `y`: invoke the `Task` tool (if available) with:
   > Step N is tagged `[delegate]` but the plan gives the subagent no Current-state excerpt or Exemplar to work from. Delegating blind risks off-idiom work. Options: (1) run it in-context here instead, (2) re-run `/draft-plan <slug>` to fill in self-containment, (3) delegate anyway.
 
   Default to running in-context (option 1) unless the user picks otherwise — blind delegation is the failure mode this gate catches.
-- Expect a summary back.
-- Integrate the summary; do not accept the subagent's claim that work is done until verification (3d) passes.
+- Expect a summary back. Ask for any deviation from the step to be named in it.
+- Run the accept check below, then verification (3d). Do not accept the subagent's claim that work is done until both pass.
 
 On `n` (or Task tool unavailable): run the step in the current context. No silent fallback — if the tool is missing, say so.
 
@@ -41,6 +41,18 @@ On a mismatch, do not improvise and do not let the remote executor reconcile it 
 > Step N's Current-state excerpt no longer matches `<file:line>` (the plan was drafted against different content). Running it here instead of routing it.
 
 The main context can see the drift and judge it; a cheap or isolated executor working from a stale excerpt produces a confidently wrong diff. Escalation is the cheap outcome — a wrong diff that passes a stale check is not.
+
+## Accept check
+
+Run this when a step comes back from the cheap tier or a subagent, before 3d. An executor can pass a check by gaming it, so the check looks at what it changed, not at its summary.
+
+Before dispatch, note `git status --porcelain`. On return:
+
+1. **Scope.** Run `git status --porcelain` and `git diff --stat` again. Every path that changed since dispatch must be in the step's Files. A path outside them fails the check, unless the summary names it with a reason and the reason holds. An unnamed change outside Files always fails.
+2. **Tests.** Read each test the executor added or changed. It must run the code the step changed and assert a result the Outcome needs. It fails the check if it asserts nothing, asserts only that no error was thrown, mocks the thing under test, or would still pass if that code returned nothing (the vacuous test in `universal/test-quality`). Name the test and what it misses.
+3. **Deviations.** A deviation named in the summary is judged on its merits. One you find in the diff that the summary does not name fails the check.
+
+A failed accept check is a failed verification for the step. It goes through *When a routed step fails* below, with the failing path or test as the guidance. Say the result in the step's line: *"Accept check: 3 files, all in Files; 2 new tests assert the result."*
 
 ## When a routed step fails
 

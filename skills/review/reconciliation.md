@@ -9,7 +9,7 @@ If a prior review artefact exists for the resolved scope, treat it as a baseline
 When `latest.md` exists:
 
 1. **Set Run mode = repeat** in the report header. Show the baseline filename and date.
-2. **Read the baseline.** Parse its findings table to extract `{id, file, line, category, what, status}` for every prior finding. `status` ∈ `{open, RESOLVED, WONT_FIX}` from the prior frontmatter / inline tags.
+2. **Read the baseline.** Parse its findings table to extract `{id, file, line, category, what, status}` for every prior finding. `status` ∈ `{open, RESOLVED, WONT_FIX, INCONCLUSIVE}`; a baseline `INCONCLUSIVE` is checked again like `open` from the prior frontmatter / inline tags.
 3. **Match new-run findings against baseline.** Two findings match when category is identical and either:
    - file path + line are within ±5 lines (line drift tolerance for edits above), or
    - file path + a near-identical `what` string (Levenshtein under ~30% of the shorter — concept-level match for code that moved).
@@ -17,7 +17,7 @@ When `latest.md` exists:
    - `CARRIED` — present in baseline (open) and present in this run; reuse the baseline `id` so the artefact diff is meaningful.
    - `NEW` — present in this run, no baseline match. Assign a fresh `F<NNN>`, continuing from the highest baseline ID + 1.
    - `WONT_FIX` — present in baseline tagged `WONT_FIX` and still present in code. Reuse the baseline `id`. Suppress from Quick wins. List at the bottom of the report under "Carried as won't-fix" with the prior reason quoted.
-5. **Compute resolved.** Findings present in baseline (open) with no match in this run are tagged `RESOLVED`. List them in a "Resolved since last run" section before "Things that look bad but are actually fine":
+5. **Compute resolved.** A baseline (open) finding with no match in this run is not fixed yet; check it against the code (see *What counts as fixed* below). With proof it is `RESOLVED`; without proof it is `INCONCLUSIVE`. List resolved ones in a "Resolved since last run" section before "Things that look bad but are actually fine", each with its proof:
 
 ```
 ## Resolved since last run (X)
@@ -27,13 +27,27 @@ When `latest.md` exists:
 
 Resolved findings are not silently dropped — surfacing them is half the point of repeat mode.
 
+`INCONCLUSIVE` findings keep their id and go in a "Could not confirm fixed (X)" section, one line each on what is missing. They count as open for the verdict. The next run checks them again.
+
+#### What counts as fixed
+
+A finding is fixed only when the code it named no longer fails the way it said. Cite the proof: the hunk that changes that behavior, or a test that runs the failing case and passes.
+
+These are not proof on their own:
+- The line, function or file is gone. The code may have moved or been renamed; search for it (the function name, the call, the `what` text) and check it where it now lives.
+- Tests pass, but none of them runs the failing case.
+- This run found nothing at that spot. No finding is not a fix.
+- The author says it is fixed, or a review thread is marked resolved.
+
+Moved code that still fails is `CARRIED` at the new location, same id. If you cannot run or read far enough to decide, it is `INCONCLUSIVE`, never `RESOLVED`.
+
 **Receipts.** `receipts.mjs` stores `.claude/reviews/<scope-slug>/receipt.json`: a sha256 of each file the last run read (scope files and loaded rule files). Hashes, not `git diff` or mtimes: git needs a committed baseline, and mtimes lie after a backup restore or a cloud sync, which would let changed content skip review. The failure left is the safe one: a missing or unreadable receipt reads as "everything changed".
 
 On a repeat run, before the angles:
 
 1. `check` prints one line per file. A rule file in `CHANGED`/`GONE`, a differing angle list, `--full`, or `RECEIPT: NONE` → review the whole scope as usual.
 2. Otherwise run the angles over `CHANGED` + `NEW` files only. Callers and callees of those files may still be read for context; a finding must cite a `CHANGED` or `NEW` file to count as new.
-3. Baseline open findings on `UNCHANGED` files → `CARRIED` (same id), not re-verified, unless the finding cites another file that is `CHANGED` or `GONE`: re-verify that one. Findings on `GONE` files → `RESOLVED` with the note "file removed".
+3. Baseline open findings on `UNCHANGED` files → `CARRIED` (same id), not re-verified, unless the finding cites another file that is `CHANGED` or `GONE`: re-verify that one. Findings on `GONE` files: search for the code elsewhere first (see *What counts as fixed*). Found → re-verify it there. Not found anywhere → `RESOLVED` with the note "file removed, code not found elsewhere".
 4. Header line: *"Receipt: N of M files unchanged since <stamp date>, not re-read."*
 
 When no `latest.md` exists, set Run mode = fresh, skip this step, and proceed to §5 with all IDs assigned in scan order from F001.

@@ -8,6 +8,11 @@
 // Same regex as write-page.html (render-page.test.mjs keeps them equal).
 export const TERM_RE = /\b(?:MUST NOT|MUST|SHOULD NOT|SHOULD|MAY|REQUIRED|SHALL NOT|SHALL|OPTIONAL)\b|\b[A-Za-z]+_[A-Za-z0-9_]+\b|\b[a-z]+[A-Z][A-Za-z0-9]*\b|\b[A-Z][a-z0-9]+[A-Z][A-Za-z0-9]*\b|\w+(?:->|::)\w+|\b\d[\d.,]*%?|\[\d+(?:[,–-]\s*\d+)*\]|\\cite\{[^}]+\}|`[^`]+`/g;
 export const LONG = 25; // words; longer sentences get flagged
+export const LONG_INSTRUCTION = 20; // words, for a sentence that tells the reader to do something (STE80 S2)
+// First words that mark an instruction: an imperative verb, or a condition before one.
+// From ste80-humanizer's ste_check.py (MIT), plus never/always/avoid/check/ensure.
+const INSTRUCTION_OPENERS = new Set(('add apply attach avoid call check click close configure connect copy create delete disconnect do don\'t download edit ensure enter find get give install keep let make move never always open pass put read remove replace restart run select send set start stop turn type update upload use write if when before after to').split(' '));
+export const isInstruction = (t) => INSTRUCTION_OPENERS.has(((t.replace(/^[\s>*_#\d.)-]+/, '').match(/[A-Za-z']+/) || [''])[0]).toLowerCase());
 
 export function terms(t, keep = []) {
   const out = new Set((t.match(TERM_RE) || []).map((x) => x.replace(/[.,]$/, '')));
@@ -129,7 +134,7 @@ export function split(src, { lex = [], all = false, title } = {}) {
       const t = s.options[0].text, why = [];
       const h = hits(re, t);
       if (h.length) why.push('ai: ' + h.join(', '));
-      if (words(t) > LONG) why.push('long');
+      if (words(t) > (isInstruction(t) ? LONG_INSTRUCTION : LONG)) why.push('long');
       if (all && !why.length) why.push('all');
       if (why.length) flagged.push({ ref: `${p.id}.${k + 1}`, label: p.label, why, text: t });
     });

@@ -10,12 +10,15 @@ Read at step 10, before writing the plan.
    version: <N>
    status: active
    spec: ../../specs/<slug>/v<M>.md   # pin to the spec version this plan is built against
+   base: <short sha>                  # `git rev-parse --short HEAD` when the plan is written; /execute checks the plan's Files for changes since
    supersedes: v<N-1>.md              # omit on v1
    executor: main                     # or `cheap` — see step 8b; omit on main for brevity
    created: YYYY-MM-DD
    description: <one-line — what this plan accomplishes>
    ---
    ```
+
+   **`base:`** is the commit the plan was read against. Omit it outside a git repo. If a plan file already has uncommitted edits, say so at the gate: `/execute` will list them as changed.
 
    **`--task` plans (no spec):** write `spec: none — task description in Context` and put the task description in the plan's Context section. A plan whose `spec:` is `none` is exempt from the stale-pin check and the done-criteria echo — there is no pinned version to go stale and no criteria list to read.
 
