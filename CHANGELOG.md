@@ -16,6 +16,16 @@ File-level changes per public snapshot. Curate freely — this is the human-faci
 
 
 
+
+## 2026-11-18 — The contexture-ui manifest now lives in marketplace.json, so the Claude app no longer skips contexture and contexture-lite when it syncs the marketplace.
+
+_0 added, 2 changed, 1 removed._
+
+### Other
+- changed `.claude-plugin/marketplace.json`
+- changed `.claude-plugin/plugin.json`
+- removed `mods/contexture-ui/.claude-plugin/plugin.json`
+
 ## 2026-11-18 — Plugin manifests now carry the release version, so Claude Code shows it and offers updates; README covers the Work pane tabs with screenshots, codemap.json and the new MCP tools.
 
 _3 added, 4 changed, 0 removed._

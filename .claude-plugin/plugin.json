@@ -1,6 +1,6 @@
 {
   "name": "contexture",
-  "version": "0.5.6",
+  "version": "0.5.7",
   "displayName": "Contexture",
   "description": "Architectural rules primed before coding, a review pass after, safety hooks, and a spec-to-ship workflow.",
   "author": {
