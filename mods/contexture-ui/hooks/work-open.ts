@@ -28,3 +28,8 @@ export async function openWorkUnasked($: EngineInterface): Promise<void> {
   if ((await $.store.get(CLOSED_KEY)) === true) return
   void $.ui.open({ id: PANE, title: TITLE })
 }
+
+// Moves the open pane to a tab.
+export async function showTab($: EngineInterface, at: WorkTab): Promise<void> {
+  await update($, tab, () => at)
+}

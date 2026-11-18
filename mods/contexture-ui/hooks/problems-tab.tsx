@@ -5,7 +5,8 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, RenderElement, ResolveInput, SessionMessage } from 'claude-code'
 
 import type { CheckRun, Problem } from '../types'
-import { allProblems, dispatchText, fixText, latestRuns, RUN_CHECKS, summary } from './problems'
+import { card, chip, fill, isRich } from './look'
+import { allProblems, counts, dispatchText, fixText, latestRuns, RUN_CHECKS, summary } from './problems'
 import type { BashUse } from './problems'
 import { fillReply } from './reply'
 
@@ -53,29 +54,63 @@ function byFile(list: readonly Problem[]): Array<[string, Problem[]]> {
   return [...groups.entries()]
 }
 
+// For the tab label.
+export async function problemsCount($: EngineInterface): Promise<number> {
+  return allProblems(await read($, runs)).length
+}
+
+// Failing tests are the one solid red fill in the pane; type errors and
+// lint are amber chips. A file's problems share a card.
 export async function problemsTab($: EngineInterface, e: ResolveInput<'Pane'>): Promise<RenderElement> {
-  const { Box, Button, Text } = $.ui.resolve(e)
+  const els = $.ui.resolve(e)
+  const { Box, Button, Text } = els
+  const rich = isRich(e)
   const all = await read($, runs)
   const picks = await read($, picked)
   const list = allProblems(all)
   const chosen = list.filter(p => picks.includes(p.key))
+  const heads = counts(all)
   const toggle = (key: string) => update($, picked, l => (l.includes(key) ? l.filter(k => k !== key) : [...l, key]))
+  const isClean = all.length > 0 && heads.length === 0 && !all.some(r => r.isFailed)
 
   return (
-    <Box flexDirection="column">
-      <Box>
-        <Text weight="semibold">{summary(all)}</Text>
+    <Box flexDirection="column" gap={rich ? 1 : 0}>
+      <Box justifyContent="space-between" gap={1} alignItems="center">
+        <Box gap={1} flexWrap="wrap" alignItems="center">
+          {heads.length === 0 ? (
+            <Text weight="semibold" color={isClean ? 'success' : undefined}>
+              {summary(all)}
+            </Text>
+          ) : (
+            heads.map(h =>
+              h.kind === 'test' ? fill(els, h.text.replace(/ tests?$/, ''), 'bad') : chip(els, rich, h.text, 'warn'),
+            )
+          )}
+        </Box>
         <Button key="run-checks" label="Run checks" onPress={() => fillReply($, RUN_CHECKS)} />
       </Box>
       {byFile(list).map(([file, group]) => (
-        <Box flexDirection="column" marginTop={1}>
-          <Text weight="semibold">{file}</Text>
+        <Box flexDirection="column" {...card(rich)}>
+          <Text weight="semibold" mono wrap="truncate-end">
+            {file}
+          </Text>
           {group.map(p => (
-            <Box flexDirection="column">
-              <Text>{p.title}</Text>
-              {p.detail === '' ? null : <Text dimColor>{p.detail}</Text>}
-              <Box>
-                <Button key={`fix-${p.key}`} label="Fix this" onPress={() => fillReply($, fixText(p))} />
+            <Box gap={1} justifyContent="space-between" marginTop={1}>
+              <Box gap={1} flexShrink={1}>
+                <Text color={p.kind === 'test' ? 'error' : 'warning'}>{p.kind === 'test' ? '✕' : '!'}</Text>
+                <Box flexDirection="column" flexShrink={1}>
+                  <Text weight="semibold" wrap="wrap">
+                    {p.title}
+                  </Text>
+                  {p.detail === '' ? null : (
+                    <Text dimColor wrap="wrap">
+                      {p.detail}
+                    </Text>
+                  )}
+                </Box>
+              </Box>
+              <Box gap={1} flexShrink={0}>
+                <Button key={`fix-${p.key}`} label="Fix" onPress={() => fillReply($, fixText(p))} />
                 <Button
                   key={`pick-${p.key}`}
                   label={picks.includes(p.key) ? 'Picked' : 'Pick'}
@@ -88,12 +123,12 @@ export async function problemsTab($: EngineInterface, e: ResolveInput<'Pane'>): 
         </Box>
       ))}
       {chosen.length === 0 ? null : (
-        <Box marginTop={1}>
+        <Box>
           <Button key="dispatch" label={`Dispatch ${chosen.length} picked`} onPress={() => fillReply($, dispatchText(chosen))} />
         </Box>
       )}
       {all.length === 0 ? null : (
-        <Text dimColor>
+        <Text size="caption" dimColor>
           from {all.map(r => short(r.command)).join(' and ')}
         </Text>
       )}

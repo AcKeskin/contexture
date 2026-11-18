@@ -180,8 +180,8 @@ export function visibleRows(
           : c.isUnmapped
             ? git === 'D'
               ? 'deleted'
-              : 'not in codemap'
-            : [c.importers > 0 ? `← ${c.importers}` : '', c.purpose].filter(s => s !== '').join('  '),
+              : 'not in codemap yet'
+            : [c.purpose, c.importers > 0 ? `used by ${c.importers}` : ''].filter(s => s !== '').join(' · '),
         // Changed-only holds every folder open, so folders don't toggle there.
         canOpen: c.isDir ? !marks.isChangedOnly && c.children.length > 0 : c.exports.length > 0,
         ...(touch ? { touch } : {}),
@@ -199,6 +199,21 @@ export function visibleRows(
   }
   walk(root, 0)
   return rows
+}
+
+// Files whose path holds the query, any case, in tree order: at most `limit`.
+export function filterFiles(root: TreeNode, query: string, limit: number): string[] {
+  const q = query.trim().toLowerCase()
+  const found: string[] = []
+  const walk = (node: TreeNode): void => {
+    for (const c of node.children) {
+      if (found.length >= limit) return
+      if (c.isDir) walk(c)
+      else if (c.path.toLowerCase().includes(q)) found.push(c.path)
+    }
+  }
+  if (q !== '') walk(root)
+  return found
 }
 
 // A tool's absolute path as the codemap spells it, or undefined outside root.

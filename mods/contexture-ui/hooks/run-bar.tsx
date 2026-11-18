@@ -1,5 +1,5 @@
-// The run bar on top of the Work pane: one button per big skill, each
-// opening a short form. A form writes the command into the reply box and
+// The run row under the Work pane's tabs: a Run dropdown for every big skill,
+// with Execute and Review as buttons, each opening a short form. A form writes the command into the reply box and
 // never sends it.
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, RenderElement, ResolveInput } from 'claude-code'
@@ -22,6 +22,8 @@ import {
 } from './forms'
 import type { Fields } from './forms'
 import { fillReply } from './reply'
+
+const QUICK: readonly FormId[] = ['execute', 'review']
 
 // Same atom as register.tsx's and plan-tab.tsx's: keep the declarations alike.
 const chain = atom({ plugin: 'contexture-ui', key: 'chain' } as const, { slugs: [], scopes: [] } as ChainView, {
@@ -82,19 +84,31 @@ async function submit($: EngineInterface, id: FormId, defaults: Fields, typed: F
 export async function runBar($: EngineInterface, e: ResolveInput<'Pane'>): Promise<RenderElement> {
   const { Box, Button, Input, Select, Text } = $.ui.resolve(e)
   const open = await read($, form)
-  const buttons = (
-    <Box flexWrap="wrap">
-      {FORMS.map(f => (
+  // One Run dropdown for every skill, plus the two used most as buttons.
+  const row = (
+    <Box gap={1} flexWrap="wrap" alignItems="center">
+      <Select
+        key="run"
+        label="Run"
+        options={[{ value: '', label: 'pick a skill' }, ...FORMS.map(f => ({ value: f.id, label: f.label }))]}
+        value={open ?? ''}
+        onSelect={value => {
+          const id = FORMS.find(f => f.id === value)?.id
+          if (id === undefined) void update($, form, () => null)
+          else if (id !== open) void toggle($, id)
+        }}
+      />
+      {QUICK.map(id => (
         <Button
-          key={`form-${f.id}`}
-          label={f.label}
-          variant={f.id === open ? 'primary' : 'secondary'}
-          onPress={() => toggle($, f.id)}
+          key={`form-${id}`}
+          label={FORMS.find(f => f.id === id)?.label ?? id}
+          variant={id === open ? 'primary' : 'secondary'}
+          onPress={() => toggle($, id)}
         />
       ))}
     </Box>
   )
-  if (open === null) return buttons
+  if (open === null) return row
 
   const slugs = (await read($, chain)).slugs.map(s => s.slug)
   const now = await read($, contract)
@@ -127,8 +141,14 @@ export async function runBar($: EngineInterface, e: ResolveInput<'Pane'>): Promi
       }}
     />
   )
-  const pick = (name: string, options: ReadonlyArray<{ value: string; label: string }>) => (
-    <Select key={`${open}-${name}`} options={options} value={values[name] ?? options[0]?.value} onSelect={set(name)} />
+  const pick = (name: string, options: ReadonlyArray<{ value: string; label: string }>, label?: string) => (
+    <Select
+      key={`${open}-${name}`}
+      label={label}
+      options={options}
+      value={values[name] ?? options[0]?.value}
+      onSelect={set(name)}
+    />
   )
 
   const body: Record<FormId, RenderElement> = {
@@ -136,7 +156,7 @@ export async function runBar($: EngineInterface, e: ResolveInput<'Pane'>): Promi
       <Box flexDirection="column">
         {input('goal', 'Goal', 'Ship SSE retry')}
         {input('units', 'Units, one per line or split with ; (empty: Claude splits)', 'server: server/; web: web/', 3)}
-        {pick('placement', PLACEMENTS)}
+        {pick('placement', PLACEMENTS, 'Units run in')}
       </Box>
     ),
     dispatch: (
@@ -147,24 +167,24 @@ export async function runBar($: EngineInterface, e: ResolveInput<'Pane'>): Promi
     ),
     execute: (
       <Box flexDirection="column">
-        {slugs.length > 0 ? pick('slug', slugs.map(s => ({ value: s, label: s }))) : input('slug', 'Slug', 'auth')}
+        {slugs.length > 0 ? pick('slug', slugs.map(s => ({ value: s, label: s })), 'Slug') : input('slug', 'Slug', 'auth')}
         {input('from', 'From step (empty: the start)', '3')}
-        {pick('strategy', STRATEGY_OPTIONS)}
+        {pick('strategy', STRATEGY_OPTIONS, 'Strategy')}
       </Box>
     ),
     review: (
       <Box flexDirection="column">
-        {pick('target', TARGETS)}
+        {pick('target', TARGETS, 'Review')}
         {(values.target ?? 'local') === 'local' ? null : input('value', 'Path, ref or PR number (empty PR: this branch)', '')}
-        {pick('angles', ANGLES)}
+        {pick('angles', ANGLES, 'Angles')}
         {values.angles === 'custom' ? input('custom', 'Angles, comma separated', 'performance,security') : null}
-        {pick('output', OUTPUTS)}
+        {pick('output', OUTPUTS, 'Show')}
       </Box>
     ),
-    checkpoint: <Box flexDirection="column">{pick('scope', SCOPES)}</Box>,
+    checkpoint: <Box flexDirection="column">{pick('scope', SCOPES, 'Scope')}</Box>,
     capture: (
       <Box flexDirection="column">
-        {pick('kind', CAPTURE_KINDS)}
+        {pick('kind', CAPTURE_KINDS, 'Kind')}
         {input('text', 'One line', 'retries need a jittered backoff')}
       </Box>
     ),
@@ -199,10 +219,14 @@ export async function runBar($: EngineInterface, e: ResolveInput<'Pane'>): Promi
 
   return (
     <Box flexDirection="column">
-      {buttons}
-      <Box flexDirection="column" marginTop={1}>
+      {row}
+      <Box flexDirection="column" marginTop={1} borderStyle="round" borderDimColor paddingX={1}>
+        <Box justifyContent="space-between">
+          <Text weight="semibold">{FORMS.find(f => f.id === open)?.label}</Text>
+          <Text dimColor>fills the reply box</Text>
+        </Box>
         {body[open]}
-        <Box>
+        <Box marginTop={1} gap={1}>
           <Button key={`fill-${open}`} label="Fill reply box" variant="primary" onPress={send} />
           <Button key="form-cancel" label="Cancel" onPress={() => update($, form, () => null)} />
         </Box>

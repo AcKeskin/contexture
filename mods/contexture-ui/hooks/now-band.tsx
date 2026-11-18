@@ -2,7 +2,7 @@
 // turn to its end. It hooks no tool.call: a hook there turns off a Bash
 // call's move to the background.
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, On } from 'claude-code'
+import type { EngineInterface, On, RenderElement, ResolveInput } from 'claude-code'
 
 import type { NowState } from '../types'
 import { fromToolUses, nowParts, toolSummary } from './now'
@@ -77,4 +77,29 @@ export function registerNowBand(on: On, isShown: boolean): void {
       </Box>
     )
   })
+}
+
+// The same line at the top of the Work pane, while a turn runs: amber when it
+// waits on you. Framed where a frame costs no rows (not the terminal).
+export async function nowStrip($: EngineInterface, e: ResolveInput<'Pane'>): Promise<RenderElement | null> {
+  const state = await read($, now)
+  if (state === null) return null
+  const { Box, Text } = $.ui.resolve(e)
+  const parts = nowParts(state, await read($, nowAt))
+  const tone = state.kind === 'you' ? 'warning' : 'suggestion'
+  const frame = e.surface === 'terminal' ? {} : { borderStyle: 'round', borderColor: tone, paddingX: 1 }
+  return (
+    <Box {...frame} justifyContent="space-between" gap={1}>
+      <Box flexShrink={1} gap={1}>
+        <Text color={tone}>●</Text>
+        <Text weight="semibold">{parts.label}</Text>
+        <Text dimColor wrap="truncate-end">
+          {parts.what}
+        </Text>
+      </Box>
+      <Text color={tone} tabular>
+        {parts.clock}
+      </Text>
+    </Box>
+  )
 }

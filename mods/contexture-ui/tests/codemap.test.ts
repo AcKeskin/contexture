@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { parseCodemap, parseCodemapJson, relativePath, visibleRows, withUnmapped } from '../hooks/codemap'
+import { filterFiles, parseCodemap, parseCodemapJson, relativePath, visibleRows, withUnmapped } from '../hooks/codemap'
 import { parseGitStatus } from '../hooks/git'
 import { CODEMAP, CODEMAP_JSON } from './fixtures'
 
@@ -36,7 +36,7 @@ test('rows open folders and files on demand and carry marks', () => {
   ])
   const chain = rows.find(r => r.key === 'hooks/chain.ts')
   expect(chain?.touch).toBe('edit')
-  expect(chain?.detail).toBe('← 2  Scope-chain state')
+  expect(chain?.detail).toBe('Scope-chain state · used by 2')
   expect(rows.find(r => r.key === 'hooks/load.ts')?.canOpen).toBe(false)
 })
 
@@ -59,7 +59,7 @@ test('codemap.json gives exports with their line', () => {
   const rows = visibleRows(tree.root, ['hooks', 'hooks/chain.ts'], {})
   expect(rows.map(r => `${r.label}${r.detail === '' ? '' : ' ' + r.detail}`)).toEqual([
     'hooks/ (2)',
-    'chain.ts ← 1  Scope-chain state',
+    'chain.ts Scope-chain state · used by 1',
     'parseIndex :3',
     'load.ts Reads files',
   ])
@@ -91,7 +91,7 @@ test('changed-only keeps marked files, opens their folders and adds files the co
   const rows = visibleRows(root, [], { 'README.md': 'read' }, marks)
   expect(rows.map(r => `${r.depth}:${r.label}:${r.git ?? ''}`)).toEqual(['0:hooks/ (3):', '1:load.ts:M', '1:new.ts:?', '0:README.md:'])
   expect(rows.find(r => r.key === 'hooks/load.ts')?.isStale).toBe(true)
-  expect(rows.find(r => r.key === 'hooks/new.ts')?.detail).toBe('not in codemap')
+  expect(rows.find(r => r.key === 'hooks/new.ts')?.detail).toBe('not in codemap yet')
   expect(rows[0]?.canOpen).toBe(false)
   // The parsed tree is left as it was.
   expect(tree.root.children[0]?.children.map(c => c.name)).toEqual(['sub', 'chain.ts', 'load.ts'])
@@ -102,4 +102,11 @@ test('a changed folder (a submodule) stays in changed-only', () => {
   const tree = parseCodemap(CODEMAP)
   const rows = visibleRows(tree.root, [], {}, { git: { 'hooks/sub': 'M' }, stale: [], isChangedOnly: true })
   expect(rows.map(r => `${r.label}:${r.git ?? ''}`)).toEqual(['hooks/ (3):', 'sub/ (1):M'])
+})
+
+test('filterFiles finds paths by any part, any case, up to the limit', () => {
+  const root = parseCodemap(CODEMAP).root
+  expect(filterFiles(root, 'HOOKS/CHAIN', 10)).toEqual(['hooks/chain.ts'])
+  expect(filterFiles(root, 'hooks/', 1)).toHaveLength(1)
+  expect(filterFiles(root, '  ', 10)).toEqual([])
 })

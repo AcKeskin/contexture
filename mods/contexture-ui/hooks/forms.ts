@@ -20,7 +20,7 @@ export const FORMS: ReadonlyArray<{ id: FormId; label: string }> = [
 ]
 
 export const PLACEMENTS: readonly Option[] = [
-  { value: 'auto', label: 'placement: let Claude pick' },
+  { value: 'auto', label: 'let Claude pick' },
   { value: 'worktree', label: 'a worktree per unit' },
   { value: 'shared', label: 'shared tree' },
 ]
@@ -46,14 +46,14 @@ export const OUTPUTS: readonly Option[] = [
   { value: 'page', label: 'review page' },
 ]
 export const SCOPES: readonly Option[] = [
-  { value: 'auto', label: 'scope: auto' },
+  { value: 'auto', label: 'auto' },
   { value: 'diff', label: 'diff' },
   { value: 'module', label: 'module' },
   { value: 'corpus', label: 'corpus' },
 ]
 // The kinds /capture knows; `auto` leaves the pick to it.
 export const CAPTURE_KINDS: readonly Option[] = [
-  { value: 'auto', label: 'kind: let Claude pick' },
+  { value: 'auto', label: 'let Claude pick' },
   { value: 'lesson', label: 'lesson' },
   { value: 'decision', label: 'decision' },
   { value: 'architectural-rule', label: 'architectural rule' },

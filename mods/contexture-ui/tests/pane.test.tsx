@@ -98,10 +98,10 @@ test('the pane shows each stage and skips archived slugs, on every surface', asy
 
   for (const surface of ['terminal', 'desktop', 'vscode', 'mobile'] as const) {
     const ui = await $.ui.mount({ ...PANE, surface })
-    expect((await ui.find({ type: 'Text', text: /^plan/ }))?.text).toBe('plan      present v1')
-    expect((await ui.find({ key: 'next-auth' }))?.props).toMatchObject({ label: 'next: /execute auth' })
+    expect((await ui.find({ type: 'Text', text: /plan v1 ✓/ }))?.text).toMatch(/^\[?plan v1 ✓\]?$/)
+    expect((await ui.find({ key: 'run-auth' }))?.props).toMatchObject({ label: 'Run plan' })
     expect(await ui.find({ type: 'Text', text: /^old$/ })).toBeUndefined()
-    expect((await ui.find({ type: 'Text', text: /rules primed/ }))?.text).toBe('rules primed: universal, typescript')
+    expect((await ui.find({ type: 'Text', text: /Rules primed/ }))?.text).toBe('Rules primed: universal, typescript')
     await ui.unmount()
   }
 })
@@ -133,7 +133,18 @@ test('a turn with a step line moves the status line and execute row', async ($, 
 
   expect(status.at(-1)).toBe('auth step 1/2 · rules universal, typescript')
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
-  expect((await ui.find({ type: 'Text', text: /^execute/ }))?.text).toBe('execute   present step 1/2')
+  expect((await ui.find({ type: 'Text', text: /^execute/ }))?.text).toBe('execute 1/2')
+  await ui.unmount()
+})
+
+test('a minimized desktop widget shows one line: slug, steps and next', async ($, on) => {
+  engine(on, [], [], '✓ Step 1 complete: Add token store. Verified by tests.')
+  await $.session.start({ cwd: ROOT, surface: 'terminal', isInteractive: true })
+  await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' })
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop', props: { ...PANE.props, placement: 'widget' } })
+  expect(await ui.find({ type: 'Text', text: 'auth · 1/2 steps · next /execute' })).toBeDefined()
+  expect(await ui.find({ key: 'tab-plan' })).toBeUndefined()
   await ui.unmount()
 })
 
@@ -207,7 +218,8 @@ test('the Files tab opens folders on press and marks edited files', async ($, on
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ ...PANE, surface })
     await ui.press({ key: 'tab-files' })
-    expect((await ui.find({ type: 'Text', text: /files/ }))?.text).toContain('5 files · updated 2026-11-18')
+    expect(await ui.find({ type: 'Text', text: 'ALL FILES · 5' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^codemap 2026-11-18/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /Reads files/ })).toBeUndefined()
     await ui.press({ key: 'hooks' })
     expect(await ui.find({ type: 'Text', text: /Reads files/ })).toBeDefined()
@@ -218,6 +230,35 @@ test('the Files tab opens folders on press and marks edited files', async ($, on
   }
 })
 
+test('the Files tab lists touched files in a card and filters paths', async ($, on) => {
+  const fills: string[] = []
+  engine(on, [], [])
+  on('tool.call', () => ({ result: {} }))
+  on('prompt.read', () => ({ value: { text: '', cursor: 0 } }))
+  on('prompt.fill', (_, e) => {
+    fills.push(e.text)
+    return { isFilled: true, text: '', cursor: 0 }
+  })
+  await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
+  await $.tool.call({ tool: 'Read', file_path: '/repo/README.md' })
+  await $.tool.call({ tool: 'Edit', file_path: '/repo/hooks/load.ts', old_string: 'a', new_string: 'b' })
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  await ui.press({ key: 'tab-files' })
+  expect(await ui.find({ type: 'Text', text: 'CLAUDE TOUCHED · 2 FILES' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'Edited' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'Read' })).toBeDefined()
+  // No hunks in Changes for it (the stand-in Edit wrote nothing): it asks about it instead.
+  await ui.press({ key: 'touched-hooks/load.ts' })
+  expect(fills).toEqual(['About hooks/load.ts: '])
+  await ui.input({ key: 'file-filter', text: 'CHAIN.ts', kind: 'change' })
+  expect(await ui.find({ type: 'Text', text: 'hooks/' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /Reads files/ })).toBeUndefined()
+  await ui.input({ key: 'file-filter', text: '', kind: 'change' })
+  expect(await ui.find({ type: 'Text', text: /^ALL FILES/ })).toBeDefined()
+  await ui.unmount()
+})
+
 test('/codemap opens the Work pane on Files, /chain on Plan', async ($, on) => {
   const opened: string[] = []
   engine(on, opened, [])
@@ -225,11 +266,11 @@ test('/codemap opens the Work pane on Files, /chain on Plan', async ($, on) => {
   for (const surface of ['terminal', 'desktop'] as const) {
     expect((await $.command.run({ ...RUN, command: 'codemap' })).text).toBe('Work pane opened on Files.')
     let ui = await $.ui.mount({ ...PANE, surface })
-    expect(await ui.find({ type: 'Text', text: /· ● edited/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /^ALL FILES/ })).toBeDefined()
     await ui.unmount()
     expect((await $.command.run({ ...RUN, command: 'chain' })).text).toBe('Work pane opened on Plan.')
     ui = await $.ui.mount({ ...PANE, surface })
-    expect((await ui.find({ key: 'next-auth' }))?.props).toMatchObject({ label: 'next: /execute auth' })
+    expect((await ui.find({ key: 'run-auth' }))?.props).toMatchObject({ label: 'Run plan' })
     await ui.unmount()
   }
   expect((await $.command.run({ ...RUN, command: 'work' })).text).toBe('Work pane opened.')
@@ -242,7 +283,7 @@ test('/work keeps the tab the pane was on', async ($, on) => {
   await $.command.run({ ...RUN, command: 'codemap' })
   await $.command.run({ ...RUN, command: 'work' })
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
-  expect(await ui.find({ type: 'Text', text: /· ● edited/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^ALL FILES/ })).toBeDefined()
   await ui.unmount()
 })
 
@@ -269,7 +310,7 @@ test('the Files tab picks up a background refresh after the turn', async ($, on)
   await clock.advance(3_000)
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   await ui.press({ key: 'tab-files' })
-  expect((await ui.find({ type: 'Text', text: /files/ }))?.text).toContain('5 files')
+  expect(await ui.find({ type: 'Text', text: 'ALL FILES · 5' })).toBeDefined()
   await ui.unmount()
 })
 
@@ -278,7 +319,7 @@ test('the Files tab reads codemap.json when there is one', async ($, on) => {
   await $.session.start({ cwd: ROOT, surface: 'terminal', isInteractive: true })
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   await ui.press({ key: 'tab-files' })
-  expect((await ui.find({ type: 'Text', text: /files/ }))?.text).toContain('2 files')
+  expect(await ui.find({ type: 'Text', text: 'ALL FILES · 2' })).toBeDefined()
   await ui.unmount()
 })
 
@@ -423,7 +464,7 @@ test('the Files tab marks git changes and filters to changed files', async ($, o
     expect(await ui.find({ type: 'Text', text: /Reads files/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /Scope-chain state/ })).toBeUndefined()
     expect(await ui.find({ type: 'Text', text: /not in codemap/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: 'M ' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'M' })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /README/ })).toBeUndefined()
     await ui.press({ key: 'changed-only' })
     expect(await ui.find({ type: 'Text', text: /README/ })).toBeDefined()
@@ -456,8 +497,11 @@ test('Plan buttons put /execute in the reply box, never send it', async ($, on) 
 
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ ...PANE, surface })
+    expect(await ui.find({ type: 'Text', text: /^✓ 1/ })).toBeUndefined()
+    await ui.press({ key: 'done-auth' })
     expect((await ui.find({ type: 'Text', text: /^✓ 1/ }))?.text).toBe('✓ 1 Add token store')
-    expect((await ui.find({ key: 'next-auth' }))?.props).toMatchObject({ label: 'next: /execute auth --from 2' })
+    await ui.press({ key: 'done-auth' })
+    expect((await ui.find({ key: 'run-auth' }))?.props).toMatchObject({ label: 'Run from step 2' })
     await ui.press({ key: 'run-auth' })
     await ui.select({ key: 'strategy', value: 'subtask' })
     await ui.press({ key: 'from-auth-2' })
@@ -469,7 +513,7 @@ test('Plan buttons put /execute in the reply box, never send it', async ($, on) 
   // A command the person typed is theirs: kept, with a toast.
   draft = '/review --pr 77'
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
-  await ui.press({ key: 'next-auth' })
+  await ui.press({ key: 'run-auth' })
   await ui.unmount()
   expect(fills).toHaveLength(4)
   expect(toasts).toEqual(['The reply box has your text. Clear it, then press again.'])
@@ -485,8 +529,78 @@ test('a redrafted plan drops the steps seen against the old version', async ($, 
   files['/repo/.claude/plans/auth/v2.md'] = files['/repo/.claude/plans/auth/v1.md'] ?? ''
   await $.command.run({ ...RUN, command: 'chain' })
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
-  expect(await ui.find({ type: 'Text', text: /^✓ 1/ })).toBeUndefined()
-  expect((await ui.find({ key: 'next-auth' }))?.props).toMatchObject({ label: 'next: /execute auth' })
+  expect(await ui.find({ key: 'done-auth' })).toBeUndefined()
+  expect((await ui.find({ key: 'run-auth' }))?.props).toMatchObject({ label: 'Run plan' })
+  await ui.unmount()
+})
+
+test('a spec with questions that block the plan keeps the next: advice, not Run', async ($, on) => {
+  const files = {
+    ...FILES,
+    '/repo/.claude/specs/auth/v2.md': '---\ndone_criteria:\n  - login works\n---\n- Which store? blocks: plan\n',
+  }
+  engine(on, [], [], '', files)
+  await $.session.start({ cwd: ROOT, surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect(await ui.find({ type: 'Text', text: 'spec v2 open questions' })).toBeDefined()
+  expect(await ui.find({ key: 'run-auth' })).toBeUndefined()
+  expect((await ui.find({ key: 'next-auth' }))?.props.label).toMatch(/^next: (?!\/execute)/)
+  await ui.unmount()
+})
+
+test('the Plan tab holds one plan in a card; the others are one row each', async ($, on) => {
+  const files = {
+    ...FILES,
+    '/repo/.claude/specs/INDEX.md': '| Slug | Current | Status |\n|---|---|---|\n| auth | v2 | active |\n| billing | v1 | active |',
+    '/repo/.claude/specs/billing/v1.md': '---\ndone_criteria:\n  - invoices\n---\n',
+    '/repo/.claude/plans/INDEX.md':
+      '| Slug | Current | Status | Spec |\n|---|---|---|---|\n| auth | v1 | active | v2 |\n| billing | v1 | active | v1 |',
+    '/repo/.claude/plans/billing/v1.md': '---\nspec: ../../specs/billing/v1.md\n---\n## Step 1: Add invoice table\n',
+  }
+  engine(on, [], [], '', files)
+  await $.session.start({ cwd: ROOT, surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect(await ui.find({ key: 'slug-auth' })).toBeUndefined()
+  expect((await ui.find({ key: 'slug-billing' }))?.props).toMatchObject({ label: '▸ billing' })
+  expect(await ui.find({ type: 'Text', text: 'not started' })).toBeDefined()
+  expect(await ui.find({ key: 'run-billing' })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /^0 of \d+ steps$/ })).toBeDefined()
+
+  await ui.press({ key: 'slug-billing' })
+  expect(await ui.find({ key: 'run-billing' })).toBeDefined()
+  expect(await ui.find({ key: 'run-auth' })).toBeUndefined()
+  expect((await ui.find({ key: 'slug-auth' }))?.props).toMatchObject({ label: '▸ auth' })
+  await ui.unmount()
+})
+
+test('Changes shows one file open at a time; Keep all clears the tab', async ($, on) => {
+  const files: Record<string, string> = { ...FILES, '/repo/src/a.ts': 'one\n', '/repo/src/c.ts': 'three\n' }
+  engine(on, [], [], '', files)
+  on('fs.exists', (_, e) => ({ value: files[e.path] !== undefined }))
+  on('tool.call', (_, e) => {
+    const input = e as unknown as Record<string, string>
+    const path = input.file_path ?? ''
+    files[path] = (files[path] ?? '').replace(input.old_string ?? '', input.new_string ?? '')
+    return { result: {} }
+  })
+  await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
+  await $.tool.call({ tool: 'Edit', file_path: '/repo/src/a.ts', old_string: 'one', new_string: 'ONE' })
+  await $.tool.call({ tool: 'Edit', file_path: '/repo/src/c.ts', old_string: 'three', new_string: '3' })
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  await ui.press({ key: 'tab-changes' })
+  expect(await ui.find({ key: 'show-src/a.ts' })).toBeUndefined()
+  expect(await ui.find({ key: 'show-src/c.ts' })).toBeDefined()
+  await ui.press({ key: 'show-src/c.ts' })
+  expect(await ui.find({ key: 'show-src/a.ts' })).toBeDefined()
+  expect(await ui.find({ key: 'show-src/c.ts' })).toBeUndefined()
+  // Once the shown file has no hunks left, the first with hunks shows.
+  await ui.press({ key: `keep-src/c.ts-${hunkId('three\n', '3\n')}` })
+  expect(await ui.find({ key: 'show-src/a.ts' })).toBeUndefined()
+  expect(await ui.find({ type: 'Code' })).toBeDefined()
+  await ui.press({ key: 'keep-all' })
+  expect(await ui.find({ type: 'Text', text: 'No edits by Claude this session.' })).toBeDefined()
+  expect(files['/repo/src/c.ts']).toBe('3\n')
   await ui.unmount()
 })
 
@@ -521,8 +635,10 @@ test('the Changes tab shows hunks Claude made, with Keep, Undo and Comment', asy
 
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   await ui.press({ key: 'tab-changes' })
-  expect((await ui.find({ type: 'Text', text: /^2 files/ }))?.text).toBe('2 files +2 −1')
-  expect(await ui.find({ type: 'Text', text: 'src/b.ts (new file)' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '2 files' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '+2 −1' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'src/b.ts' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: 'new file' })).toBeDefined()
   const code = await ui.find({ type: 'Code' })
   expect(code?.props).toMatchObject({ format: 'diff' })
   const id = hunkId('one\ntwo\nthree\n', 'one\nTWO\nthree\n')
@@ -602,7 +718,8 @@ test('Problems lists failures from runs Claude did; Fix and Dispatch fill the re
 
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   await ui.press({ key: 'tab-problems' })
-  expect(await ui.find({ type: 'Text', text: '2 failing tests, 1 type error' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: ' 2 failing ' })).toMatchObject({ props: { backgroundColor: 'error' } })
+  expect(await ui.find({ type: 'Text', text: '1 type error' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: 'server/retry.ts' })).toBeDefined()
   expect((await ui.find({ type: 'Text', text: /^from / }))?.text).toBe('from bun test and npx tsc --noEmit')
   await ui.press({ key: 'fix-type|server/retry.ts:7|line 7 · TS2322' })
@@ -714,19 +831,19 @@ test('the run bar opens a form that fills the reply box and closes', async ($, o
   await ui.press({ key: 'fill-execute' })
   expect(await ui.find({ key: 'fill-execute' })).toBeUndefined()
 
-  await ui.press({ key: 'form-capture' })
+  await ui.select({ key: 'run', value: 'capture' })
   await ui.press({ key: 'fill-capture' })
   await ui.input({ key: 'capture-text', text: 'retries need jitter', kind: 'change' })
   await ui.press({ key: 'fill-capture' })
 
-  await ui.press({ key: 'form-autonomy' })
+  await ui.select({ key: 'run', value: 'autonomy' })
   expect(await ui.find({ type: 'Text', text: 'Task contract: effort thorough' })).toBeDefined()
   await ui.select({ key: 'autonomy-ask', value: 'until-blocked' })
   await ui.press({ key: 'fill-autonomy' })
 
   // A draft of the person's own keeps the form open with what was typed.
   draft = 'my own words'
-  await ui.press({ key: 'form-capture' })
+  await ui.select({ key: 'run', value: 'capture' })
   await ui.input({ key: 'capture-text', text: 'keep this', kind: 'change' })
   await ui.press({ key: 'fill-capture' })
   expect((await ui.find({ key: 'capture-text' }))?.props).toMatchObject({ value: 'keep this' })

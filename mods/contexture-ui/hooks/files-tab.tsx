@@ -1,10 +1,12 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, On, RenderElement, ResolveInput } from 'claude-code'
 
-import type { CodemapTree, CodemapView, GitMark, GitView, Touch, TreeNode } from '../types'
-import { parseCodemap, parseCodemapJson, relativePath, visibleRows, withUnmapped } from './codemap'
+import type { CodemapTree, CodemapView, FileChange, GitMark, GitView, Touch, TreeNode } from '../types'
+import { filterFiles, parseCodemap, parseCodemapJson, relativePath, visibleRows, withUnmapped } from './codemap'
 import { parseGitStatus } from './git'
-import { openWork } from './work-open'
+import { card, chip, isRich, label } from './look'
+import { fillReply } from './reply'
+import { openWork, showTab } from './work-open'
 
 const codemap = atom({ plugin: 'contexture-ui', key: 'codemap' } as const, { mtimeMs: 0 } as CodemapView, {
   shape: 'codemap-2',
@@ -16,6 +18,15 @@ const touched = atom({ plugin: 'contexture-ui', key: 'touched' } as const, {} as
 const NO_GIT: GitView = { marks: {}, stale: [] }
 const git = atom({ plugin: 'contexture-ui', key: 'git' } as const, NO_GIT, { shape: 'git-1' })
 const isChangedOnly = atom({ plugin: 'contexture-ui', key: 'isChangedOnly' } as const, false, { shape: 'changedOnly-1' })
+const fileFilter = atom({ plugin: 'contexture-ui', key: 'fileFilter' } as const, '', { shape: 'file-filter-1' })
+// Same atoms as changes-tab.tsx's: keep the declarations alike.
+const changes = atom({ plugin: 'contexture-ui', key: 'changes' } as const, [] as FileChange[], { shape: 'changes-1' })
+const shownChange = atom({ plugin: 'contexture-ui', key: 'shownChange' } as const, null as string | null, {
+  shape: 'shown-change-1',
+})
+// Rows in the touched card and in a filter's result, at most.
+const MAX_TOUCHED = 12
+const MAX_FOUND = 40
 const EDIT_TOOLS = ['Write', 'Edit', 'NotebookEdit'] as const
 // Files stat'ed for the stale mark, at most: a huge change set skips the rest.
 const MAX_STAT = 200
@@ -143,54 +154,155 @@ export function registerCodemap(on: On): void {
   })
 }
 
-// The Work pane's Files tab.
+// A path with its folder dimmed, as one Button's children.
+function pathParts(path: string): { dir: string; name: string } {
+  const at = path.lastIndexOf('/')
+  return { dir: path.slice(0, at + 1), name: path.slice(at + 1) }
+}
+
+// The Work pane's Files tab: a card of the files Claude touched this
+// session, a filter, then the codemap tree.
 export async function filesTab($: EngineInterface, e: ResolveInput<'Pane'>): Promise<RenderElement> {
-  const { Box, Button, Text } = $.ui.resolve(e)
+  const els = $.ui.resolve(e)
+  const { Box, Button, Input, Text } = els
+  const rich = isRich(e)
   const view = await read($, codemap)
+  const marks = await read($, touched)
+  const edits = await read($, changes)
+  const query = await read($, fileFilter)
+  const touchedCard = touchedFiles()
   if (view.error) return <Text color="error">{view.error}</Text>
-  if (!view.tree) return <Text dimColor>No .claude/codemap.md yet. Run /update-codemap.</Text>
+  if (!view.tree) {
+    return (
+      <Box flexDirection="column">
+        {touchedCard}
+        <Text dimColor>No .claude/codemap.md yet. Run /update-codemap.</Text>
+      </Box>
+    )
+  }
   const status = await read($, git)
   const changedOnly = await read($, isChangedOnly)
-  const rows = visibleRows(mergedRoot(view.tree, status.marks), await read($, open), await read($, touched), {
+  const root = mergedRoot(view.tree, status.marks)
+  const rows = visibleRows(root, await read($, open), marks, {
     git: status.marks,
     stale: status.stale,
     isChangedOnly: changedOnly,
   })
+  const found = filterFiles(root, query, MAX_FOUND)
   const toggle = (key: string) => update($, open, list => (list.includes(key) ? list.filter(k => k !== key) : [...list, key]))
   const changedCount = Object.keys(status.marks).length
 
   return (
     <Box flexDirection="column">
-      <Box>
+      {touchedCard}
+      <Box gap={1} alignItems="center">
+        <Box flexGrow={1}>
+          <Input
+            key="file-filter"
+            placeholder="Filter files"
+            value={query}
+            onInput={value => update($, fileFilter, () => value)}
+            onSubmit={value => update($, fileFilter, () => value)}
+          />
+        </Box>
         <Button
           key="changed-only"
           label={changedOnly ? 'All files' : `Changed only (${changedCount})`}
           onPress={() => update($, isChangedOnly, v => !v)}
         />
-        <Text dimColor>
-          {' '}
-          {view.tree.fileCount} files · updated {view.tree.updated || 'unknown'} · ● edited ○ read · ← importers · ⟳ newer
-          than codemap
+      </Box>
+      <Box justifyContent="space-between" gap={1} marginTop={1}>
+        {label(els, `ALL FILES · ${view.tree.fileCount}`)}
+        <Text size="caption" dimColor>
+          codemap {view.tree.updated || 'date unknown'}
+          {status.stale.length > 0 ? <Text color="warning"> · {status.stale.length} newer</Text> : null}
         </Text>
       </Box>
-      {changedOnly && rows.length === 0 && <Text dimColor>No changed, read or edited files.</Text>}
-      {rows.map(row => (
-        <Box>
-          <Text>{'  '.repeat(row.depth)}</Text>
-          <Text color={row.git ? GIT_COLOR[row.git] : undefined}>{row.git ?? ' '} </Text>
-          {row.canOpen ? (
-            <Button key={row.key} plain label={`${row.isOpen ? '▾' : '▸'} ${row.label}`} onPress={() => toggle(row.key)} />
-          ) : (
-            <Text>
-              {'  '}
-              {row.label}
-            </Text>
-          )}
-          {row.touch && <Text color={row.touch === 'edit' ? 'warning' : 'suggestion'}> {row.touch === 'edit' ? '●' : '○'}</Text>}
-          {row.isStale && <Text dimColor> ⟳</Text>}
-          {row.detail !== '' && <Text dimColor> {row.detail}</Text>}
+      {query.trim() !== '' ? (
+        found.length === 0 ? (
+          <Text dimColor>No file path holds "{query.trim()}".</Text>
+        ) : (
+          found.map(path => {
+            const p = pathParts(path)
+            return (
+              <Text wrap="truncate-end">
+                <Text dimColor>{p.dir}</Text>
+                {p.name}
+              </Text>
+            )
+          })
+        )
+      ) : (
+        <Box flexDirection="column">
+          {changedOnly && rows.length === 0 && <Text dimColor>No changed, read or edited files.</Text>}
+          {rows.map(row => (
+            <Box gap={1}>
+              <Text>{'  '.repeat(row.depth)}</Text>
+              <Text color={row.git ? GIT_COLOR[row.git] : undefined}>{row.git ?? ' '}</Text>
+              {row.canOpen ? (
+                <Button key={row.key} plain label={`${row.isOpen ? '▾' : '▸'} ${row.label}`} onPress={() => toggle(row.key)} />
+              ) : (
+                <Text>
+                  {'  '}
+                  {row.label}
+                </Text>
+              )}
+              {row.touch && <Text color={row.touch === 'edit' ? 'warning' : 'suggestion'}>{row.touch === 'edit' ? '●' : '○'}</Text>}
+              {row.isStale && <Text color="warning">⟳</Text>}
+              {row.detail !== '' && (
+                <Text dimColor wrap="truncate-end">
+                  {row.detail}
+                </Text>
+              )}
+            </Box>
+          ))}
         </Box>
-      ))}
+      )}
     </Box>
   )
+
+  async function showChange(path: string): Promise<void> {
+    await update($, shownChange, () => path)
+    await showTab($, 'changes')
+  }
+
+  // Edits first, then reads. A file with hunks in Changes opens them there;
+  // any other puts a question about it in the reply box.
+  function touchedFiles(): RenderElement | null {
+    const list = Object.entries(marks).sort(([a, x], [b, y]) => (x === y ? a.localeCompare(b) : x === 'edit' ? -1 : 1))
+    if (list.length === 0) return null
+    return (
+      <Box flexDirection="column" marginBottom={1} {...card(rich)}>
+        {label(els, `CLAUDE TOUCHED · ${list.length} ${list.length === 1 ? 'FILE' : 'FILES'}`)}
+        {list.slice(0, MAX_TOUCHED).map(([path, mark]) => {
+          const p = pathParts(path)
+          const change = edits.find(c => c.rel === path)
+          const adds = change?.hunks.reduce((n, h) => n + h.adds, 0) ?? 0
+          const dels = change?.hunks.reduce((n, h) => n + h.dels, 0) ?? 0
+          return (
+            <Box justifyContent="space-between" gap={1}>
+              <Button
+                key={`touched-${path}`}
+                plain
+                label={path}
+                onPress={() => (change !== undefined ? showChange(path) : fillReply($, `About ${path}: `))}
+              >
+                <Text dimColor>{p.dir}</Text>
+                {p.name}
+              </Button>
+              <Box gap={1} flexShrink={0}>
+                {change === undefined ? null : (
+                  <Text dimColor tabular mono>
+                    +{adds} −{dels}
+                  </Text>
+                )}
+                {chip(els, rich, mark === 'edit' ? 'Edited' : 'Read', mark === 'edit' ? 'warn' : 'run')}
+              </Box>
+            </Box>
+          )
+        })}
+        {list.length > MAX_TOUCHED ? <Text dimColor>and {list.length - MAX_TOUCHED} more</Text> : null}
+      </Box>
+    )
+  }
 }

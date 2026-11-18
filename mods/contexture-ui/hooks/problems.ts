@@ -255,14 +255,19 @@ const NOUNS: Record<CheckKind, [string, string]> = {
   lint: ['lint problem', 'lint problems'],
 }
 
-export function summary(runs: readonly CheckRun[]): string {
-  if (runs.length === 0) return 'No test, type or lint runs yet.'
+// Each kind with problems and its count in words: tests first.
+export function counts(runs: readonly CheckRun[]): Array<{ kind: CheckKind; text: string }> {
   const list = allProblems(runs)
-  const parts = (['test', 'type', 'lint'] as const).flatMap(kind => {
+  return (['test', 'type', 'lint'] as const).flatMap(kind => {
     const n = list.filter(p => p.kind === kind).length
     const noun = NOUNS[kind]
-    return n === 0 ? [] : [`${n} ${n === 1 ? noun[0] : noun[1]}`]
+    return n === 0 ? [] : [{ kind, text: `${n} ${n === 1 ? noun[0] : noun[1]}` }]
   })
+}
+
+export function summary(runs: readonly CheckRun[]): string {
+  if (runs.length === 0) return 'No test, type or lint runs yet.'
+  const parts = counts(runs).map(c => c.text)
   if (parts.length > 0) return parts.join(', ')
   return runs.some(r => r.isFailed) ? 'A check failed; its output names no file.' : 'No problems in the last runs.'
 }

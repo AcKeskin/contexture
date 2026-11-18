@@ -5,7 +5,8 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, RenderElement, ResolveInput } from 'claude-code'
 
 import type { AgentNote, AgentRow, AgentView } from '../types'
-import { CONVERGE, detailLine, headLine, isReadyToConverge, nextNote, sortRows, titleLine } from './agents'
+import { CONVERGE, detailLine, headLine, isLive, isReadyToConverge, nextNote, sortRows, titleLine } from './agents'
+import { card, chip, isRich } from './look'
 import { toolSummary } from './now'
 import { fillReply } from './reply'
 
@@ -82,7 +83,7 @@ export async function clearAgents($: EngineInterface): Promise<void> {
   await update($, agents, () => ({ rows: [], at: now, clearedAt: now, convergedAt: now }))
 }
 
-async function open($: EngineInterface, id: string): Promise<void> {
+async function openAgent($: EngineInterface, id: string): Promise<void> {
   const r = await $.ui.view({ agentId: id })
   if (r.deny !== undefined) $.ui.toast(`Can't open that agent: ${r.deny}`)
 }
@@ -110,33 +111,65 @@ export async function agentStep(
   loadAgents($).catch(err => $.ui.log(`contexture-ui: Agents tab: ${String(err)}`))
 }
 
+// For the tab label: live agents, as the heading counts them.
+export async function agentsCount($: EngineInterface): Promise<number> {
+  return (await read($, agents)).rows.filter(isLive).length
+}
+
+// A live agent gets a card with a running bar; a finished one is one line.
 export async function agentsTab($: EngineInterface, e: ResolveInput<'Pane'>): Promise<RenderElement> {
-  const { Box, Button, Text } = $.ui.resolve(e)
+  const els = $.ui.resolve(e)
+  const { Box, Button, Progress, Text } = els
+  const rich = isRich(e)
   const { rows, at, convergedAt } = await read($, agents)
   const byId = await read($, notes)
   const root = await $.session.root()
 
   return (
-    <Box flexDirection="column">
+    <Box flexDirection="column" gap={rich ? 1 : 0}>
       <Text weight="semibold">{headLine(rows)}</Text>
       {rows.map(row => {
         const t = titleLine(row, at)
         const detail = detailLine(row, byId[row.id], root)
-        return (
-          <Box flexDirection="column" marginTop={1}>
-            <Box>
-              <Text>
-                {t.mark} {t.title}
-              </Text>
-              <Text dimColor> {t.clock}</Text>
+        const open = row.hasRow ? <Button key={`view-${row.id}`} label="Open" onPress={() => openAgent($, row.id)} /> : null
+        if (!isLive(row)) {
+          const isOk = row.status === 'completed'
+          return (
+            <Box justifyContent="space-between" gap={1} alignItems="center">
+              <Box gap={1} flexShrink={1}>
+                <Text color={isOk ? 'success' : 'error'}>{t.mark}</Text>
+                <Text wrap="truncate-end">{row.description}</Text>
+              </Box>
+              <Box gap={1} flexShrink={0} alignItems="center">
+                <Text dimColor>{detail === '' ? t.clock : `${t.clock} · ${detail}`}</Text>
+                {open}
+              </Box>
             </Box>
-            {detail === '' ? null : <Text dimColor>{detail}</Text>}
-            {row.hasRow ? <Button key={`view-${row.id}`} label="Open" onPress={() => open($, row.id)} /> : null}
+          )
+        }
+        return (
+          <Box flexDirection="column" {...card(rich)}>
+            <Box justifyContent="space-between" gap={1}>
+              <Box gap={1} flexShrink={1} alignItems="center">
+                {chip(els, rich, row.type, row.status === 'running' ? 'run' : 'idle')}
+                <Text wrap="truncate-end">{row.description}</Text>
+              </Box>
+              <Text color={row.status === 'running' ? 'suggestion' : undefined} dimColor={row.status !== 'running'} tabular>
+                {t.clock}
+              </Text>
+            </Box>
+            {row.status === 'running' ? <Progress label={`${row.type} ${row.description}`} color="suggestion" /> : null}
+            <Box justifyContent="space-between" gap={1} alignItems="center">
+              <Text dimColor mono wrap="truncate-end">
+                {detail === '' ? 'starting' : detail}
+              </Text>
+              {open}
+            </Box>
           </Box>
         )
       })}
       {isReadyToConverge(rows, convergedAt) ? (
-        <Box marginTop={1}>
+        <Box>
           <Button key="converge" label="Converge" onPress={() => converge($)} />
         </Box>
       ) : null}

@@ -19,6 +19,32 @@ File-level changes per public snapshot. Curate freely — this is the human-faci
 
 
 
+
+## 2026-11-18 — Work pane redesigned as cards and chips: the plan in focus in a card with a progress bar and chips, touched files and a filter on Files, one card per file on Changes with Keep all, a red failing count on Problems, live agent cards, a now strip and counts on the tabs.
+
+_1 added, 18 changed, 0 removed._
+
+### Other
+- added `mods/contexture-ui/hooks/look.tsx`
+- changed `.claude-plugin/marketplace.json`
+- changed `.claude-plugin/plugin.json`
+- changed `mods/contexture-ui/README.md`
+- changed `mods/contexture-ui/hooks/agents-tab.tsx`
+- changed `mods/contexture-ui/hooks/changes-tab.tsx`
+- changed `mods/contexture-ui/hooks/codemap.ts`
+- changed `mods/contexture-ui/hooks/files-tab.tsx`
+- changed `mods/contexture-ui/hooks/forms.ts`
+- changed `mods/contexture-ui/hooks/now-band.tsx`
+- changed `mods/contexture-ui/hooks/plan-tab.tsx`
+- changed `mods/contexture-ui/hooks/problems-tab.tsx`
+- changed `mods/contexture-ui/hooks/problems.ts`
+- changed `mods/contexture-ui/hooks/run-bar.tsx`
+- changed `mods/contexture-ui/hooks/work-open.ts`
+- changed `mods/contexture-ui/hooks/work-pane.tsx`
+- changed `mods/contexture-ui/tests/codemap.test.ts`
+- changed `mods/contexture-ui/tests/pane.test.tsx`
+- changed `mods/contexture-ui/types/index.d.ts`
+
 ## 2026-11-18 — contexture-ui loads on Claude Code 2.1.325, the version the desktop app bundles, so /work works in desktop Code sessions.
 
 _0 added, 6 changed, 0 removed._

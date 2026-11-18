@@ -90,6 +90,10 @@ declare module 'claude-code' {
       contract: Shaped<Record<string, string>>
       board: Shaped<BoardRow[]>
       strategy: Shaped<'auto' | 'subtask' | 'multi-agent'>
+      planSlug: Shaped<string | null>
+      isDoneShown: Shaped<boolean>
+      fileFilter: Shaped<string>
+      shownChange: Shaped<string | null>
     }
   }
 }
