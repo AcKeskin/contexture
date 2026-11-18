@@ -15,6 +15,22 @@ File-level changes per public snapshot. Curate freely — this is the human-faci
 
 
 
+
+## 2026-11-18 — Plugin manifests now carry the release version, so Claude Code shows it and offers updates; README covers the Work pane tabs with screenshots, codemap.json and the new MCP tools.
+
+_3 added, 4 changed, 0 removed._
+
+### Docs
+- added `docs/images/work-pane-changes.png`
+- added `docs/images/work-pane-plan.png`
+- changed `docs/reference.md`
+
+### Other
+- added `mods/contexture-ui/tsconfig.json`
+- changed `.claude-plugin/plugin.json`
+- changed `README.md`
+- changed `mods/contexture-ui/.claude-plugin/plugin.json`
+
 ## 2026-11-18 — New contexture-ui mod for the Claude app: a Work pane with Files, Plan, Changes, Problems and Agents tabs, a run bar of skill forms, a now line and a prompt-cache countdown; codemap.json with line ranges, tests per file and references, 10x faster cold runs; ranked_map, find_symbol and tests_for MCP tools; /execute drift and accept checks; /review saved threat model.
 
 _55 added, 39 changed, 0 removed._

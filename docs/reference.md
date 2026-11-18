@@ -38,6 +38,8 @@ contexture/
 │   ├── subagent-rules.js
 │   ├── codemap-refresh.js
 │   └── lib/                     # shared hook-io + path utilities
+├── mods/
+│   └── contexture-ui/           # Claude Code mod: Work pane, now line, status line (separate plugin)
 ├── mcps/                        # MCP server projects (standalone, not bootstrapped)
 │   ├── lib/                     # shared TypeScript utilities (fetch, rate-limit, errors)
 │   ├── lib-py/                  # shared Python utilities (fetch, rate-limit, errors)
@@ -207,7 +209,7 @@ Each skill has a `SKILL.md` that defines when it fires, what it does, and how it
 | `checkpoint` | Scope-dialed fit-and-intent check (diff / module / corpus) — "does this serve the point + cohere + what did I learn?"; diff scope composes `/code-review` + a fit-pass. Absorbed the retired `retrospect` + `system-review` organs (corpus passes) |
 | `retrospect-core` | Shared engine for the meta-review organs (`checkpoint`'s corpus scope) — orient, NEW/CARRIED/RESOLVED baseline diff, propose-confirm-commit-with-routing, batched review-output-contract render, persist. Library-only — not user-invoked |
 | `write` | Drafts or rewrites user-facing text as a page with options per sentence, modes (incl. My style from samples and Humanize) and a terms check; `/humanize` = `/write --humanize` (density-not-instance AI-texture pass, refuses the model corpus) |
-| `update-codemap` | Regenerates `.claude/codemap.md` with file tree, purposes, exports + signatures, entry points, layers, inter-module dependency adjacency, a class graph, a call graph (syntactic, with TypeScript/C# receiver-type resolution to `Type.method`), and a call sequence — tree-sitter AST extraction across ~18 languages. Honours per-directory `.gitignore` to denoise build output; warns on scoped runs about ancestor ignore/config it can't see. Clears the dirty sentinel after a successful write |
+| `update-codemap` | Regenerates `.claude/codemap.md` (capped at about 32k tokens) and `.claude/codemap.json` (full data: symbols with line ranges, imports, the tests that reach each file, git activity) with file tree, purposes, exports + signatures, entry points, layers, inter-module dependency adjacency, a class graph, a call graph (syntactic, with TypeScript/C# receiver-type resolution to `Type.method`), and a call sequence — tree-sitter AST extraction across ~18 languages. Honours per-directory `.gitignore` to denoise build output; warns on scoped runs about ancestor ignore/config it can't see. Clears the dirty sentinel after a successful write |
 | `visualise-codemap` | Renders a UML-heavy document from `.claude/codemap.md` — ASCII Structure tree, a top-down Module map (labeled edges, hub + cycle highlighting, legend), per-module class diagrams + subfolder-clustered file graphs, a cross-module class relations diagram, per-module call-graph diagrams, and Mermaid sequence diagrams for high-signal entry points. Writes to `.claude/codemap.diagrams.md` and the Obsidian vault under `Projects/<ProjectFolder>/Codemap/` |
 | `brainstorm` | Shapes a half-formed idea or crystallizes a blurry one (name, one-line description, in/out edges, end-goal) — upstream of `/envision`; writes a light `.claude/ideas/<slug>.md` note |
 | `envision` | Interview-driven top-level project vision — intent, UX walkthrough, 4–8 named modules (role/owns/depends-on/does-not-do), boundaries, relations, cross-cutting concerns, non-goals (≥ 3), mandatory module-map diagram. Versioned under `.claude/visions/<slug>/v<N>.md`. Upstream of `/spec`. Breadth-over-depth — refuses to drift into implementation detail |
@@ -304,7 +306,7 @@ MCP (Model Context Protocol) server projects scaffolded by `/new-mcp`. Most are 
 |-----------|---------|
 | `lib/` | Shared TypeScript utilities for API-wrapping servers (fetch, rate limiting, error formatting) |
 | `lib-py/` | Shared Python utilities for API-wrapping servers (httpx-based fetch, rate limiting, errors) |
-| `project-memory/` | First-party memory-retrieval MCP — three discover-shaped tools over the per-project memory store; retrieval-only; **registered by bootstrap** (the one MCP that is not standalone) |
+| `project-memory/` | First-party memory MCP — retrieval over the per-project memory store, codemap lookups (`trace_path`, `ranked_map`, `find_symbol`, `tests_for`) and handoffs; see [mcp-memory.md](mcp-memory.md); **registered by bootstrap** (the one MCP that is not standalone) |
 | `unity/` | Custom Unity Editor MCP — TypeScript server + C# Editor extension (see below) |
 | `godot/` | Custom Godot 4.x editor-bridge MCP — TypeScript server + GDScript editor plugin (see below) |
 | `<name>/` | Individual MCP server projects (created by `/new-mcp`) |

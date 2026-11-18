@@ -23,7 +23,19 @@ Each hook bundle is an on/off option in `/plugin configure contexture@contexture
 
 For a small-context or local model, install `contexture-lite@contexture` instead. It keeps seven skills (prep, discover, deliver, review, capture, recap, systematic-debugging) and costs about 2.5K always-on tokens, against 7.4K for the full plugin. Install one of the two, not both.
 
-For a live view of the scope chain, add `contexture-ui@contexture` next to either one. It opens a **Work** pane (`/work`) with a **Plan** tab (`/chain`: each slug's stage, the next step, the running `/execute` step and the rules primed this session) and a **Files** tab (`/codemap`: `.claude/codemap.md` as a tree), plus a status line entry with a prompt-cache countdown and an expired-cache warning. It only reads `.claude/` and rule-prime's `~/.claude/session-state.json`. Claude Code only (terminal, desktop app, VS Code); see [mods/contexture-ui](mods/contexture-ui/README.md).
+For a **Work** pane beside the chat, add `contexture-ui@contexture` next to either one. `/work` opens it, with five tabs:
+
+- **Files** (`/codemap`): the codemap as a tree, with git marks, files Claude read or edited, and a Changed only filter.
+- **Changes**: the hunks Claude made this session, with Keep, Undo and Comment.
+- **Problems**: failures from the test, type-check and lint runs Claude did, with Fix this and Dispatch.
+- **Plan** (`/chain`): each slug's stage, its plan steps, and a button that puts `/execute <slug> --from N` in the reply box.
+- **Agents**: live subagents, their last tool and edited files, and Converge once they finish.
+
+A run bar on top has short forms for `/orchestrate`, `/dispatch`, `/execute`, `/review`, `/checkpoint`, `/capture`, `/autonomize` and `/coordinate`. Buttons and forms only fill the reply box; nothing is sent for you. A now line above the prompt says who the turn waits on, and the status line has a prompt-cache countdown. Claude Code only (terminal, desktop app, VS Code); see [mods/contexture-ui](mods/contexture-ui/README.md).
+
+![The Work pane's Changes tab next to the chat: the hunk Claude just made, with Keep, Undo and Comment](docs/images/work-pane-changes.png)
+
+![The Work pane's Plan tab: a slug's stages, its plan steps with the next one marked, and the rules primed this session](docs/images/work-pane-plan.png)
 
 **With bootstrap.** Clone, bootstrap, restart. Skills keep their bare names (`/review`).
 
@@ -44,7 +56,7 @@ node bootstrap/bootstrap.js --verify                  # audit current state
 
 **You need** Node 18+, git, and Claude Code. Optional: `gh` for `/review --pr`, and the .NET SDK plus Godot/Unity only if you build those MCP servers.
 
-**Claude Code version.** Last tested with 2.1.316. Older versions are untested, and some hook events it uses (such as `SubagentStart`) are recent.
+**Claude Code version.** Last tested with 2.1.327. Older versions are untested, and some hook events it uses (such as `SubagentStart`) are recent.
 
 This README writes skills by their bare names (`/review`). With the plugin, type `/contexture:review`.
 
@@ -90,6 +102,7 @@ Bootstrap: delete the links it made in `~/.claude/` (`claude-md`, `architectural
 - **Rules don't seem to load.** Check `rule_prime` is on (plugin), or run `node bootstrap/bootstrap.js --verify`. The always-on tier is capped at about 1K tokens; past that, an advisory names the rule it dropped.
 - **No status line.** A plugin can't set one. Use bootstrap.
 - **project-memory MCP missing after bootstrap.** Run Claude Code once so `~/.claude.json` exists, then run bootstrap again.
+- **The plugin page says "On latest version" after a release.** Your local copy of the marketplace is old. Run `/plugin marketplace update contexture`, then update the plugin, or turn on auto-update for the marketplace in `/plugin`.
 
 ## The loop
 
@@ -164,20 +177,20 @@ flowchart TB
 | **The loop** | Rules primed before, `/review` after, `/capture` to grow the corpus. What this repo is really about. |
 | **Mechanical priming** | The `rule-prime` hook puts relevant rules in context at session start and per prompt. Budget-guarded, deterministic, never blocks a turn. |
 | **Rule overlay** | Four tiers that compose update-safely: shipped, company, user, project. `/rules` to override a whole file, patch a field, or disable. Your edits survive `git pull`. |
-| **Observe and record** | Three organs that read a codebase and write down what's tacit: `/update-codemap` (structure), `/extract-conventions` (house style, as a project-tier rule), `/glossary` (domain vocabulary, cited by review). `/visualise-codemap` draws the codemap as diagrams. `/write-tests` authors a suite for existing code. |
-| **Stored context** | A codemap and a memory store of rules, decisions and lessons, retrieved on demand by `/discover`. `/memory-audit` finds orphans, duplicates and stale entries. Handoffs in the project-memory MCP let one tool leave a note (next steps, what failed) that the next tool claims once. |
+| **Observe and record** | Three organs that read a codebase and write down what's tacit: `/update-codemap` (structure, with symbols, line ranges, imports and the tests that reach each file in `.claude/codemap.json`), `/extract-conventions` (house style, as a project-tier rule), `/glossary` (domain vocabulary, cited by review). `/visualise-codemap` draws the codemap as diagrams. `/write-tests` authors a suite for existing code. |
+| **Stored context** | A codemap and a memory store of rules, decisions and lessons, retrieved on demand by `/discover`. The project-memory MCP also answers code questions from the codemap: `ranked_map` (the files most relevant to a task, within a token budget), `find_symbol`, `tests_for` and `trace_path`. `/memory-audit` finds orphans, duplicates and stale entries. Handoffs in the project-memory MCP let one tool leave a note (next steps, what failed) that the next tool claims once. |
 | **Context hooks** | Before the first edit of a file, show warnings and lessons that name it. Save the last request, todos, edited files and errors before compaction and restore them after. Point the first search at the codemap, say when it is out of date, and refresh it in the background where a project opts in. Give each subagent the change-discipline rule, which session-start context never reaches. Opt-in: run your own checks after each edit and report only new problems. |
 | **Safety hooks** | Default-on. Block `rm -rf` on top-level paths, writes to `.env`, writes outside the project, force-push to main, global git-config edits, and `--no-verify` bypass. |
-| **Spec to ship** | The heavyweight track: interview-driven spec (open questions say who answers and what they block; a plan-blocking one stops `/draft-plan`, and `--questionnaire` writes them out for someone else), versioned plan (each step names what it builds on, with any smaller option listed at the review gate), step-by-step execute with per-step verification, `/close-out` to reconcile the spec to what shipped. `/brainstorm` shapes an idea before `/envision`, `/blueprint` shows the concrete shape before coding (`--sketch` draws it with you, one diagram at a time, next to the spec), and `/human-view` turns a plan or spec into plain prose to approve. `/work-state <slug>` says where a feature sits, and flags a plan pinned to a stale spec. |
+| **Spec to ship** | The heavyweight track: interview-driven spec (open questions say who answers and what they block; a plan-blocking one stops `/draft-plan`, and `--questionnaire` writes them out for someone else), versioned plan (each step names what it builds on, with any smaller option listed at the review gate; pick `page` there to mark lines and send notes back), step-by-step execute with per-step verification (it stops when the plan's files changed after the plan was written, and checks what a subagent changed before it accepts a step), `/close-out` to reconcile the spec to what shipped. `/brainstorm` shapes an idea before `/envision`, `/blueprint` shows the concrete shape before coding (`--sketch` draws it with you, one diagram at a time, next to the spec), and `/human-view` turns a plan or spec into plain prose to approve. `/work-state <slug>` says where a feature sits, and flags a plan pinned to a stale spec. |
 | **Parallel work** | `/orchestrate` splits one goal into units, places each (shared tree, worktree, or serialized), fans them out, then verifies and converges. `/coordinate` keeps several live sessions aligned through a shared board so two of them don't edit the same files. `dispatch` fans out independent tasks; `using-git-worktrees` isolates a branch. |
 | **Autonomy contract** | `/autonomize` sets one contract for how hard to push, when to stop, when to ask. `/execute`, `/checkpoint` and `/orchestrate` read it at their decision points. Defaults to current behaviour, so it costs nothing until you tune it. |
-| **Multi-angle review** | `/review` covers local code and PRs (`--pr`, alias `/pr-review`) and takes `--angles`: one reviewer per angle (correctness, design, performance, readability, extensibility, security, tests, or your team's own), merged and ranked, with conflicts shown as trade-offs. You see metrics and the big picture first, the model does the call tracing, and you pick what to keep in one go or walk through findings one by one. `--pack` adds a plain-language pack on structure, call flow and how to build on the code; `--artifact` opens it all as a page. |
+| **Multi-angle review** | `/review` covers local code and PRs (`--pr`, alias `/pr-review`) and takes `--angles`: one reviewer per angle (correctness, design, performance, readability, extensibility, security, tests, or your team's own), merged and ranked, with conflicts shown as trade-offs. You see metrics and the big picture first, the model does the call tracing, and you pick what to keep in one go or walk through findings one by one. `--pack` adds a plain-language pack on structure, call flow and how to build on the code; `--artifact` opens it all as a page. A security review saves its threat model and reuses it while those files are unchanged, and a finding missing on a re-run is not counted as fixed without proof. |
 | **Debugging** | `/systematic-debugging` front-doors a bug: reproduce, instrument, find the root cause, before any fix. `test-driven-development` writes the failing test first on non-trivial changes. |
 | **Git and PRs** | `/pre-push` checks commits before a push (branch name, AI attribution, leftovers, secrets). `/pr-author` drafts the PR body; `/pr-triage` walks open review comments with you. `/update-changelog` adds one line per shipped unit. |
 | **Authoring** | `/new-hook`, `/new-agent`, `/new-mcp` scaffold extensions by interview. `/new-agents-md` writes an `AGENTS.md` for other agents. `/improve-prompt` rewrites a prompt for any model. |
 | **Unattended loop** | `/cycle` runs audit, plan, implement, review and a draft PR on its own, one headless session per stage, within limits on cost, hours and plan usage. A status page shows each run. Each run logs its decisions with evidence pointers, audits the log before the PR, and puts a cold reader's flags under `## Attention` in the PR body. `/visual` adds a design contract and screenshot checks for UI projects. |
 | **Shortcuts** | Deliberate cut corners get a `shortcut:` comment; `/shortcuts` lists them. |
-| **Prose** | `/write` drafts or rewrites user-facing text on a page: options per sentence, modes including your own style from samples, and checks for dropped terms. `/humanize` (alias) flags AI texture by density, never a binary verdict. |
+| **Prose** | `/write` drafts or rewrites user-facing text on a page: options per sentence, modes including your own style from samples and a Plain mode that follows the STE80 rules, and checks for dropped terms. `/humanize` (alias) flags AI texture by density, never a binary verdict. |
 | **Design pages** | `design-proposal` builds a page a team discusses together: the plan, the other options and their limits. |
 
 Every hook, skill, agent and MCP tool is listed in [docs/reference.md](docs/reference.md).
