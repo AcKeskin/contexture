@@ -182,9 +182,10 @@ export const register: Register = (on, options) => {
     await loadAgents($).catch(err => $.ui.log(`contexture-ui: Agents tab: ${String(err)}`))
     if (e.agentId !== undefined) return done
     await nowClear($)
-    const rows = await $.session.messages({ last: RECENT_ROWS })
+    // Read all and keep the tail: `{ last }` is not in Claude Code 2.1.325.
+    const rows = await $.session.messages()
     // A deny (not expected for a main-loop read) leaves the step lines out.
-    const seen = Array.isArray(rows) ? rows : []
+    const seen = Array.isArray(rows) ? rows.slice(-RECENT_ROWS) : []
     const recent = seen.filter(r => r.role === 'assistant').map(r => r.text)
     await refresh($, recent.join('\n'))
     await loadProblems($, seen)

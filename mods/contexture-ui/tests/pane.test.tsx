@@ -359,7 +359,6 @@ test('an ask a person answers puts the now line on you', async ($, on) => {
     return { turnId: e.turnId, index: e.index, ...BASH_STEP }
   })
   on('tool.check', () => ({ decision: 'ask' as const }))
-  on('tool.judge', () => ({ decision: 'allow' as const }))
   await $.session.start({ cwd: ROOT, surface: 'terminal', isInteractive: true })
   await drain($.turn.step({ turnId: 't1', index: 0, model: 'm', messageCount: 2 }))
   // A plugin's query (no tool_use_id) leaves the band alone.
@@ -373,12 +372,6 @@ test('an ask a person answers puts the now line on you', async ($, on) => {
   ui = await $.ui.mount({ ...BAND, surface: 'desktop' })
   expect((await ui.find({ type: 'Text', text: 'On you' }))?.text).toBe('On you')
   expect((await ui.find({ type: 'Text', text: /approve/ }))?.text).toBe(' approve Bash bun test server/ ')
-  await ui.unmount()
-
-  // Auto mode's classifier allows it: back on the tool.
-  await $.tool.judge(call)
-  ui = await $.ui.mount({ ...BAND, surface: 'desktop' })
-  expect((await ui.find({ type: 'Text', text: 'On a tool' }))?.text).toBe('On a tool')
   await ui.unmount()
 })
 

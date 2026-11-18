@@ -27,7 +27,7 @@
     },
     {
       "name": "contexture-ui",
-      "version": "0.5.8",
+      "version": "0.5.9",
       "description": "Work pane and status line for contexture: files, plan steps and the rules primed this session, beside the chat.",
       "author": {
         "name": "Ali Can Keskin",

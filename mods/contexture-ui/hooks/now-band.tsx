@@ -61,15 +61,6 @@ export function registerNowBand(on: On, isShown: boolean): void {
     return r
   })
 
-  // In auto mode the classifier settles the ask, not the person: back to
-  // the tool once it allows. A deny ends the call; the next request follows.
-  on('tool.judge', async ($, e, next) => {
-    const r = await next(e)
-    if ((await read($, now))?.kind !== 'you') return r
-    await setNow($, { kind: 'tool', what: toolSummary(e.tool, e.input), since: await $.clock.now() })
-    return r
-  })
-
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const state = await read($, now)
     if (!isShown || !e.props.isWorking || e.props.hasSurvey || state === null) return next(e)

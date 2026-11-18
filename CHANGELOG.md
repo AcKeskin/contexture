@@ -18,6 +18,19 @@ File-level changes per public snapshot. Curate freely — this is the human-faci
 
 
 
+
+## 2026-11-18 — contexture-ui loads on Claude Code 2.1.325, the version the desktop app bundles, so /work works in desktop Code sessions.
+
+_0 added, 6 changed, 0 removed._
+
+### Other
+- changed `.claude-plugin/marketplace.json`
+- changed `.claude-plugin/plugin.json`
+- changed `mods/contexture-ui/README.md`
+- changed `mods/contexture-ui/hooks/now-band.tsx`
+- changed `mods/contexture-ui/hooks/register.tsx`
+- changed `mods/contexture-ui/tests/pane.test.tsx`
+
 ## 2026-11-18 — Skill descriptions no longer contain angle brackets, which the Claude app rejected as XML tags.
 
 _0 added, 12 changed, 0 removed._
