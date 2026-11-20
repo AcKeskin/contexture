@@ -1,6 +1,18 @@
 import { expect, test } from 'claude-code/testing'
 
-import { commandOf, executeCommand, matchProgress, parseIndex, planSteps, resolveSlug, specPin, statusText, stepMarks } from '../hooks/chain'
+import {
+  commandOf,
+  executeCommand,
+  matchProgress,
+  parseIndex,
+  planSteps,
+  resolveSlug,
+  specPin,
+  statusText,
+  stepMarks,
+  useCaseCoverage,
+  useCases,
+} from '../hooks/chain'
 
 const SPEC_DONE = '---\nstatus: active\ndone_criteria:\n  - login works\n---\n# Auth\n'
 const PLAN = (pin: string) =>
@@ -110,4 +122,95 @@ test('execute commands carry the start step and a chosen strategy', () => {
   expect(executeCommand('auth', 3, 'multi-agent')).toBe('/execute auth --from 3 --strategy multi-agent')
   expect(commandOf('/draft-plan auth (stale)')).toBe('/draft-plan auth')
   expect(commandOf('/execute auth')).toBe('/execute auth')
+})
+
+// A spec and plan in the use-case format (skills/spec/use-cases.md).
+const UC_SPEC = `---
+status: active
+done_criteria:
+  - "UC1: signing in shows the dashboard"
+  - "UC2: a reset link arrives"
+---
+# Spec
+
+## Use cases
+
+### UC1: Sign in with email
+- **Actor:** user
+- **Goal:** get in
+
+### UC2: Reset a forgotten password
+- **Actor:** user
+
+## Technical approach
+not addressed during interview
+`
+const UC_PLAN = `---
+spec: ../../specs/auth/v1.md
+---
+## Done criteria
+1. UC1: signing in shows the dashboard
+
+## Use cases
+
+### UC1: Sign in with email
+- **Actor:** user
+
+### UC2: Reset a forgotten password
+
+### UC3: Sign out
+
+## Step 1: Add token store
+- Files: src/store.ts
+- Serves criteria: [1] · use cases: [UC1, UC2]
+
+## Step 2: Wire login route
+- Use cases: [UC1]
+
+## Notes
+- use cases: [UC9]
+`
+
+test('use cases come from the plan, else the spec; steps carry their IDs', () => {
+  const steps = planSteps(UC_PLAN)
+  expect(steps).toEqual([
+    { n: 1, goal: 'Add token store', useCases: ['UC1', 'UC2'] },
+    { n: 2, goal: 'Wire login route', useCases: ['UC1'] },
+  ])
+  expect(useCases(UC_SPEC)).toEqual([
+    { id: 'UC1', goal: 'Sign in with email' },
+    { id: 'UC2', goal: 'Reset a forgotten password' },
+  ])
+  const s = resolveSlug('auth', {
+    hasVision: false,
+    hasBlueprint: false,
+    spec: { version: 1, text: UC_SPEC },
+    plan: { version: 1, text: UC_PLAN },
+  })
+  expect(s.next).toBe('/execute auth')
+  expect(s.stages.find(st => st.name === 'spec')?.status).toBe('done')
+  expect(useCaseCoverage(s)).toEqual({
+    isTracked: true,
+    rows: [
+      { id: 'UC1', goal: 'Sign in with email', steps: [1, 2] },
+      { id: 'UC2', goal: 'Reset a forgotten password', steps: [1] },
+      { id: 'UC3', goal: 'Sign out', steps: [] },
+    ],
+  })
+  const specOnly = resolveSlug('auth', { hasVision: false, hasBlueprint: false, spec: { version: 1, text: UC_SPEC } })
+  expect(specOnly.useCases).toHaveLength(2)
+})
+
+test('an untagged plan tracks no coverage; none and no section read as such', () => {
+  const s = resolveSlug('auth', {
+    hasVision: false,
+    hasBlueprint: false,
+    spec: { version: 1, text: UC_SPEC },
+    plan: { version: 1, text: PLAN('v1') },
+  })
+  expect(s.steps.every(st => st.useCases === undefined)).toBe(true)
+  expect(useCaseCoverage(s).isTracked).toBe(false)
+  expect(useCases('# x\n\n## Use cases\nnone — internal change\n\n## Goals\n')).toBe('none')
+  expect(useCases(SPEC_DONE)).toBeUndefined()
+  expect(useCases('## Use cases\r\n\r\n### UC1: CRLF goal\r\n')).toEqual([{ id: 'UC1', goal: 'CRLF goal' }])
 })

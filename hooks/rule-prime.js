@@ -483,6 +483,8 @@ function sessionStart(payload) {
     droppedRules: droppedIds,
     language: census.isSingleLanguage ? census.dominant : null,
     polyglot: !census.isSingleLanguage,
+    // The contexture-ui mod's Rules tab runs this to list and toggle rules.
+    rulesCli: path.join(__dirname, 'lib', 'rules-cli.js'),
   });
 
   if (!blocks.length) return io.allow(); // nothing to render → still watermarked

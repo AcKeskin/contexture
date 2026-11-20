@@ -53,6 +53,7 @@ const BUNDLE_INFO = {
   loopGuard: ['Loop guard', 'When a turn keeps hitting the same failure, suggest a different approach once, then tell you how to interrupt.'],
   commandFacts: ['Command facts', 'When a command is not found but another spelling works, track it; after 3 sessions, offer to save it as a memory.'],
   proseLint: ['Prose check', 'After an edit to a README or docs/ page, point out dense AI-style words and long sentences.'],
+  skillTrace: ['Skill trace', 'Record each tool call in .claude/trace/ so /flow-check can check skills ran as designed.'],
   codemapRefresh: ['Codemap refresh', 'Refresh an out-of-date codemap in the background (untracked codemaps by default), or say it is out of date.'],
 };
 

@@ -11,6 +11,6 @@ Forms:
 - `/envision <slug> --new` — explicit fresh slug; refuse if `<slug>` already exists in INDEX.
 - `/envision <slug> --abandon` — mark the active version `abandoned`; no new file written.
 
-The skill runs a breadth-first interview (intent, UX, module partition, boundaries, relations, cross-cutting concerns, non-goals), refuses spec-level detail, grounds via `/discover`, produces a mandatory module-map diagram, and writes the versioned vision under `.claude/visions/<slug>/` plus INDEX.md. Each module it names becomes a candidate slug for `/spec`. It does not spec, plan, or execute.
+The skill runs a breadth-first interview (intent, UX, use cases, module partition, boundaries, relations, cross-cutting concerns, non-goals), refuses spec-level detail, grounds via `/discover`, produces a mandatory module-map diagram, and writes the versioned vision under `.claude/visions/<slug>/` plus INDEX.md. Each module it names becomes a candidate slug for `/spec`. It does not spec, plan, or execute.
 
 See `~/.claude/skills/envision/SKILL.md` for the full procedure.

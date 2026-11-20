@@ -44,7 +44,7 @@ Determine **how this project tests**, in this precedence:
 
 ### 3. Analyze the target → propose a confirmable test plan
 
-Analyze the target for its **testable surface**: behaviors, inputs, output/effects, boundaries (empty / one / max / off-by-one edges), error paths, and branches. Then propose a **test plan** — the cases, each with a one-line rationale — for accept/edit/reject **before any test is written** (the propose-confirm-commit gate):
+Analyze the target for its **testable surface**: behaviors, inputs, output/effects, boundaries (empty / one / max / off-by-one edges), error paths, and branches. For each parameter, pick the input traps from [input-traps.md](input-traps.md) that can change the result (emoji, `-0`, `NaN`, a very long string, …), and plan one failing case for every error path. Then propose a **test plan** — the cases, each with a one-line rationale — for accept/edit/reject **before any test is written** (the propose-confirm-commit gate):
 
 ```
 ## Test plan for <target> (framework: <fw>, conventions: <source>)
@@ -54,7 +54,8 @@ Proposed cases:
   2. <boundary: empty input> — <rationale: edge the branch at L… guards>
   3. <boundary: max / off-by-one> — <rationale>
   4. <error path: invalid arg> — <rationale: the throw at L…>
-  5. <branch: the X==null path> — <rationale: uncovered branch>
+  5. <trap: name = "👍🏽"> — <rationale: length counts code units at L…>
+  6. <branch: the X==null path> — <rationale: uncovered branch>
 
 Deliberately NOT covering:
   - <thing> — <why: trivial getter / framework-guaranteed / out of scope>

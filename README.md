@@ -23,7 +23,7 @@ Each hook bundle is an on/off option in `/plugin configure contexture@contexture
 
 For a small-context or local model, install `contexture-lite@contexture` instead. It keeps seven skills (prep, discover, deliver, review, capture, recap, systematic-debugging) and costs about 2.5K always-on tokens, against 7.4K for the full plugin. Install one of the two, not both.
 
-For a **Work** pane beside the chat, add `contexture-ui@contexture` next to either one. `/work` opens it, with five tabs:
+For a **Work** pane beside the chat, add `contexture-ui@contexture` next to either one. `/work-panel` opens it, with five tabs:
 
 - **Files** (`/codemap`): the codemap as a tree, with git marks, files Claude read or edited, and a Changed only filter.
 - **Changes**: the hunks Claude made this session, with Keep, Undo and Comment.

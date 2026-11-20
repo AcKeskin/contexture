@@ -1,6 +1,6 @@
 {
   "name": "contexture",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "displayName": "Contexture",
   "description": "Architectural rules primed before coding, a review pass after, safety hooks, and a spec-to-ship workflow.",
   "author": {
@@ -117,6 +117,12 @@
       "title": "Command facts",
       "description": "When a command is not found but another spelling works, track it; after 3 sessions, offer to save it as a memory.",
       "default": true
+    },
+    "skill_trace": {
+      "type": "boolean",
+      "title": "Skill trace",
+      "description": "Record each tool call in .claude/trace/ so /flow-check can check skills ran as designed.",
+      "default": false
     },
     "prose_lint": {
       "type": "boolean",

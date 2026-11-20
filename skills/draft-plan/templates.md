@@ -38,13 +38,16 @@ Read at step 10, before writing the plan.
    1. <criterion 1 verbatim>
    2. <criterion 2 verbatim>
 
+   ## Use cases
+   <The use cases accepted at step 7.5, full form per ../spec/use-cases.md. From a spec: copied as accepted. Omit on `none — internal change`.>
+
    ## Step 1: <goal>
    - Files: <concrete paths>
    - Outcome: <what is true after this step>
    - Verification: <command or specific check>
    - Builds on: <path:line | stdlib/platform: <what> | dependency: <name> | new code: <why>>
    - Smaller option: <one line>   ← only when one exists
-   - Serves criteria: [<list of criterion indices, e.g. 1, 3>]   ← skipped in legacy mode
+   - Serves criteria: [<list of criterion indices, e.g. 1, 3>] · use cases: [<IDs, e.g. UC2>]   ← legacy mode: `- Use cases: [UC2]` alone
    - Tags: [research] [delegate] [mechanical|judgment]   ← optional on main; [mechanical]/[judgment] mandatory in strict mode
    - Current state: <before-excerpt, file:line>   ← [delegate] steps; every step in strict mode ("new file" for new-file steps)
    - Exemplar: <path to follow as convention anchor>   ← [delegate] steps; every step in strict mode
@@ -55,4 +58,14 @@ Read at step 10, before writing the plan.
    ## Notes
    - Architectural rules loaded: <names only>
    - Open risks: <list, or "none">
+   ```
+
+## Plans INDEX (step 12)
+
+   ```markdown
+   # Plans index
+
+   | Slug | Current | Status | Spec | Created | Description |
+   |------|---------|--------|------|---------|-------------|
+   | <slug> | v<N> | active | v<M> | YYYY-MM-DD | <one-line> |
    ```

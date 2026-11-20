@@ -105,7 +105,7 @@ A step tagged `[mechanical]`, `[delegate]` or `[research]` may run outside this 
 
 #### 3c. Implement
 
-Apply the described changes. Use Edit / Write / Bash / whatever the step requires. The plan's Files and Outcome lines are the contract — if the implementation drifts to touch other files, stop and ask:
+Apply the described changes. Use Edit / Write / Bash / whatever the step requires. Refactor: see [record-replay.md](record-replay.md). The plan's Files and Outcome lines are the contract — if the implementation drifts to touch other files, stop and ask:
 
 > Step N wanted to modify <planned files>, but I need to also touch <other files>. Update the plan or abort?
 

@@ -1,7 +1,7 @@
 // Scope-chain state from file text, the same checks as skills/work-state.
 // Pure: no $, no I/O. load.ts reads the files.
 
-import type { PlanStep, Progress, SlugState, Stage } from '../types'
+import type { PlanStep, Progress, SlugState, Stage, UseCase } from '../types'
 
 export type Versioned = { version: number; text: string }
 export type SlugFiles = {
@@ -37,12 +37,46 @@ export function frontmatter(md: string): Map<string, string> {
   return keys
 }
 
+// The text after `from` up to the next `## ` heading.
+function sectionAfter(md: string, from: number): string {
+  const rest = md.slice(from)
+  const end = /^## /m.exec(rest)
+  return end ? rest.slice(0, end.index) : rest
+}
+
+// `· use cases: [UC2, UC3]` on the Serves line, or `- Use cases: [UC2]` alone.
+function useCaseIds(body: string): string[] {
+  const line = /use cases:\**\s*\[?([^\]\n]*)/i.exec(body)
+  return line?.[1]?.match(/UC\d+/g) ?? []
+}
+
 export function planSteps(md: string): PlanStep[] {
-  const steps: PlanStep[] = []
-  for (const m of md.matchAll(/^## Step (\d+):\s*(.+)$/gm)) {
-    steps.push({ n: Number(m[1]), goal: (m[2] ?? '').trim() })
-  }
-  return steps
+  return [...md.matchAll(/^## Step (\d+):\s*(.+)$/gm)].map(m => {
+    const ids = useCaseIds(sectionAfter(md, m.index + m[0].length))
+    return { n: Number(m[1]), goal: (m[2] ?? '').trim(), ...(ids.length > 0 ? { useCases: ids } : {}) }
+  })
+}
+
+// `### UC1: goal` headings under `## Use cases` (skills/spec/use-cases.md).
+// 'none' for `none — internal change`; undefined when there is no section.
+export function useCases(md: string): UseCase[] | 'none' | undefined {
+  const head = /^## Use cases[ \t]*$/im.exec(md)
+  if (!head) return undefined
+  const body = sectionAfter(md, head.index + head[0].length)
+  const found = [...body.matchAll(/^### (UC\d+):\s*(.+)$/gm)].map(m => ({ id: m[1] ?? '', goal: (m[2] ?? '').trim() }))
+  if (found.length > 0) return found
+  return /^\s*none\b/i.test(body) ? 'none' : undefined
+}
+
+export type UseCaseRow = UseCase & { steps: number[] }
+
+// Each use case with the plan steps that list it. isTracked: some step lists
+// a use case. A plan from before use cases lists none, so nothing in it reads
+// as uncovered.
+export function useCaseCoverage(s: SlugState): { rows: UseCaseRow[]; isTracked: boolean } {
+  if (s.useCases === undefined || s.useCases === 'none') return { rows: [], isTracked: false }
+  const rows = s.useCases.map(uc => ({ ...uc, steps: s.steps.filter(st => st.useCases?.includes(uc.id)).map(st => st.n) }))
+  return { rows, isTracked: s.steps.some(st => (st.useCases?.length ?? 0) > 0) }
 }
 
 // A plan's `spec:` pin: a version, 'none' for a --task plan, undefined if absent.
@@ -118,7 +152,8 @@ export function resolveSlug(slug: string, files: SlugFiles, progress?: Progress)
     { name: 'blueprint', status: files.hasBlueprint ? 'present' : 'missing', detail: 'optional' },
     execute,
   ]
-  return { slug, stages, next: nextAction(slug, isTaskPlan, spec, plan, execute), steps }
+  const cases = (files.plan && useCases(files.plan.text)) ?? (files.spec && useCases(files.spec.text))
+  return { slug, stages, next: nextAction(slug, isTaskPlan, spec, plan, execute), steps, ...(cases ? { useCases: cases } : {}) }
 }
 
 const STEP_DONE = /✓ Step (\d+) complete: ([^\n]*?)(?:\. Verified|\n|$)/g

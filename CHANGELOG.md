@@ -20,6 +20,93 @@ File-level changes per public snapshot. Curate freely — this is the human-faci
 
 
 
+
+## 2026-11-20 — Plan tab shows use cases and the steps serving them; new Rules tab turns contexture hooks and architectural rules on and off; /work is now /work-panel, with an openAtStart option; envision, spec and draft-plan walk use cases with you; review's design angle asks if code is needed and if it scales; write-tests lists input traps per type; /execute can record and replay pure function outputs around a refactor; a flow check shows whether skills ran as designed; ui-craft lists screen states first and logs design decisions; bench prereg interleaves arms.
+
+_17 added, 45 changed, 0 removed._
+
+### Agents
+- changed `agents/cold-reader.md`
+
+### Architectural rules
+- changed `architectural-rules/ui-craft/direction.md`
+
+### Bootstrap
+- changed `bootstrap/lib/enablement.js`
+
+### Commands
+- changed `commands/draft-plan.md`
+- changed `commands/envision.md`
+- changed `commands/spec.md`
+
+### Cross-tool instructions
+- changed `.github/instructions/ui-craft.instructions.md`
+
+### Docs
+- changed `docs/architectural-rules-overlay.md`
+- changed `docs/plan-execute-workflow.md`
+- changed `docs/reference.md`
+- changed `docs/skills-catalog.md`
+
+### Hooks
+- added `hooks/lib/rules-cli.js`
+- added `hooks/skill-trace.js`
+- added `hooks/tests/rules-cli.test.js`
+- added `hooks/tests/skill-trace.test.js`
+- changed `hooks/hooks.json`
+- changed `hooks/lib/resolve-rules.js`
+- changed `hooks/rule-prime.js`
+
+### Other
+- added `mods/contexture-ui/hooks/rules-tab.tsx`
+- added `mods/contexture-ui/hooks/rules.ts`
+- added `mods/contexture-ui/tests/rules.test.ts`
+- changed `.claude-plugin/marketplace.json`
+- changed `.claude-plugin/plugin.json`
+- changed `README.md`
+- changed `copilot/agents/cold-reader.agent.md`
+- changed `cursor/rules/ui-craft.mdc`
+- changed `evals/PREREG.md`
+- changed `mods/contexture-ui/README.md`
+- changed `mods/contexture-ui/hooks/chain.ts`
+- changed `mods/contexture-ui/hooks/load.ts`
+- changed `mods/contexture-ui/hooks/plan-tab.tsx`
+- changed `mods/contexture-ui/hooks/register.tsx`
+- changed `mods/contexture-ui/hooks/run-bar.tsx`
+- changed `mods/contexture-ui/hooks/work-open.ts`
+- changed `mods/contexture-ui/hooks/work-pane.tsx`
+- changed `mods/contexture-ui/tests/chain.test.ts`
+- changed `mods/contexture-ui/tests/pane.test.tsx`
+- changed `mods/contexture-ui/tsconfig.json`
+- changed `mods/contexture-ui/types/index.d.ts`
+- changed `scripts/build-plugin.js`
+
+### Settings
+- changed `settings/settings.template.json`
+
+### Skills
+- added `skills/envision/templates.md`
+- added `skills/execute/record-replay.md`
+- added `skills/execute/record-replay.mjs`
+- added `skills/execute/record-replay.py`
+- added `skills/execute/test/record-replay.test.mjs`
+- added `skills/flow-check/SKILL.md`
+- added `skills/flow-check/agents/openai.yaml`
+- added `skills/flow-check/flow-check.js`
+- added `skills/spec/use-cases.md`
+- added `skills/write-tests/input-traps.md`
+- changed `skills/blueprint/SKILL.md`
+- changed `skills/draft-plan/SKILL.md`
+- changed `skills/draft-plan/strict-mode.md`
+- changed `skills/draft-plan/templates.md`
+- changed `skills/envision/SKILL.md`
+- changed `skills/execute/SKILL.md`
+- changed `skills/human-view/SKILL.md`
+- changed `skills/review/angles.md`
+- changed `skills/spec/SKILL.md`
+- changed `skills/spec/templates.md`
+- changed `skills/write-tests/SKILL.md`
+
 ## 2026-11-18 — Work pane redesigned as cards and chips: the plan in focus in a card with a progress bar and chips, touched files and a filter on Files, one card per file on Changes with Keep all, a red failing count on Problems, live agent cards, a now strip and counts on the tabs.
 
 _1 added, 18 changed, 0 removed._

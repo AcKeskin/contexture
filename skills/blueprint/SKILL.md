@@ -66,20 +66,20 @@ The point is *intent + mature concrete shape*, aligned. It is **not** a process 
 
 ### 3. Determine output version and paths
 
-- In-repo: `.claude/docs/<slug>/`. No `v*.md` yet → `v1.md`. Else → `v<N+1>.md`. `sketch.md` is not a version. Versioning follows spec's canonical contract ([spec SKILL.md § Versioning contract](../spec/SKILL.md)): mark the previous version superseded with a `superseded_by` pointer and regenerate the INDEX.
+- In-repo: `.claude/docs/<slug>/`. No `v*.md` yet → `v1.md`. Else → `v<N+1>.md`. `sketch.md` is not a version. Versioning follows spec's canonical contract ([spec reference.md § Versioning contract](../spec/reference.md)): mark the previous version superseded with a `superseded_by` pointer and regenerate the INDEX.
 - Vault: `<Vault>/Projects/<ProjectFolder>/Docs/<slug>-blueprint.md` (or per-section split — see step 7). Reuse visualise-codemap's `<ProjectFolder>` inference and allowlist-surfacing.
 
 ### 4. Author the blueprint (adaptive — omit empty)
 
 Three parts. **Omit any part whose source material is empty** — no "N/A" placeholders. Where a Mode-1 source is **silent on something a part needs**, **batch that part's gaps into a single `AskUserQuestion` round** (the tool caps at 4 questions; do two rounds if more). Never invent. In **Mode 2**, do not interview — infer and label (§4.4). Diagram templates are in [`mermaid-templates.md`](mermaid-templates.md).
 
-1. **What we wanted (intent).** 1–3 short paragraphs from the vision's intent + the spec's problem/goals/done-criteria (Mode 1) or the codemap's inferred purpose (Mode 2): what the system is, who it's for, the success criterion. **No diagram.** Terse — this is the comparand, not an essay.
+1. **What we wanted (intent).** 1–3 short paragraphs from the vision's intent + the spec's problem/goals/use cases/done-criteria (Mode 1) or the codemap's inferred purpose (Mode 2): what the system is, who it's for, the success criterion. **No diagram.** Terse — this is the comparand, not an essay.
 
 2. **What we're building now (the concrete shape).** The mature, concrete answer — the heart of the blueprint. Author whichever of these the slug actually has:
    - **Module / component map** — a `C4Container` block AND a flowchart fallback (template: `c4-architecture`) showing modules, responsibilities, and **the relationships between them**. Always present when there is more than one module.
    - **Classes & interfaces** — a `classDiagram` (template: `class`) of the concrete types: interfaces, classes, their key fields and operations, and **relationships** (extends / implements / composition). From the spec's defined entities + the plan's named types (Mode 1) or the codemap's `## Class graph` (Mode 2). This is what "concrete" means — the actual surface to be built.
    - **Dependencies & build order** — a dependency graph (flowchart) of module/class dependencies, plus a short **build order** list (what gets built first, what depends on it). From the plan's step ordering (Mode 1) or the codemap's dependency edges (Mode 2).
-   - **Key runtime flows** *(optional)* — a `sequenceDiagram` (template: `sequence`) for the one or two interactions that actually matter. Skip the exhaustive flow catalogue — only the load-bearing ones. Mode 2: label inferred flows `%% inferred — verify against runtime`.
+   - **Key runtime flows** *(optional)* — a `sequenceDiagram` (template: `sequence`) for the one or two interactions that actually matter. Mode 1: take them from the main flows of the spec's use cases and title each with its ID (`UC2: …`). Skip the exhaustive flow catalogue — only the load-bearing ones. Mode 2: label inferred flows `%% inferred — verify against runtime`.
    - **Data model** *(optional)* — `classDiagram` + `erDiagram` (templates: `class`, `er`) only when there is persisted state worth pinning.
 
 3. **Alignment** — 2–4 lines closing the loop: does the concrete shape in part 2 still serve the intent in part 1? Name any place it drifted, narrowed, or added scope the intent didn't ask for. This is the commit point — the engineer reads this to decide "yes, build it." *(Optionally fold in a one-line **key decision** note here when a concrete choice is non-obvious — e.g. "chose composition over an inheritance tree for the renderers." Keep it to the decision, not the deliberation — process is out of scope.)*

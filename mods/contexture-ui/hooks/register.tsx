@@ -13,12 +13,13 @@ import { registerWorkPane } from './work-pane'
 import { setFocusLook } from './focus-look'
 import { nowClear, nowModel, nowTools, registerNowBand, startNowClock } from './now-band'
 import { clearProblems, loadProblems } from './problems-tab'
+import { loadRules } from './rules-tab'
 
 // The engine lists each file's state reads from atoms written in that file,
 // so plan-tab.tsx declares this same atom. Change the tag in both when
 // ChainView changes: it declines what an older version stored.
 const chain = atom({ plugin: 'contexture-ui', key: 'chain' } as const, { slugs: [], scopes: [] } as ChainView, {
-  shape: 'chain-2',
+  shape: 'chain-3',
 })
 
 const cache = atom({ plugin: 'contexture-ui', key: 'cache' } as const, NO_CLOCK, { shape: 'cache-1' })
@@ -92,22 +93,25 @@ export const register: Register = (on, options) => {
 
   on('session.start', async ($, e, next) => {
     const started = await next(e)
-    await $.command.register({ name: 'work', description: 'Show the Work pane: files and plan' })
+    await $.command.register({ name: 'work-panel', description: 'Show the Work panel: files, changes, problems, plan and agents' })
     await $.command.register({ name: 'chain', description: 'Show where each slug stands in the scope chain' })
     const view = await refresh($)
     await startCodemap($)
+    await loadRules($).catch(err => $.ui.log(`contexture-ui: Rules tab: ${String(err)}`))
     if (options.focusColors === true) await setFocusLook($)
     if (options.nowLine !== false) startNowClock($)
     $.clock.every(TICK_MS, () => {
       tick($).catch(err => $.ui.log(`contexture-ui: cache tick failed: ${String(err)}`))
       tickAgents($).catch(err => $.ui.log(`contexture-ui: Agents tab: ${String(err)}`))
     })
-    // Opened unasked only where a pane sits beside the chat, never inline in a terminal.
-    if (e.surface !== null && e.surface !== 'terminal' && view.slugs.length > 0) await openWorkUnasked($)
+    // Opened unasked only where a pane sits beside the chat, never inline in a
+    // terminal: with openAtStart always, else when a slug is in flight.
+    const isAlways = options.openAtStart === true
+    if (e.surface !== null && e.surface !== 'terminal' && (isAlways || view.slugs.length > 0)) await openWorkUnasked($, isAlways)
     return started
   })
 
-  on('command.run', { command: 'work' }, async $ => {
+  on('command.run', { command: 'work-panel' }, async $ => {
     await refresh($)
     await loadCodemap($)
     const isPlaced = await openWork($)

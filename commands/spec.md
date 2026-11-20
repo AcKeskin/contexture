@@ -11,6 +11,6 @@ Forms:
 - `/spec <slug> --new` — explicit fresh slug; refuse if `<slug>` already exists in INDEX.
 - `/spec <slug> --abandon` — mark the active version `abandoned`; no new file written.
 
-The skill interviews the user, runs a done-criteria probe, grounds the spec via `/discover`, writes the versioned file under `.claude/specs/<slug>/`, and reconciles INDEX.md. It does not implement, plan, or execute.
+The skill opens with a use-case walk, interviews the user, runs a done-criteria probe, grounds the spec via `/discover`, writes the versioned file under `.claude/specs/<slug>/`, and reconciles INDEX.md. It does not implement, plan, or execute.
 
 See `~/.claude/skills/spec/SKILL.md` for the full procedure.

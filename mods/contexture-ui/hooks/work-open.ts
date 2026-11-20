@@ -23,9 +23,10 @@ export async function openWork($: EngineInterface, at?: WorkTab): Promise<boolea
   return opened.isPlaced
 }
 
-// Opened at session start, unless the person closed it.
-export async function openWorkUnasked($: EngineInterface): Promise<void> {
-  if ((await $.store.get(CLOSED_KEY)) === true) return
+// Opened at session start, unless the person closed it and isAlways
+// (the openAtStart option) is off.
+export async function openWorkUnasked($: EngineInterface, isAlways = false): Promise<void> {
+  if (!isAlways && (await $.store.get(CLOSED_KEY)) === true) return
   void $.ui.open({ id: PANE, title: TITLE })
 }
 

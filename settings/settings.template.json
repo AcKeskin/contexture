@@ -260,6 +260,37 @@
         }
       ]
     },
+    "skillTrace": {
+      "UserPromptSubmit": [
+        {
+          "hooks": [
+            { "type": "command", "command": "node __HOME__/.claude/hooks/skill-trace.js", "timeout": 5, "async": true }
+          ]
+        }
+      ],
+      "PreToolUse": [
+        {
+          "matcher": "Agent|Task|Skill",
+          "hooks": [
+            { "type": "command", "command": "node __HOME__/.claude/hooks/skill-trace.js", "timeout": 5, "async": true }
+          ]
+        }
+      ],
+      "PostToolUse": [
+        {
+          "hooks": [
+            { "type": "command", "command": "node __HOME__/.claude/hooks/skill-trace.js", "timeout": 5, "async": true }
+          ]
+        }
+      ],
+      "PostToolUseFailure": [
+        {
+          "hooks": [
+            { "type": "command", "command": "node __HOME__/.claude/hooks/skill-trace.js", "timeout": 5, "async": true }
+          ]
+        }
+      ]
+    },
     "proseLint": {
       "PostToolUse": [
         {

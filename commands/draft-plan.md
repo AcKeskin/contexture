@@ -10,6 +10,6 @@ Forms:
 - `/draft-plan <slug>` — plan against `.claude/specs/<slug>/` active version.
 - `/draft-plan <slug> --task "<text>"` — degraded mode: no spec, the text is the input.
 
-The skill preps architectural rules, grounds via `/discover`, drafts steps each tracing to the spec's done-criteria, presents the plan for accept/edit/reject (nothing written until accepted), then writes `.claude/plans/<slug>/v<N>.md` pinned to the spec version and reconciles INDEX.md. It does not implement or execute.
+The skill preps architectural rules, grounds via `/discover`, confirms the use cases with you, drafts steps each tracing to the spec's done-criteria, presents the plan for accept/edit/reject (nothing written until accepted), then writes `.claude/plans/<slug>/v<N>.md` pinned to the spec version and reconciles INDEX.md. It does not implement or execute.
 
 See `~/.claude/skills/draft-plan/SKILL.md` for the full procedure.

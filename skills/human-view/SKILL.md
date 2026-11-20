@@ -20,8 +20,8 @@ This is the README's **two-doc-tracks** principle (humans vs agents) — already
 A plain-prose **approval view** of the artefact, structured for a human scanning to approve, not an LLM executing:
 
 1. **The goal, in one breath** — what this is trying to achieve, in plain language (from the artefact's intent/problem/goal).
-2. **What we decided** — the concrete, load-bearing decisions as short prose bullets (the steps/shape/requirements that matter), *not* the token-compressed body. Translate IDs, refs, and shorthand into readable statements.
-3. **Alignment check** — "does this match what you asked for?" — surface where the artefact narrowed, expanded, or reinterpreted the original ask, so a misalignment is visible *before* approval.
+2. **What we decided** — the concrete, load-bearing decisions as short prose bullets (the steps/shape/requirements that matter), *not* the token-compressed body. Translate IDs, refs, and shorthand into readable statements. When the artefact has use cases, open with them as *who can do what*: one plain sentence each (actor, goal, end state).
+3. **Alignment check** — "does this match what you asked for?" — surface where the artefact narrowed, expanded, or reinterpreted the original ask (a use case the ask implied but the artefact lacks, or one it added), so a misalignment is visible *before* approval.
 4. **Open questions / risks** — what's still unresolved or assumed, in plain terms.
 
 Rendered inline in the conversation by default (the approval moment is conversational). On `/human-view ... --vault`, also write a human copy to the Obsidian vault (reusing visualise-codemap's vault conventions + the `vaultRoot`-from-config rule, never hardcoded).

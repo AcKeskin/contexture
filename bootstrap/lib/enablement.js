@@ -12,7 +12,7 @@
 //                           rulePrime, fileHistory, compactSnapshot,
 //                           editChecks, codemapNudge, codemapRefresh,
 //                           subagentRules, loopGuard, commandFacts,
-//                           proseLint : bool }  (each independently toggleable)
+//                           proseLint, skillTrace : bool }  (each independently toggleable)
 //
 // First-run discipline: if hook-config.json has no `enabled` block, write
 // the solo defaults (everything on, nothing excluded) and continue. The
@@ -54,6 +54,8 @@ const DEFAULT_ENABLED = {
     // decision (autonomy is opt-in per-organ; the user turns each on once trusted).
     wrapTerminus: false,
     coordinateAuto: false,
+    // Writes a trace of every tool call into the project for /flow-check; opt in.
+    skillTrace: false,
   },
 };
 

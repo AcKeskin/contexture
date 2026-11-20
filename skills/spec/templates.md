@@ -13,7 +13,7 @@
    created: YYYY-MM-DD
    description: <one-line — what this spec is about, used by INDEX>
    done_criteria:
-     - "<falsifiable, observable condition 1>"
+     - "UC1: <falsifiable, observable condition 1>"
      - "<falsifiable, observable condition 2>"
    done_criteria_provisional: false   # set true (with status: draft) only if step 5 yielded no firm criteria
    ---
@@ -33,8 +33,8 @@
    ## Non-goals
    - <bullet>
 
-   ## User-facing behavior
-   <from interview.>
+   ## Use cases
+   <full form per use-cases.md: ### UC1: … with Actor, Goal, Main flow, Edge cases, Success. Or "none — internal change".>
 
    ## Base implementation      ← only when the prior-art pass confirmed a base
    **Base:** <path(s) to the confirmed canonical implementation>

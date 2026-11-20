@@ -81,6 +81,8 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
 
    Stop unless the user confirms.
 
+7.5 **Use-case check.** Before drafting steps, show the use cases the plan serves in compact form (`UC1 <actor>: <goal> → <success>`) and ask *accept / edit / add / drop*; draft no steps until accepted. Source: the spec's `## Use cases`. With `--task` or a spec without them, draft them from the input and run the interview in [use-cases.md](../spec/use-cases.md). A use case edited, added, dropped, or drafted for a spec without them goes in Notes, with an offer to run `/spec <slug>` after. Skip on a user-confirmed `none — internal change`.
+
 8. **Draft steps.** Each step has:
    - Concrete goal (one line).
    - Files (concrete paths — flag unknowns in Notes and stop).
@@ -92,16 +94,12 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
 
      > Step N traces to no done-criterion: the spec is missing one (re-run `/spec <slug>`) or the step is unnecessary (drop it).
 
+   - **Use cases:** appended to the Serves line (`· use cases: [UC2]`). A use case no step serves blocks the gate.
    - Optional tags: `[research]`, `[delegate]`.
 
    Skip "Serves criteria" in legacy mode (no `done_criteria`).
 
-   **Self-containment for delegated steps.** When a step is tagged `[delegate]` (or otherwise destined for a fresh subagent — see execute §3b), the executing agent does **not** share this conversation's context and cannot re-derive it. Such a step needs two extra fields so it stands alone:
-
-   - **Current state:** the relevant *before* excerpt of what the step modifies — the actual code/config lines being changed (a few lines, cited `file:line`), not a paraphrase. For a new-file step, state "new file" and the directory it lands in.
-   - **Exemplar:** a concrete path in the repo to follow as the convention anchor (e.g. *"mirror the structure of `src/services/auth-service.ts`"*). The subagent reads it to match local idiom instead of inventing one.
-
-   Populate both only for `[delegate]` steps; on in-context steps they are noise. If you can't supply them, Read the repo to fill them in or drop the `[delegate]` tag. Never delegate a step the plan can't make self-contained.
+   **Delegated steps** (`[delegate]`, or bound for a fresh subagent) also need Current state and Exemplar so they stand alone: [strict-mode.md](strict-mode.md), *Delegated steps*. Never delegate a step the plan can't make self-contained.
 
    Don't add a final "check done-criteria" step: `/execute` runs that assessment itself.
 
@@ -122,7 +120,7 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
 
 9. **Review gate — present the plan and confirm before writing.** The plan is the last cheap checkpoint before `/execute` ("plan changes are cheap, implementation changes are not"). Do **not** write the file silently; present the drafted plan and ask the user how to proceed. For a non-trivial plan, offer a [human-view](../human-view/SKILL.md) projection alongside — *"want the plain-prose approval view? (/human-view)"* — so approval reads the decisions, not the artefact format. Pick the presentation mode by plan size:
 
-   - **Inline (default, small plans ≤ 6 steps).** Render the full plan body — Context, the Done-criteria echo, and every numbered step (goal / files / outcome / verification / serves-criteria) — in the conversation. Then ask: *accept / edit / page / cold / reject*.
+   - **Inline (default, small plans ≤ 6 steps).** Render the full plan body — Context, the Done-criteria echo, Use cases, and every numbered step (goal / files / outcome / verification / serves-criteria) — in the conversation. Then ask: *accept / edit / page / cold / reject*.
    - **Outline-first (large plans > 6 steps).** Render a compact outline — one line per step (`Step N: <goal>  → serves [criteria]`) — then ask: *"Show the full plan inline, write it to disk for you to open, or edit a step? (accept / show / write / edit / page / cold / reject)"*. Pull the full body inline only if the user asks for it.
    - **Ask-only (terse preference — `--quiet` flag, or a stored `preferences/`-tier verbosity preference).** A single prompt: *"Plan drafted: K steps, pinned to spec v<M>. Review inline, or write and open? (review / write / reject)"*.
 
@@ -142,19 +140,9 @@ Do **not** auto-fire. For a one-sentence change, the triviality check (step 7) w
 
    Use the frontmatter and body template in [templates.md](templates.md): `spec:` pins the spec version, `base:` pins the commit, `executor: cheap` only in strict mode, Done-criteria echoed verbatim and numbered, and each step's fields as drafted in step 8. `--task` plans: see templates.md.
 
-11. **Update previous active plan** (when N > 1). Versioning follows spec's canonical contract ([spec SKILL.md § Versioning contract](../spec/SKILL.md)): mark the previous version superseded with a `superseded_by` pointer and regenerate the INDEX.
+11. **Update previous active plan** (when N > 1). Versioning follows spec's canonical contract ([spec reference.md § Versioning contract](../spec/reference.md)): mark the previous version superseded with a `superseded_by` pointer and regenerate the INDEX.
 
-12. **Update plans INDEX.** Path: `.claude/plans/INDEX.md`. Same shape as specs INDEX:
-
-    ```markdown
-    # Plans index
-
-    | Slug | Current | Status | Spec | Created | Description |
-    |------|---------|--------|------|---------|-------------|
-    | <slug> | v<N> | active | v<M> | YYYY-MM-DD | <one-line> |
-    ```
-
-    Regenerated from frontmatter every invocation. Lazy create.
+12. **Update plans INDEX.** Path: `.claude/plans/INDEX.md`, shape in [templates.md](templates.md). Regenerated from frontmatter every invocation. Lazy create.
 
 13. **Close.**
 

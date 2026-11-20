@@ -1,11 +1,12 @@
 // The Work pane's Plan tab: the plan in focus in a card (chain chips, a
-// progress bar, its steps as /execute ticks them, Run), every other slug as
-// one row that moves the card to it. Buttons put the command in the reply box.
+// progress bar, its steps as /execute ticks them, Run, its use cases with the
+// steps serving each), every other slug as one row that moves the card to it.
+// Buttons put the command in the reply box.
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, RenderElement, ResolveInput } from 'claude-code'
 
 import type { ChainView, SlugState, Stage } from '../types'
-import { commandOf, executeCommand, stepMarks } from './chain'
+import { commandOf, executeCommand, stepMarks, useCaseCoverage } from './chain'
 import type { StepMark, Strategy } from './chain'
 import { card, chip, isRich, label } from './look'
 import type { Tone } from './look'
@@ -13,7 +14,7 @@ import { fillReply } from './reply'
 
 // Same atom as register.tsx's: keep the two declarations alike.
 const chain = atom({ plugin: 'contexture-ui', key: 'chain' } as const, { slugs: [], scopes: [] } as ChainView, {
-  shape: 'chain-2',
+  shape: 'chain-3',
 })
 const strategy = atom({ plugin: 'contexture-ui', key: 'strategy' } as const, 'auto' as Strategy, {
   shape: 'strategy-1',
@@ -123,6 +124,8 @@ export async function planTab($: EngineInterface, e: ResolveInput<'Pane'>): Prom
     const isExecuteNext = commandOf(s.next) === `/execute ${s.slug}`
     const next = isExecuteNext ? executeCommand(s.slug, nextStep?.n, how) : commandOf(s.next)
     const shown = steps.filter(st => st.mark !== 'done' || isShown)
+    const cover = useCaseCoverage(s)
+    const uncovered = cover.isTracked ? cover.rows.filter(uc => uc.steps.length === 0).length : 0
 
     return (
       <Box flexDirection="column" gap={rich ? 1 : 0} {...card(rich)}>
@@ -152,6 +155,7 @@ export async function planTab($: EngineInterface, e: ResolveInput<'Pane'>): Prom
             const c = stageChip(st)
             return [chip(els, rich, c.text, c.tone)]
           })}
+          {uncovered > 0 ? chip(els, rich, `${uncovered} use case${uncovered > 1 ? 's' : ''} without a step`, 'warn') : null}
         </Box>
         {steps.length === 0 ? null : (
           <Box flexDirection="column">
@@ -190,14 +194,38 @@ export async function planTab($: EngineInterface, e: ResolveInput<'Pane'>): Prom
             />
           ) : null}
         </Box>
+        {cover.rows.length === 0 ? null : (
+          <Box flexDirection="column">
+            {label(els, 'Use cases')}
+            {cover.rows.map(uc => (
+              <Box key={`uc-${s.slug}-${uc.id}`} justifyContent="space-between" gap={1}>
+                <Text wrap="wrap">{`${uc.id} ${uc.goal}`}</Text>
+                {coverText(uc.steps, cover.isTracked)}
+              </Box>
+            ))}
+          </Box>
+        )}
       </Box>
     )
+  }
+
+  // Which steps serve a use case; amber when the plan tracks use cases and
+  // none does. An untagged plan (from before use cases) shows no coverage.
+  function coverText(served: number[], isTracked: boolean): RenderElement | null {
+    if (served.length > 0) {
+      return (
+        <Text dimColor tabular>
+          {served.length > 1 ? 'steps' : 'step'} {served.join(', ')}
+        </Text>
+      )
+    }
+    return isTracked ? <Text color="warning">no step</Text> : null
   }
 
   // A done step is text; a step still to run fills /execute --from N. The
   // next step is framed in the running color.
   function stepRow(s: SlugState, st: ReturnType<typeof stepMarks>[number], isRunnable: boolean): RenderElement {
-    const text = `${MARK[st.mark]} ${st.n} ${st.goal}`
+    const text = `${MARK[st.mark]} ${st.n} ${st.goal}${st.useCases ? ` · ${st.useCases.join(', ')}` : ''}`
     if (st.mark === 'done' || !isRunnable) {
       return (
         <Text color={st.mark === 'done' ? 'success' : undefined} dimColor={st.mark !== 'done'} wrap="wrap">

@@ -21,12 +21,14 @@ A finding is something a fresh engineer would get wrong, stop on, or rebuild. St
 3. Flag project terms, files or services used without a definition or a path.
 4. Flag steps that assume setup the doc never states.
 5. Flag vague mechanisms ("handled automatically") with no pointer to how.
+6. If the doc has use cases, add each to the paraphrase as one sentence (who, wants what, ends how). A use case with no actor or no observable Success is a finding.
 
 **readiness** (plans only)
 1. Zero-decision rule: any step that leaves a design choice to the implementer fails. Examples: a name, a schema, a file location, a dependency, an edge case left open.
 2. Each step needs concrete files, an outcome and a check. A check that says "confirm it works" is a finding.
 3. Each step should leave the code buildable.
 4. Read the files a step cites. A cited path or symbol that does not exist is a blocker.
+5. A use case that no step serves is a blocker.
 
 **reuse**
 1. For every new helper, module, type or config the doc proposes, search the repo for one that already does the job. Cite it as `path:line`.

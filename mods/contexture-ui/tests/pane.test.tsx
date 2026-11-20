@@ -1,5 +1,5 @@
 import { expect, mock, test } from 'claude-code/testing'
-import type { AgentInfo, ToolUseSummary } from 'claude-code'
+import type { AgentInfo, ConfigRow, ToolUseSummary } from 'claude-code'
 import type { TestBody } from 'claude-code/testing'
 
 import { hunks } from '../hooks/diff'
@@ -37,6 +37,9 @@ const PANE = {
 } as const
 
 type On = Parameters<TestBody>[1]
+
+// rules-cli.js runs the engine stand-in answered, oldest first.
+const nodeRuns: string[][] = []
 
 // Stands in for the engine: a fake project tree, home and session.
 function engine(
@@ -79,6 +82,13 @@ function engine(
     return { value: undefined }
   })
   on('process.run', (_, e) => {
+    // rules-cli.js: `node <cli> list|disable|enable ...`, answered from `node <command>`.
+    if (e.argv[0] === 'node') {
+      nodeRuns.push([...e.argv])
+      const ran = files[`node ${e.argv[2]}`]
+      const result = { exitCode: ran === undefined ? 1 : 0, stdout: ran ?? '', stderr: ran === undefined ? 'rules-cli: no' : '' }
+      return { value: { ...result, isStdoutTruncated: false, isStderrTruncated: false } }
+    }
     const out = e.argv[1] === 'rev-parse' ? '\n' : (files['git status'] ?? '')
     return { value: { exitCode: 0, stdout: out, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
   })
@@ -123,6 +133,22 @@ test('a pane the person closed stays closed at session start until /chain', asyn
   await $.command.run({ ...RUN, command: 'chain' })
   await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
   expect(opened).toEqual(['contexture-work', 'contexture-work'])
+})
+
+test('openAtStart opens the pane at every start, with no slug and after a close', { options: { openAtStart: true } }, async ($, on) => {
+  const opened: string[] = []
+  engine(on, opened, [], '', { '/repo/.claude/codemap.md': CODEMAP }, { isWorkPaneClosed: true })
+  await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
+  expect(opened).toEqual(['contexture-work'])
+  await $.session.start({ cwd: ROOT, surface: 'terminal', isInteractive: true })
+  expect(opened).toEqual(['contexture-work'])
+})
+
+test('without openAtStart no slug in flight leaves the pane shut', async ($, on) => {
+  const opened: string[] = []
+  engine(on, opened, [], '', { '/repo/.claude/codemap.md': CODEMAP })
+  await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
+  expect(opened).toEqual([])
 })
 
 test('a turn with a step line moves the status line and execute row', async ($, on) => {
@@ -273,22 +299,22 @@ test('/codemap opens the Work pane on Files, /chain on Plan', async ($, on) => {
     expect((await ui.find({ key: 'run-auth' }))?.props).toMatchObject({ label: 'Run plan' })
     await ui.unmount()
   }
-  expect((await $.command.run({ ...RUN, command: 'work' })).text).toBe('Work pane opened.')
+  expect((await $.command.run({ ...RUN, command: 'work-panel' })).text).toBe('Work pane opened.')
   expect(opened).toEqual(Array(5).fill('contexture-work'))
 })
 
-test('/work keeps the tab the pane was on', async ($, on) => {
+test('/work-panel keeps the tab the pane was on', async ($, on) => {
   engine(on, [], [])
   await $.session.start({ cwd: ROOT, surface: 'terminal', isInteractive: true })
   await $.command.run({ ...RUN, command: 'codemap' })
-  await $.command.run({ ...RUN, command: 'work' })
+  await $.command.run({ ...RUN, command: 'work-panel' })
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   expect(await ui.find({ type: 'Text', text: /^ALL FILES/ })).toBeDefined()
   await ui.unmount()
 })
 
 // The kit does not raise ui.close, so these seed what the close hook stores.
-for (const command of ['codemap', 'work']) {
+for (const command of ['codemap', 'work-panel']) {
   test(`/${command} also clears the closed flag`, async ($, on) => {
     const opened: string[] = []
     engine(on, opened, [], '', FILES, { isWorkPaneClosed: true })
@@ -570,6 +596,37 @@ test('the Plan tab holds one plan in a card; the others are one row each', async
   expect(await ui.find({ key: 'run-billing' })).toBeDefined()
   expect(await ui.find({ key: 'run-auth' })).toBeUndefined()
   expect((await ui.find({ key: 'slug-auth' }))?.props).toMatchObject({ label: '▸ auth' })
+  await ui.unmount()
+})
+
+test('the Plan card lists use cases with the steps serving each, and flags one with none', async ($, on) => {
+  const files = {
+    ...FILES,
+    '/repo/.claude/plans/auth/v1.md':
+      '---\nspec: ../../specs/auth/v2.md\n---\n## Use cases\n\n### UC1: Sign in\n\n### UC2: Sign out\n\n' +
+      '## Step 1: Add token store\n- Serves criteria: [1] · use cases: [UC1]\n## Step 2: Wire login route\n- Serves criteria: [1] · use cases: [UC1]\n',
+  }
+  engine(on, [], [], '', files)
+  await $.session.start({ cwd: ROOT, surface: 'terminal', isInteractive: true })
+  for (const surface of ['terminal', 'desktop'] as const) {
+    const ui = await $.ui.mount({ ...PANE, surface })
+    expect((await ui.find({ key: 'from-auth-1' }))?.props).toMatchObject({ label: '▸ 1 Add token store · UC1' })
+    expect(await ui.find({ type: 'Text', text: 'Use cases' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'UC1 Sign in' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'steps 1, 2' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: 'no step' })).toBeDefined()
+    expect((await ui.find({ type: 'Text', text: /1 use case without a step/ }))?.text).toMatch(/^\[?1 use case without a step\]?$/)
+    expect((await ui.find({ key: 'run-auth' }))?.props).toMatchObject({ label: 'Run plan' })
+    await ui.unmount()
+  }
+})
+
+test('a plan from before use cases shows no use-case section', async ($, on) => {
+  engine(on, [], [], '')
+  await $.session.start({ cwd: ROOT, surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect(await ui.find({ type: 'Text', text: 'Use cases' })).toBeUndefined()
+  expect((await ui.find({ key: 'from-auth-1' }))?.props).toMatchObject({ label: '▸ 1 Add token store' })
   await ui.unmount()
 })
 
@@ -891,4 +948,76 @@ test('a file that is not plain UTF-8 gets no copy; Comment leaves later fills fr
   await ui.unmount()
   expect(fills).toEqual(['About src/a.ts:1: ', '/review'])
   expect(toasts).toEqual([])
+})
+
+test('the Rules tab toggles hook switches and rules, and sends Why and locked rules to /rules', async ($, on) => {
+  const fills: string[] = []
+  const sets: Array<[string, unknown]> = []
+  nodeRuns.length = 0
+  const config: ConfigRow[] = [
+    { key: 'contexture.security', label: 'Security hooks', description: 'Block rm -rf.', kind: 'boolean', value: true, provider: { plugin: 'contexture', tier: 'user' }, isLocked: false },
+    { key: 'contexture.edit_checks', label: 'Edit checks', kind: 'boolean', value: false, provider: { plugin: 'contexture', tier: 'user' }, isLocked: false },
+    { key: 'contexture-ui.nowLine', label: 'Now line', kind: 'boolean', value: true, provider: { plugin: 'contexture-ui', tier: 'user' }, isLocked: false },
+    { key: 'theme', label: 'Theme', kind: 'choice', value: 'dark', provider: { plugin: 'engine', tier: 'core' }, isLocked: false },
+  ]
+  const row = (key: string, extra: object = {}) => ({ key, name: `${key} rule`, scope: [], tier: 'shipped', tiers: ['shipped'], isLocked: false, disabledIn: [], ...extra })
+  const list = [row('universal/naming'), row('universal/git', { disabledIn: ['user'] }), row('acme/locked', { tier: 'company', tiers: ['shipped', 'company'], isLocked: true })]
+  const files = {
+    ...FILES,
+    '/home/me/.claude/session-state.json': JSON.stringify({ rulePrime: { s1: { scopes: ['universal'], rulesCli: '/cc/hooks/lib/rules-cli.js' } } }),
+    'node list': JSON.stringify({ rules: list }),
+    'node disable': '{}',
+    'node enable': '{}',
+  }
+  engine(on, [], [], '', files)
+  on('config.list', () => ({ value: config }))
+  on('config.set', (_, e) => {
+    sets.push([e.key, e.value])
+    return { value: e.value }
+  })
+  on('prompt.read', () => ({ value: { text: '', cursor: 0 } }))
+  on('prompt.fill', (_, e) => {
+    fills.push(e.text)
+    return { isFilled: true, text: '', cursor: 0 }
+  })
+  await $.session.start({ cwd: ROOT, surface: 'terminal', isInteractive: true })
+
+  for (const surface of ['terminal', 'desktop'] as const) {
+    const ui = await $.ui.mount({ ...PANE, surface })
+    await ui.press({ key: 'tab-rules' })
+    expect(await ui.find({ type: 'Text', text: 'HOOKS · 1 on' })).toBeDefined()
+    expect(await ui.find({ key: 'hook-contexture-ui.nowLine' })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: 'RULES · 3 · 1 off' })).toBeDefined()
+    await ui.unmount()
+  }
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  await ui.press({ key: 'hook-contexture.edit_checks' })
+  expect(sets).toEqual([['contexture.edit_checks', true]])
+
+  await ui.press({ key: 'scope-universal' })
+  expect((await ui.find({ key: 'rule-universal/git' }))?.props).toMatchObject({ label: 'Off' })
+  await ui.press({ key: 'rule-universal/git' })
+  await ui.press({ key: 'rule-scope-project' })
+  await ui.press({ key: 'rule-universal/naming' })
+  await ui.press({ key: 'why-universal/naming' })
+  await ui.input({ key: 'rule-filter', text: 'LOCKED', kind: 'change' })
+  expect(await ui.find({ key: 'rule-universal/naming' })).toBeUndefined()
+  await ui.press({ key: 'rule-acme/locked' })
+  await ui.unmount()
+
+  const toggles = nodeRuns.filter(a => a[2] !== 'list').map(a => a.slice(2).join(' '))
+  expect(toggles).toEqual(['enable universal/git --cwd /repo', 'disable universal/naming --cwd /repo --project'])
+  expect(fills).toEqual(['/rules where universal/naming', '/rules disable acme/locked'])
+})
+
+test('the Rules tab says how to get rules when rule priming recorded no path', async ($, on) => {
+  engine(on, [], [])
+  on('config.list', () => ({ value: [] }))
+  await $.session.start({ cwd: ROOT, surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  await ui.press({ key: 'tab-rules' })
+  expect(await ui.find({ type: 'Text', text: /No contexture hook switches/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /No rule list yet/ })).toBeDefined()
+  await ui.unmount()
 })

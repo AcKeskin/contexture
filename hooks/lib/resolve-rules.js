@@ -480,6 +480,61 @@ function findBase(tierMaps, patchTier, overrideKey) {
   return null;
 }
 
+// Every rule key across the enabled tiers, disabled ones included, for a
+// list view (the Work pane's Rules tab, via rules-cli.js). Same tiers and
+// manifests as resolveRules; no bodies, no patching. Fail-open: [] on error.
+//   { key, name, scope, tier, tiers, isLocked, disabledIn: ['user'|'project'] }
+function listRules({ cwd } = {}) {
+  try {
+    const { tiers } = loadManifests(cwd);
+    const user = readManifestAt(path.join(homeClaude(), 'architectural-rules.config.yaml'));
+    const project = cwd ? readManifestAt(path.join(cwd, '.claude', 'rules.config.yaml')) : null;
+    const tierMaps = TIER_ORDER.filter((t) => tierEnabled(t, tiers)).map((tier) => ({
+      tier,
+      map: enumerateTier(tierDir(tier, cwd)),
+    }));
+    const keys = new Set();
+    // A file at a tier's root (the shipped README) is not a <scope>/<name> rule.
+    for (const { map } of tierMaps) for (const k of map.keys()) if (k.includes('/')) keys.add(k);
+
+    const out = [];
+    for (const key of [...keys].sort()) {
+      const has = tierMaps.filter((t) => t.map.has(key));
+      const winner = has[has.length - 1];
+      let fm = {};
+      try {
+        fm = splitFrontmatter(fs.readFileSync(winner.map.get(key), 'utf8')).fm;
+      } catch {
+        // unreadable file: list the key with what the path tells
+      }
+      // A lock set in the company tier holds even under a higher override.
+      const isLocked = has.some((t) => {
+        if (t.tier !== TIER_COMPANY) return false;
+        try {
+          return String(splitFrontmatter(fs.readFileSync(t.map.get(key), 'utf8')).fm.locked) === 'true';
+        } catch {
+          return false;
+        }
+      });
+      const disabledIn = [];
+      if (user && user.disabled.includes(key)) disabledIn.push('user');
+      if (project && project.disabled.includes(key)) disabledIn.push('project');
+      out.push({
+        key,
+        name: fm.name || key,
+        scope: Array.isArray(fm.scope) ? fm.scope : fm.scope ? [fm.scope] : [],
+        tier: winner.tier,
+        tiers: has.map((t) => t.tier),
+        isLocked,
+        disabledIn,
+      });
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 // Exception-only annotation (step 6). A plain shipped rule returns '' — zero
 // annotation tokens. Non-default rules carry a short bracket tag.
 function buildAnnotation(tier, patched, orphans) {
@@ -499,6 +554,7 @@ function buildAnnotation(tier, patched, orphans) {
 // only when a unit-test file or second consumer actually needs the seam.
 module.exports = {
   resolveRules,
+  listRules,
   shippedRulesDir,
   TIER_ORDER,
 };

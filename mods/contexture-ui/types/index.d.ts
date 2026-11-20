@@ -1,8 +1,11 @@
 export type StageName = 'vision' | 'spec' | 'plan' | 'blueprint' | 'execute'
 export type StageStatus = 'missing' | 'present' | 'stale' | 'done' | 'blocked' | 'unknown'
 export type Stage = { name: StageName; status: StageStatus; detail: string }
-export type PlanStep = { n: number; goal: string }
-export type SlugState = { slug: string; stages: Stage[]; next: string; steps: PlanStep[] }
+// useCases: the IDs on the step's `use cases: [UC2]` line, when it has one.
+export type PlanStep = { n: number; goal: string; useCases?: string[] }
+export type UseCase = { id: string; goal: string }
+// useCases: the plan's `## Use cases`, else the spec's; 'none' for `none — internal change`.
+export type SlugState = { slug: string; stages: Stage[]; next: string; steps: PlanStep[]; useCases?: UseCase[] | 'none' }
 // planVersion: the plan version the step lines ran against; a new version drops it.
 export type Progress = { slug: string; step: number; total: number; isComplete: boolean; planVersion?: number }
 export type ChainView = { slugs: SlugState[]; progress?: Progress; scopes: string[] }
@@ -35,7 +38,23 @@ export type TreeRow = {
   isStale?: true
 }
 export type NowState = { kind: 'you' | 'tool' | 'agent' | 'claude'; what: string; since: number }
-export type WorkTab = 'files' | 'changes' | 'problems' | 'plan' | 'agents'
+export type WorkTab = 'files' | 'changes' | 'problems' | 'plan' | 'agents' | 'rules'
+export type RuleTier = 'shipped' | 'company' | 'user' | 'project'
+// One rule as hooks/lib/rules-cli.js lists it: the winning tier, every tier
+// that has the key, and the manifests that turn it off.
+export type RuleRow = {
+  key: string
+  name: string
+  scope: string[]
+  tier: RuleTier
+  tiers: RuleTier[]
+  isLocked: boolean
+  disabledIn: Array<'user' | 'project'>
+}
+// cli: the rules-cli.js path rule-prime recorded; none when priming is off.
+export type RulesView = { rules: RuleRow[]; cli?: string; error?: string }
+// A contexture hook bundle as its /config row shows it.
+export type HookRow = { key: string; label: string; description: string; isOn: boolean; isLocked: boolean }
 export type AgentRow = {
   id: string
   type: string
@@ -61,8 +80,6 @@ export type FileChange = {
   isNew: boolean
   hunks: Array<{ id: string; oldStart: number; oldLines: number; newStart: number; newLines: number; at: number; adds: number; dels: number; text: string }>
 }
-export type NowState = { kind: 'you' | 'tool' | 'agent' | 'claude'; what: string; since: number }
-export type WorkTab = 'files' | 'plan'
 export type CodemapView = { tree?: CodemapTree; mtimeMs: number; error?: string }
 
 declare module 'claude-code' {
@@ -94,6 +111,11 @@ declare module 'claude-code' {
       isDoneShown: Shaped<boolean>
       fileFilter: Shaped<string>
       shownChange: Shaped<string | null>
+      rules: Shaped<RulesView>
+      hooks: Shaped<HookRow[]>
+      ruleFilter: Shaped<string>
+      openScopes: Shaped<string[]>
+      isRuleProjectOnly: Shaped<boolean>
     }
   }
 }

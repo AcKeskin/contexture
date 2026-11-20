@@ -17,8 +17,9 @@ Does it do what it claims, for every input it can get? Look for wrong logic, mis
 Severity follows blast radius.
 
 ### design
-Does it fit the system it lives in? Look for crossed module or layer boundaries, a new dependency direction, responsibilities in the wrong place, duplicated concepts, and a simpler shape that already exists nearby. Also ask:
-- **Should this code exist?** Something the codebase, the platform or a current dependency already does.
+Does it fit the system it lives in? Look for crossed module or layer boundaries, a new dependency direction, responsibilities in the wrong place, duplicated concepts, and a simpler or more standard way to do the same thing (name it and what it trades off). Also ask:
+- **Is it needed at all?** Work the ask doesn't call for, or something the codebase, the platform or a current dependency already does.
+- **Will it scale?** Assumes one instance, adds global state, or makes one file every future change must edit.
 - **Is the abstraction for a real case?** An interface, factory or option with one user and no named second case.
 - **Can it be rolled back?** Migrations, data or file format changes, and removed public fields need a way back or a note saying there is none.
 

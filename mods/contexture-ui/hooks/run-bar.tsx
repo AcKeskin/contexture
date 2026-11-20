@@ -27,7 +27,7 @@ const QUICK: readonly FormId[] = ['execute', 'review']
 
 // Same atom as register.tsx's and plan-tab.tsx's: keep the declarations alike.
 const chain = atom({ plugin: 'contexture-ui', key: 'chain' } as const, { slugs: [], scopes: [] } as ChainView, {
-  shape: 'chain-2',
+  shape: 'chain-3',
 })
 const form = atom({ plugin: 'contexture-ui', key: 'form' } as const, null as FormId | null, { shape: 'form-1' })
 // Typed values by `<form>.<field>`, kept until the form fills the reply box.

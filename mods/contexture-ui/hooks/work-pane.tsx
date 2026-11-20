@@ -11,6 +11,7 @@ import { filesTab } from './files-tab'
 import { nowStrip } from './now-band'
 import { planCount, planTab } from './plan-tab'
 import { problemsCount, problemsTab } from './problems-tab'
+import { loadRules, rulesTab } from './rules-tab'
 import { runBar } from './run-bar'
 import { CLOSED_KEY, PANE } from './work-open'
 
@@ -18,7 +19,7 @@ import { CLOSED_KEY, PANE } from './work-open'
 const tab = atom({ plugin: 'contexture-ui', key: 'tab' } as const, 'plan' as WorkTab, { shape: 'tab-1' })
 // Same atom as register.tsx's: keep the two declarations alike.
 const chain = atom({ plugin: 'contexture-ui', key: 'chain' } as const, { slugs: [], scopes: [] } as ChainView, {
-  shape: 'chain-2',
+  shape: 'chain-3',
 })
 
 const TABS: ReadonlyArray<{ id: WorkTab; label: string }> = [
@@ -27,9 +28,10 @@ const TABS: ReadonlyArray<{ id: WorkTab; label: string }> = [
   { id: 'problems', label: 'Problems' },
   { id: 'plan', label: 'Plan' },
   { id: 'agents', label: 'Agents' },
+  { id: 'rules', label: 'Rules' },
 ]
 
-// /work is answered in register.tsx, which owns the refresh it runs first.
+// /work-panel is answered in register.tsx, which owns the refresh it runs first.
 export function registerWorkPane(on: On): void {
   on('ui.close', async ($, e, next) => {
     const closed = await next(e)
@@ -53,7 +55,9 @@ export function registerWorkPane(on: On): void {
             ? await problemsTab($, e)
             : at === 'agents'
               ? await agentsTab($, e)
-              : await planTab($, e)
+              : at === 'rules'
+                ? await rulesTab($, e)
+                : await planTab($, e)
 
     const bar = await runBar($, e)
     const strip = await nowStrip($, e)
@@ -81,7 +85,11 @@ export function registerWorkPane(on: On): void {
               key={`tab-${t.id}`}
               label={count[t.id] ? `${t.label} ${count[t.id]}` : t.label}
               variant={t.id === at ? 'primary' : 'secondary'}
-              onPress={() => update($, tab, () => t.id)}
+              onPress={async () => {
+                await update($, tab, () => t.id)
+                // Rules come from files and /config other sessions may change.
+                if (t.id === 'rules') await loadRules($)
+              }}
             />
           ))}
         </Box>

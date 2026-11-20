@@ -72,20 +72,32 @@ export async function loadFiles($: EngineInterface): Promise<Map<string, SlugFil
   return found
 }
 
-// Scopes rule-prime recorded for this session in ~/.claude/session-state.json.
-export async function loadScopes($: EngineInterface): Promise<string[]> {
+// This session's entry in rule-prime's watermark, ~/.claude/session-state.json.
+async function ruleMark($: EngineInterface): Promise<Record<string, unknown> | undefined> {
   // os.homedir() order, as rule-prime uses: USERPROFILE on Windows, else HOME.
   const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME'))
-  if (!home) return []
+  if (!home) return undefined
   const raw = await readOrNone($, `${home}/.claude/session-state.json`)
-  if (raw === undefined) return []
+  if (raw === undefined) return undefined
   const sid = await $.session.id()
   try {
-    const scopes = JSON.parse(raw)?.rulePrime?.[sid]?.scopes
-    return Array.isArray(scopes) ? scopes.filter((s): s is string => typeof s === 'string') : []
+    const mark: unknown = JSON.parse(raw)?.rulePrime?.[sid]
+    return typeof mark === 'object' && mark !== null ? (mark as Record<string, unknown>) : undefined
   } catch {
     // rule-prime writes this file atomically; a parse failure means another
-    // writer's partial file. Show no scopes until the next refresh.
-    return []
+    // writer's partial file. Read nothing until the next refresh.
+    return undefined
   }
+}
+
+// Scopes rule-prime recorded for this session.
+export async function loadScopes($: EngineInterface): Promise<string[]> {
+  const scopes = (await ruleMark($))?.scopes
+  return Array.isArray(scopes) ? scopes.filter((s): s is string => typeof s === 'string') : []
+}
+
+// The rules-cli.js path rule-prime recorded for this session.
+export async function loadRulesCli($: EngineInterface): Promise<string | undefined> {
+  const cli = (await ruleMark($))?.rulesCli
+  return typeof cli === 'string' && cli !== '' ? cli : undefined
 }

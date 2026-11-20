@@ -54,15 +54,16 @@ Do **not** run when:
 
 ### 2. Run the interview
 
-Use `AskUserQuestion` when available; plain text otherwise. Cap ~6–10 questions. Cover, in order:
+Use `AskUserQuestion` when available; plain text otherwise. Cap ~6–10 questions, not counting the use-case walk (step 3). Cover, in order:
 
 1. **Intent.** What is this? Who is it for? One-sentence success criterion. Smallest shipped version that counts.
 2. **UX shape.** Surfaces (CLI / web / mobile / desktop / immersive / library / headless). Main user flow walked through in prose. Secondary flows if relevant.
-3. **Module partition.** 4–8 named top-level boxes, each with a one-line role. Push back below 3 or above 8.
-4. **Boundaries.** Per module: owns / explicitly delegates. Inside vs outside the system.
-5. **Relations.** Module-to-module: sync calls / events / shared store / file / network. Direction. Entry point.
-6. **Cross-cutting concerns.** Auth, persistence, observability, config, error handling — each owned by a module or declared horizontal with a one-line convention.
-7. **Non-goals.** Minimum three concrete bullets.
+3. **Use cases.** Short-form use cases (actor + goal), drafted from the answers so far, walked through with the user and confirmed; dig deeper where usage is unclear. Format and interview: [use cases](../spec/use-cases.md). Tag each with its modules once the partition exists.
+4. **Module partition.** 4–8 named top-level boxes, each with a one-line role. Push back below 3 or above 8.
+5. **Boundaries.** Per module: owns / explicitly delegates. Inside vs outside the system.
+6. **Relations.** Module-to-module: sync calls / events / shared store / file / network. Direction. Entry point.
+7. **Cross-cutting concerns.** Auth, persistence, observability, config, error handling — each owned by a module or declared horizontal with a one-line convention.
+8. **Non-goals.** Minimum three concrete bullets.
 
 **Drift discipline.** If the user starts describing functions, files, data shapes, classes, or APIs:
 
@@ -70,7 +71,7 @@ Use `AskUserQuestion` when available; plain text otherwise. Cap ~6–10 question
 
 **Meta-question after ~8.** *"I've asked 8 questions. Any top-level area we haven't covered?"* Respect the answer.
 
-**Evolve flow.** Open the active version. Summarise current shape in 3–6 bullets: intent, UX surfaces, module list (count), non-goals count. Ask *"What's changing?"*. Interview only on the deltas. Untouched sections carry forward verbatim.
+**Evolve flow.** Open the active version. Summarise current shape in 3–6 bullets: intent, UX surfaces, module list (count), non-goals count. Ask *"What's changing?"*. Interview only on the deltas. Untouched sections carry forward verbatim. A vision with no `## Use cases`: draft them from the UX walkthrough and run step 3 before the deltas.
 
 ### 3. Ground
 
@@ -126,60 +127,14 @@ non_goals_count: <integer ≥ 3>
 ---
 ```
 
-Body shape — sections in this exact order:
-
-```markdown
-# Vision — <slug> (v<N>)
-
-## Elevator pitch
-<one paragraph. What this is, who it is for, success in one sentence.>
-
-## UX walkthrough
-<prose. Surfaces named. Main flow start-to-finish. Secondary flow in its own paragraph if it exists. No wireframes, no API shapes.>
-
-## Module map
-<Mermaid flowchart or ASCII diagram. Every module, every relation, cross-cutting concerns visible, entry point highlighted.>
-
-## Modules
-### <module-slug>
-- **Role:** <one sentence>
-- **Owns:** <comma-separated nouns>
-- **Depends on:** <comma-separated module-slugs / external systems; "nothing — entry point" for the entry>
-- **Does not do:** <comma-separated — what someone might assume but is delegated>
-
-<(repeat per module — exactly these four lines, no more)>
-
-## Cross-cutting concerns
-- **<concern>** — owned by <module-slug>
-- **<concern>** — horizontal: every module handles it via <one-line convention>
-<(or "None identified — every concern lives inside a single module.")>
-
-## Non-goals
-- <bullet — what this explicitly does not do, and why>
-- <bullet>
-- <bullet — minimum 3>
-
-## Grounded context
-<loaded rules / decisions / lessons that would shape the partition. Cite by name. "None applicable" is valid.>
-
-## Open questions
-- <precise question> · answers: <user | research | person or role> · blocks: <spec of <module> | none>
-
-## Not yet specified
-- <in scope, coming, not yet sharp enough to ask>
-
-## Next moves
-<2–4 sentences. Which module to `/spec` first and why. Which can wait. Open questions that block specing.>
-
-## Changes from v<N-1>   ← evolve flow only
-- <bullet per changed section>
-```
+Body: the section order in [templates.md](templates.md). Read it before writing.
 
 **Discipline checks before writing:**
 
 - Per-module section has exactly the four bullet lines. No fifth bullet, no nested detail.
 - Each module's `Role` is ≤ ~20 words. Compress if over.
 - `Modules` frontmatter list matches the `## Modules` headings exactly — same count, same order, same slugs.
+- Every use case names at least one module, and every module serves a use case or a cross-cutting concern. A module serving neither is a partition smell: ask.
 - `non_goals_count` matches the bullet count under `## Non-goals` and is ≥ 3.
 - Unresolved items are sorted as in [spec](../spec/SKILL.md)'s open-questions sort: a precise question goes under Open questions with who answers it and which module's spec it blocks; what you can't phrase yet goes under Not yet specified; what is beyond the project is a non-goal.
 - Module map renders — sanity-check Mermaid syntax mentally; for ASCII, every box has matching corners.
@@ -188,7 +143,7 @@ If any check fails, fix in-place before writing. Do not write a malformed vision
 
 ### 6. Update the previous active version (evolve flow only)
 
-Versioning follows spec's canonical contract ([spec SKILL.md § Versioning contract](../spec/SKILL.md)): mark the previous version superseded with a `superseded_by` pointer and regenerate the INDEX. Do not modify the body — superseded versions are read-only.
+Versioning follows spec's canonical contract ([spec reference.md § Versioning contract](../spec/reference.md)): mark the previous version superseded with a `superseded_by` pointer and regenerate the INDEX. Do not modify the body — superseded versions are read-only.
 
 ### 7. Abandon flow
 
