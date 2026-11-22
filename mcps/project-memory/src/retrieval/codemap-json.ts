@@ -2,7 +2,7 @@
 // next to codemap.md: where a symbol is defined, which tests reach a file, and a
 // task-ranked map (personalized PageRank over the file graph, Aider-style).
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 export interface JsonSymbol {
@@ -19,11 +19,16 @@ export interface JsonFile {
   lang: string;
   lines: number;
   purpose: string | null;
+  /** The file's module folder, e.g. "mcps/unity/server/". Absent in maps written before it existed. */
+  module?: string;
   isTest?: boolean;
   symbols: JsonSymbol[];
   imports: string[];
   importedBy: string[];
+  /** The nearest tests that reach the file, at most 20. */
   tests: string[];
+  /** How many tests reach it in all, when that is more than `tests` lists. */
+  testsTotal?: number;
 }
 
 export interface JsonClass {
@@ -51,13 +56,20 @@ export function codemapJsonPath(projectRoot: string): string {
   return join(projectRoot, ".claude", "codemap.json");
 }
 
-/** The parsed codemap.json, or null when it is missing or unreadable. */
+// The last parse, reused while the file is unchanged: on a big repo codemap.json is tens of MB.
+let cached: { path: string; mtimeMs: number; size: number; json: CodemapJson } | null = null;
+
+/** The parsed codemap.json, or null when it is missing or unreadable. Callers must not mutate it. */
 export function loadCodemapJson(projectRoot: string): CodemapJson | null {
   const p = codemapJsonPath(projectRoot);
   if (!existsSync(p)) return null;
   try {
+    const st = statSync(p);
+    if (cached && cached.path === p && cached.mtimeMs === st.mtimeMs && cached.size === st.size) return cached.json;
     const json = JSON.parse(readFileSync(p, "utf8")) as CodemapJson;
-    return json && typeof json.files === "object" ? json : null;
+    if (!json || typeof json.files !== "object") return null;
+    cached = { path: p, mtimeMs: st.mtimeMs, size: st.size, json };
+    return json;
   } catch (err) {
     console.error(`[project-memory] failed to read ${p}:`, err);
     return null;
@@ -102,6 +114,8 @@ export interface TestsFor {
   tests: string[];
   /** True when the target is itself a test file. */
   isTest: boolean;
+  /** How many tests reach it in all, when codemap.json listed only the nearest ones. */
+  total?: number;
 }
 
 /** Tests for a file path, or for the files that define a symbol name. Null when neither matches. */
@@ -111,7 +125,13 @@ export function testsFor(json: CodemapJson, target: string): TestsFor | null {
   if (!files.length) return null;
   const tests = new Set<string>();
   for (const f of files) for (const t of json.files[f].tests) tests.add(t);
-  return { files, tests: [...tests].sort(), isTest: files.every((f) => json.files[f].isTest === true) };
+  const total = Math.max(0, ...files.map((f) => json.files[f].testsTotal ?? 0));
+  return {
+    files,
+    tests: [...tests].sort(),
+    isTest: files.every((f) => json.files[f].isTest === true),
+    ...(total > tests.size ? { total } : {}),
+  };
 }
 
 // --- Ranked map --------------------------------------------------------------

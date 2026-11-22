@@ -24,7 +24,8 @@ export type TreeNode = {
 export type CodemapTree = { root: TreeNode; fileCount: number; updated: string }
 export type Touch = 'read' | 'edit'
 export type GitMark = 'M' | 'A' | 'D' | 'R' | '?'
-export type GitView = { marks: Record<string, GitMark>; stale: string[] }
+// branch: files that differ from where the branch left the default branch (git diff <merge-base>).
+export type GitView = { marks: Record<string, GitMark>; stale: string[]; branch: string[] }
 export type TreeRow = {
   key: string
   depth: number
@@ -36,6 +37,8 @@ export type TreeRow = {
   touch?: Touch
   git?: GitMark
   isStale?: true
+  // Changed in this branch, or a folder holding such a file.
+  isBranch?: true
 }
 export type NowState = { kind: 'you' | 'tool' | 'agent' | 'claude'; what: string; since: number }
 export type WorkTab = 'files' | 'changes' | 'problems' | 'plan' | 'agents' | 'rules'
@@ -81,6 +84,9 @@ export type FileChange = {
   hunks: Array<{ id: string; oldStart: number; oldLines: number; newStart: number; newLines: number; at: number; adds: number; dels: number; text: string }>
 }
 export type CodemapView = { tree?: CodemapTree; mtimeMs: number; error?: string }
+export type TourStop = { file: string; line: number; title: string; why: string }
+// isDraft: tour.mjs drafted it and the reasons were not rewritten yet.
+export type TourView = { stops: TourStop[]; mtimeMs: number; isDraft: boolean; error?: string }
 
 declare module 'claude-code' {
   interface PluginState {
@@ -116,6 +122,9 @@ declare module 'claude-code' {
       ruleFilter: Shaped<string>
       openScopes: Shaped<string[]>
       isRuleProjectOnly: Shaped<boolean>
+      tour: Shaped<TourView>
+      tourStop: Shaped<number | null>
+      hasMapPage: Shaped<boolean>
     }
   }
 }

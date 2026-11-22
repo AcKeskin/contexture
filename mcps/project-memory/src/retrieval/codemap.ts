@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { loadCodemapJson, type CodemapJson } from "./codemap-json.js";
 
 export interface CodemapEntry {
   /** Repo-relative file path, e.g. "docs/discovery.md". */
@@ -59,7 +60,11 @@ export function loadCodemap(
     return null;
   }
 
-  const { entries, lastUpdated } = parseCodemap(raw);
+  // codemap.json lists every file; the markdown's per-module listings may be thinned by its size cap.
+  const parsed = parseCodemap(raw);
+  const json = loadCodemapJson(projectRoot);
+  const entries = json ? jsonEntries(json) : parsed.entries;
+  const lastUpdated = parsed.lastUpdated;
 
   const terms = [...(query.taskKeywords ?? []), ...(query.scopes ?? [])]
     .map((t) => t.toLowerCase())
@@ -95,6 +100,15 @@ export function loadCodemap(
     }
   }
   return result;
+}
+
+/** One entry per codemap.json file: its purpose line, filed under its module. */
+export function jsonEntries(json: CodemapJson): CodemapEntry[] {
+  return Object.entries(json.files).map(([path, f]) => ({
+    path,
+    description: f.purpose ?? "",
+    section: f.module ?? (path.includes("/") ? path.slice(0, path.indexOf("/") + 1) : "./"),
+  }));
 }
 
 /** Parse the `## section/` + `` - `path` — desc `` structure of a codemap. */

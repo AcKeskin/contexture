@@ -13,6 +13,7 @@ import { Worker } from 'node:worker_threads';
 import { isTest, reach } from './affected-tests.mjs';
 import { aliasCandidates, buildToSource, loadProjectPaths } from './project-paths.mjs';
 import { extractRefs, resolveRef } from './refs.mjs';
+import { detectModuleRoots, makeModuleOf, manifestDescription } from './modules.mjs';
 import { extractWithTreeSitter, isTreeSitterLang, initTreeSitter } from './treesitter.mjs';
 
 const SKIP_DIRS = new Set([
@@ -63,6 +64,9 @@ const SIGNATURE_MAX = 120;
 // at render time and sums BOTH overflow counts into its note — keep the two in mind when
 // changing either; raising one without the other re-truncates an already-capped section.
 const CALL_EDGE_CAP_PER_MODULE = 60;
+// codemap.json lists at most this many tests per file (the nearest by import distance) and
+// gives the full count in `testsTotal`.
+const TESTS_PER_FILE = 20;
 
 // Call-sequence section caps (always-on document budget). callSeq is voluminous and
 // per-caller, so the `.md` shows only the highest-fan-out callers per module and caps the
@@ -164,7 +168,7 @@ function readProjectName(root) {
 
 function loadConfig(root) {
   const cfgPath = path.join(root, '.claude', 'codemap.config.md');
-  const out = { skipPatterns: [], layers: [], vendoredPatterns: [], autoUpdateEnabled: false, warnings: [] };
+  const out = { skipPatterns: [], layers: [], vendoredPatterns: [], modules: { depth: 0, patterns: [] }, autoUpdateEnabled: false, warnings: [] };
   if (!fs.existsSync(cfgPath)) return out;
   const lines = fs.readFileSync(cfgPath, 'utf8').split(/\r?\n/);
   let section = null;
@@ -186,6 +190,12 @@ function loadConfig(root) {
       const m = line.match(/^\s*-\s*`([^`]+)`\s*$/);
       if (m) out.vendoredPatterns.push(m[1]);
       else if (/^\s*-\s*`/.test(line)) out.warnings.push({ line: lineNo, text: line });
+    } else if (section === 'Modules') {
+      const depth = line.match(/^\s*-\s*depth\s*:\s*(\d+)\s*$/i);
+      const m = line.match(/^\s*-\s*`([^`]+)`\s*$/);
+      if (depth) out.modules.depth = parseInt(depth[1], 10);
+      else if (m) out.modules.patterns.push(m[1]);
+      else if (/^\s*-/.test(line)) out.warnings.push({ line: lineNo, text: line });
     } else if (section === 'Auto-update') {
       if (/^\s*-?\s*enabled\s*:\s*true\s*$/i.test(line)) out.autoUpdateEnabled = true;
     }
@@ -844,10 +854,9 @@ function extractImports(text, lang) {
   return targets;
 }
 
-function topLevelDirOf(rel) {
-  const ix = rel.indexOf('/');
-  return ix < 0 ? './' : rel.slice(0, ix) + '/';
-}
+// A file's module name (modules.mjs): its deepest sub-project or `## Modules` folder, else its
+// top-level folder. Set once per run in main(), after the walk.
+let moduleOf = makeModuleOf([]);
 
 // Returns { rel, mod } when the import resolves to an in-repo file path,
 // or { mod } when only the top-level module can be inferred,
@@ -867,7 +876,7 @@ function resolveImport(target, sourceRel, topLevelDirs, fileIndex) {
     if (!nsHit && fileIndex.byNamespace.has(target)) nsHit = target;
     if (nsHit) {
       const files = fileIndex.byNamespace.get(nsHit);
-      const mod = topLevelDirOf(files[0]);
+      const mod = moduleOf(files[0]);
       // Only a single-file namespace yields an unambiguous file edge.
       if (files.length === 1) return { rel: files[0], mod };
       return { mod };
@@ -880,22 +889,22 @@ function resolveImport(target, sourceRel, topLevelDirs, fileIndex) {
     const sourceDir = path.posix.dirname(sourceRel);
     const resolved = path.posix.normalize(path.posix.join(sourceDir, target));
     const hit = matchAgainstIndex(resolved, fileIndex);
-    if (hit) return { rel: hit, mod: topLevelDirOf(hit) };
+    if (hit) return { rel: hit, mod: moduleOf(hit) };
     // matchAgainstIndex only knows TS/JS extensions. For other languages whose relative
     // imports are extensionless (Ruby `require_relative "../core/shape"`, Python `.shape`),
     // try the path's last segment as a file basename across all indexed extensions before
     // degrading to a module-level edge — so a concrete FILE edge survives.
     const ext = resolveExtensionlessPath(resolved, sourceRel, fileIndex, topLevelDirs);
     if (ext && ext.rel) return ext;
-    return { mod: topLevelDirOf(resolved) };
+    return { mod: moduleOf(resolved) };
   }
   // 2. Path with separator — try as repo-relative.
   if (target.includes('/')) {
     const hit = matchAgainstIndex(target, fileIndex);
-    if (hit) return { rel: hit, mod: topLevelDirOf(hit) };
+    if (hit) return { rel: hit, mod: moduleOf(hit) };
     // Match basename suffix — e.g. `openxr/openxr.h` finds `include/openxr/openxr.h`.
     const suffixHit = fileIndex.bySuffix.get(target);
-    if (suffixHit && suffixHit.length === 1) return { rel: suffixHit[0], mod: topLevelDirOf(suffixHit[0]) };
+    if (suffixHit && suffixHit.length === 1) return { rel: suffixHit[0], mod: moduleOf(suffixHit[0]) };
     // Extensionless module path (Python `core/shape`, Go `proj/core`, Java `geo/core/Shape`):
     // try the path's last segments as a file basename across known extensions. Preferred over
     // the head-segment directory match below so a concrete FILE edge beats a folder edge.
@@ -917,11 +926,11 @@ function resolveImport(target, sourceRel, topLevelDirs, fileIndex) {
     if (noExt && noExt.length) candidates = noExt;
   }
   if (!candidates || !candidates.length) return null;
-  if (candidates.length === 1) return { rel: candidates[0], mod: topLevelDirOf(candidates[0]) };
-  const sourceMod = topLevelDirOf(sourceRel);
-  const sameModule = candidates.find((c) => topLevelDirOf(c) === sourceMod);
+  if (candidates.length === 1) return { rel: candidates[0], mod: moduleOf(candidates[0]) };
+  const sourceMod = moduleOf(sourceRel);
+  const sameModule = candidates.find((c) => moduleOf(c) === sourceMod);
   if (sameModule) return { rel: sameModule, mod: sourceMod };
-  return { rel: candidates[0], mod: topLevelDirOf(candidates[0]) };
+  return { rel: candidates[0], mod: moduleOf(candidates[0]) };
 }
 
 function matchAgainstIndex(rel, fileIndex) {
@@ -957,19 +966,19 @@ function resolveExtensionlessPath(target, sourceRel, fileIndex, topLevelDirs) {
       const narrowed = cands.filter((r) => r.split('/').includes(parent));
       if (narrowed.length) cands = narrowed;
     }
-    if (cands.length === 1) return { rel: cands[0], mod: topLevelDirOf(cands[0]) };
+    if (cands.length === 1) return { rel: cands[0], mod: moduleOf(cands[0]) };
     // Multiple: prefer same module as the source, else module-level edge to the first.
-    const srcMod = topLevelDirOf(sourceRel);
-    const same = cands.find((r) => topLevelDirOf(r) === srcMod);
+    const srcMod = moduleOf(sourceRel);
+    const same = cands.find((r) => moduleOf(r) === srcMod);
     if (same) return { rel: same, mod: srcMod };
-    return { mod: topLevelDirOf(cands[0]) };
+    return { mod: moduleOf(cands[0]) };
   }
   // No file basename matched — the last segment may name a package DIRECTORY (Go/Java
   // style). If exactly one indexed file lives directly under a dir of that name, treat it
   // as the file edge; otherwise fall back to a module-level edge.
   const dirHit = fileIndex.byDir.get(last);
-  if (dirHit && dirHit.length === 1) return { rel: dirHit[0], mod: topLevelDirOf(dirHit[0]) };
-  if (dirHit && dirHit.length > 1) return { mod: topLevelDirOf(dirHit[0]) };
+  if (dirHit && dirHit.length === 1) return { rel: dirHit[0], mod: moduleOf(dirHit[0]) };
+  if (dirHit && dirHit.length > 1) return { mod: moduleOf(dirHit[0]) };
   // Else try each segment as a top-level directory (module edge).
   for (const s of segs) {
     if (topLevelDirs.has(s + '/')) return { mod: s + '/' };
@@ -1015,23 +1024,33 @@ function buildFileIndex(files, namespaceByRel) {
   return { byRel, byBasename, byBasenameNoExt, byDir, bySuffix, byNamespace };
 }
 
-function detectEntryPoints(root, files) {
+// Entry points of the project and of each nested module with a manifest: package.json
+// `main`/`module`/`bin` (build output mapped back to source), csproj StartupObject, and
+// `src/main.*`/`src/index.*` at a module's root. `toSource(rel)` maps a manifest path to an indexed
+// source file or null; paths that resolve to nothing are left out.
+function detectEntryPoints(root, files, moduleRoots, toSource) {
+  const indexed = new Set(files.map((f) => f.rel));
   const entries = [];
-  try {
-    const pkg = path.join(root, 'package.json');
-    if (fs.existsSync(pkg)) {
-      const j = JSON.parse(fs.readFileSync(pkg, 'utf8'));
+  const fromManifest = (rel, role) => {
+    const src = toSource(path.posix.normalize(rel));
+    if (src) entries.push({ rel: src, role });
+  };
+  for (const dir of ['', ...moduleRoots.map((r) => r.dir)]) {
+    const pkgRel = dir + 'package.json';
+    if (!indexed.has(pkgRel)) continue;
+    try {
+      const j = JSON.parse(fs.readFileSync(path.join(root, pkgRel), 'utf8').replace(/^\uFEFF/, ''));
+      const tag = dir ? `${pkgRel} ` : 'package.json ';
       for (const key of ['main', 'module']) {
-        if (j[key]) entries.push({ rel: j[key], role: `package.json ${key}` });
+        if (typeof j[key] === 'string') fromManifest(dir + j[key], tag + key);
       }
       if (j.bin) {
         const bins = typeof j.bin === 'string' ? { [j.name || 'bin']: j.bin } : j.bin;
-        for (const [k, v] of Object.entries(bins)) entries.push({ rel: v, role: `bin: ${k}` });
+        for (const [k, v] of Object.entries(bins)) if (typeof v === 'string') fromManifest(dir + v, `bin: ${k}`);
       }
-    }
-  } catch {}
-  const csprojs = files.filter((f) => f.rel.endsWith('.csproj') && !f.rel.includes('/'));
-  for (const cs of csprojs) {
+    } catch {}
+  }
+  for (const cs of files.filter((f) => f.rel.endsWith('.csproj'))) {
     try {
       const text = fs.readFileSync(cs.abs, 'utf8');
       const m = text.match(/<StartupObject>([^<]+)<\/StartupObject>/);
@@ -1040,7 +1059,9 @@ function detectEntryPoints(root, files) {
   }
   for (const f of files) {
     if (/(?:^|\/)(Program|Main)\.cs$/i.test(f.rel)) entries.push({ rel: f.rel, role: 'C# entry' });
-    if (/^src\/(main|index)\.(ts|tsx|js|jsx|mjs)$/.test(f.rel)) entries.push({ rel: f.rel, role: 'SPA entry' });
+    const owner = moduleRoots.find((r) => f.rel.startsWith(r.dir)); // deepest first
+    const rest = owner ? f.rel.slice(owner.dir.length) : f.rel;
+    if (/^src\/(main|index)\.(ts|tsx|js|jsx|mjs)$/.test(rest)) entries.push({ rel: f.rel, role: 'SPA entry' });
   }
   const seen = new Set();
   return entries.filter((e) => { if (seen.has(e.rel)) return false; seen.add(e.rel); return true; });
@@ -1096,7 +1117,7 @@ function buildSymbolsByFile(fileDefines, groups) {
 function usedNames(rel, fileCalls, groups) {
   const used = new Set();
   for (const e of fileCalls.get(rel) || []) used.add(e.callee);
-  const items = groups.get(topLevelDirOf(rel)) || [];
+  const items = groups.get(moduleOf(rel)) || [];
   const it = items.find((x) => x.rel === rel);
   for (const c of (it && it.classes) || []) {
     for (const t of [...(c.extends || []), ...(c.implements || []), ...(c.fields || []).map((f) => f.type)]) if (t) used.add(normalizeTypeRef(t));
@@ -1189,7 +1210,7 @@ function buildSymbols(astSymbols, exports, classes, text) {
 // purpose, outline, resolved imports and importers, tests that reach the file, git
 // activity), module edges, every class and every in-scope call edge. Deterministic: no
 // timestamps beyond the day, keys in sorted order.
-function buildCodemapJson({ projectName, today, groups, sortedGroups, fileEdges, refEdges, moduleEdges, allClassEntries, jsonCalls, jsonCallSeq, activity, entryPoints }) {
+function buildCodemapJson({ projectName, today, groups, sortedGroups, fileEdges, refEdges, moduleEdges, manifestByModule, projectsByModule, allClassEntries, jsonCalls, jsonCallSeq, activity, entryPoints }) {
   const rev = new Map();
   for (const [src, targets] of fileEdges.entries()) {
     for (const t of targets) {
@@ -1208,19 +1229,24 @@ function buildCodemapJson({ projectName, today, groups, sortedGroups, fileEdges,
   for (const g of sortedGroups) {
     for (const it of [...groups.get(g)].sort((a, b) => a.rel.localeCompare(b.rel))) {
       const a = activity.get(it.rel);
-      const tests = isTest(it.rel) ? [] : reach(rev, [it.rel]).tests.map((t) => t.file);
+      // The nearest tests only: in a big repo a shared file can reach thousands of tests.
+      const reached = isTest(it.rel) ? [] : reach(rev, [it.rel]).tests;
+      const tests = reached.sort((x, y) => x.via.length - y.via.length || x.file.localeCompare(y.file))
+        .slice(0, TESTS_PER_FILE).map((t) => t.file).sort();
       files[it.rel] = {
         lang: JS_EXTS.has(path.extname(it.rel).toLowerCase()) ? 'js' : (LANG_BY_EXT[path.extname(it.rel).toLowerCase()] || 'other'),
         size: it.size,
         lines: it.lines,
         hash: it.hash,
         purpose: it.purpose,
+        module: g,
         ...(it.vendored ? { vendored: true } : {}),
         ...(isTest(it.rel) ? { isTest: true } : {}),
         symbols: it.symbols || [],
         imports: [...(fileEdges.get(it.rel) || [])].sort(),
         importedBy: [...(rev.get(it.rel) || [])].sort(),
         tests,
+        ...(reached.length > tests.length ? { testsTotal: reached.length } : {}),
         ...(refEdges.has(it.rel) ? { refs: [...refEdges.get(it.rel)].sort() } : {}),
         ...(refBy.has(it.rel) ? { referencedBy: [...refBy.get(it.rel)].sort() } : {}),
         ...(a ? { commits: a.commits, lastChange: a.last } : {}),
@@ -1228,8 +1254,13 @@ function buildCodemapJson({ projectName, today, groups, sortedGroups, fileEdges,
     }
   }
   const modules = {};
-  for (const m of [...moduleEdges.keys()].sort()) {
-    modules[m] = { dependsOn: Object.fromEntries([...moduleEdges.get(m).entries()].sort((x, y) => x[0].localeCompare(y[0]))) };
+  for (const m of [...new Set([...sortedGroups, ...moduleEdges.keys()])].sort()) {
+    const deps = moduleEdges.get(m) || new Map();
+    modules[m] = {
+      ...(manifestByModule.has(m) ? { manifest: manifestByModule.get(m) } : {}),
+      ...(projectsByModule.has(m) ? { projects: projectsByModule.get(m) } : {}),
+      dependsOn: Object.fromEntries([...deps.entries()].sort((x, y) => x[0].localeCompare(y[0]))),
+    };
   }
   const classes = [...allClassEntries]
     .sort((a, b) => a.file.localeCompare(b.file) || a.name.localeCompare(b.name))
@@ -1329,10 +1360,12 @@ function groupFiles(md) {
   return files;
 }
 
-function diffSummary(prev, current) {
+// Files added and removed since the last run. `cachedFiles` (the last run's extraction cache
+// keys) is preferred over the markdown, whose listings the size cap may thin.
+function diffSummary(prev, cachedFiles, curJson) {
   if (!prev) return { initial: true };
-  const prevFiles = groupFiles(prev);
-  const curFiles = groupFiles(current);
+  const prevFiles = cachedFiles || groupFiles(prev);
+  const curFiles = new Set(Object.keys(curJson.files));
   let added = 0, removed = 0;
   for (const f of curFiles) if (!prevFiles.has(f)) added++;
   for (const f of prevFiles) if (!curFiles.has(f)) removed++;
@@ -1483,7 +1516,7 @@ function markdownFolderRole(modName, items) {
 }
 
 function findModuleEntry(modName, items, entryPoints) {
-  const inModule = entryPoints.find((e) => topLevelDirOf(e.rel) === modName);
+  const inModule = entryPoints.find((e) => moduleOf(e.rel) === modName);
   if (inModule) return inModule.rel;
   const candidates = ['index.ts', 'index.js', 'index.mjs', 'Boot.cs', 'Main.cs', 'Program.cs'];
   for (const c of candidates) {
@@ -1620,38 +1653,49 @@ function buildSymbolIndex(groups, inboundCounts) {
 }
 
 // What the size cap removes first, least valuable first. `line` drops tail rows, `block`
-// drops tail `- ` entries with their indented sub-lines, `section` drops the whole section.
-// `floor` is the first line index (0 = the heading) a trim may remove. Sections are
-// pre-sorted by importance, so the tail is the least-used part.
-// Only sections codemap.json carries in full are trimmed; visualise-codemap reads classes
-// and call sequences from there. The Map, Hubs and per-module listings always stay.
+// drops tail `- ` entries with their indented sub-lines, `h3` drops tail `### ` blocks,
+// `section` empties the whole section, `exports` and `files` thin the per-module file
+// listings (see trimListings). `floor` is the first line index (0 = the heading) a trim may remove.
+// Sections are pre-sorted by importance, so the tail is the least-used part.
+// Everything trimmed here is in codemap.json in full; the Overview, Map, Recent activity,
+// Entry points, Layers and Dependencies always stay.
 const TRIM_ORDER = [
-  { heading: '## Class graph', unit: 'block', floor: 1 },
+  { heading: '## Class graph', unit: 'block', floor: 1, what: 'least-imported classes' },
   { heading: '## Call sequence', unit: 'section' },
   { heading: '## References', unit: 'line', floor: 1 },
+  { unit: 'exports' },
   { heading: '## Symbol index', unit: 'line', floor: 1 },
+  { heading: '## Call graph', unit: 'section' },
+  { heading: '## File deps', unit: 'section' },
+  { heading: '## Conventions detected', unit: 'line', floor: 1, what: 'least-used conventions' },
+  { heading: '## Hubs', unit: 'line', floor: 1 },
+  { unit: 'files' },
+  { heading: '## Modules', unit: 'h3', floor: 1, what: 'least-used modules' },
 ];
 
+const LEFT_OUT = '_Left out to fit the size cap; .claude/codemap.json has it._';
+
 // Trim the rendered document to ~mapTokens following TRIM_ORDER, leaving a note in each
-// trimmed section. Trims nothing when the untrimmable sections alone exceed the budget,
-// since trimming could not reach it anyway.
-function truncateToBudget(out, mapTokens, args, log) {
+// trimmed section. `rank` maps a file to its importer count (least-imported go first) and
+// `isGroup` tells a per-module listing heading from a named section. Logs when even the
+// fully trimmed document is still over budget.
+function truncateToBudget(out, mapTokens, args, log, rank, isGroup) {
   const budget = mapTokens * 4; // estimateTokens is chars / 4
   const parts = out.split(/\n(?=## )/);
-  const trimmable = (p) => TRIM_ORDER.some((r) => p.startsWith(r.heading + '\n'));
-  const fixedLen = parts.filter((p) => !trimmable(p)).reduce((n, p) => n + p.length + 1, 0);
-  if (fixedLen > budget) {
-    log(args, `--map-tokens ${mapTokens}: untrimmable sections alone are ~${Math.ceil(fixedLen / 4)} tokens; nothing trimmed`);
-    return out;
-  }
   let len = out.length;
   const dropped = {};
   for (const rule of TRIM_ORDER) {
     if (len <= budget) break;
+    if (rule.unit === 'exports' || rule.unit === 'files') {
+      const res = trimListings(parts, isGroup, rank, len - budget, rule.unit);
+      len -= res.saved;
+      if (res.removed) dropped[`file listings (${rule.unit === 'files' ? 'files' : 'export lines'})`] = res.removed;
+      continue;
+    }
     const ix = parts.findIndex((p) => p.startsWith(rule.heading + '\n'));
     if (ix < 0) continue;
     if (rule.unit === 'section') {
-      const kept = `${rule.heading}\n_Left out to fit the size cap; .claude/codemap.json has it._\n`;
+      const kept = `${rule.heading}\n${LEFT_OUT}\n`;
       len -= parts[ix].length - kept.length;
       parts[ix] = kept;
       dropped[rule.heading] = 'all';
@@ -1664,6 +1708,10 @@ function truncateToBudget(out, mapTokens, args, log) {
       while (last > 0 && !lines[last].trim()) last--;
       let first = last;
       if (rule.unit === 'block') while (first > 0 && !lines[first].startsWith('- ')) first--;
+      if (rule.unit === 'h3') {
+        while (first > 0 && !lines[first].startsWith('### ')) first--;
+        if (lines.slice(1, first).every((l) => !l.startsWith('### '))) break; // keep the first module
+      }
       if (first < rule.floor || first === 0) break;
       const removed = lines.splice(first, last - first + 1);
       len -= removed.join('\n').length + 1;
@@ -1671,14 +1719,63 @@ function truncateToBudget(out, mapTokens, args, log) {
     }
     if (!count) continue;
     dropped[rule.heading] = count;
-    const what = rule.heading === '## Class graph' ? 'least-imported classes' : 'rows';
-    lines.splice(1, 0, `_${count} ${what} left out to fit the size cap; .claude/codemap.json has all of them._`);
+    const note = `_${count} ${rule.what || 'rows'} left out to fit the size cap; .claude/codemap.json has all of them._`;
+    lines.splice(1, 0, note);
+    len += note.length + 1;
     parts[ix] = lines.join('\n');
   }
   out = parts.join('\n');
   const summary = Object.entries(dropped).map(([h, n]) => `${n} from ${h.replace('## ', '')}`).join(', ');
-  if (summary) log(args, `--map-tokens ${mapTokens}: trimmed ${summary} to fit budget (~${estimateTokens(out)} tokens)`);
+  if (summary) log(args, `--map-tokens ${mapTokens}: trimmed ${summary} (~${estimateTokens(out)} tokens)`);
+  if (out.length > budget) log(args, `--map-tokens ${mapTokens}: still ~${estimateTokens(out)} tokens after trimming everything trimmable`);
   return out;
+}
+
+// Thin the per-module `## <dir>/` listings in place until about `excess` chars are saved,
+// least-imported files first: `mode` 'exports' drops `exports:` sub-lines,
+// 'files' drops whole file bullets. Each thinned module gets a note line saying what is gone.
+function trimListings(parts, isGroup, rank, excess, mode) {
+  const NOTE = 100; // rough length of the note line a thinned module gets
+  const groups = [];
+  for (let i = 0; i < parts.length; i++) {
+    const nl = parts[i].indexOf('\n');
+    if (!isGroup(parts[i].slice(3, nl))) continue;
+    const g = { ix: i, heading: parts[i].slice(0, nl), files: [], note: null, touched: false };
+    for (const line of parts[i].split('\n').slice(1)) {
+      const m = line.match(/^- `([^`]+)`/);
+      if (m) g.files.push({ rel: m[1], bullet: line, exports: null, keep: true, g, at: g.files.length });
+      else if (g.files.length && line.startsWith('  exports:')) g.files[g.files.length - 1].exports = line;
+      else if (/^_.+_$/.test(line)) g.note = line; // an earlier pass's note
+    }
+    groups.push(g);
+  }
+  // Among equally imported files, the tails of the longest listings go first, so every
+  // module keeps its first files.
+  const order = groups.flatMap((g) => g.files)
+    .sort((a, b) => (rank.get(a.rel) || 0) - (rank.get(b.rel) || 0) || b.at - a.at || b.rel.localeCompare(a.rel));
+  let est = 0, removed = 0;
+  for (const f of order) {
+    if (est >= excess) break;
+    if (mode === 'exports' && !f.exports) continue;
+    if (!f.g.touched) { f.g.touched = true; est -= NOTE; }
+    est += (mode === 'files' ? f.bullet.length + 1 : 0) + (f.exports ? f.exports.length + 1 : 0);
+    if (mode === 'files') f.keep = false;
+    f.exports = null;
+    removed++;
+  }
+  let saved = 0;
+  for (const g of groups) {
+    if (!g.touched) continue;
+    const kept = g.files.filter((f) => f.keep);
+    const note = kept.length < g.files.length
+      ? `_${g.files.length - kept.length} of ${g.files.length} files left out to fit the size cap; .claude/codemap.json lists all._`
+      : (g.note || '_Exports left out to fit the size cap; .claude/codemap.json has them._');
+    const body = kept.flatMap((f) => (f.exports ? [f.bullet, f.exports] : [f.bullet]));
+    const next = `${g.heading}\n${note}\n${body.map((l) => l + '\n').join('')}`;
+    saved += parts[g.ix].length - next.length;
+    parts[g.ix] = next;
+  }
+  return { saved, removed };
 }
 
 function detectConventions(groups) {
@@ -1797,6 +1894,16 @@ async function main() {
 
   log(args, `scanned: ${allFiles.length} files`);
 
+  const moduleRoots = detectModuleRoots(allFiles, config.modules);
+  moduleOf = makeModuleOf(moduleRoots);
+  const manifestByModule = new Map(moduleRoots.filter((r) => r.manifest).map((r) => [r.dir, r.manifest]));
+  const projectsByModule = new Map(moduleRoots.filter((r) => r.projects).map((r) => [r.dir, r.projects]));
+  if (moduleRoots.length) {
+    const how = config.modules.depth || config.modules.patterns.length ? 'from ## Modules in codemap.config.md' : 'sub-projects found by their manifests';
+    const crowded = [...projectsByModule].map(([d, ps]) => `${d} (${ps.length})`).join(', ');
+    log(args, `modules: ${moduleRoots.length} nested module folders, ${how}${crowded ? `; sub-projects grouped under ${crowded}` : ''}`);
+  }
+
   // Tree-sitter readiness: probe once. When the optional deps aren't installed this is
   // null and every AST language falls back to regex (or empty) — graceful degradation.
   const hasAstLang = allFiles.some((f) => isTreeSitterLang(LANG_BY_EXT[path.extname(f.rel).toLowerCase()] || 'other')
@@ -1859,7 +1966,7 @@ async function main() {
       cacheHits++;
       nextCache[f.rel] = cached;
       if (cached.generated) continue;
-      const top = topLevelDirOf(f.rel);
+      const top = moduleOf(f.rel);
       if (!groups.has(top)) groups.set(top, []);
       groups.get(top).push({ rel: f.rel, purpose: cached.purpose, exports: cached.exports, classes: cached.classes, vendored: cached.vendored,
         size: cached.size, lines: cached.lines, hash: cached.hash, symbols: cached.symbols || [] });
@@ -1924,7 +2031,7 @@ async function main() {
     }
 
     const purpose = vendored ? '<vendored>' : (derivePurpose(head.lines, f.rel, head.text) ?? fallbackPurpose(f.rel, exports));
-    const top = topLevelDirOf(f.rel);
+    const top = moduleOf(f.rel);
     if (!groups.has(top)) groups.set(top, []);
     const lines = head.text === '' ? 0 : head.totalLines - (head.text.endsWith('\n') ? 1 : 0);
     const hash = crypto.createHash('sha1').update(head.text).digest('hex').slice(0, 16);
@@ -1979,7 +2086,7 @@ async function main() {
   const projectPaths = loadProjectPaths(root, allFiles);
   const toFile = (rel) => {
     const hit = rel && matchAgainstIndex(rel, fileIndex);
-    return hit ? { rel: hit, mod: topLevelDirOf(hit) } : null;
+    return hit ? { rel: hit, mod: moduleOf(hit) } : null;
   };
   const symbolsByFile = buildSymbolsByFile(fileDefines, groups);
   const filesInDir = new Map();
@@ -2016,13 +2123,13 @@ async function main() {
     bucket.set(targetMod, (bucket.get(targetMod) || 0) + 1);
   };
   for (const [sourceRel, targets] of moduleImports.entries()) {
-    const sourceMod = topLevelDirOf(sourceRel);
+    const sourceMod = moduleOf(sourceRel);
     const lang = LANG_BY_EXT[path.extname(sourceRel).toLowerCase()];
     const isJsLike = lang === 'ts' || lang === 'tsx';
     for (const t of targets) {
       if (t.startsWith('py-from:')) {
         const rel = resolvePyFrom(t.slice('py-from:'.length), sourceRel, fileIndex.byRel);
-        if (rel) { addFileEdge(sourceRel, rel); addModuleEdge(sourceMod, topLevelDirOf(rel)); }
+        if (rel) { addFileEdge(sourceRel, rel); addModuleEdge(sourceMod, moduleOf(rel)); }
         continue;
       }
       // A package or namespace import depends on the files that define what this file uses.
@@ -2032,7 +2139,7 @@ async function main() {
         const hits = pkg.filter((r) => [...(symbolsByFile.get(r) || [])].some((n) => used.has(n)));
         if (hits.length) {
           for (const r of hits) addFileEdge(sourceRel, r);
-          addModuleEdge(sourceMod, topLevelDirOf(hits[0]));
+          addModuleEdge(sourceMod, moduleOf(hits[0]));
           continue;
         }
       }
@@ -2072,7 +2179,8 @@ async function main() {
     }
   }
 
-  const entryPoints = detectEntryPoints(root, allFiles);
+  const entryPoints = detectEntryPoints(root, allFiles, moduleRoots,
+    (rel) => (toFile(rel) || toFile(buildToSource(rel, projectPaths)) || {}).rel || null);
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -2136,7 +2244,9 @@ async function main() {
       // Markdown-dominant folders (rule/doc corpora) get a name+count role and no scraped
       // purpose — see isMarkdownDominant. Code modules keep the inferred role/purpose.
       const mdDominant = isMarkdownDominant(items);
-      const role = mdDominant ? markdownFolderRole(modName, items) : inferModuleRole(modName, items);
+      const manifest = manifestByModule.get(modName);
+      const declared = manifest ? manifestDescription(root, manifest) : '';
+      const role = declared || (mdDominant ? markdownFolderRole(modName, items) : inferModuleRole(modName, items));
       const purpose = mdDominant ? '' : inferModulePurpose(items, inboundCounts);
       const entry = findModuleEntry(modName, items, entryPoints);
       const surface = publicSurfaceForModule(items, inboundCounts);
@@ -2150,6 +2260,12 @@ async function main() {
 
       out += `### ${modName}\n`;
       out += `**Role:** ${role}\n`;
+      if (manifest) out += `**Manifest:** \`${manifest}\`\n`;
+      const projects = projectsByModule.get(modName);
+      if (projects) {
+        const names = projects.map((d) => d.slice(modName.length));
+        out += `**Projects:** ${projects.length} sub-projects: ${names.slice(0, 40).join(', ')}${names.length > 40 ? ', …' : ''}\n`;
+      }
       if (purpose) out += `**Purpose:** ${purpose}\n`;
       if (entry) out += `**Entry:** \`${entry}\`\n`;
       if (surface.length) out += `**Public surface:** ${surface.map((s) => `\`${s}\``).join(', ')}\n`;
@@ -2385,7 +2501,7 @@ async function main() {
     const byModule = new Map(); // mod → [{ file, caller, callee, qualified }]
     let externalCalls = 0;
     for (const [rel, edges] of fileCalls.entries()) {
-      const mod = topLevelDirOf(rel);
+      const mod = moduleOf(rel);
       const scope = callScope(rel);
       for (const e of edges) {
         // Attach the type-resolved qualified callee(s) (Type.method) when the resolver
@@ -2449,7 +2565,7 @@ async function main() {
   if (fileCallSeq.size) {
     const seqByModule = new Map(); // mod → [{ file, caller, callees }]
     for (const [rel, seqs] of fileCallSeq.entries()) {
-      const mod = topLevelDirOf(rel);
+      const mod = moduleOf(rel);
       if (!seqByModule.has(mod)) seqByModule.set(mod, []);
       const bucket = seqByModule.get(mod);
       for (const s of seqs) {
@@ -2505,13 +2621,13 @@ async function main() {
   }
 
   // codemap.json: everything above, uncapped, plus per-file outline, tests and git data.
-  const json = buildCodemapJson({ projectName, today, groups, sortedGroups, fileEdges, refEdges, moduleEdges, allClassEntries, jsonCalls, jsonCallSeq, activity, entryPoints });
+  const json = buildCodemapJson({ projectName, today, groups, sortedGroups, fileEdges, refEdges, moduleEdges, manifestByModule, projectsByModule, allClassEntries, jsonCalls, jsonCallSeq, activity, entryPoints });
 
   // --map-tokens budget (document-size budget, default DEFAULT_MAP_TOKENS). Trims the
   // least-valuable sections first (see TRIM_ORDER) and logs what was dropped — no silent
-  // caps. File deps, Dependencies and the per-module listings are never trimmed.
+  // caps. codemap.json keeps everything.
   if (args.mapTokens && estimateTokens(out) > args.mapTokens) {
-    out = truncateToBudget(out, args.mapTokens, args, log);
+    out = truncateToBudget(out, args.mapTokens, args, log, inboundCounts, (h) => groups.has(h));
   }
 
   const codemapPath = path.join(root, '.claude', 'codemap.md');
@@ -2540,10 +2656,12 @@ async function main() {
     try { fs.unlinkSync(dirtyPath); } catch {}
   }
 
-  const diff = diffSummary(prev, out);
+  // The last run's files are the extraction cache's keys (generated files are cached as skips).
+  const prevFiles = Object.entries(prevCache).filter(([, e]) => !e.generated).map(([rel]) => rel);
+  const diff = diffSummary(prev, prevFiles.length ? new Set(prevFiles) : null, json);
   if (diff.initial) {
     const exported = [...groups.values()].flat().filter((it) => it.exports.length).length;
-    log(args, `initial scan: ${allFiles.length} files, ${exported} with exports across ${sortedGroups.length} top-level groups`);
+    log(args, `initial scan: ${allFiles.length} files, ${exported} with exports across ${sortedGroups.length} modules`);
   } else {
     log(args, `+ ${diff.added} files added`);
     log(args, `- ${diff.removed} files removed`);

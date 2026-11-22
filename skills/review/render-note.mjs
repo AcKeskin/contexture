@@ -11,6 +11,12 @@ const SEVS = ['critical', 'high', 'medium', 'low'];
 const loc = (o) => (o.file ? `${o.file}${o.line ? ':' + o.line : ''}` : '');
 const quote = (s) => String(s).split('\n').map((l) => (l ? '> ' + l : '>')).join('\n');
 const fence = (s, lang = '') => '```' + lang + '\n' + String(s).replace(/\n$/, '') + '\n```';
+// Code rows (update-codemap arch-delta) as a ```diff fence, longer than any backtick run inside.
+const diffFence = (rows) => {
+  const body = rows.map((r) => (r.c === 'add' ? '+' : r.c === 'del' ? '-' : ' ') + r.t);
+  const ticks = '`'.repeat(Math.max(3, ...body.map((l) => Math.max(0, ...(l.match(/`+/g) || []).map((x) => x.length + 1)))));
+  return [ticks + 'diff', ...body, ticks].join('\n');
+};
 const one = (s) => String(s ?? '').replace(/\s*\n\s*/g, ' ').trim();
 const anglesOf = (f) => (f.angles?.length ? f.angles : [f.category]).filter(Boolean);
 const heading = (f) => `${f.id} · ${f.severity} · ${one(f.title)}`.replace(/[#|[\]^]/g, '');
@@ -103,7 +109,23 @@ function render(d, { bodyOnly = false } = {}) {
   }
 
   const structure = sections.find((s) => s.id === 'structure');
-  if (structure?.mermaid?.length) out.push('## Where the change sits', fence(structure.mermaid[0], 'mermaid'));
+  // One diagram: the architecture change replaces it when there is one.
+  if (structure?.mermaid?.length && !d.architecture?.mermaid) out.push('## Where the change sits', fence(structure.mermaid[0], 'mermaid'));
+  const a = d.architecture;
+  if (a) {
+    out.push('## Architecture change', one(a.summary));
+    if (a.mermaid) out.push(fence(a.mermaid, 'mermaid'));
+    const rows = [
+      ...a.edges.map((e) => `- \`${e.from}\` → \`${e.to}\` ${!e.before ? `new (${e.after})` : !e.after ? `removed (was ${e.before})` : `${e.before} to ${e.after}`}`),
+      ...(a.cycles?.added || []).map((c) => `- New cycle ${c.map((g) => `\`${g}\``).join(' ↔ ')}`),
+      ...(a.cycles?.removed || []).map((c) => `- Broken cycle ${c.map((g) => `\`${g}\``).join(' ↔ ')}`),
+    ];
+    if (rows.length) out.push(rows.join('\n'));
+    const kinds = [['changed', 'Export changed'], ['added', 'Export added'], ['removed', 'Export removed']];
+    for (const [k, label] of kinds) {
+      for (const s of (a.surface?.[k] || []).filter((x) => x.code?.length)) out.push(`${label} \`${loc(s)}\` ${s.name}`, diffFence(s.code));
+    }
+  }
 
   out.push('## Findings', fs.length ? 'Tick one box per finding, then tell Claude "apply vault picks".' : 'No findings.');
   for (const f of fs) out.push(finding(f));

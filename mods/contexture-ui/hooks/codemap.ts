@@ -119,9 +119,11 @@ export type FileMarks = {
   git: Readonly<Record<string, GitMark>>
   // Changed files written after the codemap.
   stale: readonly string[]
+  // Files changed in this branch.
+  branch: readonly string[]
   isChangedOnly: boolean
 }
-const NO_MARKS: FileMarks = { git: {}, stale: [], isChangedOnly: false }
+const NO_MARKS: FileMarks = { git: {}, stale: [], branch: [], isChangedOnly: false }
 
 function cloneNode(n: TreeNode): TreeNode {
   return { ...n, exports: [...n.exports], children: n.children.map(cloneNode) }
@@ -149,10 +151,21 @@ function hasMarked(node: TreeNode, isMarked: (path: string) => boolean): boolean
   return isMarked(node.path) || (node.isDir && node.children.some(c => hasMarked(c, isMarked)))
 }
 
+// A path and every folder above it.
+function withFolders(paths: readonly string[]): Set<string> {
+  const all = new Set<string>()
+  for (const p of paths) {
+    const parts = p.split('/')
+    for (let i = 1; i <= parts.length; i++) all.add(parts.slice(0, i).join('/'))
+  }
+  return all
+}
+
 // Rows to draw from a tree (withUnmapped's): open folders show their
 // children; an open file shows its exports. Touched marks a file Claude read
-// or edited this session, git a file changed in the work tree. Changed-only
-// keeps marked files and opens every folder that holds one.
+// or edited this session, git a file changed in the work tree, branch a file
+// changed in this branch (and the folders holding one). Changed-only keeps
+// marked files and opens every folder that holds one.
 export function visibleRows(
   root: TreeNode,
   open: readonly string[],
@@ -161,7 +174,10 @@ export function visibleRows(
 ): TreeRow[] {
   const isOpen = new Set(open)
   const stale = new Set(marks.stale)
-  const isMarked = (path: string): boolean => marks.git[path] !== undefined || touched[path] !== undefined
+  const branch = withFolders(marks.branch)
+  const branchFiles = new Set(marks.branch)
+  const isMarked = (path: string): boolean =>
+    marks.git[path] !== undefined || touched[path] !== undefined || branchFiles.has(path)
   const rows: TreeRow[] = []
   const walk = (node: TreeNode, depth: number): void => {
     for (const c of node.children) {
@@ -187,6 +203,7 @@ export function visibleRows(
         ...(touch ? { touch } : {}),
         ...(git ? { git } : {}),
         ...(stale.has(c.path) && !c.isUnmapped ? { isStale: true as const } : {}),
+        ...(branch.has(c.path) ? { isBranch: true as const } : {}),
       })
       if (!opened) continue
       if (c.isDir) walk(c, depth + 1)

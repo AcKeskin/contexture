@@ -10,6 +10,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { buildMapPage } from './map-page.mjs';
+import { readDiff, readSources } from './page-sources.mjs';
+import { readComponents, componentMermaid } from './components.mjs';
 
 const DEFAULTS = {
   l1EdgeCap: 8,         // top-N outgoing module edges per node before "(+K more)" summary
@@ -21,10 +24,11 @@ const DEFAULTS = {
   seqDepthCap: 10,      // max ordered calls shown per sequence diagram
   renderer: 'elk',      // mermaid flowchart renderer hint
   splitPerModule: true, // vault output: one note per module + index
+  pageCodeMb: 3,        // file text inlined in codemap.html for code snippets; 0 = none
 };
 
 function parseArgs(argv) {
-  const args = { root: null, vault: null, projectFolder: null, dryRun: false, quiet: false };
+  const args = { root: null, vault: null, projectFolder: null, diff: null, dryRun: false, quiet: false };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--dry-run') args.dryRun = true;
@@ -32,8 +36,9 @@ function parseArgs(argv) {
     else if (a === '--root') args.root = argv[++i];
     else if (a === '--vault') args.vault = argv[++i];
     else if (a === '--project-folder') args.projectFolder = argv[++i];
+    else if (a === '--diff') { args.diff = argv[++i]; if (!args.diff) { console.error('--diff needs a git ref, e.g. --diff main'); process.exit(2); } }
     else if (a === '--help' || a === '-h') {
-      console.log('usage: node skills/visualise-codemap/visualise-codemap.mjs [--root <dir>] [--vault <path>] [--project-folder <name>] [--dry-run] [--quiet]');
+      console.log('usage: node skills/visualise-codemap/visualise-codemap.mjs [--root <dir>] [--vault <path>] [--project-folder <name>] [--diff <git-ref>] [--dry-run] [--quiet]');
       process.exit(0);
     } else if (!args.root) args.root = a;
   }
@@ -62,6 +67,41 @@ function readCodemapJson(root) {
 function topLevelOf(rel) {
   const ix = rel.indexOf('/');
   return ix < 0 ? './' : rel.slice(0, ix) + '/';
+}
+
+// A file's module from codemap.json (nested sub-projects have their own), else its top-level folder.
+function moduleOfJson(full, rel) {
+  return (full.files && full.files[rel] && full.files[rel].module) || topLevelOf(rel);
+}
+
+// Add the files the markdown listings left out to their module groups, and take File deps
+// from codemap.json's imports.
+function fillFromJson(parsed, full) {
+  const byName = new Map(parsed.groups.map((g) => [g.name, g]));
+  const listed = new Set(parsed.groups.flatMap((g) => g.files.map((f) => f.rel)));
+  for (const [rel, f] of Object.entries(full.files)) {
+    if (listed.has(rel)) continue;
+    const name = moduleOfJson(full, rel);
+    if (!byName.has(name)) { const g = { name, files: [] }; byName.set(name, g); parsed.groups.push(g); }
+    byName.get(name).files.push({ rel, purpose: f.purpose || '', exports: (f.symbols || []).filter((s) => s.exported).map((s) => s.name) });
+  }
+  parsed.fileDeps = Object.entries(full.files)
+    .filter(([, f]) => f.imports && f.imports.length)
+    .map(([from, f]) => ({ from, to: f.imports }));
+}
+
+// Big-module guards: at most this many sub-folder class diagrams per module (most types first),
+// types per class diagram (most related first), and files in a module's Files list.
+const CLASS_BUCKET_CAP = 20;
+const CLASS_PER_DIAGRAM_CAP = 40;
+const FILE_LIST_CAP = 300;
+
+// rel → its module: the group that lists it, else the longest module name prefixing it, else
+// its top-level folder. Nested sub-projects (mcps/unity/server/) are modules of their own.
+function fileModules(parsed) {
+  const byFile = new Map(parsed.groups.flatMap((g) => g.files.map((f) => [f.rel, g.name])));
+  const names = parsed.groups.map((g) => g.name).filter((n) => n !== './').sort((a, b) => b.length - a.length);
+  return (rel) => byFile.get(rel) || names.find((n) => rel.startsWith(n)) || topLevelOf(rel);
 }
 
 // A codemap.json class in the shape parseClassGraph returns.
@@ -103,6 +143,7 @@ function loadVisualizeConfig(root) {
     seqDepthCap: DEFAULTS.seqDepthCap,
     renderer: DEFAULTS.renderer,
     splitPerModule: DEFAULTS.splitPerModule,
+    pageCodeMb: DEFAULTS.pageCodeMb,
   };
   if (!fs.existsSync(cfgPath)) return out;
   const lines = fs.readFileSync(cfgPath, 'utf8').split(/\r?\n/);
@@ -124,6 +165,7 @@ function loadVisualizeConfig(root) {
     else if (key === 'call-edge-cap') out.callEdgeCap = parseInt(val, 10) || out.callEdgeCap;
     else if (key === 'renderer') out.renderer = /^elk$|^dagre$/i.test(val) ? val.toLowerCase() : out.renderer;
     else if (key === 'split-per-module') out.splitPerModule = /^true$/i.test(val);
+    else if (key === 'page-code-mb') { const n = parseFloat(val); if (n >= 0) out.pageCodeMb = n; }
   }
   return out;
 }
@@ -592,9 +634,10 @@ function renderModuleMap(parsed, cfg, notes) {
   const visibleModules = new Set([...allModules].filter((m) => !skipRegexes.some((re) => re.test(m))));
 
   const entryModules = new Set();
+  const moduleOf = fileModules(parsed);
   for (const e of parsed.entryPoints) {
-    const top = e.rel.split('/')[0] + '/';
-    if (visibleModules.has(top)) entryModules.add(top);
+    const mod = moduleOf(e.rel);
+    if (visibleModules.has(mod)) entryModules.add(mod);
   }
 
   // Layers: prefer declared (## Layers); else auto-layer topologically.
@@ -1009,8 +1052,9 @@ function sanitizeMermaidLabel(s) {
 function renderCrossModuleClassRelations(parsed) {
   const moduleOfClass = new Map(); // className → "mod/"
   const classByName = new Map();
+  const moduleOf = fileModules(parsed);
   for (const c of parsed.classes) {
-    const mod = c.file.split('/')[0] + '/';
+    const mod = moduleOf(c.file);
     moduleOfClass.set(c.name, mod);
     classByName.set(c.name, c);
   }
@@ -1285,7 +1329,9 @@ function renderModuleSection(group, parsed, cfg, exportsByFile) {
   const skipRegexes = cfg.skipPatterns.map(configGlobToRegex);
   const visibleFiles = group.files.filter((f) => !skipRegexes.some((re) => re.test(f.rel)));
   const publicSurfaceCount = visibleFiles.reduce((sum, f) => sum + f.exports.length, 0);
-  const classesInModule = parsed.classes.filter((c) => c.file.startsWith(group.name));
+  // By file, not path prefix: a nested sub-project (mcps/unity/server/) is its own module.
+  const inModule = new Set(group.files.map((f) => f.rel));
+  const classesInModule = parsed.classes.filter((c) => inModule.has(c.file));
 
   const out = [];
   out.push(`### ${group.name}`);
@@ -1338,8 +1384,22 @@ function renderModuleSection(group, parsed, cfg, exportsByFile) {
       // IUnityMcpTool fan would disappear when split by sub-folder.
       const classByName = new Map(classesInModule.map((c) => [c.name, c]));
 
-      const sortedBuckets = [...buckets.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-      for (const [sub, classes] of sortedBuckets) {
+      // A big module has thousands of folders: draw the ones with the most types.
+      const sortedBuckets = [...buckets.entries()]
+        .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
+        .slice(0, CLASS_BUCKET_CAP)
+        .sort((a, b) => a[0].localeCompare(b[0]));
+      if (buckets.size > sortedBuckets.length) {
+        const left = [...buckets.values()].reduce((n, b) => n + b.length, 0) - sortedBuckets.reduce((n, b) => n + b[1].length, 0);
+        out.push(`_Showing the ${sortedBuckets.length} sub-folders with the most types; ${buckets.size - sortedBuckets.length} more hold ${left} types (all in .claude/codemap.json)._`);
+        out.push('');
+      }
+      for (const [sub, all] of sortedBuckets) {
+        // Most-related types first, so inheritance survives the per-diagram cap.
+        const related = (c) => c.extends.length + c.implements.length + (c.fields || []).length;
+        const classes = all.length > CLASS_PER_DIAGRAM_CAP
+          ? [...all].sort((a, b) => related(b) - related(a) || a.name.localeCompare(b.name)).slice(0, CLASS_PER_DIAGRAM_CAP)
+          : all;
         // Pull in parents referenced by this bucket's classes so inheritance
         // arrows render even when parent lives in a different sub-folder.
         // Parent gets shown as a tiny stub in this diagram (its members appear
@@ -1360,7 +1420,7 @@ function renderModuleSection(group, parsed, cfg, exportsByFile) {
         if (!cd) continue;
         out.push(`##### ${sub === '(root)' ? `${group.name} (module root)` : `${group.name}${sub}/`}`);
         out.push('');
-        out.push(`${classes.length} type${classes.length === 1 ? '' : 's'} in this sub-folder${allInDiagram.length > classes.length ? ` (+ ${allInDiagram.length - classes.length} referenced parent${allInDiagram.length - classes.length === 1 ? '' : 's'})` : ''}.`);
+        out.push(`${all.length} type${all.length === 1 ? '' : 's'} in this sub-folder${all.length > classes.length ? ` (showing ${classes.length})` : ''}${allInDiagram.length > classes.length ? ` (+ ${allInDiagram.length - classes.length} referenced parent${allInDiagram.length - classes.length === 1 ? '' : 's'})` : ''}.`);
         out.push('');
         out.push(cd);
         out.push('');
@@ -1371,7 +1431,11 @@ function renderModuleSection(group, parsed, cfg, exportsByFile) {
   if (visibleFiles.length) {
     out.push('#### Files');
     out.push('');
-    for (const f of visibleFiles) {
+    if (visibleFiles.length > FILE_LIST_CAP) {
+      out.push(`_First ${FILE_LIST_CAP} of ${visibleFiles.length} files; .claude/codemap.json lists all._`);
+      out.push('');
+    }
+    for (const f of visibleFiles.slice(0, FILE_LIST_CAP)) {
       out.push(`- \`${f.rel}\` — ${f.purpose}`);
       for (const e of f.exports) out.push(`  - ${e}`);
     }
@@ -1439,7 +1503,7 @@ function renderModulesIndexList(parsed, moduleSections, projectSlug, useWikilink
 }
 
 // ── Assembly ─────────────────────────────────────────────────────────────────
-function assembleSingle(parsed, cfg) {
+function assembleSingle(parsed, cfg, componentMap = null) {
   const today = new Date().toISOString().slice(0, 10);
   const notes = [];
   const skipRegexes = cfg.skipPatterns.map(configGlobToRegex);
@@ -1463,6 +1527,7 @@ function assembleSingle(parsed, cfg) {
   if (overviewBlock) out += overviewBlock + '\n';
   out += `## Structure\n\n${structure}\n\n`;
   out += `## Module map\n\n${moduleMap}\n\n`;
+  if (componentMap) out += `## Component map\n\nComponents named in \`.claude/codemap.components.json\`. Edge labels are the namer's words, else the import count.\n\n\`\`\`mermaid\n${componentMap}\n\`\`\`\n\n`;
   const conventionsBlock = renderConventionsBlock(parsed);
   if (conventionsBlock) out += conventionsBlock + '\n';
   const hubsBlock = renderHubsBlock(parsed);
@@ -1595,8 +1660,10 @@ function main() {
   const full = readCodemapJson(root);
   if (full && Array.isArray(full.classes)) parsed.classes = full.classes.map(classFromJson);
   if (full && Array.isArray(full.callSequences) && !parsed.callSequence.chains.length) {
-    parsed.callSequence = { chains: full.callSequences.map((c) => ({ mod: topLevelOf(c.file), file: path.posix.basename(c.file), caller: c.caller, callees: c.callees })) };
+    parsed.callSequence = { chains: full.callSequences.map((c) => ({ mod: moduleOfJson(full, c.file), file: path.posix.basename(c.file), caller: c.caller, callees: c.callees })) };
   }
+  // The size cap can thin the markdown's file listings and leave out File deps; the JSON has them all.
+  if (full && full.files) fillFromJson(parsed, full);
   const cfg = loadVisualizeConfig(root);
   log(args, `parsed: ${parsed.groups.length} module groups, ${parsed.dependencies.length} dependency lines, ${parsed.fileDeps.length} file-dep lines, ${parsed.classes.length} declared types`);
   if (cfg.skipPatterns.length) log(args, `visualize: ${cfg.skipPatterns.length} skip patterns`);
@@ -1605,7 +1672,11 @@ function main() {
   const dirtyPath = path.join(root, '.claude', 'codemap.dirty');
   if (fs.existsSync(dirtyPath)) log(args, 'WARNING: source codemap is marked dirty (auto-update flag). Run update-codemap first.');
 
-  const single = assembleSingle(parsed, cfg);
+  const skipRegexes = cfg.skipPatterns.map(configGlobToRegex);
+  const isSkipped = (rel) => skipRegexes.some((re) => re.test(rel));
+  let components = null;
+  try { components = readComponents(root); } catch (err) { log(args, `WARNING: .claude/codemap.components.json is not valid JSON (${err.message}); components skipped.`); }
+  const single = assembleSingle(parsed, cfg, components && full ? componentMermaid(full, components, isSkipped) : null);
 
   if (args.dryRun) {
     log(args, '--- dry-run output ---');
@@ -1618,6 +1689,26 @@ function main() {
   fs.mkdirSync(path.dirname(repoOutPath), { recursive: true });
   fs.writeFileSync(repoOutPath, single.body);
   log(args, `wrote ${path.relative(root, repoOutPath)}`);
+
+  if (full && full.files) {
+    const pagePath = path.join(root, '.claude', 'codemap.html');
+    let tour = null;
+    try { tour = JSON.parse(fs.readFileSync(path.join(root, '.claude', 'codemap.tour.json'), 'utf8')); } catch (err) { if (err.code !== 'ENOENT') log(args, `WARNING: .claude/codemap.tour.json is not valid JSON (${err.message}); tour skipped.`); }
+    let diff = null;
+    if (args.diff) {
+      try { diff = readDiff(root, args.diff); } catch (err) { console.error(`--diff: ${err.message}`); process.exit(1); }
+      log(args, `diff: ${Object.keys(diff.files).length} files changed since ${args.diff} (${diff.sha})`);
+    }
+    let sources = null;
+    if (cfg.pageCodeMb > 0) {
+      sources = readSources(root, full, { budget: cfg.pageCodeMb * 1024 * 1024, isSkipped, diff, first: (tour?.stops || []).map((s) => s.file) });
+      log(args, `code: ${Object.keys(sources.text).length} files (${(sources.bytes / 1048576).toFixed(1)} MB)${sources.left.length ? `, ${sources.left.length} left out (over 200 KB or page-code-mb)` : ''}${sources.stale.length ? `, ${sources.stale.length} changed since the codemap` : ''}`);
+    }
+    fs.writeFileSync(pagePath, buildMapPage(full, { root, isSkipped, components, tour, sources, diff }));
+    log(args, `wrote ${path.relative(root, pagePath)} (clickable map, open it in a browser)`);
+  } else {
+    log(args, 'no .claude/codemap.json: skipped the clickable map page. Re-run /update-codemap to get it.');
+  }
 
   if (args.vault) {
     try {

@@ -41,7 +41,7 @@ Before publishing, search the page text for these. Remove or rewrite each hit.
 | Explanations of basics the domain's readers know | Readers know the domain. |
 | A vote, poll or comment widget | The platform's comment threads cover discussion. |
 
-A hit can stay only when it is part of the design itself, for example an API state literally named `CLOSED` or a "legacy mode" the design keeps on purpose.
+A hit can stay only when it is part of the design itself, for example an API state literally named `CLOSED` or a "legacy mode" the design keeps on purpose. The Before panel of a delta diagram and its Changes table are part of the design too.
 
 ## When a choice flips
 

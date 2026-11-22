@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { isTest, reverseDeps, reach, affectedTests } from '../affected-tests.mjs';
+import { isTest, reverseDeps, reverseDepsJson, reach, affectedTests } from '../affected-tests.mjs';
 
 const MAP = `# Architecture — demo
 
@@ -31,6 +31,17 @@ test('reverse deps stop at the next section', () => {
   assert.equal(rev.has('Cart'), false);
 });
 
+test('codemap.json imports give the same reverse map as File deps', () => {
+  const json = { files: {
+    'src/cart.js': { imports: ['src/money.js'] }, 'src/api.js': { imports: ['src/cart.js'] },
+    'tests/helpers.js': { imports: ['src/api.js'] }, 'tests/api.test.js': { imports: ['tests/helpers.js'] },
+    'src/cart.test.js': { imports: ['src/cart.js'] }, 'src/money.js': { imports: [] },
+  } };
+  const a = reverseDeps(MAP), b = reverseDepsJson(json);
+  assert.deepEqual([...b.keys()].sort(), [...a.keys()].sort());
+  for (const k of a.keys()) assert.deepEqual([...b.get(k)].sort(), [...a.get(k)].sort(), k);
+});
+
 test('reach follows helpers to the tests and keeps the path', () => {
   const r = reach(reverseDeps(MAP), ['src/money.js', 'src/orphan.js', 'README.md']);
   assert.deepEqual(r.tests.map((t) => t.file), ['src/cart.test.js', 'tests/api.test.js', 'tests/helpers.js']);
@@ -50,6 +61,16 @@ test('no codemap says run the full suite', () => {
   git(root, 'init', '-q');
   const r = affectedTests({ root, files: ['src/cart.js'] });
   assert.equal(r.codemap, null);
+  assert.match(r.note, /full suite/);
+});
+
+test('a codemap.md whose File deps the size cap left out says run the full suite', () => {
+  const root = mkdtempSync(join(tmpdir(), 'at-'));
+  git(root, 'init', '-q');
+  mkdirSync(join(root, '.claude'));
+  writeFileSync(join(root, '.claude', 'codemap.md'), '# Architecture — demo\n\n## File deps\n_Left out to fit the size cap; .claude/codemap.json has it._\n');
+  const r = affectedTests({ root, files: ['src/cart.js'] });
+  assert.deepEqual(r.untested, []);
   assert.match(r.note, /full suite/);
 });
 

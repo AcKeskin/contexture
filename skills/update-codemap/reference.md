@@ -17,4 +17,5 @@ Read when the step you are on points here, or when something fails.
 - Pattern-matching, not parsing. Edge cases (template specializations, partial classes, dynamic `export default` expressions) may produce imperfect output. The ambiguity protocol (§5) says: note, do not invent.
 - Read cap per file is practical, not semantic. If a real file surfaces where exports live past line 200, the proposal assumption needs revisiting.
 - No subagent delegation. If main context strains on a huge repo, that is a signal to revisit — do not silently silence the symptom.
-- Per-project config covers Skip / Vendored / Layers / Auto-update. Force-include is a future extension, not v1.
+- Per-project config covers Skip / Vendored / Modules / Layers / Auto-update. Force-include is a future extension, not v1.
+- Big repos: codemap.json grows with the code (about 2 MB for 3k files, 65 MB for aspire's 15k, 170 MB for vscode's 21k). Tools that load it whole pay for that.

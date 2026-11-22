@@ -37,8 +37,9 @@ Before any page, list each tab and each topic block as one line: the claim it ma
 ### 5. Write the pages
 
 - One tab per area. The first tab is an overview: one diagram of the whole, and a table of the parts (name, side or owner, where it attaches, what it does).
-- Every area tab gets at least one diagram of its mechanism: a sequence for a protocol, a flow for data, a mapping band for translations, a timeline for lifetimes, side by side for a comparison. Use the `artifact-diagramming` skill.
+- Every area tab gets at least one diagram of its mechanism: a sequence for a protocol, a flow for data, a mapping band for translations, a timeline for lifetimes, side by side for a comparison, a delta diagram (`references/delta-diagram.md`) for a change to a structure the team already runs. Use the `artifact-diagramming` skill.
 - Write interfaces as real signatures or schemas, in the notation the team will implement.
+- Check every diagram with `references/diagram-check.md`: budget, remove test, `diagram-check.mjs`, then look at the shots.
 
 ### 6. Copy pass
 
@@ -47,7 +48,7 @@ Before any page, list each tab and each topic block as one line: the claim it ma
 
 ### 7. Publish and iterate
 
-- **Gate.** Publish only when all of these hold on the final file: every block on the argument list made it onto a page; every identifier is confirmed or reported in chat; the tripwires ran with zero hits left; you opened the page at desktop and phone width and read every tab. A step you skipped is named in your message, never implied.
+- **Gate.** Publish only when all of these hold on the final file: every block on the argument list made it onto a page; every identifier is confirmed or reported in chat; the tripwires ran with zero hits left; the diagram check ran and each finding is fixed or named in your message; you opened the page at desktop and phone width and read every tab. A step you skipped is named in your message, never implied.
 - Publish as an artifact and give the link. Tell the user it is private until they share it.
 - When a comment asks for a change: re-read the part, change it, then update every other page that mentions the same choice. A choice that flips moves the old plan into Other ways with its limitation. Reply in the thread and resolve it.
 - When the user asks a question about the design without asking for an edit, answer in chat and leave the page alone.

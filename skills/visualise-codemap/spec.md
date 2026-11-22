@@ -48,7 +48,7 @@ The output is a single technical document built from seven composed parts, in th
 
 - A short paragraph: `<N> files, <K> exported symbols, <C> declared types.`
 - `#### File graph` — Mermaid `graph LR`, files clustered into `subgraph sub_<X>["<X>/"]` per immediate sub-folder. Files at the module root (no sub-folder) render outside any subgraph. Outbound edges to files in other modules render as `:::ghost` nodes labelled with the full target path so the boundary crossing is visible. Caps `l2-file-cap` (default 40, ranked by edge degree) and `l2-edge-cap` (default 80, intra-first then outbound) apply; each truncation appends a one-line italic note below the diagram.
-- `#### Class diagram` (only when the module contains classes from `## Class graph`) — Mermaid `classDiagram` with one node per class. Class bodies show: stereotype (`<<interface>>` / `<<enumeration>>` / `<<struct>>` / `<<record>>` / `<<abstract>>` — abstract inferred from `attributes:` containing the word "abstract" or `extends:` starting with `Abstract`), up to 8 fields (deduped by name), and up to `class-method-cap` (default 6) method-shaped exports — but method extraction only fires when the file contains exactly one class, to avoid misattributing exports across siblings. Relations: `<|--` for `extends`, `<|..` for `implements`, `o--` for composition when a field's type matches another in-scope class. Edges are only emitted when **both** endpoints are in the module; cross-module relations are deferred to the Cross-module section.
+- `#### Class diagram` (only when the module contains classes from `## Class graph`) — Mermaid `classDiagram` with one node per class. Class bodies show: stereotype (`<<interface>>` / `<<enumeration>>` / `<<struct>>` / `<<record>>` / `<<abstract>>` — abstract inferred from `attributes:` containing the word "abstract" or `extends:` starting with `Abstract`), up to 8 fields (deduped by name), and up to `class-method-cap` (default 6) method-shaped exports — but method extraction only fires when the file contains exactly one class, to avoid misattributing exports across siblings. Relations: `<|--` for `extends`, `<|..` for `implements`, `o--` for composition when a field's type matches another in-scope class. Edges are only emitted when **both** endpoints are in the module; cross-module relations are deferred to the Cross-module section. A module with more than 25 types is split into one diagram per sub-folder; on a big module only the 20 sub-folders with the most types are drawn, each with at most 40 types (most related first), and the rest is counted in a note. A module's `#### Files` list stops at 300 files. Module membership comes from codemap.json's `files[].module` (a nested sub-project is its own module), and file deps and any files the markdown left out come from codemap.json.
 - `#### Files` — flat list, one line per file with its purpose, with nested bullets for each export from the codemap. When the source codemap lists names only (`exports: foo, bar`), reproduce names only — never invent signatures.
 
 **3d. Cross-module class relations.** Optional. A single Mermaid `classDiagram` covering only `extends`/`implements` edges whose parent class lives in a different module than the child. Each rendered class node carries its module name as a synthetic field so it's clear which side of the boundary it belongs to. Section is omitted entirely when no such edges exist.
@@ -192,6 +192,12 @@ These are derived artefacts (rendered from the source codemap, not authored cont
 - `<root>/.claude/codemap.diagrams.md`. Overwrite. Create `.claude/` if missing.
 - One file because this artifact is for AI consumption and GitHub rendering — both prefer a single scrollable file.
 
+**Component map:** when `.claude/codemap.components.json` exists and parses, a `## Component map` Mermaid section follows the Module map (built by `components.mjs` `componentMermaid`). A file that does not parse logs a warning and is skipped.
+
+**Tour:** when `.claude/codemap.tour.json` exists and parses, its stops on files still in the codemap go into the map page as `tour`.
+
+**Map page:** `<root>/.claude/codemap.html`, built by `map-page.mjs` from `.claude/codemap.json` (not from the Markdown), only when that file exists. Data inlined as JSON (files minus `hash`/`size`, symbols minus `exported`, skipped files and their edges left out; file text from `page-sources.mjs` `readSources` up to `page-code-mb`, with files whose sha1 no longer matches the codemap `hash` listed as `stale`; with `--diff <ref>`, `readDiff` adds `git diff -U0 <ref>` plus untracked files as per-file added line ranges and removed blocks in current line numbers), page script from `assets/map-page.html`, zoom.js inlined. Overwrite.
+
 **Vault artifact (layout depends on `split-per-module`):**
 
 *Single-file mode* (`split-per-module: false`) — historical layout, preserved for opt-out:
@@ -242,6 +248,7 @@ Print:
 
 ```
 Wrote .claude/codemap.diagrams.md
+Wrote .claude/codemap.html (clickable map, open it in a browser)
 Wrote <Vault>/Projects/<ProjectFolder>/Codemap/<project>-codemap.md (+ N module notes)
 Source codemap age: X days
 ```

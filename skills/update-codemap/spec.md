@@ -152,7 +152,9 @@ Start here — the most-depended-on files, ranked by importers:
 
 ## Modules
 ### <module>/
-**Role:** <hardcoded role for well-known module names, else top-file purpose or humanized folder name>
+**Role:** <manifest description, else hardcoded role for well-known module names, else top-file purpose or humanized folder name>
+**Manifest:** `<the sub-project's manifest, when the module is one>`
+**Projects:** <N> sub-projects: <dir>/, <dir>/, … (only for a folder standing for many sub-projects)
 **Purpose:** <2-3 most-imported files' purposes, concatenated>
 **Entry:** `<entry-point file in this module, when detected>`
 **Public surface:** `<name — sig>`, `<name>`, … (up to 10, ranked by inbound file edges; callable signatures kept)
@@ -206,7 +208,7 @@ Files changed most in the last 90 days:
 ### <module>/
 - `<file>::<caller>`: `<a>` → `<b>` → `<a>`  (order calls appear in the source; duplicates kept)
 
-## <top-level-dir>/
+## <module>/
 - `<path/relative/to/root>` — <purpose line>
   exports: <list separated by ` ; ` (with optional signatures)>
 - `<path>` — <purpose line>
@@ -220,10 +222,12 @@ Files changed most in the last 90 days:
 
 **Map section** — a ranked table of the most-depended-on files (top 12 by inbound file-edge count, importers > 0), each with its purpose. The agent's entry point: read these first instead of scanning the tree. Distinct from `## Hubs` (which lists every file with ≥3 importers); Map is the top slice as a table. Omitted when no file has inbound edges.
 
-**Modules section** — one `### <module>/` block per top-level directory, **ordered by importance** (sum of the module's files' inbound edges, descending; ties broken alphabetically) so the most-depended-on modules lead. Each block populates the fields it can detect; missing fields are simply omitted:
-- **Role** — hardcoded mapping for well-known module names (`server/`, `unity-package/`, `src/`, `lib/`, `app/`, `apps/`, `packages/`, `scripts/`, `tools/`, `tests/`, `test/`, `docs/`, `skills/`, `agents/`, `hooks/`, `mcps/`, `.github/`). Falls back to the highest-inbound-edge file's purpose, then to a humanized folder name. Always present.
+**What a module is** (`modules.mjs`). By default a top-level directory, or a nested **sub-project**: a folder (not the root) holding its own manifest — `package.json`, `Cargo.toml`, `go.mod`, `pyproject.toml`, `setup.py`, `pom.xml`, `build.gradle(.kts)`, `composer.json`, `Package.swift`, `Gemfile`, `*.csproj`/`*.fsproj`/`*.vbproj`, `*.asmdef`, `*.gemspec` — and 2+ indexed files. The deepest one holding a file wins, so `mcps/unity/server/` is its own module and the rest of `mcps/` stays in `mcps/`. Manifests under test-data folders (`test/`, `tests/`, `__tests__/`, `spec/`, `fixtures/`, `testdata/`, `examples/`, `samples/`, `e2e/`, `snapshots/`) are ignored. A folder with more than 12 sub-projects under it (after its own sub-folders were grouped, deepest first) becomes one module standing for all of them, listed on its `**Projects:**` line, so `extensions/*` or `playground/**` don't turn into hundreds of modules. A `## Modules` section in `codemap.config.md` replaces detection: its folder patterns and/or `depth: N` name the module folders.
+
+**Modules section** — one `### <module>/` block per module, **ordered by importance** (sum of the module's files' inbound edges, descending; ties broken alphabetically) so the most-depended-on modules lead. Each block populates the fields it can detect; missing fields are simply omitted:
+- **Role** — the sub-project manifest's `description` (package.json/composer.json, Cargo/pyproject `description = "..."`, csproj `<Description>`), else a hardcoded mapping for well-known module names (`server/`, `unity-package/`, `src/`, `lib/`, `app/`, `apps/`, `packages/`, `scripts/`, `tools/`, `tests/`, `test/`, `docs/`, `skills/`, `agents/`, `hooks/`, `mcps/`, `.github/`). Falls back to the highest-inbound-edge file's purpose, then to a humanized folder name. Always present.
 - **Purpose** — the 2-3 most-imported files' purpose lines, concatenated, deduplicated.
-- **Entry** — module's own entry point (matching by top-level dir against the detected entry list), else `index.ts` / `index.js` / `index.mjs` / `Boot.cs` / `Main.cs` / `Program.cs` at module root.
+- **Entry** — module's own entry point (the first detected entry point whose file is in the module), else `index.ts` / `index.js` / `index.mjs` / `Boot.cs` / `Main.cs` / `Program.cs` at module root.
 - **Public surface** — up to 10 exports from the top-ranked files (by inbound edges), 3 per file max. **Callable signatures are kept** (`go — (x: string): void`) — the highest-signal element, so the model can call the API without reading the implementation. Only the `default: ` prefix is stripped. Deduped on the bare name.
 - **Depends on** — alphabetical list of other modules this module imports from (from `## Dependencies`).
 - **Imported by** — alphabetical inverse of `Depends on`.
@@ -242,18 +246,16 @@ Files changed most in the last 90 days:
 **Recent activity section** — the 12 indexed files with the most commits in the last 90 days (`git log --since=90.days.ago --no-merges --relative --name-only`), ties broken by latest change then path, each with its commit count and last change date. Omitted outside git or when nothing changed.
 
 **Entry points section** — detect from:
-- Root `package.json` `main` / `bin` / `module` fields.
-- Root `pyproject.toml` `[project.scripts]`.
-- `Program.cs` / `Main.cs` / files containing `static void Main` or `static int Main`.
-- Root `*.csproj` `<StartupObject>` element.
-- `CMakeLists.txt` `add_executable` targets.
-- Single-page-app conventions: `src/main.{ts,tsx,js,jsx}`, `src/index.{ts,tsx,js,jsx}` when no explicit `main` field exists.
+- `package.json` `main` / `bin` / `module` fields, at the root and in every sub-project module. A path into a tsconfig `outDir` maps back to its source; a path that matches no indexed file is left out.
+- `Program.cs` / `Main.cs` anywhere.
+- `*.csproj` `<StartupObject>` element, at any depth.
+- Single-page-app conventions at the root of the project or of the module that holds the file: `src/main.{ts,tsx,js,jsx,mjs}`, `src/index.{ts,tsx,js,jsx,mjs}`.
 - Omit the section entirely if no entry points are detected. Do not invent.
 
 **Layers section** — detect when `.claude/codemap.config.md` declares them (see config format below). Otherwise omit. Inference from folder names alone is too brittle.
 
 **Dependencies section** — adjacency list, module-level, weighted:
-- For each top-level directory, collect all import targets from files inside it.
+- For each module, collect all import targets from files inside it.
 - An import target is a file path or package name pulled from regex matches:
   - TS/JS: `import ... from '<target>'`, `import('<target>')`, `require('<target>')`.
   - C#: `using <namespace>;` (map namespace prefix to module by best-effort folder match).
@@ -290,11 +292,11 @@ Files changed most in the last 90 days:
 - Drives both `## Conventions detected` (same run) and `visualise-codemap`'s UML output (downstream).
 
 **Ordering rules (mandatory):**
-- Section order in the file: `# Architecture` header, then `## Overview`, `## Map`, `## Modules`, `## Conventions detected`, `## Hubs`, `## Symbol index`, `## Recent activity`, `## Entry points`, `## Layers`, `## Dependencies`, `## File deps`, `## References`, `## Class graph`, `## Call graph`, `## Call sequence`, then the per-module `## <top-level-dir>/` groups. Sections with no content are omitted (except Overview and Modules, which are always emitted when any file exists).
+- Section order in the file: `# Architecture` header, then `## Overview`, `## Map`, `## Modules`, `## Conventions detected`, `## Hubs`, `## Symbol index`, `## Recent activity`, `## Entry points`, `## Layers`, `## Dependencies`, `## File deps`, `## References`, `## Class graph`, `## Call graph`, `## Call sequence`, then the per-module `## <module>/` groups. Sections with no content are omitted (except Overview and Modules, which are always emitted when any file exists).
 - `### <module>/` blocks inside `## Modules` ordered by module importance (sum of inbound edges) descending, ties alphabetical.
-- Top-level file groups in alphabetical order by directory name.
+- Per-module file groups in alphabetical order by module name.
 - Files within a group in alphabetical order by relative path.
-- A group per top-level directory. Root-level files (e.g. `README.md`, `package.json`) go in a leading group named `./` (root).
+- A group per module. Root-level files (e.g. `README.md`, `package.json`) go in a leading group named `./` (root).
 - Exports listed in source order of appearance within each file. Stable order matters for diffs.
 
 **Formatting rules:**
@@ -306,7 +308,18 @@ Files changed most in the last 90 days:
 
 ### 6a. Size cap
 
-`--map-tokens N` caps `codemap.md` at ~N tokens (chars / 4); the default is 32000 and `0` turns it off. Over the cap, sections are trimmed in this order until it fits: `## Class graph` (whole class blocks from the tail; classes are ordered by their file's importer count, so the least-used go first), `## Call sequence` (whole body), `## References` (tail rows), `## Symbol index` (tail rows). Each trimmed section keeps its heading and gets a note line saying what was left out. `codemap.json` carries all four in full. The Map, Hubs, Recent activity, File deps, Dependencies, Call graph and per-module listings are never trimmed; when they alone exceed the cap, nothing is trimmed (it could not reach the cap) and the run logs it.
+`--map-tokens N` caps `codemap.md` at ~N tokens (chars / 4); the default is 32000 and `0` turns it off. Over the cap, these are trimmed in order until it fits:
+1. `## Class graph` — whole class blocks from the tail (classes are ordered by their file's importer count, so the least-used go first).
+2. `## Call sequence` — whole body.
+3. `## References` — tail rows.
+4. Per-module listings — `exports:` sub-lines, least-imported files first.
+5. `## Symbol index` — tail rows.
+6. `## Call graph`, then `## File deps` — whole body.
+7. `## Conventions detected`, then `## Hubs` — tail rows.
+8. Per-module listings — whole file bullets, least-imported files first; among equally imported files the tails of the longest listings go first, so every module keeps its first files.
+9. `## Modules` — whole `###` blocks from the tail (least important), always keeping the first.
+
+Each trimmed section keeps its heading and gets a note line saying what was left out. The Overview, Map, Recent activity, Entry points, Layers and Dependencies are never trimmed; when the document is still over the cap after all of the above, the run logs it. `codemap.json` carries everything in full, so readers that need every file or edge (affected-tests, /discover, visualise-codemap, the project-memory MCP) read it rather than the markdown.
 
 ### 7. Write atomically
 
@@ -316,14 +329,14 @@ After a successful write, delete `<root>/.claude/codemap.dirty` if it exists. Th
 
 ### 8. Report diff summary
 
-If a previous codemap existed, report:
+If a previous codemap existed, report (the previous files are the extraction cache's keys when there is a cache, since the markdown's listings may be thinned by the size cap):
 - `+ N files added` (files present now that were not present before)
 - `- M files removed` (files present before that are not present now)
 - `~ K purpose lines changed`
 - `~ L export lists changed`
 
 If there was no previous codemap, report:
-- `initial scan: N files, M with exports across X top-level groups`
+- `initial scan: N files, M with exports across X modules`
 
 If `.claude/codemap.config.md` was found and applied, add one line:
 - `config applied: N skip patterns from .claude/codemap.config.md`
@@ -356,6 +369,7 @@ Written beside `codemap.md` on every non-dry run, uncapped, deterministic (keys 
       "size": 5656, "lines": 158,
       "hash": "<first 16 hex of sha1 of the content>",
       "purpose": "<purpose line>",
+      "module": "<mod>/",          // the module the file belongs to (see "What a module is")
       "vendored": true,            // only when vendored
       "isTest": true,              // only for test files (affected-tests.mjs isTest)
       "symbols": [                 // sorted by line
@@ -364,12 +378,16 @@ Written beside `codemap.md` on every non-dry run, uncapped, deterministic (keys 
       ],
       "imports": ["<rel>"],        // resolved file edges out
       "importedBy": ["<rel>"],     // resolved file edges in
-      "tests": ["<rel>"],          // test files that reach this file through imports (affected-tests.mjs reach)
+      "tests": ["<rel>"],          // the nearest (by import distance) 20 test files that reach this file (affected-tests.mjs reach)
+      "testsTotal": 1556,          // only when more tests reach it than `tests` lists
       "refs": ["<rel>"], "referencedBy": ["<rel>"],   // References edges, when any
       "commits": 4, "lastChange": "YYYY-MM-DD"   // git, last 90 days, when any
     }
   },
-  "modules": { "<mod>/": { "dependsOn": { "<mod>/": 3 } } },
+  "modules": { "<mod>/": {        // every module
+    "manifest": "<rel>",            // when the module is a sub-project
+    "projects": ["<dir>/"],         // when it stands for many sub-projects
+    "dependsOn": { "<mod>/": 3 } } },
   "classes": [{ "name", "kind", "file", "namespace", "extends", "implements", "attributes", "fields", "methods" }],
   "calls": [{ "file": "<rel>", "caller": "<fn>", "callee": "<fn or Type.method>" }],
   "callSequences": [{ "file": "<rel>", "caller": "<fn>", "callees": ["<fn>"] }]

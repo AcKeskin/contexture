@@ -25,6 +25,20 @@ One file per review run. The terminal report, the vault markdown and the review 
     { "id": "blast", "label": "Blast radius", "value": 23, "note": "files importing a touched file", "source": "codemap File deps" },
     { "id": "surface", "label": "Public surface", "value": "+3 / ~1 / -0", "note": "exports added / changed / removed", "source": "codemap exports" }
   ],
+  "architecture": {                       // on a diff, from update-codemap/arch-delta.mjs --json; omit when not run
+    "base": "origin/main", "head": "3f2c1a9", "depth": 2,
+    "summary": "2 new folder links, 0 removed, 1 new cycle.",
+    "mermaid": "flowchart TB …",          // touched folders and neighbours; null when no folder link changed
+    "edges": [{ "from": "src/api/", "to": "src/db/", "before": 0, "after": 3 }],   // changed links only
+    "groups": { "added": [], "removed": [] },
+    "cycles": { "added": [["src/api/", "src/db/"]], "removed": [] },
+    "surface": { "added": [{ "file": "…", "name": "…", "signature": "…", "line": 12,
+                             "code": [{ "t": "export function sign(user) {", "c": "add" }] }],
+                 "removed": [], "changed": [{ "…": "…", "before": "(old signature)" }] },
+    // code rows (c: add | del | "" | gap): a changed export's old and new code as a line diff; an added or
+    // removed one, its declaration line. The page shows them under each export in "What changed", the vault note as diff fences.
+    "files": { "added": 1, "removed": 0, "changed": 8 }
+  },
   "coverage": [
     { "angle": "correctness", "files": 12, "findings": 4, "status": "ok" },        // ok | failed | skipped
     { "angle": "readability", "files": 0, "findings": 0, "status": "skipped", "reason": "diff < 200 added lines" }

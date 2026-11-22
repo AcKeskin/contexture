@@ -21,6 +21,77 @@ File-level changes per public snapshot. Curate freely — this is the human-faci
 
 
 
+
+## 2026-11-22 — Map page from the codemap with components, a guided tour, code snippets and changes since a ref; the Work panel Files tab gets Open map, branch dots and the tour; codemap handles nested sub-projects and big repos; /review shows how a change moves the architecture; diagrams get a check step, a before/after delta and easier zoom and pan.
+
+_18 added, 40 changed, 0 removed._
+
+### Docs
+- changed `docs/reference.md`
+
+### MCP servers
+- changed `mcps/project-memory/dist/project-memory.cjs`
+- changed `mcps/project-memory/src/retrieval/codemap-json.ts`
+- changed `mcps/project-memory/src/retrieval/codemap.ts`
+- changed `mcps/project-memory/src/tools/codemap-lookup.ts`
+- changed `mcps/project-memory/test/codemap.test.ts`
+
+### Other
+- added `mods/contexture-ui/hooks/tour.ts`
+- changed `.claude-plugin/marketplace.json`
+- changed `.claude-plugin/plugin.json`
+- changed `mods/contexture-ui/README.md`
+- changed `mods/contexture-ui/hooks/codemap.ts`
+- changed `mods/contexture-ui/hooks/files-tab.tsx`
+- changed `mods/contexture-ui/hooks/git.ts`
+- changed `mods/contexture-ui/tests/codemap.test.ts`
+- changed `mods/contexture-ui/tests/pane.test.tsx`
+- changed `mods/contexture-ui/types/index.d.ts`
+
+### Skills
+- added `skills/design-proposal/diagram-check.mjs`
+- added `skills/design-proposal/diagram-check.test.mjs`
+- added `skills/design-proposal/references/delta-diagram.md`
+- added `skills/design-proposal/references/diagram-check.md`
+- added `skills/update-codemap/arch-delta.mjs`
+- added `skills/update-codemap/modules.mjs`
+- added `skills/update-codemap/test/arch-delta.test.mjs`
+- added `skills/update-codemap/test/modules.test.mjs`
+- added `skills/visualise-codemap/assets/map-page.html`
+- added `skills/visualise-codemap/components.mjs`
+- added `skills/visualise-codemap/components.test.mjs`
+- added `skills/visualise-codemap/map-page.mjs`
+- added `skills/visualise-codemap/map-page.test.mjs`
+- added `skills/visualise-codemap/page-sources.mjs`
+- added `skills/visualise-codemap/page-sources.test.mjs`
+- added `skills/visualise-codemap/tour.mjs`
+- added `skills/visualise-codemap/tour.test.mjs`
+- changed `skills/blueprint/SKILL.md`
+- changed `skills/blueprint/mermaid-templates.md`
+- changed `skills/design-proposal/SKILL.md`
+- changed `skills/design-proposal/assets/page-shell.html`
+- changed `skills/design-proposal/assets/zoom.js`
+- changed `skills/design-proposal/references/page-recipe.md`
+- changed `skills/review/assets/review-page.html`
+- changed `skills/review/findings-schema.md`
+- changed `skills/review/gate-scan.mjs`
+- changed `skills/review/pr-target.md`
+- changed `skills/review/render-note.mjs`
+- changed `skills/review/render-page.mjs`
+- changed `skills/review/report.md`
+- changed `skills/update-codemap/SKILL.md`
+- changed `skills/update-codemap/affected-tests.mjs`
+- changed `skills/update-codemap/codemap.mjs`
+- changed `skills/update-codemap/reference.md`
+- changed `skills/update-codemap/spec.md`
+- changed `skills/update-codemap/test/affected-tests.test.mjs`
+- changed `skills/update-codemap/test/codemap-json.test.mjs`
+- changed `skills/update-codemap/treesitter.mjs`
+- changed `skills/visualise-codemap/SKILL.md`
+- changed `skills/visualise-codemap/reference.md`
+- changed `skills/visualise-codemap/spec.md`
+- changed `skills/visualise-codemap/visualise-codemap.mjs`
+
 ## 2026-11-20 — Plan tab shows use cases and the steps serving them; new Rules tab turns contexture hooks and architectural rules on and off; /work is now /work-panel, with an openAtStart option; envision, spec and draft-plan walk use cases with you; review's design angle asks if code is needed and if it scales; write-tests lists input traps per type; /execute can record and replay pure function outputs around a refactor; a flow check shows whether skills ran as designed; ui-craft lists screen states first and logs design decisions; bench prereg interleaves arms.
 
 _17 added, 45 changed, 0 removed._

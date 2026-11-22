@@ -97,6 +97,7 @@ export async function testsForHandler(args: { target: string; cwd?: string }): P
   } else {
     lines.push(`Target: ${res.files.map((f) => `\`${f}\``).join(", ")}`);
     lines.push(`_Tests that import it directly or through other files. Syntactic, not coverage data._\n`);
+    if (res.total) lines.push(`_The ${res.tests.length} nearest of ${res.total} tests that reach it._\n`);
     if (res.tests.length) for (const t of res.tests) lines.push(`- \`${t}\``);
     else lines.push(`No test file reaches it.`);
   }

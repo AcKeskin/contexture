@@ -163,6 +163,51 @@ flowchart TD
   write --> done([Done])
 ```
 
+## `delta`
+
+What changes between two states of one structure: Before, a Changes list, After. For a change to code that already exists, a migration or a split. Shared by `/blueprint` and `design-proposal` (its SVG form is `skills/design-proposal/references/delta-diagram.md`).
+
+Rules:
+
+- Two states only, named by version or date (`v1` / `v2`). It does not show order, downtime or cause.
+- Same layout in both: declare the nodes in the same order in both subgraphs, with the same name, so Mermaid places them alike. Never start a label with `+ ` or `- `: Mermaid 11 reads it as a list. A renamed part that is the same object is CHANGED; a replacement is one REMOVED plus one ADDED.
+- Budget: 8 parts, 10 relations, 8 changes across both states. A part in both states counts once. Past that, split by subsystem.
+- Every change is readable without color: a word or sign in the label and a line style.
+
+| Change | Means | Shown as |
+| --- | --- | --- |
+| *(none)* | same part, same links, same place | plain, no Changes line |
+| ADDED | only in After | `⊕ ` before the name; thick link `==>` |
+| REMOVED | only in Before | `⊖ ` before the name, dashed node; dashed link `-.->` |
+| CHANGED | same part, different role, contract or tech | `Δ ` before the name; Changes says old → new |
+| MOVED | same part, different place (module, layer, host) | `↦ ` before the name; Changes says from → to |
+| REWIRED | same link, different source or target | dashed link labeled `rewired`; Changes says old → new ends |
+
+```mermaid
+flowchart LR
+  subgraph before["Before · v1"]
+    direction TB
+    b_api["API"] --> b_db[("Orders DB")]
+    b_api -.-> b_mail["⊖ Mailer"]:::removed
+  end
+  subgraph after["After · v2"]
+    direction TB
+    a_api["Δ API"] ==> a_q["⊕ Write queue"]
+    a_q -.->|rewired| a_db[("Orders DB")]
+  end
+  before ~~~ after
+  classDef removed stroke-dasharray:5 4
+```
+
+Changes, one line for each part and change, directly under the diagram:
+
+| Change | Part | Difference |
+| --- | --- | --- |
+| ADDED | Write queue | buffers writes before the DB |
+| REWIRED | write to Orders DB | API → DB becomes Write queue → DB |
+| CHANGED | API | sync write → enqueue and return 202 |
+| REMOVED | Mailer | mail moves to the notifications service |
+
 ## Conventions
 
 - Use `%%{init: {"flowchart": {"defaultRenderer": "elk"}}}%%` on dense flowcharts (visualise-codemap precedent) so layout stays readable.

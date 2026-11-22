@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Which tests a change reaches, from the codemap's `## File deps`.
+// Which tests a change reaches, from codemap.json's file imports (or codemap.md's `## File deps`
+// when there is no JSON; the size cap can leave that section out of the markdown).
 //
 //   node affected-tests.mjs [--root <dir>] [--codemap <path>] [--base <ref>] [-- <file>...]
 //
@@ -41,6 +42,18 @@ export function reverseDeps(codemapText) {
     for (const t of m[2].matchAll(/`([^`]+)`/g)) {
       if (!rev.has(t[1])) rev.set(t[1], new Set());
       rev.get(t[1]).add(m[1]);
+    }
+  }
+  return rev;
+}
+
+/** codemap.json's file imports as the same reverse map. */
+export function reverseDepsJson(json) {
+  const rev = new Map();
+  for (const [rel, f] of Object.entries(json.files || {})) {
+    for (const t of f.imports || []) {
+      if (!rev.has(t)) rev.set(t, new Set());
+      rev.get(t).add(rel);
     }
   }
   return rev;
@@ -102,7 +115,17 @@ export function affectedTests({ root, codemap, base, files }) {
   const newer = (git(root, 'log', `--since=@${since}`, '--name-only', '--format=') || []).filter((f) => !changed.has(f));
   for (const f of newer) changed.add(f);
   const list = [...changed].filter((f) => !f.startsWith('.claude/')).sort();
-  const r = reach(reverseDeps(readFileSync(mapPath, 'utf8')), list);
+  const jsonPath = mapPath.endsWith('.json') ? mapPath : mapPath.replace(/\.md$/, '.json');
+  let rev;
+  if (existsSync(jsonPath)) rev = reverseDepsJson(JSON.parse(readFileSync(jsonPath, 'utf8')));
+  else {
+    const text = readFileSync(mapPath, 'utf8');
+    if (/^## File deps\r?\n_Left out to fit the size cap/m.test(text)) {
+      return { codemap: mapPath, changed: list, tests: [], untested: [], note: 'codemap.md left out File deps to fit its size cap and there is no codemap.json: run the full suite (/update-codemap writes both)' };
+    }
+    rev = reverseDeps(text);
+  }
+  const r = reach(rev, list);
   const note = newer.length ? `${newer.length} file(s) committed after the codemap was written were added as changed` : '';
   return { codemap: mapPath, changed: list, ...r, note };
 }

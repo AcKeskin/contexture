@@ -4,7 +4,10 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { parseCodemap } from "../src/retrieval/codemap.js";
+import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { parseCodemap, loadCodemap } from "../src/retrieval/codemap.js";
 
 const SAMPLE = `# Codemap — sample
 Last updated: 2026-04-21
@@ -50,5 +53,22 @@ describe("parseCodemap", () => {
     const { entries } = parseCodemap(noisy);
     assert.equal(entries.length, 1);
     assert.equal(entries[0].path, "real.md");
+  });
+});
+
+describe("loadCodemap with codemap.json", () => {
+  it("scores every file in codemap.json, even ones the markdown left out", () => {
+    const root = mkdtempSync(join(tmpdir(), "codemap-json-"));
+    mkdirSync(join(root, ".claude"));
+    writeFileSync(join(root, ".claude", "codemap.md"), SAMPLE);
+    const json = { version: 1, updated: "2026-04-21", classes: [], calls: [], files: {
+      "README.md": { lang: "markdown", lines: 3, purpose: "project overview", symbols: [], imports: [], importedBy: [], tests: [], module: "./" },
+      "pkg/api/rate.ts": { lang: "js", lines: 9, purpose: "token bucket rate limiter", symbols: [], imports: [], importedBy: [], tests: [], module: "pkg/api/" },
+    } };
+    writeFileSync(join(root, ".claude", "codemap.json"), JSON.stringify(json));
+    const res = loadCodemap(root, { taskKeywords: ["rate"] });
+    assert.ok(res);
+    assert.equal(res.lastUpdated, "2026-04-21");
+    assert.deepEqual(res.entries.map((e) => [e.path, e.section]), [["pkg/api/rate.ts", "pkg/api/"]]);
   });
 });

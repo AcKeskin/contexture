@@ -76,12 +76,41 @@ test('the size cap trims the class graph first and says so', () => {
   assert.ok(json.classes.some((c) => c.name === 'Counter'));
 });
 
-test('a cap the untrimmable sections already exceed trims nothing', () => {
+test('a cap smaller than the overview thins everything else and the JSON keeps every file', () => {
   const root = project(FILES);
   const out = run(root, '--map-tokens', '1');
-  assert.match(out, /nothing trimmed/);
+  assert.match(out, /from file listings \(files\)/);
+  assert.match(out, /still ~\d+ tokens after trimming everything trimmable/);
   const md = fs.readFileSync(path.join(root, '.claude', 'codemap.md'), 'utf8');
-  assert.match(md, /- class: `Counter`/);
+  assert.match(md, /^## Overview$/m);
+  assert.doesNotMatch(md, /- class: `Counter`/);
+  assert.match(md, /files left out to fit the size cap; \.claude\/codemap\.json lists all/);
+  const json = JSON.parse(fs.readFileSync(path.join(root, '.claude', 'codemap.json'), 'utf8'));
+  assert.equal(Object.keys(json.files).length, 3);
+  // The next run's diff comes from codemap.json, so thinned listings don't count as removed files.
+  const again = run(root, '--map-tokens', '1');
+  assert.match(again, /- 0 files removed/);
+});
+
+test('a nested sub-project is its own module, with its manifest and entry point', () => {
+  const root = project({
+    ...FILES,
+    'tools/cli/package.json': JSON.stringify({ name: 'cli', description: 'Command line front end', main: 'build/index.js' }),
+    'tools/cli/tsconfig.json': JSON.stringify({ compilerOptions: { outDir: 'build', rootDir: 'src' } }),
+    'tools/cli/src/index.ts': "// CLI entry\nimport { main } from '../../../src/main';\nmain();\n",
+    'tools/notes.md': '# Notes\n',
+  });
+  const out = run(root, '--map-tokens', '0');
+  assert.match(out, /modules: 1 nested module folders, sub-projects found by their manifests/);
+  const md = fs.readFileSync(path.join(root, '.claude', 'codemap.md'), 'utf8');
+  assert.match(md, /### tools\/cli\/\n\*\*Role:\*\* Command line front end\n\*\*Manifest:\*\* `tools\/cli\/package\.json`/);
+  assert.match(md, /- `tools\/cli\/src\/index\.ts` — tools\/cli\/package\.json main/);
+  assert.match(md, /^## tools\/$/m);
+  const json = JSON.parse(fs.readFileSync(path.join(root, '.claude', 'codemap.json'), 'utf8'));
+  assert.equal(json.files['tools/cli/src/index.ts'].module, 'tools/cli/');
+  assert.equal(json.files['tools/notes.md'].module, 'tools/');
+  assert.equal(json.modules['tools/cli/'].manifest, 'tools/cli/package.json');
+  assert.deepEqual(json.modules['tools/cli/'].dependsOn, { 'src/': 1 });
 });
 
 test('a run with nothing new leaves both files as they were', () => {

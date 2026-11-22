@@ -40,6 +40,8 @@ type On = Parameters<TestBody>[1]
 
 // rules-cli.js runs the engine stand-in answered, oldest first.
 const nodeRuns: string[][] = []
+// Other commands that are not git (uname, the map page's opener), oldest first.
+const opens: string[][] = []
 
 // Stands in for the engine: a fake project tree, home and session.
 function engine(
@@ -88,6 +90,15 @@ function engine(
       const ran = files[`node ${e.argv[2]}`]
       const result = { exitCode: ran === undefined ? 1 : 0, stdout: ran ?? '', stderr: ran === undefined ? 'rules-cli: no' : '' }
       return { value: { ...result, isStdoutTruncated: false, isStderrTruncated: false } }
+    }
+    // merge-base and diff answer from `git merge-base` and `git diff`; with no merge base the branch has no files.
+    if (e.argv[1] === 'merge-base' || e.argv.includes('diff')) {
+      const out = files[e.argv[1] === 'merge-base' ? 'git merge-base' : 'git diff']
+      return { value: { exitCode: out === undefined ? 1 : 0, stdout: out ?? '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+    }
+    if (e.argv[0] !== 'git') {
+      opens.push([...e.argv])
+      return { value: { exitCode: 0, stdout: e.argv[0] === 'uname' ? 'Linux\n' : '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
     }
     const out = e.argv[1] === 'rev-parse' ? '\n' : (files['git status'] ?? '')
     return { value: { exitCode: 0, stdout: out, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
@@ -494,6 +505,73 @@ test('the Files tab marks git changes and filters to changed files', async ($, o
     expect(await ui.find({ type: 'Text', text: /README/ })).toBeUndefined()
     await ui.press({ key: 'changed-only' })
     expect(await ui.find({ type: 'Text', text: /README/ })).toBeDefined()
+    await ui.unmount()
+  }
+})
+
+test('the Files tab dots files changed in the branch and counts them as changed', async ($, on) => {
+  engine(on, [], [], '', { ...FILES, 'git merge-base': 'abc123\n', 'git diff': 'hooks/sub/deep.ts\0' })
+  await $.session.start({ cwd: ROOT, surface: 'terminal', isInteractive: true })
+  for (const surface of ['terminal', 'desktop'] as const) {
+    const ui = await $.ui.mount({ ...PANE, surface })
+    await ui.press({ key: 'tab-files' })
+    expect(await ui.find({ type: 'Text', text: / · • 1 in branch/ })).toBeDefined()
+    expect((await ui.find({ key: 'changed-only' }))?.props).toMatchObject({ label: 'Changed only (1)' })
+    await ui.press({ key: 'changed-only' })
+    expect(await ui.find({ type: 'Text', text: /Deep file/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /Reads files/ })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: '•' })).toBeDefined()
+    await ui.press({ key: 'changed-only' })
+    await ui.unmount()
+  }
+})
+
+test('Open map shows only with a map page and opens it with the system handler', async ($, on) => {
+  const files = { ...FILES }
+  engine(on, [], [], '', files)
+  await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
+  let ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  await ui.press({ key: 'tab-files' })
+  expect(await ui.find({ key: 'open-map' })).toBeUndefined()
+  await ui.unmount()
+
+  files['/repo/.claude/codemap.html'] = '<html></html>'
+  await $.command.run({ ...RUN, command: 'codemap' })
+  ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  opens.length = 0
+  await ui.press({ key: 'open-map' })
+  expect(opens).toEqual([['uname'], ['xdg-open', '/repo/.claude/codemap.html']])
+  await ui.unmount()
+})
+
+test('the guided tour steps through its stops and opens each one in the tree', async ($, on) => {
+  const TOUR = JSON.stringify({
+    drafted: false,
+    stops: [
+      { file: 'README.md', line: 1, title: 'Readme', why: 'What it is.' },
+      { file: 'hooks/sub/deep.ts', line: 4, title: 'deep.ts · run', why: 'Where the work happens.' },
+    ],
+  })
+  engine(on, [], [], '', { ...FILES, '/repo/.claude/codemap.tour.json': TOUR })
+  await $.session.start({ cwd: ROOT, surface: 'terminal', isInteractive: true })
+  for (const surface of ['terminal', 'desktop'] as const) {
+    const ui = await $.ui.mount({ ...PANE, surface })
+    await ui.press({ key: 'tab-files' })
+    expect(await ui.find({ type: 'Text', text: 'GUIDED TOUR · 2 STOPS' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /What it is/ })).toBeUndefined()
+    await ui.press({ key: 'tour-toggle' })
+    expect(await ui.find({ type: 'Text', text: /What it is/ })).toBeDefined()
+    expect(await ui.find({ key: 'tour-prev' })).toBeUndefined()
+    await ui.press({ key: 'tour-next' })
+    expect(await ui.find({ type: 'Text', text: /Where the work happens/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /hooks\/sub\/deep.ts:4/ })).toBeDefined()
+    // The stop's folders are open, so its file shows in the tree.
+    expect(await ui.find({ type: 'Text', text: /Deep file/ })).toBeDefined()
+    await ui.press({ key: 'tour-prev' })
+    expect(await ui.find({ type: 'Text', text: /What it is/ })).toBeDefined()
+    await ui.press({ key: 'tour-1' })
+    await ui.press({ key: 'tour-done' })
+    expect(await ui.find({ type: 'Text', text: /Where the work happens/ })).toBeUndefined()
     await ui.unmount()
   }
 })

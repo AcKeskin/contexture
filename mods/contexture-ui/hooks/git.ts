@@ -33,3 +33,10 @@ function markOf(xy: string): GitMark {
   if (isMove(xy)) return 'R'
   return 'M'
 }
+
+// `git diff --name-only -z` as paths. `isTruncated`: the last entry may be partial.
+export function parseNameList(z: string, isTruncated = false): string[] {
+  const paths = z.split('\0')
+  if (isTruncated) paths.pop()
+  return paths.filter(p => p !== '')
+}

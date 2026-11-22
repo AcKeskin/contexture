@@ -1,0 +1,728 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+<style>
+/* Layout: header band with project, search and breadcrumb; the folder graph on the left, details of the picked node on the right (stacked on phones) */
+:root{
+  --bg:#F4F6F8;--surface:#FFFFFF;--sunk:#E9EDF1;--ink:#16202B;--text:#36424F;--muted:#6B7785;--rule:#D9DFE5;
+  --band:#1B2733;--on-band:#FFFFFF;--on-band-muted:#A9B6C3;
+  --accent:#0E6E74;--accent-soft:#E3F2F2;--edge:#8A97A4;--back:#B4540A;--hl:#0E6E74;
+  --add:#E3F3E8;--add-ink:#1E7A46;--del:#FBE8E6;--del-ink:#B3261E;--chg:#C2610C;
+  --f-body:"Segoe UI",system-ui,-apple-system,sans-serif;
+  --f-mono:ui-monospace,"Cascadia Mono",Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  color-scheme:dark;--bg:#10171E;--surface:#18222C;--sunk:#202C38;--ink:#EEF2F5;--text:#CBD4DC;--muted:#8D9AA6;--rule:#2C3946;
+  --band:#0B1117;--on-band:#FFFFFF;--on-band-muted:#8D9AA6;--accent:#5CC4C9;--accent-soft:#16302F;--edge:#5E6C79;--back:#E9A35A;--hl:#5CC4C9;
+  --add:#14301F;--add-ink:#6FCF97;--del:#3A1D1B;--del-ink:#F28B82;--chg:#E9A35A;}}
+:root[data-theme="dark"]{
+  color-scheme:dark;--bg:#10171E;--surface:#18222C;--sunk:#202C38;--ink:#EEF2F5;--text:#CBD4DC;--muted:#8D9AA6;--rule:#2C3946;
+  --band:#0B1117;--on-band:#FFFFFF;--on-band-muted:#8D9AA6;--accent:#5CC4C9;--accent-soft:#16302F;--edge:#5E6C79;--back:#E9A35A;--hl:#5CC4C9;
+  --add:#14301F;--add-ink:#6FCF97;--del:#3A1D1B;--del-ink:#F28B82;--chg:#E9A35A;}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 var(--f-body)}
+a{color:var(--accent)}
+code{font:.88em var(--f-mono);background:var(--sunk);color:var(--ink);padding:.05em .35em;border-radius:3px;overflow-wrap:anywhere}
+button{font:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.band{position:sticky;top:0;z-index:9;background:var(--band);color:var(--on-band);padding:10px 16px}
+.band-in{max-width:1400px;margin:0 auto;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}
+.band b{font-size:17px}
+.band .meta{color:var(--on-band-muted);font-size:13px}
+.band [data-zoom-page]{margin-left:auto;color:var(--on-band)}
+.search{position:relative;flex:1 1 260px;max-width:460px}
+.search input{width:100%;padding:7px 10px;border-radius:6px;border:1px solid var(--on-band-muted);background:var(--surface);color:var(--ink);font:inherit}
+.results{position:absolute;top:100%;left:0;right:0;margin:4px 0 0;padding:4px;list-style:none;background:var(--surface);border:1px solid var(--rule);border-radius:6px;max-height:60vh;overflow:auto;box-shadow:0 6px 20px rgba(0,0,0,.18);z-index:20}
+.results li{padding:6px 8px;border-radius:4px;cursor:pointer;color:var(--text)}
+.results li[aria-selected="true"],.results li:hover{background:var(--accent-soft)}
+.results .r-name{color:var(--ink);font-weight:600}
+.results .r-sub{display:block;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+main{max-width:1400px;margin:0 auto;padding:12px 16px 40px;display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:16px;align-items:start}
+@media (max-width:900px){main{grid-template-columns:minmax(0,1fr)}}
+.crumbs{display:flex;flex-wrap:wrap;gap:2px 4px;align-items:center;margin:0 0 8px;font-size:14px}
+.crumbs button{all:unset;cursor:pointer;color:var(--accent);padding:2px 4px;border-radius:4px}
+.crumbs button:hover{background:var(--accent-soft)}
+.crumbs button[aria-current="page"]{color:var(--ink);font-weight:600;cursor:default}
+.crumbs span{color:var(--muted)}
+.hint{font-size:13px;color:var(--muted);margin:6px 0 0}
+figure{margin:0}
+.fw{overflow:auto;border:1px solid var(--rule);border-radius:8px;background:var(--surface);padding:8px;min-height:200px}
+.fw svg{display:block;max-width:100%;height:auto}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted);margin-top:6px}
+.legend i{display:inline-block;width:14px;height:10px;border-radius:2px;vertical-align:-1px;margin-right:4px;border:1px solid var(--edge)}
+
+/* graph */
+.node{cursor:pointer}
+.node rect{fill:var(--surface);stroke:var(--rule);stroke-width:1}
+.node.folder rect{fill:var(--sunk)}
+.node.test rect{stroke-dasharray:3 3}
+.node.entry rect{stroke:var(--accent);stroke-width:2}
+.node.hub .nm{font-weight:700}
+.node .bar{fill:var(--accent)}
+.node.file .bar{fill:var(--edge)}
+.node.more rect{fill:transparent;stroke-dasharray:4 3}
+.node .nm{fill:var(--ink);font:600 13px var(--f-body)}
+.node .mt{fill:var(--muted);font:11px var(--f-body)}
+.node:hover rect,.node.sel rect{stroke:var(--hl);stroke-width:2}
+.node.sel rect{fill:var(--accent-soft)}
+.edge{fill:none;stroke:var(--edge);opacity:.75}
+.edge.ref{stroke-dasharray:5 4}
+.edge.back{stroke:var(--back)}
+.edge.hl{stroke:var(--hl);opacity:1}
+svg.focus .edge:not(.hl){opacity:.15}
+svg.focus .node:not(.near) {opacity:.45}
+.elab{display:none;fill:var(--ink);font:11px var(--f-body);paint-order:stroke;stroke:var(--surface);stroke-width:4px;stroke-linejoin:round}
+.elab.show{display:inline}
+.views{margin-left:auto;display:inline-flex;gap:4px}
+.chip{font:600 12px var(--f-body);border:1px solid var(--rule);background:var(--surface);color:var(--text);border-radius:999px;padding:3px 10px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--ink)}
+.sect{fill:var(--muted);font:600 11px var(--f-body);letter-spacing:.08em;text-transform:uppercase}
+
+/* panel */
+.panel{position:sticky;top:64px;background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:14px 16px;max-height:calc(100vh - 80px);overflow:auto}
+@media (max-width:900px){.panel{position:static;max-height:none}}
+.panel h2{font-size:17px;color:var(--ink);margin:0 0 2px;overflow-wrap:anywhere}
+.panel .sub{font-size:13px;color:var(--muted);margin:0 0 8px}
+.panel p{margin:0 0 10px}
+.panel h3{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 0 4px}
+.panel ul{list-style:none;margin:0;padding:0}
+.panel li{padding:2px 0;font-size:14px}
+.panel li .p{display:block;font-size:12px;color:var(--muted)}
+.lnk{all:unset;cursor:pointer;color:var(--accent);font:13px var(--f-mono);overflow-wrap:anywhere}
+.lnk:hover{text-decoration:underline}
+.sym{font:13px var(--f-mono);color:var(--ink)}
+.sym .k{color:var(--muted);font-size:11px;margin-right:6px}
+.sym.child{padding-left:16px}
+.sym.flash{background:var(--accent-soft)}
+.sym a{font-size:11px;margin-left:6px}
+.sig{color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0 10px}
+.btn{border:1px solid var(--rule);background:var(--sunk);color:var(--ink);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:13px;text-decoration:none}
+.btn:hover{border-color:var(--accent)}
+.tag{font-size:11px;padding:1px 6px;border-radius:999px;background:var(--sunk);color:var(--muted)}
+.tourbtn{border:1px solid var(--on-band-muted);background:transparent;color:var(--on-band);border-radius:6px;padding:6px 12px;cursor:pointer;font-weight:600}
+.tourbtn:hover{border-color:var(--on-band)}
+.tour{border:1px solid var(--accent);background:var(--accent-soft);border-radius:8px;padding:10px 12px;margin:0 0 12px}
+.tour .k{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.tour b{display:block;color:var(--ink);margin:2px 0 4px}
+.tour p{margin:0 0 8px}
+.tour ol{margin:6px 0 0;padding-left:20px}
+.tour li{font-size:13px}
+.tour li[aria-current="step"]{font-weight:700}
+.opts{font-size:12px;color:var(--muted);margin-top:14px;border-top:1px solid var(--rule);padding-top:8px}
+.sym-n{all:unset;cursor:pointer;color:var(--ink)}
+.sym-n:hover{color:var(--accent);text-decoration:underline}
+.sym-n[aria-expanded="true"]{color:var(--accent)}
+.tag.chg{background:var(--chg);color:var(--surface)}
+.node .dot{fill:var(--chg)}
+.note{font-size:13px;color:var(--muted);border-left:3px solid var(--chg);padding-left:8px}
+.codebox{margin:6px 0 12px;font-family:var(--f-body)}
+.codebox .ch{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;font-size:12px;color:var(--muted);margin-bottom:4px}
+.codebox .ch b{color:var(--ink);font:600 12px var(--f-mono);margin-right:auto;overflow-wrap:anywhere}
+.codebox .ch button,.codebox .ch a{font-size:12px;padding:1px 8px}
+.code{border:1px solid var(--rule);border-radius:6px;background:var(--sunk);font:12px/1.5 var(--f-mono);overflow:auto;max-height:60vh;tab-size:4}
+.code .r{display:flex;white-space:pre;min-width:max-content}
+.code .n{flex:none;width:4em;padding-right:8px;margin-right:8px;text-align:right;color:var(--muted);user-select:none;border-right:1px solid var(--rule)}
+.code .t{color:var(--ink);padding-right:12px}
+.code .add{background:var(--add)}
+.code .add .n{color:var(--add-ink);font-weight:700}
+.code .del{background:var(--del)}
+.code .del .n{color:var(--del-ink);font-weight:700}
+.code .del .t{color:var(--del-ink)}
+.code .gap{padding:0 8px;color:var(--muted);border-block:1px dashed var(--rule);font-size:11px}
+.code .cut{display:block;width:100%;border:0;border-top:1px solid var(--rule);background:var(--surface);color:var(--accent);padding:4px;cursor:pointer;font:12px var(--f-body)}
+.codebox.big{position:fixed;inset:5vh 4vw;z-index:30;margin:0;background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+.codebox.big .code{max-height:none;flex:1;font-size:13px}
+.chgbtn{border-color:var(--chg)}
+body.codebig .panel{z-index:40}
+.sym .tag{margin-left:6px}
+.opts select{font:inherit;background:var(--surface);color:var(--text);border:1px solid var(--rule);border-radius:4px}
+</style>
+</head>
+<body>
+<header class="band">
+  <div class="band-in">
+    <b id="proj"></b><span class="meta" id="meta"></span>
+    <div class="search" role="search">
+      <input id="q" type="search" placeholder="Find a file, symbol or purpose" aria-label="Search the map" autocomplete="off" aria-controls="results" aria-expanded="false">
+      <ul id="results" class="results" role="listbox" hidden></ul>
+    </div>
+    <button type="button" id="tourBtn" class="tourbtn" hidden></button>
+    <button type="button" id="chgBtn" class="tourbtn chgbtn" hidden></button>
+    <span data-zoom-page></span>
+  </div>
+</header>
+<main>
+  <section aria-label="Folder graph">
+    <nav class="crumbs" id="crumbs" aria-label="Folder path"></nav>
+    <figure><div class="fw" id="graph"></div></figure>
+    <div class="legend">
+      <span><i style="background:var(--sunk)"></i>folder</span>
+      <span><i style="background:var(--surface)"></i>file</span>
+      <span><i style="border:2px solid var(--accent)"></i>entry point</span>
+      <span><i style="border-style:dashed"></i>test</span>
+      <span>— imports (down = depends on)</span>
+      <span style="color:var(--back)">— points back up (cycle)</span>
+      <span>- - references</span>
+      <span id="lgChg" hidden><i style="background:var(--chg);border-color:var(--chg);border-radius:50%;width:10px"></i>changed</span>
+    </div>
+    <p class="hint">Click to see details and light up its links (named links show their name). Double-click a folder (or use Open) to go inside. Ctrl + wheel zooms the graph.</p>
+  </section>
+  <aside class="panel" id="panel" aria-live="polite"></aside>
+</main>
+<script type="application/json" id="data">{{DATA}}</script>
+<script>
+(function(){
+"use strict";
+const D=JSON.parse(document.getElementById("data").textContent);
+const F=D.files;
+const CAP=40,W=176,H=50,GX=22,GY=64,PAD=16;
+const $=(id)=>document.getElementById(id);
+const el=(tag,attrs={},...kids)=>{const e=document.createElement(tag);for(const[k,v]of Object.entries(attrs)){if(k==="class")e.className=v;else if(k==="text")e.textContent=v;else if(k.startsWith("on"))e.addEventListener(k.slice(2),v);else e.setAttribute(k,v);}for(const c of kids)if(c!=null)e.append(c);return e;};
+const NS="http://www.w3.org/2000/svg";
+const sv=(tag,attrs={})=>{const e=document.createElementNS(NS,tag);for(const[k,v]of Object.entries(attrs))e.setAttribute(k,v);return e;};
+const entries=new Set((D.entryPoints||[]).map((e)=>e.rel));
+const roleOf=new Map((D.entryPoints||[]).map((e)=>[e.rel,e.role]));
+
+/* ── views: a tree of folders, and (when named) a tree of components, each holding the same files.
+   Every folder node knows all files under it; single-child folder chains are merged. ── */
+function folder(name,id,parent,path){return{type:"folder",name,id,path,parent,kids:new Map(),files:0,lines:0,all:new Set()};}
+function addFiles(top,rels,prefix,V){
+  for(const rel of rels){
+    const parts=rel.split("/");let cur=top,acc="";
+    for(let i=0;i<parts.length-1;i++){
+      acc+=parts[i]+"/";
+      const id=prefix+acc;
+      if(!cur.kids.has(id)){const f=folder(parts[i],id,cur,acc);cur.kids.set(id,f);V.nodeOf.set(id,f);}
+      cur=cur.kids.get(id);
+    }
+    const n={type:"file",name:parts[parts.length-1],id:prefix+rel,path:rel,parent:cur};
+    cur.kids.set(n.id,n);V.nodeOf.set(n.id,n);V.fileNode.set(rel,n);
+    for(let a=cur;a;a=a.parent){a.files++;a.lines+=F[rel].lines||0;a.all.add(rel);}
+  }
+}
+function collapse(f,V){
+  for(const[k,c]of[...f.kids]){
+    if(c.type!=="folder")continue;
+    let m=c;
+    while(m.kids.size===1){const only=[...m.kids.values()][0];if(only.type!=="folder")break;only.name=m.name+"/"+only.name;V.nodeOf.delete(m.id);m=only;}
+    if(m!==c){f.kids.delete(k);f.kids.set(m.id,m);m.parent=f;}
+    collapse(m,V);
+  }
+}
+const rels=Object.keys(F).sort();
+const views={};
+{
+  const V={nodeOf:new Map(),fileNode:new Map()};
+  V.root=folder(D.project||"project","",null,"");V.nodeOf.set("",V.root);
+  addFiles(V.root,rels,"",V);collapse(V.root,V);
+  views.folders=V;
+}
+const comps=new Map((D.components||[]).map((c)=>[c.id,c]));
+if(comps.size){
+  const V={nodeOf:new Map(),fileNode:new Map()};
+  V.root=folder("Components","§",null,"");V.nodeOf.set("§",V.root);
+  const by=new Map();for(const rel of rels){const c=F[rel].c||"other";if(!by.has(c))by.set(c,[]);by.get(c).push(rel);}
+  for(const[id,list]of by){
+    const c=comps.get(id)||{id,name:id,layer:""};
+    const n=folder(c.name,"§"+id+"/",V.root,"");n.comp=c;
+    V.root.kids.set(n.id,n);V.nodeOf.set(n.id,n);
+    addFiles(n,list,n.id,V);collapse(n,V);
+    // A component held by one folder opens straight onto that folder's contents.
+    while(n.kids.size===1){const only=[...n.kids.values()][0];if(only.type!=="folder")break;n.kids=only.kids;for(const k of n.kids.values())k.parent=n;V.nodeOf.delete(only.id);}
+  }
+  views.components=V;
+}
+let V=views.folders;
+// The node for id; a merged-away folder maps to the folder that absorbed it.
+function find(id){if(V.nodeOf.has(id))return V.nodeOf.get(id);for(const[k,n]of V.nodeOf)if(n.type==="folder"&&k.startsWith(id))return n;return V.root;}
+// The child of folder L that holds file rel.
+function childOf(L,rel){let n=V.fileNode.get(rel);while(n&&n.parent!==L)n=n.parent;return n;}
+const compOf=(n)=>{for(let a=n;a;a=a.parent)if(a.comp)return a.comp;return null;};
+const imp=(rel)=>(F[rel].importedBy||[]).length;
+const hubCut=(()=>{const v=Object.keys(F).map(imp).sort((a,b)=>b-a);return Math.max(3,v[Math.floor(v.length*0.03)]||0);})();
+function filesUnder(n){return n.type==="file"?[n.path]:[...n.all];}
+const LAYER={ui:"#7C4DCC",api:"#0E6E74",service:"#2F6FD0",data:"#B4540A",infra:"#56636F",tooling:"#1E7A46",tests:"#A15C07",docs:"#8A6D3B",config:"#6B7785"};
+const linkLabel=new Map((D.links||[]).map((l)=>[l.from+"\n"+l.to,l.label]));
+
+/* ── edges between the children of a folder ── */
+function levelEdges(L){
+  const m=new Map();
+  const add=(a,b,kind)=>{if(!a||!b||a===b)return;const k=a.id+"\n"+b.id;const e=m.get(k)||{a,b,w:0,refs:0};if(kind==="ref")e.refs++;else e.w++;m.set(k,e);};
+  for(const rel of filesUnder(L)){
+    const a=childOf(L,rel);
+    for(const t of F[rel].imports||[])if(F[t]&&L.all.has(t))add(a,childOf(L,t),"imp");
+    for(const t of F[rel].refs||[])if(F[t]&&L.all.has(t))add(a,childOf(L,t),"ref");
+  }
+  return[...m.values()];
+}
+
+/* ── layout: dependents above what they depend on; back edges (cycles) drawn in a second colour; a layer wider than row wraps ── */
+function layout(nodes,edges,row){
+  const ids=new Set(nodes);
+  edges=edges.filter((e)=>ids.has(e.a)&&ids.has(e.b));
+  const out=new Map(nodes.map((n)=>[n,[]]));
+  for(const e of edges)out.get(e.a).push(e);
+  const state=new Map();
+  function dfs(n){state.set(n,1);for(const e of out.get(n)){const s=state.get(e.b);if(s===1)e.back=true;else if(!s)dfs(e.b);}state.set(n,2);}
+  for(const n of nodes)if(!state.get(n))dfs(n);
+  const linked=new Set();for(const e of edges){linked.add(e.a);linked.add(e.b);}
+  const rank=new Map(nodes.map((n)=>[n,0]));
+  for(let pass=0;pass<nodes.length;pass++){let ch=false;for(const e of edges){if(e.back)continue;const r=rank.get(e.a)+1;if(r>rank.get(e.b)){rank.set(e.b,r);ch=true;}}if(!ch)break;}
+  const layers=[];
+  for(const n of nodes){if(!linked.has(n))continue;const r=rank.get(n);(layers[r]=layers[r]||[]).push(n);}
+  const pos=new Map();
+  const byName=(a,b)=>a.name.localeCompare(b.name);
+  layers.forEach((l,i)=>{
+    if(!l)return;
+    if(i===0)l.sort(byName);
+    else{const bc=(n)=>{const ps=edges.filter((e)=>e.b===n&&!e.back&&pos.has(e.a)).map((e)=>pos.get(e.a).x);return ps.length?ps.reduce((s,x)=>s+x,0)/ps.length:1e9;};l.sort((a,b)=>bc(a)-bc(b)||byName(a,b));}
+    l.forEach((n,j)=>pos.set(n,{x:j,y:0}));
+  });
+  const rows=[];
+  for(const l of layers){if(!l)continue;for(let i=0;i<l.length;i+=row)rows.push({nodes:l.slice(i,i+row)});}
+  const loose=nodes.filter((n)=>!linked.has(n)).sort(byName);
+  const looseRows=[];for(let i=0;i<loose.length;i+=row)looseRows.push({nodes:loose.slice(i,i+row)});
+  const cols=Math.max(1,...rows.map((r)=>r.nodes.length),...looseRows.map((r)=>r.nodes.length));
+  const width=PAD*2+cols*W+(cols-1)*GX;
+  const sections=[];
+  let y=PAD;
+  const place=(r,gap)=>{const rw=r.nodes.length*W+(r.nodes.length-1)*GX;let x=(width-rw)/2;for(const n of r.nodes){pos.set(n,{x,y});x+=W+GX;}y+=H+gap;};
+  for(const r of rows)place(r,GY);
+  if(looseRows.length){
+    if(rows.length){y+=24-GY;sections.push({y,text:"No links at this level"});y+=12;}
+    for(const r of looseRows)place(r,14);
+    y-=14;
+  }else if(rows.length)y-=GY;
+  return{pos,edges,width,height:y+PAD,sections};
+}
+
+/* ── state and rendering ── */
+let level=V.root,sel=null;
+const kidsOf=(L)=>[...L.kids.values()];
+function title(n){return n===V.root?(V===views.components?"Components":(D.project||"project")):n.comp?n.comp.name:n.path;}
+function weight(n){return n.type==="folder"?n.files:1+imp(n.path);}
+
+function render(){
+  const g=$("graph");
+  // A new level starts at 100%: reset the zoom so zoom.js and the new svg agree.
+  const reset=g.parentElement.querySelector('.zm-tb button[title="Reset zoom"]');
+  if(reset&&g.classList.contains("zm-on"))reset.click();
+  g.textContent="";
+  let nodes=kidsOf(level);
+  const edges=levelEdges(level);
+  let more=null;
+  if(nodes.length>CAP){
+    const deg=new Map(nodes.map((n)=>[n,0]));
+    for(const e of edges){deg.set(e.a,deg.get(e.a)+e.w+e.refs);deg.set(e.b,deg.get(e.b)+e.w+e.refs);}
+    nodes.sort((a,b)=>(deg.get(b)*3+weight(b))-(deg.get(a)*3+weight(a)));
+    more={type:"more",name:`+${nodes.length-CAP+1} more`,id:"\u0000more",path:"",rest:nodes.slice(CAP-1)};
+    nodes=nodes.slice(0,CAP-1).concat(more);
+  }
+  // As many boxes per row as fit the box at 100%; wider levels wrap and grow taller.
+  const row=Math.max(2,Math.floor((g.clientWidth-16-2*PAD+GX)/(W+GX)));
+  const L=layout(nodes,edges,row);
+  const svg=sv("svg",{viewBox:`0 0 ${L.width} ${L.height}`,width:L.width,height:L.height,role:"img","aria-label":`Graph of ${title(level)}`});
+  const defs=sv("defs");
+  for(const[id,c]of[["ar","var(--edge)"],["arb","var(--back)"],["arh","var(--hl)"]]){
+    const mk=sv("marker",{id,viewBox:"0 0 10 10",refX:"9",refY:"5",markerWidth:"8",markerHeight:"8",markerUnits:"userSpaceOnUse",orient:"auto-start-reverse"});
+    const p=sv("path",{d:"M0,0 L10,5 L0,10 z"});p.style.fill=c;mk.append(p);defs.append(mk);
+  }
+  svg.append(defs);
+  for(const s of L.sections){const t=sv("text",{x:PAD,y:s.y,class:"sect"});t.textContent=s.text;svg.append(t);}
+  const eg=sv("g");svg.append(eg);
+  const lg=sv("g");svg.append(lg);
+  const edgeEls=[];
+  for(const e of L.edges){
+    const a=L.pos.get(e.a),b=L.pos.get(e.b);if(!a||!b)continue;
+    const x1=a.x+W/2,x2=b.x+W/2;let d;
+    if(b.y>a.y){const y1=a.y+H,y2=b.y,my=(y1+y2)/2;d=`M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}`;}
+    else if(b.y<a.y){const y1=a.y,y2=b.y+H,my=(y1+y2)/2;d=`M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}`;}
+    else{const y=a.y+H/2,dir=x2>x1?1:-1;d=`M${a.x+(dir>0?W:0)},${y} C${(x1+x2)/2},${y-34} ${(x1+x2)/2},${y-34} ${b.x+(dir>0?0:W)},${y}`;}
+    const w=e.w+e.refs;
+    const p=sv("path",{d,class:"edge"+(e.w?"":" ref")+(e.back?" back":""),"stroke-width":(1+Math.log2(w)).toFixed(2),"marker-end":`url(#${e.back?"arb":"ar"})`});
+    const said=e.a.comp&&e.b.comp?linkLabel.get(e.a.comp.id+"\n"+e.b.comp.id):"";
+    const t=sv("title");t.textContent=`${e.a.name} → ${e.b.name}: ${said?said+", ":""}${e.w} import${e.w===1?"":"s"}${e.refs?`, ${e.refs} reference${e.refs===1?"":"s"}`:""}`;p.append(t);
+    if(said){
+      // Label at the curve's midpoint: B(0.5) of the cubic.
+      const n=d.match(/-?[\d.]+/g).map(Number),mx=(n[0]+3*n[2]+3*n[4]+n[6])/8,my=(n[1]+3*n[3]+3*n[5]+n[7])/8;
+      const lt=sv("text",{x:mx,y:my,class:"elab","text-anchor":"middle"});lt.textContent=clip(said,28);lg.append(lt);e.label=lt;
+    }
+    eg.append(p);edgeEls.push({e,p});
+  }
+  for(const n of nodes){
+    const p=L.pos.get(n);
+    const isFile=n.type==="file";
+    const cls=["node",n.type];
+    if(isFile){const f=F[n.path];if(f.isTest)cls.push("test");if(entries.has(n.path))cls.push("entry");if(imp(n.path)>=hubCut)cls.push("hub");}
+    else if(n.type==="folder"&&[...entries].some((r)=>n.all.has(r)))cls.push("entry");
+    if(sel===n)cls.push("sel");
+    const gEl=sv("g",{class:cls.join(" "),transform:`translate(${p.x},${p.y})`,tabindex:"0",role:"button","aria-label":label(n)});
+    gEl.append(sv("rect",{width:W,height:H,rx:"6"}));
+    if(n.type!=="more"){const bar=sv("rect",{class:"bar",width:"4",height:H-12,x:"5",y:"6",rx:"2"});const c=compOf(n);if(c&&LAYER[c.layer])bar.style.fill=LAYER[c.layer];gEl.append(bar);}
+    const nm=sv("text",{class:"nm",x:"16",y:"21"});nm.textContent=clip(n.name+(n.type==="folder"&&!n.comp?"/":""),22);gEl.append(nm);
+    const mt=sv("text",{class:"mt",x:"16",y:"38"});mt.textContent=clip(metaLine(n),30);gEl.append(mt);
+    if(CH.size&&(isFile?CH.has(n.path):n.all&&[...CH].some((r)=>n.all.has(r))))gEl.append(sv("circle",{class:"dot",cx:W-10,cy:10,r:4}));
+    const tt=sv("title");tt.textContent=label(n);gEl.append(tt);
+    gEl.addEventListener("click",()=>select(n));
+    gEl.addEventListener("dblclick",()=>{if(n.type==="folder")go(n);});
+    gEl.addEventListener("keydown",(ev)=>{if(ev.key==="Enter"){if(n.type==="folder"&&sel===n)go(n);else select(n);ev.preventDefault();}else if(ev.key===" "){select(n);ev.preventDefault();}});
+    gEl.addEventListener("mouseenter",()=>focusOn(n,true));
+    gEl.addEventListener("mouseleave",()=>focusOn(sel,!!sel));
+    n._el=gEl;svg.append(gEl);
+  }
+  g.append(svg);
+  svg._edges=edgeEls;svg._nodes=nodes;
+  focusOn(sel,!!sel&&nodes.includes(sel));
+  crumbs();
+}
+function markSel(){
+  const svg=$("graph").querySelector("svg");if(!svg)return;
+  for(const x of svg._nodes)x._el.classList.toggle("sel",x===sel);
+  focusOn(sel,!!sel);
+}
+function focusOn(n,on){
+  const svg=$("graph").querySelector("svg");if(!svg)return;
+  svg.classList.toggle("focus",!!(on&&n&&svg._nodes.includes(n)));
+  for(const x of svg._nodes)x._el.classList.remove("near");
+  for(const{e,p}of svg._edges){const hit=on&&n&&(e.a===n||e.b===n);p.classList.toggle("hl",!!hit);if(e.label)e.label.classList.toggle("show",!!hit);p.setAttribute("marker-end",`url(#${hit?"arh":e.back?"arb":"ar"})`);if(hit){e.a._el.classList.add("near");e.b._el.classList.add("near");}}
+  if(on&&n&&n._el)n._el.classList.add("near");
+}
+const clip=(s,n)=>s.length>n?s.slice(0,n-1)+"…":s;
+function metaLine(n){
+  if(n.type==="more")return"not drawn, see the list";
+  if(n.comp)return[`${n.files} file${n.files===1?"":"s"}`,n.comp.layer].filter(Boolean).join(" · ");
+  if(n.type==="folder")return`${n.files} file${n.files===1?"":"s"} · ${n.lines.toLocaleString()} lines`;
+  const f=F[n.path],u=imp(n.path);
+  return[f.lang,`${f.lines||0} lines`,u?`used by ${u}`:""].filter(Boolean).join(" · ");
+}
+function label(n){return n.type==="file"?`${n.path}${F[n.path].purpose?": "+F[n.path].purpose:""}`:n.type==="folder"?`${title(n)} (${metaLine(n)})`:n.name;}
+
+function crumbs(){
+  const c=$("crumbs");c.textContent="";
+  const chain=[];for(let n=level;n;n=n.parent)chain.unshift(n);
+  chain.forEach((n,i)=>{
+    if(i)c.append(el("span",{text:"/"}));
+    const b=el("button",{type:"button",text:n===V.root?title(n):n.name,onclick:()=>{if(n!==level)go(n);}});
+    if(n===level)b.setAttribute("aria-current","page");
+    c.append(b);
+  });
+  if(views.components){
+    const t=el("span",{class:"views",role:"group","aria-label":"View"});
+    for(const[k,lab]of[["folders","Folders"],["components","Components"]]){
+      t.append(el("button",{type:"button",class:"chip","aria-pressed":String(V===views[k]),text:lab,onclick:()=>{if(V!==views[k])switchView(k);}}));
+    }
+    c.append(t);
+  }
+}
+// Same file stays picked across views when there is one.
+function switchView(k){
+  const keep=sel&&sel.type==="file"?sel.path:null;
+  V=views[k];
+  if(keep){const n=V.fileNode.get(keep);level=n.parent;sel=n;}else{level=V.root;sel=null;}
+  writeHash();render();panel();
+}
+
+/* ── navigation (kept in the URL hash so Back works) ── */
+function go(L,s){level=L;sel=s||null;writeHash();render();panel();}
+function select(n){sel=n;writeHash();markSel();panel();}
+function reveal(rel,sym){
+  const n=V.fileNode.get(rel);if(!n)return;
+  const moved=level!==n.parent;
+  level=n.parent;sel=n;writeHash();if(moved)render();else markSel();panel(sym);
+}
+function writeHash(){
+  const h=(V===views.components?"#v=c&":"#")+"at="+encodeURIComponent(level.id)+(sel&&sel.id[0]!=="\u0000"?"&sel="+encodeURIComponent(sel.id):"");
+  if(location.hash!==h)history.pushState(null,"",h);
+}
+function readHash(){
+  const q=new URLSearchParams(location.hash.slice(1));
+  const at=q.get("at"),s=q.get("sel");
+  V=q.get("v")==="c"&&views.components?views.components:views.folders;
+  level=at!=null?find(at):V.root;if(level.type!=="folder")level=level.parent||V.root;
+  sel=s?V.nodeOf.get(s)||null:null;
+  render();panel();
+}
+window.addEventListener("popstate",readHash);
+
+/* ── editor links ── */
+let editor="vscode";
+try{editor=localStorage.getItem("codemap-editor")||editor;}catch{}
+function edUrl(rel,line){
+  if(!D.root||editor==="none")return null;
+  const abs=(D.root.replace(/\/$/,"")+"/"+rel).replace(/^([A-Za-z]):/,"/$1:");
+  return`${editor}://file${encodeURI(abs.startsWith("/")?abs:"/"+abs)}${line?":"+line:""}`;
+}
+
+/* ── code: file text (when the page has it) for symbol snippets; changed lines since a git ref ── */
+const SRC=D.src||{},DIFF=D.diff||null,DF=(DIFF&&DIFF.files)||{};
+const stale=new Set(D.stale||[]);
+const CH=new Set(Object.keys(DF).filter((r)=>F[r]));
+const lineCache=new Map();
+function srcLines(rel){
+  if(!(rel in SRC))return null;
+  if(!lineCache.has(rel)){const a=SRC[rel].split(/\r?\n/);if(a.length>1&&a[a.length-1]==="")a.pop();lineCache.set(rel,a);}
+  return lineCache.get(rel);
+}
+const added=(d,i)=>!!d&&d.add.some(([a,b])=>i>=a&&i<=b);
+// Lines a..b changed: added lines inside, or a removed block that sat inside.
+function touched(rel,a,b){const d=DF[rel];if(!d)return false;return d.status==="added"||d.add.some(([x,y])=>x<=b&&y>=a)||d.del.some((x)=>x.at>a&&x.at<=b);}
+// In a file changed since the codemap, how far the symbol moved: the nearest line that declares
+// its name, else the nearest line with its name at all.
+const DECL="\\b(function|class|def|fn|func|interface|struct|enum|trait|impl|type|record|module|namespace|const|let|var|static|public|private|protected|internal|async|export|override|virtual)\\b.*";
+function shift(rel,s,ls){
+  if(!stale.has(rel))return 0;
+  const nm="\\b"+s.name.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\b",i=Math.min(s.line,ls.length)-1;
+  for(const re of[new RegExp(DECL+nm),new RegExp(nm)]){
+    if(re.test(ls[i]))return 0;
+    for(let k=1;k<=300;k++){if(re.test(ls[i+k]||""))return k;if(i-k>=0&&re.test(ls[i-k]))return-k;}
+  }
+  return 0;
+}
+// The lines a symbol spans, with the comments and attributes just above it.
+function symRange(rel,s,ls){
+  const f=F[rel],dl=shift(rel,s,ls);
+  let end=s.endLine;
+  if(!end){const next=f.symbols.map((x)=>x.line).filter((l)=>l>s.line).sort((a,b)=>a-b)[0];end=next?next-1:s.line+20;}
+  end+=dl;
+  let a=Math.max(1,Math.min(s.line+dl,ls.length));
+  for(let k=0;k<15&&a>1&&/^\s*(\/\/|\/\*|\*|#|@|\[|"""|''')/.test(ls[a-2]);k++)a--;
+  return[[a,Math.min(ls.length,Math.max(s.line+dl,end))]];
+}
+// Changed parts with 3 lines around each, joined where they meet.
+function hunks(rel,ls){
+  const d=DF[rel],r=[];
+  for(const[a,b]of d.add)r.push([a-3,b+3]);
+  for(const x of d.del)r.push([x.at-3,x.at+2]);
+  r.sort((p,q)=>p[0]-q[0]);
+  const out=[];
+  for(let[a,b]of r){a=Math.max(1,a);b=Math.min(ls.length,b);if(a>b)continue;const last=out[out.length-1];if(last&&a<=last[1]+1)last[1]=Math.max(last[1],b);else out.push([a,b]);}
+  return out;
+}
+// Rows for the ranges; removed lines show above the line they sat over.
+function codeRows(rel,ranges){
+  const ls=srcLines(rel),d=DF[rel],dels=d?d.del:[],out=[];
+  const delRows=(x)=>{for(const t of x.lines)out.push({t,c:"del"});if(x.more)out.push({gap:`${x.more} more removed lines`});};
+  ranges.forEach(([a,b],k)=>{
+    if(k)out.push({gap:"⋯"});
+    for(let i=a;i<=b;i++){for(const x of dels)if(x.at===i)delRows(x);out.push({n:i,t:ls[i-1],c:added(d,i)?"add":""});}
+    if(b===ls.length)for(const x of dels)if(x.at>b)delRows(x);
+  });
+  return out;
+}
+function codeBox(rel,ranges,head,cap){
+  const box=el("div",{class:"codebox"});
+  const rows=codeRows(rel,ranges);
+  const draw=(max)=>{
+    box.textContent="";
+    const u=edUrl(rel,ranges[0][0]);
+    box.append(el("div",{class:"ch"},el("b",{text:head}),
+      u?el("a",{class:"btn",href:u,text:"Open"}):null,
+      el("button",{type:"button",class:"btn",text:box.classList.contains("big")?"Close":"Wider",onclick:()=>{document.body.classList.toggle("codebig",box.classList.toggle("big"));draw(max);}})));
+    const c=el("div",{class:"code",role:"region","aria-label":head,tabindex:"0"});
+    for(const r of rows.slice(0,max)){
+      if(r.gap){c.append(el("div",{class:"gap",text:r.gap}));continue;}
+      c.append(el("div",{class:"r"+(r.c?" "+r.c:"")},el("span",{class:"n",text:r.c==="del"?"−":String(r.n)}),el("span",{class:"t",text:r.t||" "})));
+    }
+    if(rows.length>max)c.append(el("button",{type:"button",class:"cut",text:`Show all ${rows.length} lines`,onclick:()=>draw(Infinity)}));
+    box.append(c);
+  };
+  draw(cap);
+  return box;
+}
+document.addEventListener("keydown",(ev)=>{if(ev.key==="Escape")for(const b of document.querySelectorAll(".codebox.big")){b.classList.remove("big");document.body.classList.remove("codebig");const t=b.querySelector(".ch button:last-child");if(t)t.textContent="Wider";}});
+// Toggle the code of symbol s under its list row.
+function toggleSym(li,rel,s,open){
+  const ls=srcLines(rel);if(!ls)return;
+  const btn=li.querySelector(".sym-n"),had=li.querySelector(".codebox");
+  if(had&&open!==true){had.remove();btn.setAttribute("aria-expanded","false");return;}
+  if(had)return;
+  const r=symRange(rel,s,ls);
+  li.append(codeBox(rel,r,`${s.name} · lines ${r[0][0]}–${r[0][1]}`,80));
+  btn.setAttribute("aria-expanded","true");
+}
+function changeCounts(d){
+  const add=d.add.reduce((n,[a,b])=>n+b-a+1,0),del=d.del.reduce((n,x)=>n+x.lines.length+(x.more||0),0);
+  return d.status==="deleted"?"deleted":d.status==="added"?`new · ${add} lines`:`+${add} −${del}`;
+}
+function changesPanel(p){
+  const rels=Object.keys(DF).sort();
+  p.append(el("h2",{text:`Changes since ${DIFF.ref}`}),el("p",{class:"sub",text:`${DIFF.sha} · ${rels.length} file${rels.length===1?"":"s"}`}));
+  p.append(list("Files",rels,(r)=>{
+    const syms=(F[r]&&F[r].symbols||[]).filter((s)=>s.line&&!s.parent&&srcLines(r)&&touched(r,...symRange(r,s,srcLines(r))[0])).map((s)=>s.name);
+    return[F[r]?fileLink(r):el("span",{class:"sym",text:r}),el("span",{class:"p",text:changeCounts(DF[r])+(syms.length?" · "+clip(syms.join(", "),80):"")})];
+  }));
+}
+const CHG={type:"changes",name:"changes",id:"\u0000changes",path:""};
+if(DIFF){
+  const b=$("chgBtn");b.hidden=false;$("lgChg").hidden=false;
+  b.textContent=`${Object.keys(DF).length} changed since ${DIFF.ref}`;
+  b.addEventListener("click",()=>{sel=CHG;markSel();panel();window.scrollTo({top:0});});
+}
+
+/* ── details panel ── */
+function fileLink(rel){return el("button",{type:"button",class:"lnk",text:rel,onclick:()=>reveal(rel)});}
+function list(title,items,make){if(!items||!items.length)return null;const ul=el("ul");for(const it of items)ul.append(el("li",{},...[].concat(make(it))));return el("div",{},el("h3",{text:`${title} (${items.length})`}),ul);}
+function panel(sym){
+  const box=$("panel");box.textContent="";document.body.classList.remove("codebig");
+  // Lists with no items come back null; leave them out.
+  const p={append:(...xs)=>box.append(...xs.filter(Boolean)),querySelector:(q)=>box.querySelector(q)};
+  p.append(tourCard());
+  const n=sel||level;
+  if(n.type==="changes"){changesPanel(p);p.append(opts());return;}
+  if(n.type==="more"){
+    p.append(el("h2",{text:`${n.rest.length} more in ${title(level)}`}),el("p",{class:"sub",text:"Too many to draw. Ranked by links and size."}));
+    p.append(list("Items",n.rest,(m)=>[el("button",{type:"button",class:"lnk",text:m.name+(m.type==="folder"?"/":""),onclick:()=>m.type==="folder"?go(m):select(m)}),el("span",{class:"p",text:metaLine(m)})]));
+    p.append(opts());return;
+  }
+  if(n.type==="folder"){
+    p.append(el("h2",{text:title(n)}),el("p",{class:"sub",text:`${metaLine(n)}${n.comp?" · "+n.lines.toLocaleString()+" lines":""}${D.updated?" · map from "+D.updated:""}`}));
+    if(n.comp&&n.comp.description)p.append(el("p",{text:n.comp.description}));
+    if(n!==level)p.append(el("div",{class:"row"},el("button",{type:"button",class:"btn",text:n.comp?"Open component":"Open folder",onclick:()=>go(n)})));
+    const fs=filesUnder(n);
+    const langs={};for(const r of fs){const l=F[r].lang||"other";langs[l]=(langs[l]||0)+1;}
+    p.append(el("p",{text:Object.entries(langs).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([l,c])=>`${l} ${c}`).join(" · ")}));
+    const ent=fs.filter((r)=>entries.has(r));
+    p.append(list("Entry points",ent,(r)=>[fileLink(r),el("span",{class:"p",text:roleOf.get(r)||""})]));
+    const key=fs.filter((r)=>imp(r)>0).sort((a,b)=>imp(b)-imp(a)).slice(0,8);
+    p.append(list("Most used files",key,(r)=>[fileLink(r),el("span",{class:"p",text:`used by ${imp(r)}${F[r].purpose?" · "+F[r].purpose:""}`})]));
+    if(n!==V.root){
+      // Outside links, grouped by component in the component view and by folder otherwise.
+      const byComp=V===views.components;
+      const where=byComp?(r)=>compOf(V.fileNode.get(r)).id:(r)=>r.slice(0,r.lastIndexOf("/")+1)||"./";
+      const outT=new Map(),inT=new Map();
+      for(const r of fs){for(const t of F[r].imports||[])if(F[t]&&!n.all.has(t))outT.set(where(t),(outT.get(where(t))||0)+1);for(const t of F[r].importedBy||[])if(F[t]&&!n.all.has(t))inT.set(where(t),(inT.get(where(t))||0)+1);}
+      const top=(m)=>[...m].sort((a,b)=>b[1]-a[1]).slice(0,8);
+      const own=compOf(n);
+      const link=(dirOut)=>([d,c])=>{
+        const target=byComp?V.nodeOf.get("§"+d+"/"):find(d==="./"?"":d);
+        const said=byComp&&own?linkLabel.get(dirOut?own.id+"\n"+d:d+"\n"+own.id):"";
+        return[el("button",{type:"button",class:"lnk",text:byComp&&target?title(target):d,onclick:()=>{if(target&&target.parent){level=target.parent;writeHash();render();select(target);}else go(V.root);}}),el("span",{class:"p",text:`${said?said+" · ":""}${c} import${c===1?"":"s"}`})];
+      };
+      const scope=byComp&&n.comp?"component":"folder";
+      p.append(list(`Uses (outside this ${scope})`,top(outT),link(true)));
+      p.append(list(`Used by (outside this ${scope})`,top(inT),link(false)));
+    }
+    p.append(opts());return;
+  }
+  const rel=n.path,f=F[rel];
+  p.append(el("h2",{text:rel}));
+  p.append(el("p",{class:"sub",text:[f.lang,`${f.lines||0} lines`,f.commits?`${f.commits} commit${f.commits===1?"":"s"} in 90 days, last ${f.lastChange}`:""].filter(Boolean).join(" · ")}));
+  const tags=el("div",{class:"row"});
+  const u=edUrl(rel);if(u)tags.append(el("a",{class:"btn",href:u,text:"Open in editor"}));
+  tags.append(el("button",{type:"button",class:"btn",text:"Copy path",onclick:(ev)=>{try{navigator.clipboard.writeText(rel);ev.target.textContent="Copied";}catch{}}}));
+  if(entries.has(rel))tags.append(el("span",{class:"tag",text:"entry: "+(roleOf.get(rel)||"")}));
+  if(f.isTest)tags.append(el("span",{class:"tag",text:"test"}));
+  if(f.vendored)tags.append(el("span",{class:"tag",text:"vendored"}));
+  const ls=srcLines(rel),d=DF[rel];
+  if(d)tags.append(el("span",{class:"tag chg",text:changeCounts(d)}));
+  const whole=el("div");
+  if(ls)tags.append(el("button",{type:"button",class:"btn",text:"Show file",onclick:(ev)=>{const open=!whole.firstChild;whole.textContent="";if(open)whole.append(codeBox(rel,[[1,ls.length]],`${rel} · ${ls.length} lines`,600));ev.target.textContent=open?"Hide file":"Show file";}}));
+  p.append(tags,whole);
+  if(stale.has(rel))p.append(el("p",{class:"note",text:"This file changed after the codemap was built, so symbol lines may be off. Re-run /update-codemap."}));
+  if(f.purpose)p.append(el("p",{text:f.purpose}));
+  if(d&&ls&&d.status!=="deleted"){
+    const r=d.status==="added"?[[1,ls.length]]:hunks(rel,ls);
+    if(r.length)p.append(el("div",{},el("h3",{text:`Changes since ${DIFF.ref}`}),codeBox(rel,r,d.status==="added"?"new file":`${r.length} part${r.length===1?"":"s"}`,200)));
+  }
+  const symLi=new Map();
+  if(f.symbols&&f.symbols.length){
+    const ul=el("ul");
+    for(const s of f.symbols){
+      const li=el("li",{class:"sym"+(s.parent?" child":""),"data-sym":s.name},el("span",{class:"k",text:s.kind}));
+      if(ls&&s.line){li.append(el("button",{type:"button",class:"sym-n","aria-expanded":"false",title:"Show the code",text:s.name,onclick:()=>toggleSym(li,rel,s)}));if(!symLi.has(s.name))symLi.set(s.name,[li,s]);}
+      else li.append(s.name);
+      if(s.signature)li.append(el("span",{class:"sig",text:clip(s.signature,60)}));
+      const at=s.line&&ls?s.line+shift(rel,s,ls):s.line,su=at&&edUrl(rel,at);
+      if(su)li.append(el("a",{href:su,text:":"+at}));else if(at)li.append(el("span",{class:"k",text:" :"+at}));
+      if(ls&&s.line&&d&&touched(rel,...symRange(rel,s,ls)[0]))li.append(el("span",{class:"tag chg",text:"changed"}));
+      ul.append(li);
+    }
+    p.append(el("div",{},el("h3",{text:`Symbols (${f.symbols.length})${ls?" · click a name for its code":""}`}),ul));
+  }
+  const fl=(r)=>[fileLink(r),F[r]&&F[r].purpose?el("span",{class:"p",text:clip(F[r].purpose,90)}):null];
+  p.append(list("Imports",f.imports,fl));
+  p.append(list("Imported by",f.importedBy,fl));
+  p.append(list(f.tests&&f.testsTotal>f.tests.length?`Nearest tests, of ${f.testsTotal} that reach it`:"Tests that reach it",f.tests,fl));
+  p.append(list("References",f.refs,fl));
+  p.append(list("Referenced by",f.referencedBy,fl));
+  p.append(opts());
+  // On a tour stop the card stays in view at the top; the symbol is only marked.
+  const onStop=ti>=0&&T[ti].file===rel;
+  if(onStop){box.scrollTop=0;window.scrollTo({top:0});}
+  if(sym&&symLi.has(sym)){const[li,s]=symLi.get(sym);toggleSym(li,rel,s,true);}
+  if(sym){const s=box.querySelector(`[data-sym="${CSS.escape(sym)}"]`);if(s&&onStop)s.classList.add("flash");else if(s){s.classList.add("flash");if(box.scrollHeight>box.clientHeight)box.scrollTop=s.offsetTop-box.clientHeight/2;else s.scrollIntoView({block:"center"});}}
+}
+function opts(){
+  if(!D.root)return null;
+  const s=el("select",{"aria-label":"Open files in"});
+  for(const[v,t]of[["vscode","VS Code"],["cursor","Cursor"],["none","No editor links"]]){const o=el("option",{value:v,text:t});if(v===editor)o.selected=true;s.append(o);}
+  s.addEventListener("change",()=>{editor=s.value;try{localStorage.setItem("codemap-editor",editor);}catch{}panel();});
+  return el("div",{class:"opts"},"Open files in ",s);
+}
+
+/* ── guided tour: stops in reading order; the panel shows the current one above the file ── */
+const T=(D.tour&&D.tour.stops)||[];
+let ti=-1;
+// The symbol a stop points at: the one on its line, else the last one above it, else its `symbol`.
+function stopSym(s){const xs=((F[s.file]||{}).symbols||[]).filter((x)=>x.line&&x.line<=(s.line||0)).sort((a,b)=>b.line-a.line);return xs.length?xs[0].name:s.symbol;}
+function tourGo(i){if(i<0||i>=T.length)return;ti=i;reveal(T[i].file,stopSym(T[i]));}
+function tourCard(){
+  if(ti<0)return null;
+  const s=T[ti];
+  if(!sel||sel.path!==s.file)return el("div",{class:"row"},el("button",{type:"button",class:"btn",text:`Back to tour stop ${ti+1}`,onclick:()=>tourGo(ti)}),el("button",{type:"button",class:"btn",text:"End tour",onclick:()=>{ti=-1;panel();}}));
+  const all=el("ol");
+  T.forEach((x,i)=>{const li=el("li",{},el("button",{type:"button",class:"lnk",text:x.title||x.file,onclick:()=>tourGo(i)}));if(i===ti)li.setAttribute("aria-current","step");all.append(li);});
+  return el("div",{class:"tour"},
+    el("span",{class:"k",text:`Tour · stop ${ti+1} of ${T.length}`}),
+    el("b",{text:s.title||s.file}),
+    el("p",{text:s.why}),
+    el("div",{class:"row"},
+      el("button",{type:"button",class:"btn",text:"Previous",onclick:()=>tourGo(ti-1)}),
+      el("button",{type:"button",class:"btn",text:ti===T.length-1?"Done":"Next",onclick:()=>{if(ti===T.length-1){ti=-1;panel();}else tourGo(ti+1);}}),
+      el("button",{type:"button",class:"btn",text:"End tour",onclick:()=>{ti=-1;panel();}})),
+    el("details",{},el("summary",{text:"All stops"}),all),
+    D.tour.drafted?el("p",{class:"sub",text:"Drafted from the codemap only; the reasons are not checked against the code yet."}):null);
+}
+if(T.length){const b=$("tourBtn");b.hidden=false;b.textContent=`Tour · ${T.length} stops`;b.addEventListener("click",()=>tourGo(ti<0?0:ti));}
+
+/* ── search ── */
+const index=[];
+for(const[rel,f]of Object.entries(F)){
+  index.push({rel,name:rel.slice(rel.lastIndexOf("/")+1),hay:(rel+" "+(f.purpose||"")).toLowerCase(),sub:f.purpose||rel});
+  for(const s of f.symbols||[])index.push({rel,sym:s.name,name:s.name,hay:s.name.toLowerCase(),sub:`${s.kind} in ${rel}`});
+}
+const q=$("q"),res=$("results");let hits=[],cur=0;
+function score(it,t){const nm=it.name.toLowerCase();if(nm===t)return 0;if(nm.startsWith(t))return 1;if(nm.includes(t))return 2;return 3+(it.sym?1:0);}
+function search(){
+  const t=q.value.trim().toLowerCase();
+  if(!t){res.hidden=true;q.setAttribute("aria-expanded","false");return;}
+  hits=index.filter((it)=>it.hay.includes(t)).sort((a,b)=>score(a,t)-score(b,t)||a.name.length-b.name.length).slice(0,30);
+  cur=0;res.textContent="";
+  if(!hits.length)res.append(el("li",{text:"No match"}));
+  hits.forEach((h,i)=>{const li=el("li",{role:"option","aria-selected":String(i===0),onmousedown:(ev)=>{ev.preventDefault();pickHit(i);}},el("span",{class:"r-name",text:h.name}),el("span",{class:"r-sub",text:h.sub}));res.append(li);});
+  res.hidden=false;q.setAttribute("aria-expanded","true");
+}
+function pickHit(i){const h=hits[i];if(!h)return;res.hidden=true;q.setAttribute("aria-expanded","false");reveal(h.rel,h.sym);}
+q.addEventListener("input",search);
+q.addEventListener("keydown",(ev)=>{
+  if(ev.key==="ArrowDown"||ev.key==="ArrowUp"){if(!hits.length)return;cur=(cur+(ev.key==="ArrowDown"?1:hits.length-1))%hits.length;[...res.children].forEach((li,i)=>li.setAttribute("aria-selected",String(i===cur)));res.children[cur].scrollIntoView({block:"nearest"});ev.preventDefault();}
+  else if(ev.key==="Enter"){pickHit(cur);ev.preventDefault();}
+  else if(ev.key==="Escape"){res.hidden=true;}
+});
+q.addEventListener("blur",()=>{res.hidden=true;});
+
+$("proj").textContent=(D.project||"Project")+" map";
+$("meta").textContent=`${views.folders.root.files.toLocaleString()} files · ${views.folders.root.lines.toLocaleString()} lines${D.updated?" · codemap "+D.updated:""}`;
+readHash();
+})();
+</script>
+{{ZOOM}}
+</body>
+</html>

@@ -96,10 +96,13 @@ export function parseDiff(text) {
       continue;
     } else if (raw.startsWith('deleted file mode')) {
       cur.deleted = true;
-    } else if (raw.startsWith('+++ ')) {
-      const p = raw.slice(4).replace(/^b\//, '');
+    } else if (raw.startsWith('new file mode')) {
+      cur.created = true;
+    } else if (!hunk && raw.startsWith('+++ ')) {
+      // Only before the first hunk: inside one, "+++ x" is an added line "++ x".
+      const p = raw.slice(4).replace(/^b\//, '').replace(/\t$/, '');
       if (p !== '/dev/null') cur.path = p;
-    } else if (raw.startsWith('--- ')) {
+    } else if (!hunk && raw.startsWith('--- ')) {
       continue;
     } else if (raw.startsWith('@@')) {
       const m = raw.match(/\+(\d+)/);

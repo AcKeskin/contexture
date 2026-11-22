@@ -23,7 +23,9 @@ node "$SKILL_DIR/codemap.mjs" --map-tokens N  # cap codemap.md at ~N tokens (def
 node "$SKILL_DIR/codemap.mjs" --no-cache      # ignore the per-file cache, full re-parse
 ```
 
-**Two outputs.** `codemap.md` is the agent-facing document, kept under a size cap (default ~32k tokens: the class graph, call sequence, references and symbol index are trimmed, least-used first, each with a note; when the other sections alone are over the cap nothing is trimmed). `codemap.json` beside it holds everything uncapped for tools: per file its language, size, lines, content hash, purpose, outline (classes and functions with line ranges, exports with signatures), resolved imports and importers, the tests that reach it, and git activity; plus module edges, every class, every in-scope call edge and call sequence. The contexture-ui pane and visualise-codemap read it. Layout in [spec.md](spec.md) §9.
+**Modules.** A module is a top-level folder, or a nested sub-project: a folder with its own manifest (`package.json`, `Cargo.toml`, `go.mod`, `pyproject.toml`, `*.csproj`, `*.asmdef`, ...), the deepest one winning. A folder with more than 12 sub-projects under it (`extensions/*`, `playground/**`) is one module that lists them. Each sub-project module shows its manifest, its manifest's description as its role, and the entry points its own manifest names. `## Modules` in the config file overrides this (see below).
+
+**Two outputs.** `codemap.md` is the agent-facing document, kept under a size cap (default ~32k tokens). Over the cap it trims, least useful first and each with a note: class graph, call sequence, references, export lines in the file listings, symbol index, call graph, file deps, conventions, hubs, whole file bullets (least-imported first), and last the least important module blocks. The overview, map, recent activity, entry points, layers and dependencies always stay. Order and details in [spec.md](spec.md) §6a. `codemap.json` beside it holds everything uncapped for tools: per file its language, size, lines, content hash, purpose, outline (classes and functions with line ranges, exports with signatures), resolved imports and importers, the tests that reach it, and git activity; plus module edges, every class, every in-scope call edge and call sequence. The contexture-ui pane, visualise-codemap, affected-tests and the project-memory MCP (/discover, ranked_map, find_symbol, tests_for) read it, so they see every file even when the markdown is thinned. Per file it lists the 20 nearest tests and a `testsTotal` when more reach it. Layout in [spec.md](spec.md) §9.
 
 **Speed.** Each file's syntax tree is walked once (`indexTree` in `treesitter.mjs`) and every extractor reads that list; with 64+ files to parse, worker threads (`extract-worker.mjs`, up to 8) parse them in parallel. A cold run on ~1,000 files takes about 2s.
 
@@ -44,6 +46,8 @@ Without the deps the script **degrades gracefully**: TS/C#/C++ still extract via
 The script honors `$CLAUDE_PROJECT_DIR`, reads `.claude/codemap.config.md` (skip patterns, layers, auto-update toggle), clears `.claude/codemap.dirty` after a successful write, and prints the diff summary on stdout. Surface the diff summary to the user; do not paraphrase. If the script fails, the error message tells you which spec step it choked on — fix the input or extend the script.
 
 **Tests a change reaches.** `node <skill-dir>/affected-tests.mjs [--base <ref>] [-- <file>...]` reads `## File deps` backwards from the changed files (default: uncommitted, untracked and `<base>...HEAD`) and prints the test files it reaches, each with its import path, plus changed source files no test reaches (`untested`). Static imports and `require` only, so it orders tests, never replaces the full run. Files committed after the codemap was written count as changed, so a stale map widens the list. `/execute` runs these tests first; `/review` uses `untested` for its tests metric.
+
+**How a change moves the architecture.** `node <skill-dir>/arch-delta.mjs --base <ref> [--head <ref>] [--depth N]` builds the codemap at the merge base of the two refs and at the head (default HEAD) in temporary git worktrees (no hooks run; the project's `.claude/` is untouched) and compares them folder by folder (`--depth`, default 2 segments): new and removed folder links, changed import counts, new and broken cycles, new and gone folders, and exports added, removed or changed. Prints the JSON `architecture` object `/review` shows on its page, with a Mermaid diagram (new links green, removed red dashed). Changed exports carry their old and new code as a line diff (up to 40 lines each, 40 exports); added and removed ones, their declaration line. When no code file changed it skips the build.
 
 ## When to run
 
@@ -86,6 +90,12 @@ Full example:
 - `include/openxr/`
 - `third_party/**`
 
+## Modules
+
+- `packages/*`
+- `services/**/api`
+- depth: 2
+
 ## Layers
 
 - Domain: domain, model
@@ -103,7 +113,8 @@ Full example:
 
 - `## Skip` — additive to defaults. Bullet list of backtick-quoted gitignore-style globs. See §2 parsing rules.
 - `## Vendored` — bullet list of backtick-quoted gitignore-style globs. Files under these patterns are scanned for tree structure but get `<vendored>` as their purpose line and no `exports:` entry. Imports out of vendored files are not emitted into `## Dependencies` / `## File deps`. Use this for in-tree third-party SDKs (e.g. bundled OpenXR headers) that you want represented in the tree but not as part of the project's surface area. Imports *into* vendored files (e.g. project code that `#include`s a bundled header) still produce edges — vendored is about ownership of the file, not visibility.
-- `## Layers` — `<LayerName>: <module>, <module>, ...` per bullet. Module names match top-level directories. Surfaces in the codemap's `## Layers` section and is consumed by `visualise-codemap` to cluster L1 nodes.
+- `## Modules` — replaces sub-project detection. Backtick-quoted folder patterns (`*` one segment, `**` any, matched against the whole folder path from the root) name module folders, and `depth: N` makes every folder N levels deep a module. A file belongs to the deepest module folder holding it, else its top-level folder.
+- `## Layers` — `<LayerName>: <module>, <module>, ...` per bullet. Module names as the codemap lists them (a top-level folder or a sub-project folder). Surfaces in the codemap's `## Layers` section and is consumed by `visualise-codemap` to cluster L1 nodes.
 - `## Auto-update` — `enabled: true` (or `- enabled: true`) opts the project into the codemap-dirty hook. The hook touches `.claude/codemap.dirty` on any project-tree write so the next `/update-codemap` run knows the codemap is stale. Anything other than `enabled: true` (missing line, `enabled: false`, missing section) keeps the project opt-out — no sentinel is ever written. The hook is registered globally; this section is the per-project gate. `refresh` controls background regeneration by the `codemap-refresh` hook at session start and after each turn, whenever git shows files changed since the codemap was written. Unset, it is on when git doesn't track `.claude/codemap.md` and off when it does, so a committed codemap doesn't churn; `refresh: true` or `refresh: false` overrides. It is incremental (extraction cache) and needs this skill's tree-sitter deps (`npm install` here); without them the hook only advises, so a refresh never downgrades to the regex fallback.
 
 **Glob semantics (Skip and Vendored):**

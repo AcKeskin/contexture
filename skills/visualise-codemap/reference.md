@@ -14,11 +14,11 @@ Read when the step you are on points here, or when something fails.
 
 ## Limits (v1)
 
-- Mermaid only (plus an ASCII tree for the Structure section, in a plain code fence). No PlantUML, no Graphviz, no Mermaid alternative for the rest. Obsidian + GitHub both render Mermaid natively; duplication isn't worth the file weight.
+- Mermaid only (plus an ASCII tree for the Structure section, in a plain code fence). No PlantUML, no Graphviz, no Mermaid alternative for the rest. Obsidian + GitHub both render Mermaid natively; duplication isn't worth the file weight. The map page (`.claude/codemap.html`) is the exception: it draws its own SVG from codemap.json so it can be clicked through.
 - Module-map edges come from the codemap's `## Dependencies` section, falling back to synthesis from `## File deps`. File-graph edges come from `## File deps`. Quality is bounded by `update-codemap`'s extraction (tree-sitter AST across 12 languages; basename-index resolution for bare-name C++ includes; regex only as a no-deps fallback). Cross-language imports may be missed.
 - Class-diagram quality is bounded by `update-codemap`'s `## Class graph` extraction — extends/implements/fields are parsed from source-language declarations (per-language extractor). Generics are stripped to the head identifier for relation matching. Methods are pulled from `exports:` only when a file contains exactly one class, so multi-class files render bodies without methods.
 - Vault output: one index note + N module notes per project when `split-per-module: true`; one file when `false`. In-repo artifact is always single-file.
-- Fan-out caps (`l2-file-cap`, `l2-edge-cap`, `class-method-cap`) are guards. If a module routinely exceeds them, the module is probably too large — that is a finding for `/review`, not a `visualise-codemap` bug.
+- Fan-out caps (`l2-file-cap`, `l2-edge-cap`, `class-method-cap`, and the fixed 20 class diagrams per module, 40 types per diagram, 300 listed files per module) are guards. If a module routinely exceeds them, the module is probably too large — that is a finding for `/review`, not a `visualise-codemap` bug.
 - No incremental render. Always full rewrite of both artifacts.
 
 ## Relationship to other skills

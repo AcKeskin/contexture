@@ -1,7 +1,8 @@
 import { expect, test } from 'claude-code/testing'
 
 import { filterFiles, parseCodemap, parseCodemapJson, relativePath, visibleRows, withUnmapped } from '../hooks/codemap'
-import { parseGitStatus } from '../hooks/git'
+import { parseGitStatus, parseNameList } from '../hooks/git'
+import { foldersOf, parseTour } from '../hooks/tour'
 import { CODEMAP, CODEMAP_JSON } from './fixtures'
 
 
@@ -86,7 +87,7 @@ test('git status reads one mark per path, under the session root', () => {
 
 test('changed-only keeps marked files, opens their folders and adds files the codemap lacks', () => {
   const tree = parseCodemap(CODEMAP)
-  const marks = { git: { 'hooks/load.ts': 'M', 'hooks/new.ts': '?' } as const, stale: ['hooks/load.ts'], isChangedOnly: true }
+  const marks = { git: { 'hooks/load.ts': 'M', 'hooks/new.ts': '?' } as const, stale: ['hooks/load.ts'], branch: [], isChangedOnly: true }
   const root = withUnmapped(tree, Object.keys(marks.git))
   const rows = visibleRows(root, [], { 'README.md': 'read' }, marks)
   expect(rows.map(r => `${r.depth}:${r.label}:${r.git ?? ''}`)).toEqual(['0:hooks/ (3):', '1:load.ts:M', '1:new.ts:?', '0:README.md:'])
@@ -100,8 +101,41 @@ test('changed-only keeps marked files, opens their folders and adds files the co
 
 test('a changed folder (a submodule) stays in changed-only', () => {
   const tree = parseCodemap(CODEMAP)
-  const rows = visibleRows(tree.root, [], {}, { git: { 'hooks/sub': 'M' }, stale: [], isChangedOnly: true })
+  const rows = visibleRows(tree.root, [], {}, { git: { 'hooks/sub': 'M' }, stale: [], branch: [], isChangedOnly: true })
   expect(rows.map(r => `${r.label}:${r.git ?? ''}`)).toEqual(['hooks/ (3):', 'sub/ (1):M'])
+})
+
+test('branch files and the folders holding them get a dot, and count as changed', () => {
+  const tree = parseCodemap(CODEMAP)
+  const branch = ['hooks/sub/deep.ts', 'hooks/added.ts']
+  const root = withUnmapped(tree, branch)
+  const marks = { git: {}, stale: [], branch, isChangedOnly: false }
+  const rows = visibleRows(root, ['hooks'], {}, marks)
+  const dotted = rows.filter(r => r.isBranch).map(r => r.key)
+  expect(dotted).toEqual(['hooks', 'hooks/sub', 'hooks/added.ts'])
+  expect(rows.find(r => r.key === 'hooks/added.ts')?.detail).toBe('not in codemap yet')
+  const only = visibleRows(root, [], {}, { ...marks, isChangedOnly: true })
+  expect(only.map(r => r.key)).toEqual(['hooks', 'hooks/sub', 'hooks/sub/deep.ts', 'hooks/added.ts'])
+})
+
+test('git diff name lists drop a cut last entry', () => {
+  expect(parseNameList('a.ts\0b c.ts\0')).toEqual(['a.ts', 'b c.ts'])
+  expect(parseNameList('a.ts\0b.t', true)).toEqual(['a.ts'])
+  expect(parseNameList('')).toEqual([])
+})
+
+test('a tour reads its stops, fills gaps and keeps the draft flag', () => {
+  const t = parseTour(
+    JSON.stringify({ drafted: true, stops: [{ file: 'hooks/chain.ts', line: 3, title: 'chain', why: 'Start here.' }, { file: 'README.md' }, { line: 2 }] }),
+  )
+  expect(t.isDraft).toBe(true)
+  expect(t.stops).toEqual([
+    { file: 'hooks/chain.ts', line: 3, title: 'chain', why: 'Start here.' },
+    { file: 'README.md', line: 1, title: 'README.md', why: '' },
+  ])
+  expect(() => parseTour('{"version":1}')).toThrow()
+  expect(foldersOf('a/b/c.ts')).toEqual(['a', 'a/b'])
+  expect(foldersOf('c.ts')).toEqual([])
 })
 
 test('filterFiles finds paths by any part, any case, up to the limit', () => {

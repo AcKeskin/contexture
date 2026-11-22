@@ -1020,22 +1020,31 @@ function projectTypeNamesTs(root) {
 // Does PROJECT class/interface `typeName` declare a method `method`? Walk its body. Includes
 // methods declared directly on the class; inheritance is best-effort (resolves the declared
 // class; an inherited method on a project base resolves transitively, external base degrades).
-function classDeclaresMethodTs(root, typeName, method) {
+// `decls` is tsClassDecls(root).
+function classDeclaresMethodTs(decls, typeName, method) {
+  const n = decls.get(typeName);
+  if (!n) return false;
+  const body = firstOfType(n, 'class_body') || firstOfType(n, 'interface_body') || firstOfType(n, 'object_type');
+  if (!body) return false;
+  for (const m of descendants(body)) {
+    if (m.type === 'method_definition' || m.type === 'method_signature' || m.type === 'public_field_definition') {
+      const mn = firstOfType(m, 'property_identifier');
+      if (mn && mn.text === method) return true;
+    }
+  }
+  return false;
+}
+
+// Class and interface declarations in a TS tree, name → first declaring node. Built once per
+// file: looking each name up by walking the tree was quadratic on big files.
+function tsClassDecls(root) {
+  const decls = new Map();
   for (const n of descendants(root)) {
     if (n.type !== 'class_declaration' && n.type !== 'interface_declaration' && n.type !== 'abstract_class_declaration') continue;
     const id = firstOfType(n, 'type_identifier') || firstOfType(n, 'identifier');
-    if (!id || id.text !== typeName) continue;
-    const body = firstOfType(n, 'class_body') || firstOfType(n, 'interface_body') || firstOfType(n, 'object_type');
-    if (!body) return false;
-    for (const m of descendants(body)) {
-      if (m.type === 'method_definition' || m.type === 'method_signature' || m.type === 'public_field_definition') {
-        const mn = firstOfType(m, 'property_identifier');
-        if (mn && mn.text === method) return true;
-      }
-    }
-    return false;
+    if (id && !decls.has(id.text)) decls.set(id.text, n);
   }
-  return false;
+  return decls;
 }
 
 // The TS receiver-type resolver. Builds a per-scope name→{type,conf} map from typed
@@ -1089,18 +1098,17 @@ function resolveTypesTs(root, callDetails) {
 
   // The enclosing class name for a `this.x()` call. Single-class-per-file is the common case;
   // for multi-class files we resolve `this` to the nearest enclosing class_declaration's name.
-  const enclosingClassName = () => {
-    // We don't have the call node here (callDetails is name-level), so resolve `this` only when
-    // the file declares exactly one class — otherwise `this` is ambiguous and degrades.
-    const classes = [...projectTypes].filter((t) => classExists(root, t));
-    return classes.length === 1 ? classes[0] : null;
-  };
+  // We don't have the call node here (callDetails is name-level), so resolve `this` only when
+  // the file declares exactly one class — otherwise `this` is ambiguous and degrades.
+  const decls = tsClassDecls(root);
+  const declared = [...projectTypes].filter((t) => decls.has(t));
+  const enclosingClass = declared.length === 1 ? declared[0] : null;
   const out = [];
   for (const cd of callDetails) {
     if (!cd.receiver) continue;
     let bind = null;
     if (cd.receiver === 'this') {
-      const cls = enclosingClassName();
+      const cls = enclosingClass;
       if (cls) bind = { type: cls, conf: CONF_THIS };
     } else if (scope.has(cd.receiver)) {
       bind = scope.get(cd.receiver);
@@ -1108,9 +1116,9 @@ function resolveTypesTs(root, callDetails) {
       bind = scope.get('this.' + cd.receiver);
     }
     if (!bind) continue;
-    if (classDeclaresMethodTs(root, bind.type, cd.callee)) {
+    if (classDeclaresMethodTs(decls, bind.type, cd.callee)) {
       out.push({ caller: cd.caller, callee: cd.callee, receiver: cd.receiver, qualified: `${bind.type}.${cd.callee}`, confidence: bind.conf });
-    } else if (!classExists(root, bind.type)) {
+    } else if (!decls.has(bind.type)) {
       // The receiver's TYPE is known (annotation/new) but its class isn't declared in THIS
       // file — it's imported. Emit unconfirmed; codemap.mjs confirms the method against the
       // project Type→methods registry (cross-file). Slightly lower confidence (the type is
@@ -1119,17 +1127,6 @@ function resolveTypesTs(root, callDetails) {
     }
   }
   return out;
-}
-
-// Does the tree declare a class/interface named `name`?
-function classExists(root, name) {
-  for (const n of descendants(root)) {
-    if (n.type === 'class_declaration' || n.type === 'interface_declaration' || n.type === 'abstract_class_declaration') {
-      const id = firstOfType(n, 'type_identifier') || firstOfType(n, 'identifier');
-      if (id && id.text === name) return true;
-    }
-  }
-  return false;
 }
 
 TYPE_RESOLVERS.ts = resolveTypesTs;
@@ -1151,27 +1148,31 @@ function projectTypeNamesCSharp(root) {
 // Does C# PROJECT type `typeName` declare `method`? Walk its declaration_list for
 // method_declarations. Inheritance from a project base is best-effort (the declared type's own
 // methods; an external base degrades to syntactic).
-function classDeclaresMethodCSharp(root, typeName, method) {
-  for (const n of descendants(root)) {
-    if (n.type !== 'class_declaration' && n.type !== 'struct_declaration'
-        && n.type !== 'record_declaration' && n.type !== 'interface_declaration') continue;
-    const id = childField(n, 'name') || firstOfType(n, 'identifier');
-    if (!id || id.text !== typeName) continue;
-    const body = firstOfType(n, 'declaration_list');
-    if (!body) return false;
-    for (const m of descendants(body)) {
-      if (m.type === 'method_declaration') {
-        const mn = childField(m, 'name') || firstOfType(m, 'identifier');
-        if (mn && mn.text === method) return true;
-      }
+// `decls` is csharpTypeDecls(root).
+function classDeclaresMethodCSharp(decls, typeName, method) {
+  const n = decls.get(typeName);
+  if (!n) return false;
+  const body = firstOfType(n, 'declaration_list');
+  if (!body) return false;
+  for (const m of descendants(body)) {
+    if (m.type === 'method_declaration') {
+      const mn = childField(m, 'name') || firstOfType(m, 'identifier');
+      if (mn && mn.text === method) return true;
     }
-    return false;
   }
   return false;
 }
 
-function csharpClassExists(root, name) {
-  return projectTypeNamesCSharp(root).has(name);
+// Class, struct, record and interface declarations in a C# tree, name → first declaring node.
+function csharpTypeDecls(root) {
+  const decls = new Map();
+  for (const n of descendants(root)) {
+    if (n.type !== 'class_declaration' && n.type !== 'struct_declaration'
+        && n.type !== 'record_declaration' && n.type !== 'interface_declaration') continue;
+    const id = childField(n, 'name') || firstOfType(n, 'identifier');
+    if (id && !decls.has(id.text)) decls.set(id.text, n);
+  }
+  return decls;
 }
 
 // The C# receiver-type resolver. Mirrors the TS one: scope map from typed locals
@@ -1227,16 +1228,14 @@ function resolveTypesCSharp(root, callDetails) {
     }
   }
 
-  const enclosingClassName = () => {
-    const classes = [...projectTypes].filter((t) => csharpClassExists(root, t));
-    return classes.length === 1 ? classes[0] : null;
-  };
+  const decls = csharpTypeDecls(root);
+  const enclosingClass = projectTypes.size === 1 ? [...projectTypes][0] : null;
   const out = [];
   for (const cd of callDetails) {
     if (!cd.receiver) continue;
     let bind = null;
     if (cd.receiver === 'this') {
-      const cls = enclosingClassName();
+      const cls = enclosingClass;
       if (cls) bind = { type: cls, conf: CONF_THIS };
     } else if (scope.has(cd.receiver)) {
       bind = scope.get(cd.receiver);
@@ -1244,9 +1243,9 @@ function resolveTypesCSharp(root, callDetails) {
       bind = scope.get('this.' + cd.receiver);
     }
     if (!bind) continue;
-    if (classDeclaresMethodCSharp(root, bind.type, cd.callee)) {
+    if (classDeclaresMethodCSharp(decls, bind.type, cd.callee)) {
       out.push({ caller: cd.caller, callee: cd.callee, receiver: cd.receiver, qualified: `${bind.type}.${cd.callee}`, confidence: bind.conf });
-    } else if (!csharpClassExists(root, bind.type)) {
+    } else if (!projectTypes.has(bind.type)) {
       // Imported type — emit unconfirmed for cross-file method confirmation (see TS resolver).
       out.push({ caller: cd.caller, callee: cd.callee, receiver: cd.receiver, type: bind.type, qualified: `${bind.type}.${cd.callee}`, confidence: Math.max(0.6, bind.conf - 0.1), unconfirmed: true });
     }

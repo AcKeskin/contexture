@@ -1,9 +1,10 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, On, RenderElement, ResolveInput } from 'claude-code'
 
-import type { CodemapTree, CodemapView, FileChange, GitMark, GitView, Touch, TreeNode } from '../types'
+import type { CodemapTree, CodemapView, FileChange, GitMark, GitView, Touch, TourView, TreeNode } from '../types'
 import { filterFiles, parseCodemap, parseCodemapJson, relativePath, visibleRows, withUnmapped } from './codemap'
-import { parseGitStatus } from './git'
+import { parseGitStatus, parseNameList } from './git'
+import { foldersOf, parseTour } from './tour'
 import { card, chip, isRich, label } from './look'
 import { fillReply } from './reply'
 import { openWork, showTab } from './work-open'
@@ -15,8 +16,13 @@ const open = atom({ plugin: 'contexture-ui', key: 'open' } as const, [] as strin
 const touched = atom({ plugin: 'contexture-ui', key: 'touched' } as const, {} as Record<string, Touch>, {
   shape: 'touched-1',
 })
-const NO_GIT: GitView = { marks: {}, stale: [] }
-const git = atom({ plugin: 'contexture-ui', key: 'git' } as const, NO_GIT, { shape: 'git-1' })
+const NO_GIT: GitView = { marks: {}, stale: [], branch: [] }
+const git = atom({ plugin: 'contexture-ui', key: 'git' } as const, NO_GIT, { shape: 'git-2' })
+const NO_TOUR: TourView = { stops: [], mtimeMs: 0, isDraft: false }
+const tour = atom({ plugin: 'contexture-ui', key: 'tour' } as const, NO_TOUR, { shape: 'tour-1' })
+// The tour stop shown; null while the tour is closed.
+const tourStop = atom({ plugin: 'contexture-ui', key: 'tourStop' } as const, null as number | null, { shape: 'tour-stop-1' })
+const hasMapPage = atom({ plugin: 'contexture-ui', key: 'hasMapPage' } as const, false, { shape: 'map-page-1' })
 const isChangedOnly = atom({ plugin: 'contexture-ui', key: 'isChangedOnly' } as const, false, { shape: 'changedOnly-1' })
 const fileFilter = atom({ plugin: 'contexture-ui', key: 'fileFilter' } as const, '', { shape: 'file-filter-1' })
 // Same atoms as changes-tab.tsx's: keep the declarations alike.
@@ -30,6 +36,8 @@ const MAX_FOUND = 40
 const EDIT_TOOLS = ['Write', 'Edit', 'NotebookEdit'] as const
 // Files stat'ed for the stale mark, at most: a huge change set skips the rest.
 const MAX_STAT = 200
+// Where a branch starts, tried in order: the first that has a merge base with HEAD.
+const BASE_REFS = ['origin/HEAD', 'origin/main', 'origin/master', 'main', 'master']
 const GIT_COLOR: Record<GitMark, 'warning' | 'success' | 'error' | undefined> = {
   M: 'warning',
   R: 'warning',
@@ -38,10 +46,57 @@ const GIT_COLOR: Record<GitMark, 'warning' | 'success' | 'error' | undefined> = 
   D: 'error',
 }
 
-// Re-reads the codemap and the work tree's git status.
+// Re-reads the codemap, its tour and map page, and the work tree's git status.
 export async function loadCodemap($: EngineInterface): Promise<void> {
   await loadCodemapFile($)
+  await loadTour($)
+  await loadMapPage($)
   await loadGit($)
+}
+
+// visualise-codemap's tour. No file is a normal state (no tour drafted).
+async function loadTour($: EngineInterface): Promise<void> {
+  const path = `${await $.session.root()}/.claude/codemap.tour.json`
+  const stat = await $.fs.stat(path).catch(() => undefined)
+  const prior = await read($, tour)
+  if (!stat) {
+    if (prior.mtimeMs !== 0) await update($, tour, () => NO_TOUR)
+    return
+  }
+  if (stat.mtimeMs === prior.mtimeMs) return
+  try {
+    const parsed = parseTour(await $.fs.read(path))
+    await update($, tour, () => ({ ...parsed, mtimeMs: stat.mtimeMs }))
+  } catch (err) {
+    await update($, tour, () => ({ ...NO_TOUR, mtimeMs: stat.mtimeMs, error: `cannot read codemap.tour.json: ${String(err)}` }))
+  }
+  await update($, tourStop, () => null)
+}
+
+async function loadMapPage($: EngineInterface): Promise<void> {
+  const stat = await $.fs.stat(`${await $.session.root()}/.claude/codemap.html`).catch(() => undefined)
+  const isThere = stat !== undefined
+  if ((await read($, hasMapPage)) !== isThere) await update($, hasMapPage, () => isThere)
+}
+
+// Opens .claude/codemap.html with the system's handler for .html files.
+async function openMapPage($: EngineInterface): Promise<void> {
+  const root = await $.session.root()
+  const path = `${root}/.claude/codemap.html`
+  const isWindows = (await $.env.get('OS')) === 'Windows_NT'
+  try {
+    if (isWindows) {
+      // explorer exits 1 even when it opened the file, so its code says nothing.
+      await $.process.run(['explorer.exe', path.replace(/\//g, '\\')])
+    } else {
+      const uname = await $.process.run(['uname'])
+      const opener = uname.stdout.trim() === 'Darwin' ? 'open' : 'xdg-open'
+      const run = await $.process.run([opener, path])
+      if (run.exitCode !== 0) throw new Error(run.stderr.trim() || `${opener} exited ${run.exitCode}`)
+    }
+  } catch (err) {
+    await $.ui.toast(`Cannot open ${path}: ${String(err)}`)
+  }
 }
 
 // Re-parses the codemap when its mtime moved: codemap.json when update-codemap wrote
@@ -92,22 +147,39 @@ async function readGit($: EngineInterface, root: string, codemapMtime: number): 
   )
   if (status.exitCode !== 0) return NO_GIT
   const marks = parseGitStatus(status.stdout, prefix.stdout.trim(), status.isStdoutTruncated)
+  const branch = await readBranch($, root)
   const changed = Object.entries(marks)
     .filter(([, m]) => m !== 'D')
     .slice(0, MAX_STAT)
     .map(([path]) => path)
   const stats = await Promise.all(changed.map(path => $.fs.stat(`${root}/${path}`).catch(() => undefined)))
   const stale = changed.filter((_, i) => (stats[i]?.mtimeMs ?? 0) > codemapMtime)
-  return { marks, stale }
+  return { marks, stale, branch }
+}
+
+// Files changed since the branch left the default branch, committed or not,
+// relative to the session root. Deleted files are left out. None when no base
+// ref is found (a new repo, an odd remote name).
+async function readBranch($: EngineInterface, root: string): Promise<string[]> {
+  for (const ref of BASE_REFS) {
+    const base = await $.process.run(['git', 'merge-base', 'HEAD', ref], { cwd: root })
+    if (base.exitCode !== 0) continue
+    const diff = await $.process.run(
+      ['git', '--no-optional-locks', 'diff', '--name-only', '-z', '--relative', '--diff-filter=d', base.stdout.trim(), '--'],
+      { cwd: root },
+    )
+    return diff.exitCode === 0 ? parseNameList(diff.stdout, diff.isStdoutTruncated) : []
+  }
+  return []
 }
 
 // The tree with unmapped changed files, kept while the codemap and the
 // marks stay the same, so a redraw doesn't clone it.
-let merged: { tree?: CodemapTree; marks?: GitView['marks']; root?: TreeNode } = {}
+let merged: { tree?: CodemapTree; status?: GitView; root?: TreeNode } = {}
 
-function mergedRoot(tree: CodemapTree, marks: GitView['marks']): TreeNode {
-  if (merged.tree !== tree || merged.marks !== marks || !merged.root) {
-    merged = { tree, marks, root: withUnmapped(tree, Object.keys(marks)) }
+function mergedRoot(tree: CodemapTree, status: GitView): TreeNode {
+  if (merged.tree !== tree || merged.status !== status || !merged.root) {
+    merged = { tree, status, root: withUnmapped(tree, [...Object.keys(status.marks), ...status.branch]) }
   }
   return merged.root ?? tree.root
 }
@@ -182,19 +254,24 @@ export async function filesTab($: EngineInterface, e: ResolveInput<'Pane'>): Pro
   }
   const status = await read($, git)
   const changedOnly = await read($, isChangedOnly)
-  const root = mergedRoot(view.tree, status.marks)
+  const root = mergedRoot(view.tree, status)
   const rows = visibleRows(root, await read($, open), marks, {
     git: status.marks,
     stale: status.stale,
+    branch: status.branch,
     isChangedOnly: changedOnly,
   })
   const found = filterFiles(root, query, MAX_FOUND)
   const toggle = (key: string) => update($, open, list => (list.includes(key) ? list.filter(k => k !== key) : [...list, key]))
-  const changedCount = Object.keys(status.marks).length
+  const changedCount = new Set([...Object.keys(status.marks), ...status.branch]).size
+  const tourView = await read($, tour)
+  const at = await read($, tourStop)
+  const isMapPage = await read($, hasMapPage)
 
   return (
     <Box flexDirection="column">
       {touchedCard}
+      {tourCard()}
       <Box gap={1} alignItems="center">
         <Box flexGrow={1}>
           <Input
@@ -210,12 +287,14 @@ export async function filesTab($: EngineInterface, e: ResolveInput<'Pane'>): Pro
           label={changedOnly ? 'All files' : `Changed only (${changedCount})`}
           onPress={() => update($, isChangedOnly, v => !v)}
         />
+        {isMapPage ? <Button key="open-map" label="Open map" onPress={() => openMapPage($)} /> : null}
       </Box>
       <Box justifyContent="space-between" gap={1} marginTop={1}>
         {label(els, `ALL FILES · ${view.tree.fileCount}`)}
         <Text size="caption" dimColor>
           codemap {view.tree.updated || 'date unknown'}
           {status.stale.length > 0 ? <Text color="warning"> · {status.stale.length} newer</Text> : null}
+          {status.branch.length > 0 ? <Text color="merged"> · • {status.branch.length} in branch</Text> : null}
         </Text>
       </Box>
       {query.trim() !== '' ? (
@@ -249,6 +328,7 @@ export async function filesTab($: EngineInterface, e: ResolveInput<'Pane'>): Pro
               )}
               {row.touch && <Text color={row.touch === 'edit' ? 'warning' : 'suggestion'}>{row.touch === 'edit' ? '●' : '○'}</Text>}
               {row.isStale && <Text color="warning">⟳</Text>}
+              {row.isBranch && <Text color="merged">•</Text>}
               {row.detail !== '' && (
                 <Text dimColor wrap="truncate-end">
                   {row.detail}
@@ -260,6 +340,64 @@ export async function filesTab($: EngineInterface, e: ResolveInput<'Pane'>): Pro
       )}
     </Box>
   )
+
+  // Shows stop i and opens the folders that hold its file in the tree.
+  async function goToStop(i: number): Promise<void> {
+    const file = tourView.stops[i]?.file
+    if (file === undefined) return
+    await update($, tourStop, () => i)
+    await update($, open, list => [...new Set([...list, ...foldersOf(file)])])
+  }
+
+  // The guided tour as a list: the stop shown has its reason under it.
+  function tourCard(): RenderElement | null {
+    if (tourView.error) return <Text color="error">{tourView.error}</Text>
+    const { stops } = tourView
+    if (stops.length === 0) return null
+    const shown = at !== null && at < stops.length ? at : null
+    return (
+      <Box flexDirection="column" marginBottom={1} {...card(rich)}>
+        <Box justifyContent="space-between" gap={1}>
+          {label(els, `GUIDED TOUR · ${stops.length} ${stops.length === 1 ? 'STOP' : 'STOPS'}`)}
+          <Button
+            key="tour-toggle"
+            plain
+            label={shown === null ? 'Start' : 'Close'}
+            onPress={() => (shown === null ? goToStop(0) : update($, tourStop, () => null))}
+          />
+        </Box>
+        {tourView.isDraft ? <Text size="caption" dimColor>Draft: the reasons are not checked against the code yet.</Text> : null}
+        {shown === null
+          ? null
+          : stops.map((s, i) =>
+              i === shown ? (
+                <Box flexDirection="column">
+                  <Text color="suggestion" weight="semibold">
+                    ▸ {i + 1}. {s.title}
+                  </Text>
+                  <Text dimColor wrap="truncate-end">
+                    {'  '}
+                    {s.file}:{s.line}
+                  </Text>
+                  {s.why === '' ? null : <Text>{s.why}</Text>}
+                </Box>
+              ) : (
+                <Button key={`tour-${i}`} plain label={`${i + 1}. ${s.title}`} onPress={() => goToStop(i)} />
+              ),
+            )}
+        {shown === null ? null : (
+          <Box gap={1} marginTop={1}>
+            {shown > 0 ? <Button key="tour-prev" label="Previous" onPress={() => goToStop(shown - 1)} /> : null}
+            {shown < stops.length - 1 ? (
+              <Button key="tour-next" label="Next" onPress={() => goToStop(shown + 1)} />
+            ) : (
+              <Button key="tour-done" label="Done" onPress={() => update($, tourStop, () => null)} />
+            )}
+          </Box>
+        )}
+      </Box>
+    )
+  }
 
   async function showChange(path: string): Promise<void> {
     await update($, shownChange, () => path)

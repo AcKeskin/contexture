@@ -71,6 +71,28 @@ function tension(t) {
 </article>`;
 }
 
+// An export's code rows (arch-delta addCode): added lines green, removed red.
+const snip = (s) => (s.code?.length ? `<pre class="snip">${s.code.map((r) => `<span class="${r.c || 'ctx'}">${r.c === 'add' ? '+' : r.c === 'del' ? '−' : ' '} ${esc(r.t)}</span>`).join('')}</pre>` : '');
+
+// Architecture change (findings.json `architecture`): summary, diagram, then the ledger folded away.
+function architecture(a) {
+  if (!a) return '';
+  const code = (s) => `<code>${esc(s)}</code>`;
+  const rows = [
+    ...a.edges.filter((e) => !e.before).map((e) => `<li>New link ${code(e.from)} → ${code(e.to)} (${e.after})</li>`),
+    ...a.edges.filter((e) => !e.after).map((e) => `<li>Removed link ${code(e.from)} → ${code(e.to)} (was ${e.before})</li>`),
+    ...a.edges.filter((e) => e.before && e.after).map((e) => `<li>Link ${code(e.from)} → ${code(e.to)} ${e.before} to ${e.after}</li>`),
+    ...(a.cycles?.added || []).map((c) => `<li>New cycle ${c.map(code).join(' ↔ ')}</li>`),
+    ...(a.cycles?.removed || []).map((c) => `<li>Broken cycle ${c.map(code).join(' ↔ ')}</li>`),
+    ...(a.groups?.added || []).map((g) => `<li>New folder ${code(g)}</li>`),
+    ...(a.groups?.removed || []).map((g) => `<li>Folder gone ${code(g)}</li>`),
+    ...(a.surface?.added || []).map((s) => `<li>Export added ${code(loc(s))} ${esc(s.name)}${snip(s)}</li>`),
+    ...(a.surface?.removed || []).map((s) => `<li>Export removed ${code(s.file)} ${esc(s.name)}${snip(s)}</li>`),
+    ...(a.surface?.changed || []).map((s) => `<li>Export changed ${code(loc(s))} ${esc(s.name)}${snip(s)}</li>`),
+  ];
+  return `<h3>Architecture change</h3><p>${esc(a.summary)}</p>${a.mermaid ? mermaid([a.mermaid], `Folders ${a.depth || 2} levels deep, ${a.base || 'base'} → ${a.head || 'head'}. Green: new link. Red dashed: removed. Amber: count changed.`) : ''}${rows.length ? `<details><summary>What changed (${rows.length})</summary><ul>${rows.join('')}</ul></details>` : ''}`;
+}
+
 function filterGroup(label, group, values) {
   if (values.length < 2) return '';
   const chips = ['all', ...values].map((v, i) => `<button type="button" class="chip" data-group="${group}" data-value="${esc(v)}" aria-pressed="${i === 0}">${esc(v)}</button>`).join('');
@@ -102,7 +124,8 @@ function render(d, { artifact = false } = {}) {
   <p class="lede">${inline(d.pack?.summary || run.scope || '')}</p>
   ${d.metrics?.length ? `<div class="tiles">${d.metrics.map((m) => `<div class="tile"><span class="k">${esc(m.label)}</span><span class="v">${esc(m.value)}</span>${m.note ? `<span class="n">${inline(m.note)}</span>` : ''}${m.source ? `<span class="s">from ${esc(m.source)}</span>` : ''}</div>`).join('')}</div>` : ''}
   ${calls}
-  ${structure?.mermaid?.length ? `<h3>Where the change sits</h3>${mermaid(structure.mermaid.slice(0, 1))}` : ''}
+  ${structure?.mermaid?.length && !d.architecture?.mermaid ? `<h3>Where the change sits</h3>${mermaid(structure.mermaid.slice(0, 1))}` : ''}
+  ${architecture(d.architecture)}
   ${matrix}`]);
 
   pages.push(['findings', `Findings (${findings.length})`, findings.length
